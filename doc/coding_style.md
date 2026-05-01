@@ -101,8 +101,9 @@ failures.
 
 For parser declarations with several keyword arguments, align the keyword
 assignments so the option table remains easy to scan. Keep keyword arguments
-tight around `=` in these call tables; this does not apply to normal Python
-assignments, which should keep the usual `name = value` spacing:
+tight around `=` in these parser tables; this does not apply to normal Python
+assignments or general aligned call tables, which should keep the usual
+`name = value` spacing when aligned:
 
 ```python
 parser.add_argument("--init",    action="store_true", help="Initialize Git repositories.")
@@ -149,8 +150,10 @@ of parallel local mechanisms.
 For CSRs, prefer named `CSRField`s with descriptions when a register contains
 control/status bits or packed fields. This documents the software interface and
 lets hardware use `csr.fields.<name>` instead of numeric bit slices. Use
-`offset`, `size`, `reset`, `pulse` and `values` explicitly when they clarify
-the register layout or behavior. Simple full-width data registers can remain
+`size`, `reset`, `pulse` and `values` explicitly when they clarify the register
+layout or behavior. Specify `offset` when fields are sparse, reserved, or need
+fixed bit positions; omit it for sequential fields that can use the automatic
+incrementing offset allocation. Simple full-width data registers can remain
 plain `CSRStorage(width, description=...)` / `CSRStatus(width, description=...)`.
 In CSR declarations, align keyword arguments, especially `description=`, with
 the surrounding fields/registers. Do not pad immediately after the opening
@@ -159,7 +162,7 @@ columns with spaces before the keyword. Use only the spaces needed to align
 with the longest argument prefix in the local block; the longest line itself
 keeps a single space before `description=`. Keep CSR keyword arguments tight
 around `=`, while preserving normal Python assignment spacing outside CSR
-argument lists.
+argument lists and general aligned call tables.
 
 The HyperBus core is a good reference for CSR style: group related registers,
 describe each field, use `values` for enumerations and connect fields by name.

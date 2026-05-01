@@ -320,7 +320,7 @@ class Multiplexer(LiteXModule):
         self.comb += Case(self.sel, cases)
 
     def add_csr(self, sel_default=0):
-        self._sel = CSRStorage(len(self.sel), reset=sel_default)
+        self._sel = CSRStorage(len(self.sel), reset=sel_default, description="Selected multiplexer input.")
         self.comb += self.sel.eq(self._sel.storage)
 
 class Demultiplexer(LiteXModule):
@@ -344,7 +344,7 @@ class Demultiplexer(LiteXModule):
         self.comb += Case(self.sel, cases)
 
     def add_csr(self, sel_default=0):
-        self._sel = CSRStorage(len(self.sel), reset=sel_default)
+        self._sel = CSRStorage(len(self.sel), reset=sel_default, description="Selected demultiplexer output.")
         self.comb += self.sel.eq(self._sel.storage)
 
 class Crossbar(LiteXModule):
@@ -693,14 +693,14 @@ class Monitor(LiteXModule):
         self._reset = CSR()
         self._latch = CSR()
         if with_tokens:
-            self._tokens = CSRStatus(count_width)
+            self._tokens = CSRStatus(count_width, description="Number of transferred tokens.")
         if with_overflows:
-            self._overflows = CSRStatus(count_width)
+            self._overflows = CSRStatus(count_width, description="Number of monitor overflows.")
         if with_underflows:
-            self._underflows = CSRStatus(count_width)
+            self._underflows = CSRStatus(count_width, description="Number of monitor underflows.")
         if with_packets:
             assert packet_delimiter in ["first", "last"]
-            self._packets = CSRStatus(count_width)
+            self._packets = CSRStatus(count_width, description="Number of transferred packets.")
         self.reset = Signal() # Reset from logic (sys_clk).
         self.latch = Signal() # Latch from logic (sys_clk).
 

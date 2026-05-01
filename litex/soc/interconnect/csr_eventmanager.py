@@ -181,7 +181,7 @@ class EventManager(Module, AutoCSR):
             if desc is None:
                 desc = "This register contains the current raw level of the {} event trigger.  Writes to this register have no effect.".format(str(name))
             # Add CSRField
-            fields.append(CSRField(name=name, size=1, description=f"Level of the ``{name}`` event"))
+            fields.append(CSRField(name=name, size=1, description=f"Level of the ``{name}`` event."))
         self.status = CSRStatus(n, description=desc, fields=fields, name="status")
 
         # Pending Register
@@ -207,7 +207,7 @@ class EventManager(Module, AutoCSR):
             if desc is None:
                 desc = "This register enables the corresponding {} events.  Write a ``0`` to this register to disable individual events.".format(str(name))
             # Add CSRField
-            fields.append(CSRField(name=name, offset=i, description=f"Write a ``1`` to enable the ``{name}`` Event"))
+            fields.append(CSRField(name=name, size=1, description=f"Write a ``1`` to enable the ``{name}`` Event."))
         self.enable = CSRStorage(n, description=desc, fields=fields, name="enable")
 
         # Connect Events/Fields
