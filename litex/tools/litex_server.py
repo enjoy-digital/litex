@@ -172,7 +172,7 @@ class RemoteServer(EtherboneIPC):
     def start(self, nthreads):
         for i in range(nthreads):
             self.serve_thread = threading.Thread(target=self._serve_thread)
-            self.serve_thread.setDaemon(True)
+            self.serve_thread.daemon = True
             self.serve_thread.start()
 
 # Run ----------------------------------------------------------------------------------------------
@@ -209,16 +209,24 @@ def main():
     parser.add_argument("--usb",             action="store_true",    help="Select USB interface.")
     parser.add_argument("--usb-vid",         default=None,           help="Set USB vendor ID.")
     parser.add_argument("--usb-pid",         default=None,           help="Set USB product ID.")
-    parser.add_argument("--usb-max-retries", default=10,             help="Number of USB reconecting retries.")
+    parser.add_argument("--usb-max-retries", default=10,             help="Number of USB reconnecting retries.")
     args = parser.parse_args()
 
+    if args.udp_scan:
+        args.udp = True
+    interfaces          = ["uart", "jtag", "udp", "pcie", "usb"]
+    selected_interfaces = [name for name in interfaces if getattr(args, name)]
+    if len(selected_interfaces) == 0:
+        parser.error("select one interface: --uart, --jtag, --udp, --udp-scan, --pcie or --usb.")
+    if len(selected_interfaces) > 1:
+        parser.error("select only one interface (got: {}).".format(
+            ", ".join("--" + name for name in selected_interfaces)))
 
     # UART mode
     if args.uart:
         from litex.tools.remote.comm_uart import CommUART
         if args.uart_port is None:
-            print("Need to specify --uart-port, exiting.")
-            exit()
+            parser.error("--uart requires --uart-port.")
         uart_port = args.uart_port
         uart_baudrate = int(float(args.uart_baudrate))
         print("[CommUART] port: {} / baudrate: {} / ".format(uart_port, uart_baudrate), end="")
@@ -240,14 +248,15 @@ def main():
         udp_port = int(args.udp_port)
         if args.udp_scan:
             udp_ip = udp_ip.split(".")
-            assert len(udp_ip) == 4
+            if len(udp_ip) != 4:
+                parser.error("--udp-scan requires --udp-ip to contain four octets.")
             udp_ip[3] = "x"
             udp_ip = ".".join(udp_ip)
             comm = CommUDP(udp_ip, udp_port, debug=args.debug, addr_width=int(args.addr_width))
             comm.open(probe=False)
             comm.scan(udp_ip)
             comm.close()
-            exit()
+            return
         else:
             print("[CommUDP] ip: {} / port: {} / ".format(udp_ip, udp_port), end="")
             comm = CommUDP(udp_ip, udp_port, debug=args.debug, addr_width=int(args.addr_width))
@@ -257,8 +266,7 @@ def main():
         from litex.tools.remote.comm_pcie import CommPCIe
         pcie_bar = args.pcie_bar
         if pcie_bar is None:
-            print("Need to speficy --pcie-bar, exiting.")
-            exit()
+            parser.error("--pcie requires --pcie-bar.")
         print("[CommPCIe] bar: {} / ".format(pcie_bar), end="")
         comm = CommPCIe(pcie_bar, debug=args.debug)
 
@@ -266,8 +274,7 @@ def main():
     elif args.usb:
         from litex.tools.remote.comm_usb import CommUSB
         if args.usb_pid is None and args.usb_vid is None:
-            print("Need to speficy --usb-vid or --usb-pid, exiting.")
-            exit()
+            parser.error("--usb requires --usb-vid and/or --usb-pid.")
         print("[CommUSB] vid: {} / pid: {} / ".format(args.usb_vid, args.usb_pid), end="")
         pid = args.usb_pid
         if pid is not None:
@@ -276,10 +283,6 @@ def main():
         if vid is not None:
             vid = int(vid, base=0)
         comm = CommUSB(vid=vid, pid=pid, max_retries=args.usb_max_retries, debug=args.debug)
-
-    else:
-        parser.print_help()
-        exit()
 
     server = RemoteServer(comm, args.bind_ip, int(args.bind_port), addr_width=int(args.addr_width))
     server.open()
