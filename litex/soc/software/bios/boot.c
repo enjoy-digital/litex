@@ -473,11 +473,25 @@ void set_mac_addr(const char * mac_address)
 
 #endif
 
+static int json_token_to_string(char *dst, size_t dst_size, const char *json, jsmntok_t *token)
+{
+	int len;
+
+	if ((token->start < 0) || (token->end < token->start))
+		return 0;
+	len = token->end - token->start;
+	if (len >= (int)dst_size)
+		return 0;
+	memcpy(dst, json + token->start, len);
+	dst[len] = 0;
+	return 1;
+}
+
 static void netboot_from_json(const char * filename, unsigned int ip, unsigned short tftp_port)
 {
 	int size;
-	uint8_t i;
-	uint8_t count;
+	int i;
+	int count;
 
 	/* FIXME: modify/increase if too limiting */
 	char json_buffer[1024];
@@ -496,21 +510,28 @@ static void netboot_from_json(const char * filename, unsigned int ip, unsigned s
 	size = tftp_get(ip, tftp_port, filename, json_buffer);
 	if (size <= 0)
 		return;
+	if (size >= (int)sizeof(json_buffer))
+		size = sizeof(json_buffer) - 1;
+	json_buffer[size] = 0;
 
 	/* Parse JSON file */
 	jsmntok_t t[32];
 	jsmn_parser p;
 	jsmn_init(&p);
-	count = jsmn_parse(&p, json_buffer, strlen(json_buffer), t, sizeof(t)/sizeof(*t));
+	count = jsmn_parse(&p, json_buffer, size, t, sizeof(t)/sizeof(*t));
+	if (count < 0)
+		return;
 	for (i=0; i<count-1; i++) {
 		memset(json_name,   0, sizeof(json_name));
 		memset(json_value,  0, sizeof(json_value));
 		/* Elements are JSON strings with 1 children */
 		if ((t[i].type == JSMN_STRING) && (t[i].size == 1)) {
 			/* Get Element's filename */
-			memcpy(json_name, json_buffer + t[i].start, t[i].end - t[i].start);
+			if (!json_token_to_string(json_name, sizeof(json_name), json_buffer, &t[i]))
+				continue;
 			/* Get Element's address */
-			memcpy(json_value, json_buffer + t[i+1].start, t[i+1].end - t[i+1].start);
+			if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1]))
+				continue;
 			/* Skip bootargs (optional) */
 			if (strncmp(json_name, "bootargs", 8) == 0) {
 				continue;
@@ -522,7 +543,6 @@ static void netboot_from_json(const char * filename, unsigned int ip, unsigned s
 			}
 			/* Get boot r1 (optional) */
 			else if (strncmp(json_name, "r1", 2) == 0) {
-				memcpy(json_name, json_buffer + t[i].start, t[i].end - t[i].start);
 				boot_r1 = strtoul(json_value, NULL, 0);
 			}
 			/* Get boot r2 (optional) */
@@ -742,8 +762,8 @@ static void sdcardboot_from_json(const char * filename)
 	FATFS fs;
 	FIL file;
 
-	uint8_t i;
-	uint8_t count;
+	int i;
+	int count;
 	uint32_t length;
 	uint32_t result;
 
@@ -771,26 +791,33 @@ static void sdcardboot_from_json(const char * filename)
 		return;
 	}
 
-	fr = f_read(&file, json_buffer, sizeof(json_buffer), (UINT *) &length);
+	fr = f_read(&file, json_buffer, sizeof(json_buffer) - 1, (UINT *) &length);
 
 	/* Close JSON file */
 	f_close(&file);
 	f_mount(0, "", 0);
+	if (fr != FR_OK)
+		return;
+	json_buffer[length] = 0;
 
 	/* Parse JSON file */
 	jsmntok_t t[32];
 	jsmn_parser p;
 	jsmn_init(&p);
-	count = jsmn_parse(&p, json_buffer, strlen(json_buffer), t, sizeof(t)/sizeof(*t));
+	count = jsmn_parse(&p, json_buffer, length, t, sizeof(t)/sizeof(*t));
+	if (count < 0)
+		return;
 	for (i=0; i<count-1; i++) {
 		memset(json_name,   0, sizeof(json_name));
 		memset(json_value,  0, sizeof(json_value));
 		/* Elements are JSON strings with 1 children */
 		if ((t[i].type == JSMN_STRING) && (t[i].size == 1)) {
 			/* Get Element's filename */
-			memcpy(json_name, json_buffer + t[i].start, t[i].end - t[i].start);
+			if (!json_token_to_string(json_name, sizeof(json_name), json_buffer, &t[i]))
+				continue;
 			/* Get Element's address */
-			memcpy(json_value, json_buffer + t[i+1].start, t[i+1].end - t[i+1].start);
+			if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1]))
+				continue;
 			/* Skip bootargs (optional) */
 			if (strncmp(json_name, "bootargs", 8) == 0) {
 				continue;
@@ -802,7 +829,6 @@ static void sdcardboot_from_json(const char * filename)
 			}
 			/* Get boot r1 (optional) */
 			else if (strncmp(json_name, "r1", 2) == 0) {
-				memcpy(json_name, json_buffer + t[i].start, t[i].end - t[i].start);
 				boot_r1 = strtoul(json_value, NULL, 0);
 			}
 			/* Get boot r2 (optional) */
@@ -923,8 +949,8 @@ static void sataboot_from_json(const char * filename)
 	FATFS fs;
 	FIL file;
 
-	uint8_t i;
-	uint8_t count;
+	int i;
+	int count;
 	uint32_t length;
 	uint32_t result;
 
@@ -952,26 +978,33 @@ static void sataboot_from_json(const char * filename)
 		return;
 	}
 
-	fr = f_read(&file, json_buffer, sizeof(json_buffer), (UINT *) &length);
+	fr = f_read(&file, json_buffer, sizeof(json_buffer) - 1, (UINT *) &length);
 
 	/* Close JSON file */
 	f_close(&file);
 	f_mount(0, "", 0);
+	if (fr != FR_OK)
+		return;
+	json_buffer[length] = 0;
 
 	/* Parse JSON file */
 	jsmntok_t t[32];
 	jsmn_parser p;
 	jsmn_init(&p);
-	count = jsmn_parse(&p, json_buffer, strlen(json_buffer), t, sizeof(t)/sizeof(*t));
+	count = jsmn_parse(&p, json_buffer, length, t, sizeof(t)/sizeof(*t));
+	if (count < 0)
+		return;
 	for (i=0; i<count-1; i++) {
 		memset(json_name,   0, sizeof(json_name));
 		memset(json_value,  0, sizeof(json_value));
 		/* Elements are JSON strings with 1 children */
 		if ((t[i].type == JSMN_STRING) && (t[i].size == 1)) {
 			/* Get Element's filename */
-			memcpy(json_name, json_buffer + t[i].start, t[i].end - t[i].start);
+			if (!json_token_to_string(json_name, sizeof(json_name), json_buffer, &t[i]))
+				continue;
 			/* Get Element's address */
-			memcpy(json_value, json_buffer + t[i+1].start, t[i+1].end - t[i+1].start);
+			if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1]))
+				continue;
 			/* Skip bootargs (optional) */
 			if (strncmp(json_name, "bootargs", 8) == 0) {
 				continue;
@@ -983,7 +1016,6 @@ static void sataboot_from_json(const char * filename)
 			}
 			/* Get boot r1 (optional) */
 			else if (strncmp(json_name, "r1", 2) == 0) {
-				memcpy(json_name, json_buffer + t[i].start, t[i].end - t[i].start);
 				boot_r1 = strtoul(json_value, NULL, 0);
 			}
 			/* Get boot r2 (optional) */
