@@ -262,7 +262,8 @@ class SoCBusHandler(LiteXModule):
             # Else add Region.
             else:
                 if self.io_regions_check:
-                    io_region_name = self.check_region_overlap(region, self.io_regions)
+                    io_region_name = self.check_region_overlap(
+                        region, self.io_regions, check_linker=True)
                     if io_region_name is not None:
                         io_region = self.io_regions[io_region_name]
                         if not self.check_region_is_in(region, io_region):
@@ -330,7 +331,8 @@ class SoCBusHandler(LiteXModule):
                 # Create a Candidate.
                 candidate = SoCRegion(origin=origin, size=size, mode=mode, cached=cached, linker=linker)
                 overlap   = False
-                if cached and self.io_regions_check and self.check_region_overlap(candidate, self.io_regions):
+                if cached and self.io_regions_check and self.check_region_overlap(
+                    candidate, self.io_regions, check_linker=True):
                     origin += size
                     continue
                 # Check Candidate does not overlap with allocated existing regions.
@@ -364,9 +366,10 @@ class SoCBusHandler(LiteXModule):
             i += 1
         return None
 
-    def check_region_overlap(self, region, regions):
+    def check_region_overlap(self, region, regions, check_linker=False):
         for name, _region in regions.items():
-            if self.check_regions_overlap({"region": region, name: _region}) is not None:
+            if self.check_regions_overlap(
+                {"region": region, name: _region}, check_linker=check_linker) is not None:
                 return name
         return None
 
