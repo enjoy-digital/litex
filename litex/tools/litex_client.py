@@ -540,7 +540,7 @@ def run_gui(host, csr_csv, port):
                 with dpg.plot(label=f"VCCAux (V)"):
                     dpg.add_plot_axis(dpg.mvXAxis,  tag="vccaux_x")
                     with dpg.plot_axis(dpg.mvYAxis, tag="vccaux_y"):
-                        dpg.add_line_series([], [], label="vcaux", tag="vccaux")
+                        dpg.add_line_series([], [], label="vccaux", tag="vccaux")
                     dpg.set_axis_limits("vccaux_y", 0, 2.5)
                 # VCCBRAM.
                 with dpg.plot(label=f"VCCBRAM (V)"):
@@ -574,7 +574,6 @@ def run_gui(host, csr_csv, port):
                     ("vccint",   vccint),
                     ("vccbram", vccbram),
                     ("vccaux",   vccaux),
-                    ("vccint",   vccint),
                 ]:
                     datay = next(gen)
                     datax = list(range(len(datay)))
@@ -615,7 +614,7 @@ def run_gui(host, csr_csv, port):
 
             time.sleep(refresh)
 
-    timer_thread = threading.Thread(target=timer_callback)
+    timer_thread = threading.Thread(target=timer_callback, daemon=True)
     timer_thread.start()
 
     dpg.show_viewport()
