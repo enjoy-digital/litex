@@ -571,7 +571,7 @@ class SoCBusHandler(LiteXModule):
         no_name   = name   is None
         no_region = region is None
         if no_name and no_region:
-            self.logger.error("Please {} {} or/and {} of Bus Slave.".format(
+            self.logger.error("Please {} {} and/or {} of Bus Slave.".format(
                 colorer("specify", color="red"),
                 colorer("name"),
                 colorer("region")))
@@ -1095,7 +1095,7 @@ class SoC(LiteXModule):
     # SoC Helpers ----------------------------------------------------------------------------------
     def check_if_exists(self, name):
         if hasattr(self, name):
-            self.logger.error("{} SubModule already {}.".format(
+            self.logger.error("{} submodule already {}.".format(
                 colorer(name),
                 colorer("declared", color="red")))
             raise SoCError()
@@ -1116,7 +1116,7 @@ class SoC(LiteXModule):
 
     def check_bios_requirements(self):
         # Check for required Peripherals.
-        for periph in [ "timer0"]:
+        for periph in ["timer0"]:
             if periph not in self.csr.locs.keys():
                 self.logger.error("BIOS needs {} peripheral to be {}.".format(
                     colorer(periph),
@@ -1552,7 +1552,7 @@ class SoC(LiteXModule):
                     elif isinstance(module, EventManager):
                         ev = module
                     else:
-                        self.logger.error("EventManager {} in {} SubModule.".format(
+                        self.logger.error("EventManager {} in {} submodule.".format(
                             colorer("not found", color="red"),
                             colorer(name)))
                         raise SoCError()
@@ -1735,7 +1735,7 @@ class LiteXSoC(SoC):
         self.add_module(name=name,          module=uartbone)
         self.bus.add_master(name=name, master=uartbone.wishbone)
 
-    # Add JTAGbone ---------------------------------------------------------------------------------
+    # Add JTAGBone ---------------------------------------------------------------------------------
     def add_jtagbone(self, name="jtagbone", chain=1):
         # Imports.
         from litex.soc.cores import uart
@@ -2419,7 +2419,10 @@ class LiteXSoC(SoC):
         class LiteSDCard(LiteXModule):
             def __init__(self, soc, name="sdcard", mode="read+write", use_emulator=False):
                 # Checks.
-                assert mode in ["read", "write", "read+write"]
+                if mode not in ["read", "write", "read+write"]:
+                    soc.logger.error("SDCard {} {}: must be \"read\", \"write\" or \"read+write\".".format(
+                        colorer("mode"), colorer(mode, color="red")))
+                    raise SoCError()
 
                 # Emulator / Pads.
                 if use_emulator:

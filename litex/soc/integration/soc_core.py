@@ -238,7 +238,9 @@ class SoCCore(LiteXSoC):
 
         # Add UARTBone.
         if with_uartbone:
-            assert not (uart_name == "serial") # Mutually exclusive with default serial UART.
+            if uart_name == "serial":
+                self.logger.error("UARTBone cannot be used with default serial UART.")
+                raise SoCError()
             self.add_uartbone(name="uartbone",
                 baudrate              = uart_baudrate,
                 with_dynamic_baudrate = uart_with_dynamic_baudrate,
@@ -257,7 +259,9 @@ class SoCCore(LiteXSoC):
 
         # Add JTAGBone.
         if with_jtagbone:
-            assert not (uart_name == "jtag_uart") # Mutually exclusive with jtag_uart.
+            if uart_name == "jtag_uart":
+                self.logger.error("JTAGBone cannot be used with JTAG UART.")
+                raise SoCError()
             self.add_jtagbone(name="jtagbone", chain=jtagbone_chain)
 
         # Add Timer.

@@ -13,10 +13,9 @@
 
 
 import os
+import shutil
 import argparse
 import subprocess
-import struct
-import shutil
 
 from packaging.version import Version
 
@@ -25,7 +24,6 @@ from litex.gen import colorer
 
 from litex.build.tools import write_to_file
 
-from litex.soc.cores import cpu
 from litex.soc.integration import export, soc_core
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -211,7 +209,8 @@ class Builder:
 
         # Define BIOS variables.
         define("LTO", f"{self.bios_lto:d}")
-        assert self.bios_console in ["full", "no-history", "no-autocomplete", "lite", "disable"]
+        if self.bios_console not in ["full", "no-history", "no-autocomplete", "lite", "disable"]:
+            raise ValueError(f"Unsupported BIOS console: {self.bios_console}.")
         define(f"BIOS_CONSOLE_{self.bios_console.upper()}", "1")
 
         return "\n".join(variables_contents)
@@ -223,7 +222,7 @@ class Builder:
 
         # Integrate JSON files.
         self.soc.mem_regions.update(self._get_json_mem_regions())
-        self.soc.constants.update(  self._get_json_constants())
+        self.soc.constants.update(self._get_json_constants())
         self.soc.csr_regions.update(self._get_json_csr_regions())
 
         # Generate BIOS files when the SoC uses it.
@@ -310,12 +309,12 @@ class Builder:
 
     def _check_meson(self):
         # Check Meson install/version.
-        meson_present   = (shutil.which("meson") is not None)
-        meson_req = '0.59'
+        meson_present = (shutil.which("meson") is not None)
+        meson_req     = "0.59"
         if meson_present:
-            meson_version = subprocess.check_output(["meson", "-v"]).decode("utf-8")
-            if not Version(meson_version) >= Version(meson_req):
-                msg = f"Meson version to old. Found: {meson_version}. Required: {meson_req}.\n"
+            meson_version = subprocess.check_output(["meson", "-v"]).decode("utf-8").strip()
+            if Version(meson_version) < Version(meson_req):
+                msg = f"Meson version too old. Found: {meson_version}. Required: {meson_req}.\n"
                 msg += "Try updating with:\n"
                 msg += "- pip3 install -U meson.\n"
                 raise OSError(msg)
@@ -331,7 +330,7 @@ class Builder:
 
     def _generate_rom_software(self, compile_bios=True):
         # Compile all software packages.
-        cpu_count = os.cpu_count()
+        cpu_count = os.cpu_count() or 1
         for name, src_dir in self.software_packages:
             # Skip BIOS compilation when disabled.
             if name == "bios" and not compile_bios:
@@ -454,10 +453,11 @@ class Builder:
         return vns
 
     def get_bios_filename(self):
-         return os.path.join(self.software_dir, "bios", "bios.bin")
+        return os.path.join(self.software_dir, "bios", "bios.bin")
 
     def get_bitstream_filename(self, mode="sram", ext=None):
-        assert mode in ["sram", "flash"]
+        if mode not in ["sram", "flash"]:
+            raise ValueError(f"Unsupported bitstream mode: {mode}.")
         if ext is None:
             ext = self.soc.platform.get_bitstream_extension(mode)
         return os.path.join(self.gateware_dir, self.soc.get_build_name() + ext)
