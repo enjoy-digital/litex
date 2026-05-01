@@ -86,7 +86,7 @@ class GPIOTristate(_GPIOIRQ):
 
         self._oe  = CSRStorage(nbits, description="GPIO Tristate(s) Control.")
         self._in  = CSRStatus(nbits,  description="GPIO Input(s) Status.")
-        self._out = CSRStorage(nbits, description="GPIO Ouptut(s) Control.")
+        self._out = CSRStorage(nbits, description="GPIO Output(s) Control.")
 
         # # #
 

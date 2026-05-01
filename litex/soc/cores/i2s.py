@@ -5,6 +5,10 @@
 # Copyright (c) 2020 Antmicro <www.antmicro.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import math
+import warnings
+from enum import Enum
+
 from migen.genlib.cdc import MultiReg
 
 from litex.gen import *
@@ -14,8 +18,6 @@ from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr_eventmanager import *
 
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
-from enum import Enum
-import math
 
 from litex.soc.cores.ram.xilinx_fifo_sync_macro import FIFOSyncMacro
 
@@ -25,8 +27,13 @@ class I2S_FORMAT(Enum):
 
 class S7I2S(LiteXModule):
     def __init__(self, pads, fifo_depth=256, controller=False, master=False, concatenate_channels=True, sample_width=16, frame_format=I2S_FORMAT.I2S_LEFT_JUSTIFIED, lrck_ref_freq=100e6, lrck_freq=44100, bits_per_channel=28, document_interrupts=False, toolchain="vivado"):
-        if master == True:
-            print("Master/slave terminology deprecated, please use controller/peripheral. Please see http://oshwa.org/a-resolution-to-redefine-spi-signal-names.")
+        if master:
+            warnings.warn(
+                "Master/slave terminology deprecated, please use controller/peripheral. "
+                "Please see http://oshwa.org/a-resolution-to-redefine-spi-signal-names.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             controller = True
 
         self.intro = ModuleDoc("""Intro
@@ -36,10 +43,10 @@ class S7I2S(LiteXModule):
 
         When device is configured as controller you can manipulate LRCK and SCLK signals using below variables.
 
-        - lrck_ref_freq - is a reference signal that is required to achive desired LRCK and SCLK frequencies.
-                         Have be the same as your sys_clk.
+        - lrck_ref_freq - is a reference signal that is required to achieve desired LRCK and SCLK frequencies.
+                         Must be the same as your sys_clk.
         - lrck_freq - this variable defines requested LRCK frequency. Mind you, that based on sys_clk frequency,
-                         configured value will be more or less acurate.
+                         configured value will be more or less accurate.
         - bits_per_channel - defines SCLK frequency. Mind you, that based on sys_clk frequency,
                          the requested amount of bits per channel may vary from configured.
 
@@ -58,7 +65,7 @@ class S7I2S(LiteXModule):
         Sample width can be any of 1 to 32 bits.
 
         When sample_width is less than or equal to 16-bit and concatenate_channels is enabled,
-        sending and reciving channels is performed atomically. eg. both samples are transfered from/to fifo in single operation.
+        sending and receiving channels is performed atomically. e.g. both samples are transferred from/to fifo in single operation.
 
         System Interface
         ----------------

@@ -476,13 +476,14 @@ class UARTMultiplexer(LiteXModule):
 
 class UARTCrossover(UART):
     """
-    UART crossover trough Wishbone bridge.
+    UART crossover through Wishbone bridge.
 
     Creates a fully compatible UART that can be used by the CPU as a regular UART and adds a second
     UART, cross-connected to the main one to allow terminal emulation over a Wishbone bridge.
     """
     def __init__(self, **kwargs):
-        assert kwargs.get("phy", None) == None
+        if kwargs.get("phy", None) is not None:
+            raise ValueError("UARTCrossover does not support a custom PHY.")
         UART.__init__(self, **kwargs)
         self.xover = UART(tx_fifo_depth=1, rx_fifo_depth=16, rx_fifo_rx_we=True)
         self.comb += [
