@@ -655,8 +655,9 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
                 svd.append('                            <bitRange>[{}:{}]</bitRange>'.format(
                     field.offset + field.size - 1, field.offset))
                 svd.append('                            <lsb>{}</lsb>'.format(field.offset))
-                svd.append('                            <description><![CDATA[{}]]></description>'.format(
-                    reflow(field.description)))
+                if field.description is not None:
+                    svd.append('                            <description><![CDATA[{}]]></description>'.format(
+                        reflow(field.description)))
                 svd.append('                        </field>')
         else:
             field_size = csr.size

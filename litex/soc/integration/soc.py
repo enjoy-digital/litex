@@ -2620,7 +2620,7 @@ class LiteXSoC(SoC):
         with_dma_monitor              = False,
         with_dma_status               = False, status_width=32,
         with_dma_table                = True,
-        with_msi                      = True, msi_type="msi", msi_width=32, msis={},
+        with_msi                      = True, msi_type="msi", msi_width=32, msis=None,
         dma_name_prefix               = None,
         msi_name                      = None,
         map_dma_irqs                  = True,
@@ -2679,7 +2679,7 @@ class LiteXSoC(SoC):
             self.add_module(name=msi_name, module=msi)
             if msi_type in ["msi", "msi-multi-vector"]:
                 self.comb += msi.source.connect(phy.msi)
-            self.msis = msis
+            self.msis = dict(msis or {})
 
         # DMAs.
         def _pcie_dma_depth(depth, index, default=None):
