@@ -320,8 +320,9 @@ class SoCBusHandler(LiteXModule):
         # Iterate on Search_Regions to find a Candidate.
         size_pow2 = 2**log2_int(size, False)
         for _, search_region in search_regions.items():
-            origin = search_region.origin
-            while (origin + size) <= (search_region.origin + search_region.size_pow2):
+            origin       = search_region.origin
+            search_limit = search_region.origin + search_region.size
+            while (origin + size_pow2) <= search_limit:
                 # Align Origin on Size.
                 if (origin%size_pow2):
                     origin += (size_pow2 - origin%size_pow2)
@@ -384,6 +385,48 @@ class SoCBusHandler(LiteXModule):
                 is_io = True
         return is_io
 
+    # Interface Helpers ---------------------------------------------------------------------------
+    def _get_axi_id_width(self):
+        id_widths = [
+            interface.id_width for interface in list(self.masters.values()) + list(self.slaves.values())
+            if isinstance(interface, axi.AXIInterface)
+        ]
+        return max(id_widths, default=1)
+
+    def _get_interface_args(self, interface, data_width=None, address_width=None, addressing=None):
+        args = {
+            "data_width"    : interface.data_width if data_width    is None else data_width,
+            "address_width" : interface.address_width if address_width is None else address_width,
+            "addressing"    : interface.addressing if addressing    is None else addressing,
+            "bursting"      : getattr(interface, "bursting", False),
+            "mode"          : interface.mode,
+        }
+        if hasattr(interface, "clock_domain"):
+            args["clock_domain"] = interface.clock_domain
+        if isinstance(interface, axi.AXIInterface):
+            args.update({
+                "version"       : interface.version,
+                "id_width"      : interface.id_width,
+                "aw_user_width" : interface.aw.user_width,
+                "w_user_width"  : interface.w.user_width,
+                "b_user_width"  : interface.b.user_width,
+                "ar_user_width" : interface.ar.user_width,
+                "r_user_width"  : interface.r.user_width,
+            })
+        return args
+
+    def _check_axi_id_widths(self):
+        if self.standard != "axi":
+            return
+        id_width = self._get_axi_id_width()
+        for name, slave in self.slaves.items():
+            if isinstance(slave, axi.AXIInterface) and slave.id_width < id_width:
+                self.logger.error("{} AXI Slave ID width ({}) smaller than Bus ID width ({}).".format(
+                    colorer(name, color="red"),
+                    colorer(slave.id_width),
+                    colorer(id_width)))
+                raise SoCError()
+
     # Add Master/Slave -----------------------------------------------------------------------------
     def add_adapter(self, name, interface, direction="m2s"):
         if direction not in ["m2s", "s2m"]:
@@ -402,24 +445,7 @@ class SoCBusHandler(LiteXModule):
                     axi.AXILiteInterface : axi.AXILiteConverter,
                     axi.AXIInterface     : axi.AXIConverter,
                 }[interface_cls]
-                args = {
-                    "data_width"    : self.data_width,
-                    "address_width" : self.address_width,
-                    "addressing"    : interface.addressing,
-                    "bursting"      : interface.bursting,
-                    "mode"          : interface.mode,
-                }
-                if isinstance(interface, axi.AXIInterface):
-                    args.update({
-                        "version"       : interface.version,
-                        "id_width"      : interface.id_width,
-                        "aw_user_width" : interface.aw.user_width,
-                        "w_user_width"  : interface.w.user_width,
-                        "b_user_width"  : interface.b.user_width,
-                        "ar_user_width" : interface.ar.user_width,
-                        "r_user_width"  : interface.r.user_width,
-                    })
-                adapted_interface = interface_cls(**args)
+                adapted_interface = interface_cls(**self._get_interface_args(interface, data_width=self.data_width))
 
                 if direction == "m2s":
                     master, slave = interface, adapted_interface
@@ -440,12 +466,10 @@ class SoCBusHandler(LiteXModule):
             # Different Addressing: Return adapted interface.
             else:
                 interface_cls = type(interface)
-                adapted_interface = interface_cls(
+                adapted_interface = interface_cls(**self._get_interface_args(interface,
                     data_width    = self.data_width,
                     address_width = self.address_width,
-                    addressing    = self.addressing,
-                    mode          = interface.mode,
-                )
+                    addressing    = self.addressing))
                 address_shift = log2_int(interface.data_width//8)
                 if direction == "m2s":
                     self.comb += interface.connect(adapted_interface, omit={"adr"})
@@ -473,12 +497,13 @@ class SoCBusHandler(LiteXModule):
                 return interface
             # Different Bus-Standard: Return adapted interface.
             else:
-                adapted_interface = main_bus_cls(
+                args = self._get_interface_args(interface,
                     data_width    = self.data_width,
                     address_width = self.address_width,
-                    addressing    = self.addressing,
-                    mode          = interface.mode,
-                )
+                    addressing    = self.addressing)
+                if main_bus_cls is axi.AXIInterface:
+                    args["id_width"] = self._get_axi_id_width()
+                adapted_interface = main_bus_cls(**args)
                 if direction == "m2s":
                     master, slave = interface, adapted_interface
                 elif direction == "s2m":
@@ -530,12 +555,7 @@ class SoCBusHandler(LiteXModule):
             axi.AXIInterface     : axi.AXIRemapper,
         }[interface_cls]
 
-        adapted_interface = interface_cls(
-            data_width    = interface.data_width,
-            address_width = interface.address_width,
-            addressing    = interface.addressing,
-            mode          = interface.mode,
-        )
+        adapted_interface = interface_cls(**self._get_interface_args(interface))
 
         self.submodules += remapper_cls(interface, adapted_interface, origin, size)
 
@@ -558,12 +578,7 @@ class SoCBusHandler(LiteXModule):
             axi.AXIInterface     : axi.AXIOffset,
         }[interface_cls]
 
-        adapted_interface = interface_cls(
-            data_width    = interface.data_width,
-            address_width = interface.address_width,
-            addressing    = interface.addressing,
-            mode          = interface.mode,
-        )
+        adapted_interface = interface_cls(**self._get_interface_args(interface))
 
         self.submodules += offset_cls(adapted_interface, interface, offset)
 
@@ -589,6 +604,7 @@ class SoCBusHandler(LiteXModule):
             master = self.add_remapper(name, master, region.origin, region.size)
         master = self.add_adapter(name, master, "m2s")
         self.masters[name] = master
+        self._check_axi_id_widths()
         self.logger.info("{} {} as Bus Master.".format(
             colorer(name,    color="underline"),
             colorer("added", color="green")))
@@ -626,6 +642,7 @@ class SoCBusHandler(LiteXModule):
             slave = self.add_offset(name, slave, self.regions[name].origin)
         slave = self.add_adapter(name, slave, "s2m")
         self.slaves[name] = slave
+        self._check_axi_id_widths()
         self.logger.info("{} {} as Bus Slave.".format(
             colorer(name, color="underline"),
             colorer("added", color="green")))
