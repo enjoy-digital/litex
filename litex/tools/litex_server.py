@@ -119,7 +119,7 @@ class RemoteServer(EtherboneIPC):
                         packet = self.receive_packet(client_socket, self.addr_width // 8)
                         if packet == 0:
                             break
-                    except:
+                    except Exception:
                         break
                     # Decode Packet.
                     packet = EtherbonePacket(self.addr_width, packet)
@@ -133,37 +133,38 @@ class RemoteServer(EtherboneIPC):
                         time.sleep(0.01)
                     self.lock = True
 
-                    # Handle Etherbone writes.
-                    if record.writes != None:
-                        self.comm.write(record.writes.base_addr, record.writes.get_datas())
+                    try:
+                        # Handle Etherbone writes.
+                        if record.writes != None:
+                            self.comm.write(record.writes.base_addr, record.writes.get_datas())
 
-                    # Handle Etherbone reads.
-                    if record.reads != None:
-                        max_length = {
-                            "CommUART": 256,
-                            "CommUDP":    1,
-                        }.get(self.comm.__class__.__name__, 1)
-                        bursts = {
-                            "CommUART": ["incr", "fixed"]
-                        }.get(self.comm.__class__.__name__, ["incr"])
-                        reads = []
-                        for addr, length, burst in _read_merger(record.reads.get_addrs(),
-                            max_length  = max_length,
-                            bursts      = bursts):
-                            reads += self.comm.read(addr, length, burst)
+                        # Handle Etherbone reads.
+                        if record.reads != None:
+                            max_length = {
+                                "CommUART": 256,
+                                "CommUDP":    1,
+                            }.get(self.comm.__class__.__name__, 1)
+                            bursts = {
+                                "CommUART": ["incr", "fixed"]
+                            }.get(self.comm.__class__.__name__, ["incr"])
+                            reads = []
+                            for addr, length, burst in _read_merger(record.reads.get_addrs(),
+                                max_length  = max_length,
+                                bursts      = bursts):
+                                reads += self.comm.read(addr, length, burst)
 
-                        addr_size = self.addr_width // 8
-                        record = EtherboneRecord(addr_size)
-                        record.writes = EtherboneWrites(addr_size=addr_size, datas=reads)
-                        record.wcount = len(record.writes)
+                            addr_size = self.addr_width // 8
+                            record = EtherboneRecord(addr_size)
+                            record.writes = EtherboneWrites(addr_size=addr_size, datas=reads)
+                            record.wcount = len(record.writes)
 
-                        packet = EtherbonePacket(self.addr_width)
-                        packet.records = [record]
-                        packet.encode()
-                        self.send_packet(client_socket, packet)
-
-                    # Release hardware lock.
-                    self.lock = False
+                            packet = EtherbonePacket(self.addr_width)
+                            packet.records = [record]
+                            packet.encode()
+                            self.send_packet(client_socket, packet)
+                    finally:
+                        # Release hardware lock.
+                        self.lock = False
 
             finally:
                 print("Disconnect")
