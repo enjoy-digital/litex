@@ -183,10 +183,9 @@ def _run_sim(build_name, as_root=False, interactive=True):
         r = subprocess.call(["bash", run_script_file])
         if r != 0:
             raise OSError("Subprocess failed")
-    except:
-        pass
-    if sys.platform != "win32" and interactive:
-        termios.tcsetattr(sys.stdin.fileno(), termios.TCSAFLUSH, termios_settings)
+    finally:
+        if sys.platform != "win32" and interactive:
+            termios.tcsetattr(sys.stdin.fileno(), termios.TCSAFLUSH, termios_settings)
 
 
 class SimVerilatorToolchain:
