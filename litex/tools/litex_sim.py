@@ -153,6 +153,8 @@ class Platform(SimPlatform):
 # Simulation SoC -----------------------------------------------------------------------------------
 
 class SimSoC(SoCCore):
+    supported_ethernet_phy_models = ["sim", "xgmii", "gmii"]
+
     def __init__(self,
         with_sdram             = False,
         with_sdram_bist        = False,
@@ -246,7 +248,7 @@ class SimSoC(SoCCore):
             elif ethernet_phy_model == "gmii":
                 self.ethphy = LiteEthPHYGMII(None, self.platform.request("gmii_eth", 0), model=True)
             else:
-                raise ValueError("Unknown Ethernet PHY model:", ethernet_phy_model)
+                raise ValueError("Unknown Ethernet PHY model: {}.".format(ethernet_phy_model))
 
         # Etherbone with optional Ethernet ---------------------------------------------------------
         if with_etherbone:
@@ -443,11 +445,11 @@ def sim_args(parser):
     parser.add_argument("--sdram-verbosity",      default=0,               help="Set SDRAM checker verbosity.")
 
     # Ethernet /Etherbone.
-    parser.add_argument("--with-ethernet",        action="store_true",     help="Enable Ethernet support.")
-    parser.add_argument("--ethernet-phy-model",   default="sim",           help="Ethernet PHY to simulate (sim, xgmii or gmii).")
-    parser.add_argument("--with-etherbone",       action="store_true",     help="Enable Etherbone support.")
-    parser.add_argument("--local-ip",             default="192.168.1.50",  help="Local IP address of SoC.")
-    parser.add_argument("--remote-ip",            default="192.168.1.100", help="Remote IP address of TFTP server.")
+    parser.add_argument("--with-ethernet",      action="store_true",                                         help="Enable Ethernet support.")
+    parser.add_argument("--ethernet-phy-model", default="sim", choices=SimSoC.supported_ethernet_phy_models, help="Ethernet PHY to simulate.")
+    parser.add_argument("--with-etherbone",     action="store_true",                                         help="Enable Etherbone support.")
+    parser.add_argument("--local-ip",           default="192.168.1.50",                                      help="Local IP address of SoC.")
+    parser.add_argument("--remote-ip",          default="192.168.1.100",                                     help="Remote IP address of TFTP server.")
 
     # SDCard.
     parser.add_argument("--with-sdcard",          action="store_true",     help="Enable SDCard support.")
@@ -485,6 +487,9 @@ def main():
     parser.set_platform(SimPlatform)
     sim_args(parser)
     args = parser.parse_args()
+
+    if args.with_sdram and args.integrated_main_ram_size is None and args.ram_init is not None:
+        parser.error("--ram-init cannot be used with --with-sdram; use --sdram-init.")
 
     soc_kwargs = soc_core_argdict(args)
 
@@ -541,7 +546,6 @@ def main():
     elif args.with_sdram:
         from litedram.modules   import parse_spd_hexdump
 
-        assert args.ram_init is None
         soc_kwargs["sdram_module"]     = args.sdram_module
         soc_kwargs["sdram_data_width"] = int(args.sdram_data_width)
         soc_kwargs["sdram_verbosity"]  = int(args.sdram_verbosity)
