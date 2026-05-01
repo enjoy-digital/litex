@@ -124,7 +124,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         """
         self._logging_group = self.add_argument_group(title="Logging options")
         self._logging_group.add_argument("--log-filename", default=None,   help="Logging filename.")
-        self._logging_group.add_argument("--log-level",    default="info", help="Logging level: debug, info (default), warning error or critical.")
+        self._logging_group.add_argument("--log-level",    default="info", choices=["debug", "info", "warning", "error", "critical"], help="Logging level.")
 
     def set_defaults(self, **kwargs):
         """
