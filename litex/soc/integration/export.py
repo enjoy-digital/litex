@@ -443,8 +443,10 @@ def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_c
         r += "\n"
         r += "#if LITEX_CSR_ACCESS_FUNCTIONS\n"
         for name, region in regions.items():
-            origin = _get_csr_region_origin(region, _csr_base)
-            r += _generate_csr_region_access_functions_c(name, region, origin, alignment, csr_ordering, csr_base, with_csr_base_define)
+            origin          = _get_csr_region_origin(region, _csr_base)
+            region_ordering = getattr(region, "ordering", None) or csr_ordering
+            r += _generate_csr_region_access_functions_c(
+                name, region, origin, alignment, region_ordering, csr_base, with_csr_base_define)
         r += "#endif /* LITEX_CSR_ACCESS_FUNCTIONS */\n"
 
     # CSR Registers Field Access Functions.
@@ -561,12 +563,13 @@ def get_csr_json(soc=None, csr_regions=None, constants=None, mem_regions=None):
                 _type = "rw"
                 if isinstance(csr, CSRStatus) and not hasattr(csr, "r"):
                     _type = "ro"
+                csr_origin = _get_csr_origin(csr, region_origin)
                 d["csr_registers"][name + "_" + csr.name] = {
-                    "addr": region_origin,
+                    "addr": csr_origin,
                     "size": _size,
                     "type": _type
                 }
-                region_origin += alignment//8*_size
+                region_origin = csr_origin + alignment//8*_size
 
     # Get Constants.
     for name, value in constants.items():
@@ -592,10 +595,11 @@ class MockCSR:
         self.origin    = origin
 
 class MockCSRRegion:
-    def __init__(self, origin, obj):
-        self.origin  = origin
-        self.obj     = obj
-        self.busword = 32
+    def __init__(self, origin, obj, busword=32, ordering=None):
+        self.origin   = origin
+        self.obj      = obj
+        self.busword  = busword
+        self.ordering = ordering
 
 def _parse_json_int(value):
     if isinstance(value, str):
@@ -604,6 +608,17 @@ def _parse_json_int(value):
 
 def _get_csr_origin(csr, origin):
     return origin if getattr(csr, "origin", None) is None else csr.origin
+
+def _get_json_constant(config_data, name, default=None):
+    constants = config_data.get("constants", {})
+    for key, value in constants.items():
+        if key.lower() == name.lower():
+            return value
+    return default
+
+def _has_json_constant(config_data, name):
+    constants = config_data.get("constants", {})
+    return any(key.lower() == name.lower() for key in constants)
 
 def load_csr_json(filename, origin=0, name=""):
     if len(name):
@@ -615,6 +630,12 @@ def load_csr_json(filename, origin=0, name=""):
     # Load CSR Regions.
     csr_bases     = config_data.get("csr_bases", {})
     csr_registers = config_data.get("csr_registers", {})
+    csr_busword   = _parse_json_int(_get_json_constant(config_data, "config_csr_data_width", 32))
+    csr_ordering  = None
+    if _has_json_constant(config_data, "config_csr_ordering_little"):
+        csr_ordering = "little"
+    if _has_json_constant(config_data, "config_csr_ordering_big"):
+        csr_ordering = "big"
     csr_names     = {region_name: [] for region_name in csr_bases}
     region_names  = sorted(csr_bases, key=len, reverse=True)
     for csr_name, info in csr_registers.items():
@@ -623,17 +644,22 @@ def load_csr_json(filename, origin=0, name=""):
             if csr_name.startswith(prefix):
                 csr_origin = origin + _parse_json_int(info["addr"]) if "addr" in info else None
                 csr_names[region_name].append(MockCSR(
-                    name   = csr_name[len(prefix):],
-                    nwords = info["size"],
-                    type   = info.get("type", "rw"),
-                    origin = csr_origin,
+                    name    = csr_name[len(prefix):],
+                    nwords  = info["size"],
+                    type    = info.get("type", "rw"),
+                    busword = csr_busword,
+                    origin  = csr_origin,
                 ))
                 break
 
     csr_regions = {}
     for region_name, addr in csr_bases.items():
         csr_names[region_name].sort(key=lambda csr: _get_csr_origin(csr, 0))
-        csr_regions[name + region_name] = MockCSRRegion(origin + _parse_json_int(addr), csr_names[region_name])
+        csr_regions[name + region_name] = MockCSRRegion(
+            origin + _parse_json_int(addr), csr_names[region_name],
+            busword = csr_busword,
+            ordering = csr_ordering,
+        )
 
     # Load Constants.
     constants = {(name + const_name).upper(): value for const_name, value in config_data.get("constants", {}).items()}
@@ -738,7 +764,8 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
         documented_regions.append(DocumentedCSRRegion(
             name           = region_name,
             region         = region,
-            csr_data_width = soc.csr.data_width)
+            csr_data_width = soc.csr.data_width,
+            csr_ordering   = soc.csr.ordering)
         )
 
     svd = []
