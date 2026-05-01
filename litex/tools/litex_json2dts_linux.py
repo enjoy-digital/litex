@@ -414,7 +414,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     # Interrupt Controller -------------------------------------------------------------------------
 
     if (cpu_family == "riscv") and "clint" in d["memories"]:
-        # FIXME  : L4 definitiion?
+        # FIXME  : L4 definition?
         # CHECKME: interrupts-extended.
         dts += """
             lintc0: clint@{clint_base:x} {{
@@ -1007,7 +1007,7 @@ def main():
     parser.add_argument("csr_json", help="CSR JSON file")
     parser.add_argument("--initrd-start", type=int,            help="Location of initrd in RAM (relative, default depends on CPU).")
     parser.add_argument("--initrd-size",  type=int,            help="Size of initrd (default=8MB).")
-    parser.add_argument("--initrd",       type=str,            help="Supports arguments 'enabled', 'disabled' or a file name. Set to 'disabled' if you use a kernel built in rootfs or have your rootfs on an SD card partition. If a file name is provied the size of the file will be used instead of --initrd-size. (default=enabled).")
+    parser.add_argument("--initrd",       type=str,            help="Supports arguments 'enabled', 'disabled' or a file name. Set to 'disabled' if you use a kernel built in rootfs or have your rootfs on an SD card partition. If a file name is provided the size of the file will be used instead of --initrd-size. (default=enabled).")
     parser.add_argument("--root-device",  type=str,            help="Device that has our rootfs, if using initrd use the default. For SD card's use something like mmcblk0p3. (default=ram0).")
     parser.add_argument("--polling",      action="store_true", help="Force polling mode on peripherals.")
     args = parser.parse_args()
