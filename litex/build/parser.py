@@ -191,7 +191,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
 
         # When platform is None try to search for a user input
         if self._platform is None:
-            platform = self.get_value_from_key("--platform", None)
+            platform = self.get_value_from_key("--platform", None, args)
             if platform is None: # no user selection: try default
                 platform = self.get_default_value_from_actions("platform", None)
             if platform is not None:
@@ -212,13 +212,13 @@ class LiteXArgumentParser(argparse.ArgumentParser):
 
         # Intercept selected toolchain to fill arguments.
         if self._platform is not None:
-            self._toolchain = self.get_value_from_key("--toolchain", self._default_toolchain)
+            self._toolchain = self.get_value_from_key("--toolchain", self._default_toolchain, args)
             if self._toolchain is not None:
                 self._platform.fill_args(self._toolchain, self)
 
         # Intercept selected CPU to fill arguments.
         default_cpu_type = self._args_default.get("cpu_type", None)
-        cpu_cls = cpu.CPUS.get(self.get_value_from_key("--cpu-type", default_cpu_type))
+        cpu_cls = cpu.CPUS.get(self.get_value_from_key("--cpu-type", default_cpu_type, args))
         if cpu_cls is not None and hasattr(cpu_cls, "args_fill"):
             cpu_cls.args_fill(self)
 
@@ -254,31 +254,33 @@ class LiteXArgumentParser(argparse.ArgumentParser):
 
         return self._args
 
-    def get_value_from_key(self, key, default=None):
+    def get_value_from_key(self, key, default=None, args=None):
         """
-        search key into sys.argv
+        search key into provided args or sys.argv
 
         Parameters
         ==========
         key: str
             key to search
         default: str
-            default value when key is not in sys.argv
+            default value when key is not found
+        args: list
+            optional argument list to search instead of sys.argv
 
         Return
         ======
-            sys.argv corresponding value or default
+            corresponding value or default
         """
-        value = None
-        try:
-            index = [i for i, item in enumerate(sys.argv) if key in item][0]
-            if '=' in sys.argv[index]:
-                value = sys.argv[index].split('=')[1]
-            else:
-                value = sys.argv[index+1]
-        except IndexError:
-            value = default
-        return value
+        args = sys.argv[1:] if args is None else list(args)
+        for n, arg in enumerate(args):
+            if arg == key:
+                try:
+                    return args[n + 1]
+                except IndexError:
+                    return default
+            if arg.startswith(key + "="):
+                return arg.split("=", 1)[1]
+        return default
 
     def get_default_value_from_actions(self, key, default=None):
         """
