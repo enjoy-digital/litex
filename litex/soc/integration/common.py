@@ -38,8 +38,10 @@ def get_mem_regions(filename_or_regions, offset):
     return regions
 
 def get_mem_data(filename_or_regions, data_width=32, endianness="big", mem_size=None, offset=0):
-    assert data_width % 32 == 0
-    assert endianness in ["big", "little"]
+    if data_width % 32:
+        raise ValueError("data_width must be a multiple of 32.")
+    if endianness not in ["big", "little"]:
+        raise ValueError("endianness must be big or little.")
 
     # Return empty list if no filename or regions.
     if filename_or_regions is None:
@@ -57,7 +59,8 @@ def get_mem_data(filename_or_regions, data_width=32, endianness="big", mem_size=
         if base < offset:
             raise ValueError("file base address is below offset: 0x{:08x} < 0x{:08x}".format(base, offset))
         data_size = max(base + os.path.getsize(filename) - offset, data_size)
-    assert data_size > 0
+    if data_size <= 0:
+        raise ValueError("memory data is empty.")
     if mem_size is not None:
         if data_size > mem_size:
             raise ValueError("file is too big: {}/{} bytes".format(data_size, mem_size))

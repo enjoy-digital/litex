@@ -148,7 +148,9 @@ class Builder:
     def add_software_library(self, name):
         self.software_libraries.append(name)
 
-    def add_json(self, filename, origin=0, name="", exclude_constants=["_INTERRUPT"]):
+    def add_json(self, filename, origin=0, name="", exclude_constants=None):
+        if exclude_constants is None:
+            exclude_constants = ["_INTERRUPT"]
         self.jsons.append((filename, origin, name, exclude_constants))
 
     def _get_json_mem_regions(self):
@@ -448,7 +450,9 @@ class Builder:
             from litex.soc.doc import generate_docs
             doc_dir = os.path.join(self.output_dir, "doc")
             generate_docs(self.soc, doc_dir)
-            os.system(f"sphinx-build -M html {doc_dir} {doc_dir}/_build")
+            subprocess.check_call([
+                "sphinx-build", "-M", "html", doc_dir, os.path.join(doc_dir, "_build")
+            ])
 
         return vns
 

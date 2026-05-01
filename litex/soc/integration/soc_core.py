@@ -41,7 +41,8 @@ __all__ = [
 
 def mem_decoder(address, size=0x10000000):
     size = 2**log2_int(size, False)
-    assert (address & (size - 1)) == 0
+    if (address & (size - 1)) != 0:
+        raise ValueError("address must be aligned on size.")
     address >>= 2 # bytes to words aligned
     size    >>= 2 # bytes to words aligned
     return lambda a: (a[log2_int(size):] == (address >> log2_int(size)))
@@ -80,15 +81,15 @@ class SoCCore(LiteXSoC):
         # ROM parameters.
         integrated_rom_size        = 0,
         integrated_rom_mode        = "rx",
-        integrated_rom_init        = [],
+        integrated_rom_init        = None,
 
         # SRAM parameters.
         integrated_sram_size       = 0x2000,
-        integrated_sram_init       = [],
+        integrated_sram_init       = None,
 
         # MAIN_RAM parameters.
         integrated_main_ram_size   = 0,
-        integrated_main_ram_init   = [],
+        integrated_main_ram_init   = None,
 
         # CSR parameters.
         csr_data_width             = 32,
@@ -169,6 +170,12 @@ class SoCCore(LiteXSoC):
         self.cpu_variant  = cpu_variant
         if cpu_cfu is None:
             cpu_cfu = cfu_filename
+        if integrated_rom_init is None:
+            integrated_rom_init = []
+        if integrated_sram_init is None:
+            integrated_sram_init = []
+        if integrated_main_ram_init is None:
+            integrated_main_ram_init = []
 
         # ROM.
         # Initialize ROM from binary file when supported and provided.

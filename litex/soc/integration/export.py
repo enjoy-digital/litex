@@ -56,7 +56,8 @@ def get_cpu_mak(cpu, compile_software):
         # Default to gcc unless told otherwise.
         if clang is None:
             clang = False
-    assert isinstance(clang, bool)
+    if not isinstance(clang, bool):
+        raise TypeError("clang must be a bool.")
     if clang:
         triple = cpu.clang_triple
         flags = cpu.clang_flags
@@ -518,7 +519,13 @@ def get_i2c_header(i2c_init_values):
 
 # JSON Export / Import  ----------------------------------------------------------------------------
 
-def get_csr_json(soc=None, csr_regions={}, constants={}, mem_regions={}):
+def get_csr_json(soc=None, csr_regions=None, constants=None, mem_regions=None):
+    if csr_regions is None:
+        csr_regions = {}
+    if constants is None:
+        constants = {}
+    if mem_regions is None:
+        mem_regions = {}
     alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
 
     d = {
@@ -633,7 +640,13 @@ def load_csr_json(filename, origin=0, name=""):
 
 # CSV Export --------------------------------------------------------------------------------------
 
-def get_csr_csv(soc=None, csr_regions={}, constants={}, mem_regions={}):
+def get_csr_csv(soc=None, csr_regions=None, constants=None, mem_regions=None):
+    if csr_regions is None:
+        csr_regions = {}
+    if constants is None:
+        constants = {}
+    if mem_regions is None:
+        mem_regions = {}
     d = json.loads(get_csr_json(soc, csr_regions, constants, mem_regions))
     r = generated_banner("#")
     for name, value in d["csr_bases"].items():

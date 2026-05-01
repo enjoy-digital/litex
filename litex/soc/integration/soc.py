@@ -41,19 +41,27 @@ def build_time(with_time=True):
 
 def add_ip_address_constants(soc, name, ip_address, check_duplicate=True):
     _ip_address = ip_address.split(".")
-    assert len(_ip_address) == 4
+    if len(_ip_address) != 4:
+        raise ValueError("IP address must contain four octets.")
     for n in range(4):
-        assert int(_ip_address[n]) < 256
-        soc.add_constant(f"{name}{n+1}", int(_ip_address[n]), check_duplicate=check_duplicate)
+        octet = int(_ip_address[n])
+        if not 0 <= octet < 256:
+            raise ValueError("IP address octets must be between 0 and 255.")
+        soc.add_constant(f"{name}{n+1}", octet, check_duplicate=check_duplicate)
 
 def add_mac_address_constants(soc, name, mac_address, check_duplicate=True):
     if isinstance(mac_address, str):
         _mac_address = mac_address.split(":")
-        assert len(_mac_address) == 6
+        if len(_mac_address) != 6:
+            raise ValueError("MAC address must contain six octets.")
         for n in range(6):
-            soc.add_constant(f"{name}{n+1}", int(_mac_address[n], 16), check_duplicate=check_duplicate)
+            octet = int(_mac_address[n], 16)
+            if not 0 <= octet < 256:
+                raise ValueError("MAC address octets must be between 0 and 255.")
+            soc.add_constant(f"{name}{n+1}", octet, check_duplicate=check_duplicate)
     else:
-        assert mac_address < 2**48
+        if not 0 <= mac_address < 2**48:
+            raise ValueError("MAC address must fit in 48 bits.")
         for n in range(6):
             soc.add_constant(f"{name}{n+1}", (mac_address >> ((5 - n) * 8)) & 0xff, check_duplicate=check_duplicate)
 
@@ -144,10 +152,12 @@ class SoCBusHandler(LiteXModule):
         timeout          = 1e6,
         bursting         = False,
         interconnect     = "shared", interconnect_register=True,
-        reserved_regions = {}
+        reserved_regions = None,
     ):
         self.logger = logging.getLogger(name)
         self.logger.info("Creating Bus Handler...")
+        if reserved_regions is None:
+            reserved_regions = {}
 
         # Check Bus Standard.
         if standard not in self.supported_standard:
@@ -376,7 +386,8 @@ class SoCBusHandler(LiteXModule):
 
     # Add Master/Slave -----------------------------------------------------------------------------
     def add_adapter(self, name, interface, direction="m2s"):
-        assert direction in ["m2s", "s2m"]
+        if direction not in ["m2s", "s2m"]:
+            raise ValueError("direction must be m2s or s2m.")
 
         # Bus-Data-Width conversion helper.
         def bus_data_width_convert(interface, direction):
@@ -792,10 +803,12 @@ class SoCCSRHandler(SoCLocHandler):
     supported_ordering      = ["big", "little"]
 
     # Creation -------------------------------------------------------------------------------------
-    def __init__(self, data_width=32, address_width=14, alignment=32, paging=0x800, ordering="big", reserved_csrs={}):
+    def __init__(self, data_width=32, address_width=14, alignment=32, paging=0x800, ordering="big", reserved_csrs=None):
         SoCLocHandler.__init__(self, "CSR", n_locs=alignment//8*(2**address_width)//paging)
         self.logger = logging.getLogger("SoCCSRHandler")
         self.logger.info("Creating CSR Handler...")
+        if reserved_csrs is None:
+            reserved_csrs = {}
 
         # Check CSR Data Width.
         if data_width not in self.supported_data_width:
@@ -946,10 +959,12 @@ class SoCCSRHandler(SoCLocHandler):
 
 class SoCIRQHandler(SoCLocHandler):
     # Creation -------------------------------------------------------------------------------------
-    def __init__(self, n_irqs=32, reserved_irqs={}):
+    def __init__(self, n_irqs=32, reserved_irqs=None):
         SoCLocHandler.__init__(self, "IRQ", n_locs=n_irqs)
         self.logger = logging.getLogger("SoCIRQHandler")
         self.logger.info("Creating IRQ Handler...")
+        if reserved_irqs is None:
+            reserved_irqs = {}
         self.enabled = False
 
         # Check IRQ Number.
@@ -1035,16 +1050,16 @@ class SoC(LiteXModule):
         bus_timeout          = 1e6,
         bus_bursting         = False,
         bus_interconnect     = "shared",
-        bus_reserved_regions = {},
+        bus_reserved_regions = None,
 
         csr_data_width       = 32,
         csr_address_width    = 14,
         csr_paging           = 0x800,
         csr_ordering         = "big",
-        csr_reserved_csrs    = {},
+        csr_reserved_csrs    = None,
 
         irq_n_irqs           = 32,
-        irq_reserved_irqs    = {},
+        irq_reserved_irqs    = None,
         ):
         # Create logging config only if not already configured.
         if not len(logging.root.handlers):
