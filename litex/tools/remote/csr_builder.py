@@ -124,7 +124,7 @@ class CSRBuilder:
             if group == "constant":
                 try:
                     d[name] = int(value)
-                except:
+                except ValueError:
                     d[name] = value
         return CSRElements(d)
 

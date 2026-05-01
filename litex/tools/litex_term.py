@@ -751,7 +751,7 @@ class LiteXTerm:
                     self.port.write(ansi_seq)
                 else:
                     self.port.write(b)
-        except:
+        except Exception:
             self.writer_alive = False
             self.console.unconfigure()
             raise

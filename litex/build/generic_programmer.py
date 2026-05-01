@@ -55,7 +55,7 @@ class GenericProgrammer:
                     with open(fullname, "wb") as f:
                         f.write(r.content)
                     return fullname
-            except:
+            except requests.RequestException:
                 pass
         raise OSError("Failed to find flash proxy bitstream")
 
@@ -79,7 +79,7 @@ class GenericProgrammer:
                     with open(fullname, "wb") as f:
                         f.write(r.content)
                     return fullname
-            except:
+            except requests.RequestException:
                 pass
         raise OSError("Failed to find config file")
 

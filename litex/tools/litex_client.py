@@ -367,7 +367,7 @@ def run_gui(host, csr_csv, port):
                     if (tag == name):
                         try:
                             reg.write(int(data, 0))
-                        except:
+                        except ValueError:
                             pass
             for name, reg in bus.regs.__dict__.items():
                 dpg.add_input_text(

@@ -160,13 +160,14 @@ else:
 def get_litex_git_revision():
     import litex
     d = os.getcwd()
-    os.chdir(os.path.dirname(litex.__file__))
     try:
+        os.chdir(os.path.dirname(litex.__file__))
         r = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"],
                 stderr=subprocess.DEVNULL)[:-1].decode("utf-8")
-    except:
+    except (OSError, subprocess.CalledProcessError):
         r = "--------"
-    os.chdir(d)
+    finally:
+        os.chdir(d)
     return r
 
 def generated_separator(line_comment="//", msg=""):
