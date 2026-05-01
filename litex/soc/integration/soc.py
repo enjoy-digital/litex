@@ -975,8 +975,8 @@ class SoCController(LiteXModule):
     def __init__(self, with_reset=True, with_scratch=True, with_errors=True):
         if with_reset:
             self._reset = CSRStorage(fields=[
-                CSRField("soc_rst", size=1, offset=0, pulse=True, description="""Write `1` to this register to reset the full SoC (Pulse Reset)"""),
-                CSRField("cpu_rst", size=1, offset=1,             description="""Write `1` to this register to reset the CPU(s) of the SoC (Hold Reset)"""),
+                CSRField("soc_rst", size=1, pulse=True, description="Write ``1`` to reset the full SoC (pulse reset)."),
+                CSRField("cpu_rst", size=1,             description="Write ``1`` to reset the CPU(s) of the SoC (hold reset)."),
             ])
         if with_scratch:
             self._scratch = CSRStorage(32, reset=0x12345678, description="""
@@ -1717,7 +1717,7 @@ class LiteXSoC(SoC):
         else:
             self.add_constant("UART_POLLING", check_duplicate=False)
 
-    # Add UARTbone ---------------------------------------------------------------------------------
+    # Add UARTBone ---------------------------------------------------------------------------------
     def add_uartbone(self, name="uartbone", uart_name="serial", clk_freq=None, baudrate=115200, cd="sys", with_dynamic_baudrate=False):
         # Imports.
         from litex.soc.cores import uart

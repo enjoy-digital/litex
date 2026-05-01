@@ -110,7 +110,7 @@ def get_cpu_mak(cpu, compile_software):
     #if (not clang) and ("riscv" in selected_triple):
     #   flags = apply_riscv_zicsr_march_workaround(flags)
 
-    # Return informations.
+    # Return information.
     return [
         ("TRIPLE",        selected_triple),
         ("CPU",           cpu.name),

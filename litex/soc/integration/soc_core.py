@@ -307,17 +307,17 @@ def soc_core_args(parser):
     soc_group.add_argument("--cpu-cfu",                  default=None,                       help="Optional CPU CFU file/instance to add to the CPU.")
 
     # Controller parameters.
-    soc_group.add_argument("--no-ctrl",                  action="store_true",                help="Disable Controller.")
+    soc_group.add_argument("--no-ctrl",                  action="store_true",                help="Disable controller.")
 
     # ROM parameters.
-    soc_group.add_argument("--integrated-rom-size",      default=0x20000,     type=auto_int, help="Size/Enable the integrated (BIOS) ROM (Automatically resized to BIOS size when smaller).")
+    soc_group.add_argument("--integrated-rom-size",      default=0x20000,     type=auto_int, help="Size/enable the integrated (BIOS) ROM (automatically resized to BIOS size when smaller).")
     soc_group.add_argument("--integrated-rom-init",      default=None,        type=str,      help="Integrated ROM binary initialization file (override the BIOS when specified).")
 
     # SRAM parameters.
-    soc_group.add_argument("--integrated-sram-size",     default=0x2000,      type=auto_int, help="Size/Enable the integrated SRAM.")
+    soc_group.add_argument("--integrated-sram-size",     default=0x2000,      type=auto_int, help="Size/enable the integrated SRAM.")
 
     # MAIN_RAM parameters.
-    soc_group.add_argument("--integrated-main-ram-size", default=None,        type=auto_int, help="size/enable the integrated main RAM.")
+    soc_group.add_argument("--integrated-main-ram-size", default=None,        type=auto_int, help="Size/enable the integrated main RAM.")
 
     # CSR parameters.
     soc_group.add_argument("--csr-data-width",           default=32,          type=auto_int, help="CSR bus data-width (8 or 32).")
@@ -336,15 +336,15 @@ def soc_core_args(parser):
     soc_group.add_argument("--uart-fifo-depth",          default=16,          type=auto_int, help="UART FIFO depth.")
 
     # UARTBone parameters.
-    soc_group.add_argument("--with-uartbone",            action="store_true",                help="Enable UARTbone.")
+    soc_group.add_argument("--with-uartbone",            action="store_true",                help="Enable UARTBone.")
 
     # JTAGBone parameters.
-    soc_group.add_argument("--with-jtagbone",            action="store_true",                help="Enable Jtagbone support.")
-    soc_group.add_argument("--jtagbone-chain",           default=1, type=int,                help="Jtagbone chain index.")
+    soc_group.add_argument("--with-jtagbone",            action="store_true",                help="Enable JTAGBone support.")
+    soc_group.add_argument("--jtagbone-chain",           default=1,          type=int,       help="JTAGBone chain index.")
 
     # Timer parameters.
-    soc_group.add_argument("--no-timer",                 action="store_true",                help="Disable Timer.")
-    soc_group.add_argument("--timer-uptime",             action="store_true",                help="Add an uptime capability to Timer.")
+    soc_group.add_argument("--no-timer",                 action="store_true",                help="Disable timer.")
+    soc_group.add_argument("--timer-uptime",             action="store_true",                help="Add an uptime capability to timer.")
 
     # Watchdog parameters.
     soc_group.add_argument("--with-watchdog",            action="store_true",                help="Enable Watchdog.")
