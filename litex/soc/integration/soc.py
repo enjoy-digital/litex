@@ -83,6 +83,10 @@ class SoCRegion:
         self.logger    = logging.getLogger("SoCRegion")
         self.origin    = origin
         self.decode    = decode
+        if not isinstance(size, int):
+            raise ValueError("Region size must be an integer.")
+        if size <= 0:
+            raise ValueError("Region size must be positive.")
         self.size      = size
         if size != 2**log2_int(size, False):
             self.logger.info("Region size {} internally from {} to {}.".format(
