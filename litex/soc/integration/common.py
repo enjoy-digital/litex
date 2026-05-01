@@ -7,9 +7,7 @@
 import os
 import math
 import json
-import time
 import struct
-import datetime
 
 from migen import *
 
@@ -24,13 +22,12 @@ def get_mem_regions(filename_or_regions, offset):
             raise OSError(f"Unable to find {filename} memory content file.")
         _, ext = os.path.splitext(filename)
         if ext == ".json":
-            f = open(filename, "r")
-            _regions = json.load(f)
+            with open(filename, "r") as f:
+                _regions = json.load(f)
             # .json
             regions = dict()
             for k, v in _regions.items():
                 regions[os.path.join(os.path.dirname(filename), k)] = v
-            f.close()
         else:
             regions = {filename: f"{offset:08x}"}
     return regions
@@ -54,9 +51,8 @@ def get_mem_data(filename_or_regions, data_width=32, endianness="big", mem_size=
         data_size = max(int(base, 16) + os.path.getsize(filename) - offset, data_size)
     assert data_size > 0
     if mem_size is not None:
-        assert data_size < mem_size, (
-            "file is too big: {}/{} bytes".format(
-             data_size, mem_size))
+        if data_size > mem_size:
+            raise ValueError("file is too big: {}/{} bytes".format(data_size, mem_size))
 
     # Fill data.
     bytes_per_data = data_width//8
@@ -85,9 +81,7 @@ def get_mem_data(filename_or_regions, data_width=32, endianness="big", mem_size=
 
 def get_boot_address(filename_or_regions, offset=0):
     # Create memory regions.
-    regions = get_mem_regions(filename_or_regions, offset)
-
-    print(regions)
+    regions = dict(get_mem_regions(filename_or_regions, offset))
 
     # Boot on last region.
     filename, base = regions.popitem()

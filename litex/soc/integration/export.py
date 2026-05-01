@@ -157,7 +157,7 @@ def get_mem_header(regions):
         r += "#endif\n\n"
 
     r += "#ifndef MEM_REGIONS\n"
-    r += "#define MEM_REGIONS \"";
+    r += "#define MEM_REGIONS \""
     name_length = max([len(name) for name in regions.keys()])
     for name, region in regions.items():
         r += f"{name.upper()} {' '*(name_length-len(name))} 0x{region.origin:08x} 0x{region.size:x} \\n"
@@ -372,7 +372,7 @@ def _generate_csr_field_accessors_c(name, csr, field):
 def _generate_csr_field_functions_c(csr, name):
     field_funcs = ""
     for field in csr.fields.fields:
-            field_funcs += _generate_csr_field_accessors_c(name, csr, field)
+        field_funcs += _generate_csr_field_accessors_c(name, csr, field)
     return field_funcs
 
 def _generate_csr_fields_access_functions_c(name, region, origin, alignment, csr_base, with_csr_base_define):
@@ -526,7 +526,7 @@ def get_csr_json(soc=None, csr_regions={}, constants={}, mem_regions={}):
             try:
                 core_inst = getattr(soc, name)
                 d["cores"][name] = core_inst.__class__.__name__
-            except AttributeError as e:
+            except AttributeError:
                 pass
         d["csr_bases"][name] = region.origin
         region_origin = region.origin
@@ -574,7 +574,7 @@ def load_csr_json(filename, origin=0, name=""):
     if len(name):
         name += "_"
     # Read File.
-    with open(filename, 'r') as json_file:
+    with open(filename, "r") as json_file:
         config_data = json.load(json_file)
 
     # Load CSR Regions.

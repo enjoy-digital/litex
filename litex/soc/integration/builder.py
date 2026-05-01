@@ -180,9 +180,9 @@ class Builder:
             k = k.replace("-", "_")
             try:
                 variables_contents.append("{}={}".format(k, _makefile_escape(v)))
-            except AttributeError as e:
-                print(colorer(f"problem with {k}:", 'red'))
-                raise e
+            except AttributeError:
+                print(colorer(f"problem with {k}:", "red"))
+                raise
 
         # Define packages and libraries.
         define("PACKAGES",     " ".join(name    for name, src_dir in self.software_packages))
