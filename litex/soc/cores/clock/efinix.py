@@ -26,8 +26,7 @@ class EFINIXPLL(LiteXModule):
         elif version == "V3":
             self.type = "TITANIUMPLL"
         else:
-            self.logger.error("PLL version {} not supported".format(version))
-            quit()
+            raise ValueError("PLL version {} not supported.".format(version))
 
         self.logger.info("Creating {}".format(colorer(self.type, color="green")))
         self.platform   = platform
@@ -73,11 +72,10 @@ class EFINIXPLL(LiteXModule):
             #sdc = self.platform.toolchain.additional_sdc_commands
             #sdc.append(tpl.format(clk=block["input_clock_name"], period=1/freq))
 
-            try:
-                (pll_res, clock_no) = self.platform.parser.get_pll_inst_from_pin(pad_name)
-            except:
-                self.logger.error("Cannot find a pll with {} as input".format(pad_name))
-                quit()
+            pll_inst = self.platform.parser.get_pll_inst_from_pin(pad_name)
+            if pll_inst is None:
+                raise OSError("Cannot find a PLL with {} as input.".format(pad_name))
+            pll_res, clock_no = pll_inst
 
             block["input_clock"]     = "EXTERNAL" if not lvds_input else "LVDS_RX"
             block["input_clock_pad"] = pin_name
@@ -93,8 +91,7 @@ class EFINIXPLL(LiteXModule):
             elif clkin is not None:
                 input_signal = clkin.name_override
             else:
-                self.logger.error("No clkin name nor clkin provided, can't continue")
-                quit()
+                raise ValueError("No clkin name nor clkin provided.")
             block["input_clock"]  = "INTERNAL" if self.type == "TITANIUMPLL" else "CORE"
             block["resource"]     = self.platform.get_free_pll_resource()
             block["input_signal"] = input_signal

@@ -365,7 +365,8 @@ class SPICtrl(LiteXModule):
             self.slot_controls.append(control)
 
     def get_ctrl(self, name, slot=None, cs=None):
-        assert not ((slot is None) and (cs is None))
+        if slot is None and cs is None:
+            raise ValueError("SPICtrl.get_ctrl() requires a slot or chip-select signal.")
         if cs is None:
             cs = Signal(self.nslots)
             self.comb += cs.eq(1<<slot)
@@ -649,7 +650,8 @@ class SPIMMAP(LiteXModule):
         rx_fifo_depth = 32,
     ):
         nslots = len(pads.cs_n)
-        assert nslots <= _nslots_max
+        if nslots > _nslots_max:
+            raise ValueError("SPIMMAP supports up to {} chip-select slots.".format(_nslots_max))
 
         # Ctrl (Control/Status/IRQ) ----------------------------------------------------------------
 

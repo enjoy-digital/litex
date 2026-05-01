@@ -165,7 +165,7 @@ class BlackParrot(CPU):
                     vdir = os.path.expandvars(line).strip()
                     platform.add_source(vdir, "systemverilog")
                 elif (temp[0] == '/'):
-                    assert("No support for absolute path for now")
+                    raise NotImplementedError("BlackParrot source lists do not support absolute paths yet.")
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")

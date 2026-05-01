@@ -41,8 +41,10 @@ class WishboneDMAReader(LiteXModule):
         Source for MMAP word results from reading.
     """
     def __init__(self, bus, endianness="little", fifo_depth=16, with_csr=False):
-        assert isinstance(bus, wishbone.Interface)
-        assert "r" in bus.mode
+        if not isinstance(bus, wishbone.Interface):
+            raise TypeError("DMAReader requires a Wishbone bus.")
+        if "r" not in bus.mode:
+            raise ValueError("DMAReader requires a readable Wishbone bus.")
         self.bus    = bus
         self.sink   = sink   = stream.Endpoint([("address", bus.adr_width, ("last", 1))])
         self.source = source = stream.Endpoint([("data",    bus.data_width)])
@@ -155,8 +157,10 @@ class WishboneDMAWriter(LiteXModule):
         Sink for MMAP addresses/datas to be written.
     """
     def __init__(self, bus, endianness="little", with_csr=False):
-        assert isinstance(bus, wishbone.Interface)
-        assert "w" in bus.mode
+        if not isinstance(bus, wishbone.Interface):
+            raise TypeError("DMAWriter requires a Wishbone bus.")
+        if "w" not in bus.mode:
+            raise ValueError("DMAWriter requires a writable Wishbone bus.")
         self.bus  = bus
         self.sink = sink = stream.Endpoint([("address", bus.adr_width), ("data", bus.data_width)])
 

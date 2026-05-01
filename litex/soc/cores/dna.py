@@ -24,9 +24,10 @@ class XilinxDNA(LiteXModule):
         # # #
 
         # Parameters check.
-        assert nbits      <= 256
-        assert clk_divider > 1
-        assert math.log2(clk_divider).is_integer()
+        if nbits > 256:
+            raise ValueError("Xilinx DNA width must be <= 256 bits.")
+        if clk_divider <= 1 or not math.log2(clk_divider).is_integer():
+            raise ValueError("Xilinx DNA clock divider must be a power of two > 1.")
 
         # Create slow DNA Clk.
         self.cd_dna = ClockDomain()

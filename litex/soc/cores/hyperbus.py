@@ -566,8 +566,10 @@ class HyperRAM(LiteXModule):
         # -----------
         self.pads      = pads
         self.clk_ratio = clk_ratio
-        assert latency_mode in ["fixed", "variable"]
-        assert clk_ratio    in ["4:1", "2:1"]
+        if latency_mode not in ["fixed", "variable"]:
+            raise ValueError("Unsupported HyperRAM latency mode: {}.".format(latency_mode))
+        if clk_ratio not in ["4:1", "2:1"]:
+            raise ValueError("Unsupported HyperRAM clock ratio: {}.".format(clk_ratio))
 
         # PHY.
         # ----

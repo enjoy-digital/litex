@@ -40,8 +40,16 @@ def check_required_modules(required_modules):
     for module_name, install_hint in required_modules.items():
         try:
             importlib.import_module(module_name)
-        except Exception:
-            missing.append((module_name, install_hint))
+        except ModuleNotFoundError as e:
+            if e.name == module_name or module_name.startswith((e.name or "") + "."):
+                missing.append((module_name, install_hint))
+            else:
+                raise
+        except ImportError as e:
+            if getattr(e, "name", None) == module_name:
+                missing.append((module_name, install_hint))
+            else:
+                raise
 
     if len(missing):
         lines = ["Missing Python dependencies for Amaranth integration:"]

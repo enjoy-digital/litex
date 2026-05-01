@@ -215,7 +215,7 @@ class S7I2S(LiteXModule):
             self.ev.rx_error = EventSourcePulse(description="Indicates an Rx error has happened (over/underflow)")
         if hasattr(pads, 'tx'):
             self.ev.tx_ready = EventSourcePulse(description="Indicates enough space available for next Tx quanta of {} words".format(fifo_depth))
-            self.ev.tx_error = EventSourcePulse(description="Indicates a Tx error has happened (over/underflow")
+            self.ev.tx_error = EventSourcePulse(description="Indicates a Tx error has happened (over/underflow)")
         self.ev.finalize()
 
         # build the RX subsystem

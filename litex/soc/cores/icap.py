@@ -91,9 +91,10 @@ class ICAP(LiteXModule):
         # # #
 
         # Parameters check.
-        assert primitive in ["ICAPE2", "ICAPE3"]
-        assert clk_divider > 1
-        assert math.log2(clk_divider).is_integer()
+        if primitive not in ["ICAPE2", "ICAPE3"]:
+            raise ValueError("Unsupported ICAP primitive: {}.".format(primitive))
+        if clk_divider <= 1 or not math.log2(clk_divider).is_integer():
+            raise ValueError("ICAP clock divider must be a power of two > 1.")
 
         # Create slow ICAP Clk.
         self.cd_icap = ClockDomain()
@@ -240,9 +241,9 @@ class ICAP(LiteXModule):
     def add_csr(self):
         self._addr  = CSRStorage(5,  reset_less=True, description="ICAP Address.")
         self._data  = CSRStorage(32, reset_less=True, description="ICAP Write/Read Data.", write_from_dev=True)
-        self._write = CSRStorage(description="ICAP Control.\n\n Write ``1`` send a write to the ICAP.")
+        self._write = CSRStorage(description="ICAP Control.\n\n Write ``1`` to send a write to the ICAP.")
         self._done  = CSRStatus(reset=1, description="ICAP Status.\n\n Write command done when read as ``1``.")
-        self._read  = CSRStorage(description="ICAP Control.\n\n Read ``1`` send a read from the ICAP.")
+        self._read  = CSRStorage(description="ICAP Control.\n\n Write ``1`` to issue a read from the ICAP.")
 
         self.comb += [
             self.addr.eq(self._addr.storage),
