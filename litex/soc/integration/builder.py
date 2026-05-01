@@ -175,6 +175,14 @@ class Builder:
             csr_regions.update(_csr_regions)
         return csr_regions
 
+    def _merge_json_items(self, items, new_items, kind):
+        collisions = sorted(set(items).intersection(new_items))
+        if collisions:
+            raise ValueError(
+                "JSON {} collision on {}. Use Builder.add_json(..., name=...) to namespace imports.".format(
+                    kind, ", ".join(collisions)))
+        items.update(new_items)
+
     def _get_variables_contents(self):
         # Helper.
         variables_contents = []
@@ -223,9 +231,9 @@ class Builder:
         _create_dir(self.generated_dir)
 
         # Integrate JSON files.
-        self.soc.mem_regions.update(self._get_json_mem_regions())
-        self.soc.constants.update(self._get_json_constants())
-        self.soc.csr_regions.update(self._get_json_csr_regions())
+        self._merge_json_items(self.soc.mem_regions,  self._get_json_mem_regions(), "memory region")
+        self._merge_json_items(self.soc.constants,    self._get_json_constants(),    "constant")
+        self._merge_json_items(self.soc.csr_regions,  self._get_json_csr_regions(),  "CSR region")
 
         # Generate BIOS files when the SoC uses it.
         if with_bios:
