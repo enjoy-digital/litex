@@ -9,11 +9,10 @@
 import os
 import sys
 import time
-import subprocess
 import shutil
 import argparse
 import importlib
-
+import subprocess
 import urllib.request
 
 start_time   = time.time()
@@ -33,7 +32,8 @@ def colorer(s, color="bright"):
         "cyan"      : "\x1b[1m\x1b[36m",
         "red"       : "\x1b[1m\x1b[31m",
         "yellow"    : "\x1b[1m\x1b[33m",
-        "underline" : "\x1b[1m\x1b[4m"}[color]
+        "underline" : "\x1b[1m\x1b[4m",
+    }[color]
     trailer = "\x1b[0m"
     return header + str(s) + trailer
 
@@ -52,7 +52,7 @@ def print_status(status, underline=False):
     exec_time = (time.time() - start_time)
     print(colorer(f"[{exec_time:8.3f}]", color="green") + " " + colorer(status))
     if underline:
-        print(colorer(f"[{exec_time:8.3f}]", color="green") + " " + colorer("-"*len(status)))
+        print(colorer(f"[{exec_time:8.3f}]", color="green") + " " + colorer("-" * len(status)))
 
 def print_error(status):
     exec_time = (time.time() - start_time)
@@ -80,7 +80,8 @@ def litex_setup_download(url):
 def litex_setup_update_file(url, path, name, restart=False):
     content = litex_setup_download(url)
     if os.path.exists(path):
-        current = open(path, "rb").read()
+        with open(path, "rb") as f:
+            current = f.read()
     else:
         current = None
     if current == content:
@@ -135,7 +136,7 @@ def litex_setup_auto_update():
             name    = "LiteX Setup",
             restart = True,
         )
-    except:
+    except Exception:
         pass
 
 # Git helpers --------------------------------------------------------------------------------------
@@ -169,7 +170,8 @@ def git_checkout(sha1=None, tag=None, quiet=False):
 
 def git_pull(repo_path):
     color  = "always" if sys.stdout.isatty() else "never"
-    output = subprocess_check_output(["git", "-c", f"color.ui={color}", "pull", "--ff-only", "--stat"], cwd=repo_path).strip()
+    pull_cmd = ["git", "-c", f"color.ui={color}", "pull", "--ff-only", "--stat"]
+    output   = subprocess_check_output(pull_cmd, cwd=repo_path).strip()
     if output in ["Already up to date.", "Already up-to-date."]:
         return
     if output:
@@ -231,7 +233,8 @@ def litex_setup_update_repos(config="standard", tag=None):
         git_pull(repo_path)
         # Recursive Update (Optional).
         if repo.clone == "recursive":
-            output = subprocess_check_output(["git", "submodule", "update", "--init", "--recursive"], cwd=repo_path).strip()
+            submodule_cmd = ["git", "submodule", "update", "--init", "--recursive"]
+            output        = subprocess_check_output(submodule_cmd, cwd=repo_path).strip()
             if output:
                 print(output)
         # Use specific Tag (Optional).
@@ -250,6 +253,15 @@ def litex_setup_update_repos(config="standard", tag=None):
 
 # Git repositories install -------------------------------------------------------------------------
 
+def _pip_install(packages, user_mode=False, editable=False):
+    pip_cmd = [sys.executable, "-m", "pip", "install"]
+    if editable:
+        pip_cmd.append("--editable")
+    pip_cmd += packages
+    if user_mode:
+        pip_cmd.append("--user")
+    subprocess.check_call(pip_cmd)
+
 def litex_setup_install_repos(config="standard", user_mode=False):
     print_status("Installing Git repositories...", underline=True)
     for name in install_configs[config]:
@@ -259,48 +271,44 @@ def litex_setup_install_repos(config="standard", user_mode=False):
         if repo.develop:
             print_status(f"Installing {name} Git repository...")
             os.chdir(os.path.join(current_path, name))
-            pip_cmd = [sys.executable, "-m", "pip", "install"]
-            if repo.editable:
-                pip_cmd.append("--editable")
-            pip_cmd.append(".")
-            if user_mode:
-                pip_cmd.append("--user")
-            subprocess.check_call(pip_cmd)
-    # Install optional Python dependencies for LUNA-backed USB ACM and Amaranth-based CPUs
-    # on standard/full configs. These are not required for non-Amaranth use-cases.
+            _pip_install(["."], user_mode=user_mode, editable=repo.editable)
+
+    # Install optional Python dependencies.
     if config in ["standard", "full"]:
+        luna_packages = [
+            "luna-usb==0.2.3",
+            "amaranth==0.5.8",
+        ]
+        amaranth_packages = [
+            "git+https://github.com/amaranth-lang/amaranth-soc.git",
+            "m5pre",
+            "m5meta",
+            "dataclasses-json==0.6.3",
+        ]
+
         print_status("Installing optional LUNA ACM Python dependencies...")
         try:
-            pip_cmd = [sys.executable, "-m", "pip", "install", "luna-usb==0.2.3", "amaranth==0.5.8"]
-            if user_mode:
-                pip_cmd.append("--user")
-            subprocess.check_call(pip_cmd)
+            _pip_install(luna_packages, user_mode=user_mode)
         except subprocess.CalledProcessError:
             print_error("Optional LUNA ACM dependencies could not be installed.")
             print_status("USB ACM via LUNA may not be usable until dependencies are installed manually.")
             print_status("Try:")
-            print_status("  pip3 install --user luna-usb==0.2.3 amaranth==0.5.8")
+            print_status(f"  pip3 install --user {' '.join(luna_packages)}")
+
         print_status("Installing optional Amaranth CPU Python dependencies...")
         try:
-            pip_cmd = [
-                sys.executable,
-                "-m", "pip", "install",
-                "git+https://github.com/amaranth-lang/amaranth-soc.git",
-                "m5pre",
-                "m5meta",
-                "dataclasses-json==0.6.3",
-            ]
-            if user_mode:
-                pip_cmd.append("--user")
-            subprocess.check_call(pip_cmd)
+            _pip_install(amaranth_packages, user_mode=user_mode)
         except subprocess.CalledProcessError:
             print_error("Optional Amaranth CPU dependencies could not be installed.")
-            print_status("Amaranth-based CPUs (ex: Minerva/Sentinel) may not be usable until dependencies are installed manually.")
+            print_status(
+                "Amaranth-based CPUs (ex: Minerva/Sentinel) may not be usable "
+                "until dependencies are installed manually."
+            )
             print_status("Try:")
-            print_status("  pip3 install --user git+https://github.com/amaranth-lang/amaranth-soc.git m5pre m5meta dataclasses-json==0.6.3")
+            print_status(f"  pip3 install --user {' '.join(amaranth_packages)}")
     if user_mode:
         if ".local/bin" not in os.environ.get("PATH", ""):
-            print_status("Make sure that ~/.local/bin is in your PATH")
+            print_status("Make sure that ~/.local/bin is in your PATH.")
             print_status("export PATH=$PATH:~/.local/bin # temporary (limited to the current terminal)")
             print_status("or add the previous line into your ~/.bashrc to permanently update PATH")
 
@@ -344,7 +352,8 @@ def litex_setup_format_frozen_repos(config="standard"):
         "# Get SHA1: git rev-parse HEAD",
         "",
         "class GitRepo:",
-        '    def __init__(self, url, clone="regular", develop=True, editable=True, sha1=None, branch="master", tag=None):',
+        '    def __init__(self, url, clone="regular", develop=True, editable=True, sha1=None, branch="master",',
+        '        tag=None):',
         '        assert clone in ["regular", "recursive"]',
         "        self.url      = url",
         "        self.clone    = clone",
@@ -393,6 +402,10 @@ def litex_setup_freeze_repos(config="standard", output=None):
 
 # GCC toolchains install ---------------------------------------------------------------------------
 
+def _read_os_release():
+    with open("/etc/os-release", "r", encoding="utf-8") as f:
+        return f.read().lower()
+
 # RISC-V toolchain.
 # -----------------
 
@@ -400,7 +413,7 @@ def riscv_gcc_install():
     # Linux.
     # ------
     if sys.platform.startswith("linux"):
-        os_release = (open("/etc/os-release").read()).lower()
+        os_release = _read_os_release()
         # Fedora.
         if "fedora" in os_release:
             subprocess.check_call(["dnf", "install", "gcc-riscv64-linux-gnu"])
@@ -431,7 +444,7 @@ def powerpc_gcc_install():
     # Linux.
     # ------
     if sys.platform.startswith("linux"):
-        os_release = (open("/etc/os-release").read()).lower()
+        os_release = _read_os_release()
         # Fedora.
         if "fedora" in os_release:
             subprocess.check_call(["dnf", "install", "gcc-powerpc64le-linux-gnu"]) # FIXME: binutils-multiarch?
@@ -457,7 +470,7 @@ def openrisc_gcc_install():
     # Linux.
     # ------
     if sys.platform.startswith("linux"):
-        os_release = (open("/etc/os-release").read()).lower()
+        os_release = _read_os_release()
         # Fedora.
         if "fedora" in os_release:
             subprocess.check_call(["dnf", "install", "gcc-or1k-elf"])
@@ -494,7 +507,8 @@ def main():
     parser.add_argument("--gcc", default=None, help="Install GCC Toolchain (riscv, powerpc or openrisc).")
 
     # Development mode.
-    parser.add_argument("--dev",            action="store_true", help="Development-Mode (no Auto-Update of litex_setup.py / Switch to git@github.com URLs).")
+    parser.add_argument("--dev",            action="store_true",
+        help="Development-Mode (no Auto-Update of litex_setup.py / Switch to git@github.com URLs).")
     parser.add_argument("--freeze",         action="store_true", help="Freeze and display current config.")
     parser.add_argument("--freeze-output",  default=None,        help="Write frozen repository definitions to file.")
 

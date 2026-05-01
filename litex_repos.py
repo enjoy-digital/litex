@@ -5,7 +5,8 @@
 # Get SHA1: git rev-parse --short=7 HEAD
 
 class GitRepo:
-    def __init__(self, url, clone="regular", develop=True, editable=True, sha1=None, branch="master", tag=None):
+    def __init__(self, url, clone="regular", develop=True, editable=True, sha1=None, branch="master",
+        tag=None):
         assert clone in ["regular", "recursive"]
         self.url      = url
         self.clone    = clone
@@ -19,7 +20,12 @@ class GitRepo:
 git_repos = {
     # HDL.
     # ----
-    "migen":    GitRepo(url="https://git.m-labs.hk/M-Labs/", clone="recursive", editable=False, sha1=0x4c2ae8dfeea37f235b52acb8166f12acaaae4f7c),
+    "migen": GitRepo(
+        url      = "https://git.m-labs.hk/M-Labs/",
+        clone    = "recursive",
+        editable = False,
+        sha1     = 0x4c2ae8dfeea37f235b52acb8166f12acaaae4f7c,
+    ),
 
     # LiteX SoC builder.
     # ------------------

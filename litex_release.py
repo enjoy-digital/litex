@@ -9,8 +9,8 @@
 import os
 import re
 import json
-import subprocess
 import argparse
+import subprocess
 
 import litex_repos
 import litex_setup as setup
@@ -61,12 +61,17 @@ def release_repo_names(repos=None, with_pythondata=False):
         names = [name.strip() for name in repos.split(",") if name.strip()]
     else:
         names = [
-            name for name in litex_repos.install_configs["full"]
+            name
+            for name in litex_repos.install_configs["full"]
             if (name != "migen") and (litex_repos.git_repos[name].tag is not None)
         ]
         if with_pythondata:
             for name in litex_repos.install_configs["full"]:
-                if (name != "migen") and name.startswith("pythondata-") and name not in names:
+                if (
+                    (name != "migen") and
+                    name.startswith("pythondata-") and
+                    (name not in names)
+                ):
                     names.append(name)
     for name in names:
         if name not in litex_repos.git_repos:
@@ -80,7 +85,8 @@ def release_repo_names(repos=None, with_pythondata=False):
 def git_output(repo_path, *args, check=True):
     cmd = ["git"] + list(args)
     try:
-        return subprocess.check_output(cmd, cwd=repo_path, stderr=subprocess.STDOUT).decode("UTF-8").strip()
+        output = subprocess.check_output(cmd, cwd=repo_path, stderr=subprocess.STDOUT)
+        return output.decode("UTF-8").strip()
     except subprocess.CalledProcessError as e:
         if check:
             output = e.output.decode("UTF-8", errors="ignore").strip()
@@ -151,7 +157,6 @@ def complete_release_phase(release_state, state_file, phase):
         release_state["completed_phases"].append(phase)
     save_release_state(state_file, release_state)
 
-
 # Release Checks -----------------------------------------------------------------------------------
 
 def release_repo_state(name, tag):
@@ -179,15 +184,31 @@ def release_repo_state(name, tag):
     state["last_tag"]      = get_current_tag(repo_path)
     state["setup_version"] = get_setup_version(os.path.join(repo_path, "setup.py"))
     state["branch"]        = git_output(repo_path, "rev-parse", "--abbrev-ref", "HEAD", check=False) or "unknown"
-    state["upstream"]      = git_output(repo_path, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", check=False)
+    state["upstream"]      = git_output(
+        repo_path,
+        "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}",
+        check = False,
+    )
     state["dirty"]         = bool(git_output(repo_path, "status", "--porcelain", check=False))
     state["push_url"]      = git_output(repo_path, "remote", "get-url", "--push", "origin", check=False)
-    state["local_tag"]     = git_output(repo_path, "rev-parse", "-q", "--verify", f"refs/tags/{tag}", check=False) is not None
-    remote_tag             = git_output(repo_path, "ls-remote", "--tags", "origin", f"refs/tags/{tag}", check=False)
+    state["local_tag"]     = git_output(
+        repo_path,
+        "rev-parse", "-q", "--verify", f"refs/tags/{tag}",
+        check = False,
+    ) is not None
+    remote_tag             = git_output(
+        repo_path,
+        "ls-remote", "--tags", "origin", f"refs/tags/{tag}",
+        check = False,
+    )
     state["remote_tag"]    = bool(remote_tag)
     state["remote_tag_check_failed"] = (remote_tag is None)
     if state["upstream"] is not None:
-        counts = git_output(repo_path, "rev-list", "--left-right", "--count", "HEAD...@{u}", check=False)
+        counts = git_output(
+            repo_path,
+            "rev-list", "--left-right", "--count", "HEAD...@{u}",
+            check = False,
+        )
         if counts is not None:
             ahead, behind = counts.split()
             state["ahead"]  = int(ahead)
@@ -261,7 +282,11 @@ def check_release_state(states, tag, phases, allow_dirty=False, allow_branch_mis
                 errors.append(f"{name}: local tag {tag} is missing.")
         if "bump" in phases:
             setup_path = os.path.join(state["repo_path"], "setup.py")
-            if os.path.exists(setup_path) and state["setup_version"] == "No version found" and litex_repos.git_repos[name].tag is not None:
+            if (
+                os.path.exists(setup_path) and
+                state["setup_version"] == "No version found" and
+                litex_repos.git_repos[name].tag is not None
+            ):
                 errors.append(f"{name}: setup.py has no parseable version.")
 
     if errors:
@@ -293,9 +318,9 @@ def release_list_repos(repos=None, with_pythondata=False):
 
 # Release ------------------------------------------------------------------------------------------
 
-def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=None,
-    no_push=False, allow_dirty=False, allow_branch_mismatch=False, allow_unpushed=False,
-    allow_invalid_tag=False, state_file=None):
+def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=None, no_push=False,
+    allow_dirty=False, allow_branch_mismatch=False, allow_unpushed=False, allow_invalid_tag=False,
+    state_file=None):
 
     check_release_tag(tag, allow_invalid_tag=allow_invalid_tag)
     phases = phases or ["bump", "tag", "push"]
@@ -370,7 +395,13 @@ def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=
             repo_path = state["repo_path"]
             setup.print_status(f"Tagging {name} Git repository as {tag}...")
             git_call(repo_path, "tag", tag)
-            add_release_event(release_state, state_file, "tag", name, tag=tag)
+            add_release_event(
+                release_state,
+                state_file,
+                "tag",
+                name,
+                tag = tag,
+            )
         complete_release_phase(release_state, state_file, "tag")
 
     if "push" in phases:
@@ -418,7 +449,7 @@ def main():
     parser.add_argument("--list-repos",      action="store_true", help="List repositories selected for release.")
     parser.add_argument("--check",           action="store_true", help="Check repositories before release.")
     parser.add_argument("--repos",           default=None,        help="Comma-separated release repository allow-list.")
-    parser.add_argument("--with-pythondata", action="store_true", help="Also include pythondata repositories in the release set.")
+    parser.add_argument("--with-pythondata", action="store_true", help="Also include pythondata repositories.")
 
     # Release flow.
     parser.add_argument("--release",       default=None,        help="Make release.")
@@ -431,7 +462,7 @@ def main():
     # Release checks.
     parser.add_argument("--allow-invalid-tag",     action="store_true", help="Allow release tags outside YYYY.04/YYYY.08/YYYY.12.")
     parser.add_argument("--allow-dirty",           action="store_true", help="Allow dirty working trees during release.")
-    parser.add_argument("--allow-branch-mismatch", action="store_true", help="Allow repositories to be on branches different from litex_setup.py defaults.")
+    parser.add_argument("--allow-branch-mismatch", action="store_true", help="Allow branches different from litex_setup.py defaults.")
     parser.add_argument("--allow-unpushed",        action="store_true", help="Allow repositories without clean upstream synchronization.")
     parser.add_argument("--state-file",            default=None,        help="Release state file path.")
 
