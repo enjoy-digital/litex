@@ -21,18 +21,18 @@ ifeq ($(CPU), microwatt)
 endif
 
 ifeq ($(CCACHE), )
-	MESON_CROSS_CC = '$(TRIPLE)-gcc'
+	MESON_CROSS_CC = '$(TARGET_PREFIX)gcc'
 else
-	MESON_CROSS_CC = ['$(CCACHE)', '$(TRIPLE)-gcc']
+	MESON_CROSS_CC = ['$(CCACHE)', '$(TARGET_PREFIX)gcc']
 endif
 
 define CROSSFILE
 [binaries]
 c     = $(MESON_CROSS_CC)
-ar    = '$(TRIPLE)-gcc-ar'
-as    = '$(TRIPLE)-as'
-nm    = '$(TRIPLE)-gcc-nm'
-strip = '$(TRIPLE)-strip'
+ar    = '$(TARGET_PREFIX)gcc-ar'
+as    = '$(TARGET_PREFIX)as'
+nm    = '$(TARGET_PREFIX)gcc-nm'
+strip = '$(TARGET_PREFIX)strip'
 
 [host_machine]
 system     = 'unknown'
