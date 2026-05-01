@@ -173,6 +173,8 @@ def get_mem_header(regions):
 def get_soc_header(constants, with_access_functions=True):
     r = generated_banner("//")
     r += "#ifndef __GENERATED_SOC_H\n#define __GENERATED_SOC_H\n"
+    if with_access_functions:
+        r += "#include <stdint.h>\n"
     funcs = ""
 
     for name, value in constants.items():
@@ -180,11 +182,18 @@ def get_soc_header(constants, with_access_functions=True):
             r += "#define "+name+"\n"
             continue
         if isinstance(value, str):
-            value = "\"" + value + "\""
+            value = json.dumps(value)
             ctype = "const char *"
         else:
+            if isinstance(value, bool):
+                value = int(value)
+            ctype = "int32_t"
+            if isinstance(value, int):
+                if value >= 0:
+                    ctype = "uint64_t" if value > 0xffffffff else "uint32_t"
+                else:
+                    ctype = "int64_t" if value < -0x80000000 else "int32_t"
             value = str(value)
-            ctype = "int"
         r += "#define "+name+" "+value+"\n"
         if with_access_functions:
             funcs += "static inline "+ctype+" "+name.lower()+"_read(void) {\n"
@@ -835,14 +844,23 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
 # Memory.x Export ----------------------------------------------------------------------------------
 
 def get_memory_x(soc):
+    def get_region(name, fallbacks):
+        for region in [name] + fallbacks:
+            if region in soc.mem_regions:
+                return region
+        raise ValueError("Unable to find {} region for memory.x.".format(name))
+
+    text_region = get_region("rom",  ["main_ram", "sram"])
+    data_region = get_region("sram", ["main_ram", "rom"])
+
     r = get_linker_regions(soc.mem_regions)
     r += '\n'
-    r += 'REGION_ALIAS("REGION_TEXT", rom);\n'
-    r += 'REGION_ALIAS("REGION_RODATA", rom);\n'
-    r += 'REGION_ALIAS("REGION_DATA", sram);\n'
-    r += 'REGION_ALIAS("REGION_BSS", sram);\n'
-    r += 'REGION_ALIAS("REGION_HEAP", sram);\n'
-    r += 'REGION_ALIAS("REGION_STACK", sram);\n\n'
+    r += 'REGION_ALIAS("REGION_TEXT", {});\n'.format(text_region)
+    r += 'REGION_ALIAS("REGION_RODATA", {});\n'.format(text_region)
+    r += 'REGION_ALIAS("REGION_DATA", {});\n'.format(data_region)
+    r += 'REGION_ALIAS("REGION_BSS", {});\n'.format(data_region)
+    r += 'REGION_ALIAS("REGION_HEAP", {});\n'.format(data_region)
+    r += 'REGION_ALIAS("REGION_STACK", {});\n\n'.format(data_region)
     r += '/* CPU reset location. */\n'
     r += '_stext = {:#08x};\n'.format(soc.cpu.reset_address)
     return r
