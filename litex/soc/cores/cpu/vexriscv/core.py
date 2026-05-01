@@ -85,8 +85,8 @@ GCC_FLAGS = {
 class VexRiscvTimer(LiteXModule):
     def __init__(self):
         self._latch    = CSR()
-        self._time     = CSRStatus(64)
-        self._time_cmp = CSRStorage(64, reset=2**64-1)
+        self._time     = CSRStatus(64, description="Latched VexRiscv timer value.")
+        self._time_cmp = CSRStorage(64, reset=2**64-1, description="VexRiscv timer compare value.")
         self.interrupt = Signal()
 
         # # #

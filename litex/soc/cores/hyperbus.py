@@ -634,18 +634,19 @@ class HyperRAM(LiteXModule):
         # ------------------------
         self.config = CSRStorage(fields=[
             CSRField("rst",     offset=0, size=1, pulse=True, description="HyperRAM Rst."),
-            CSRField("latency", offset=8, size=8,             description="HyperRAM Latency (X1).", reset=default_latency),
+            CSRField("latency", offset=8, size=8, reset=default_latency,
+                description="HyperRAM Latency (X1)."),
         ])
         self.comb += [
             self.core.rst.eq(    self.config.fields.rst),
             self.core.latency.eq(self.config.fields.latency),
         ]
         self.status = CSRStatus(fields=[
-            CSRField("latency_mode", offset=0, size=1, values=[
+            CSRField("latency_mode", offset=0, size=1, description="HyperRAM latency mode.", values=[
                 ("``0b0``", "Fixed Latency."),
                 ("``0b1``", "Variable Latency."),
             ], reset={"fixed": 0b0, "variable": 0b1}[latency_mode]),
-            CSRField("clk_ratio", offset=1, size=4, values=[
+            CSRField("clk_ratio", offset=1, size=4, description="HyperRAM clock ratio.", values=[
                 ("``4``", "HyperRAM Clk = Sys Clk/4."),
                 ("``2``", "HyperRAM Clk = Sys Clk/2."),
             ], reset={"4:1": 4, "2:1": 2}[self.clk_ratio]),
@@ -656,7 +657,7 @@ class HyperRAM(LiteXModule):
         self.reg_control = CSRStorage(fields=[
             CSRField("write", offset=0, size=1, pulse=True, description="Issue Register Write."),
             CSRField("read",  offset=1, size=1, pulse=True, description="Issue Register Read."),
-            CSRField("addr",  offset=8, size=2, values=[
+            CSRField("addr",  offset=8, size=2, description="Register access address.", values=[
                 ("``0b00``", "Identification Register 0 (Read Only)."),
                 ("``0b01``", "Identification Register 1 (Read Only)."),
                 ("``0b10``", "Configuration Register 0."),

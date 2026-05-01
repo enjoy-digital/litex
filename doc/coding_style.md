@@ -69,6 +69,8 @@ register_value = {
 Line length is guided by readability, not a rigid formatter. Tables, register
 maps and `argparse` declarations can stay compact when that helps scanning;
 split lines when dense expressions hide structure or make diffs hard to review.
+It is acceptable to exceed a soft 100-character line when this preserves a
+clear aligned table of related arguments.
 
 ## Regular Python Scripts
 
@@ -96,6 +98,17 @@ For `argparse` tools, keep options grouped by purpose with short section
 comments. Print a concrete error before raising the local tool exception when
 one exists, and keep useful subprocess output visible for Git/build/install
 failures.
+
+For parser declarations with several keyword arguments, align the keyword
+assignments so the option table remains easy to scan. Keep keyword arguments
+tight around `=` in these call tables; this does not apply to normal Python
+assignments, which should keep the usual `name = value` spacing:
+
+```python
+parser.add_argument("--init",    action="store_true", help="Initialize Git repositories.")
+parser.add_argument("--config",  default="standard",  help="Install config.")
+parser.add_argument("--tag",     default=None,        help="Use version from release tag.")
+```
 
 ## LiteX/Migen Modules (HDL)
 
@@ -139,6 +152,14 @@ lets hardware use `csr.fields.<name>` instead of numeric bit slices. Use
 `offset`, `size`, `reset`, `pulse` and `values` explicitly when they clarify
 the register layout or behavior. Simple full-width data registers can remain
 plain `CSRStorage(width, description=...)` / `CSRStatus(width, description=...)`.
+In CSR declarations, align keyword arguments, especially `description=`, with
+the surrounding fields/registers. Do not pad immediately after the opening
+parenthesis; keep the first argument next to `(` and align later keyword
+columns with spaces before the keyword. Use only the spaces needed to align
+with the longest argument prefix in the local block; the longest line itself
+keeps a single space before `description=`. Keep CSR keyword arguments tight
+around `=`, while preserving normal Python assignment spacing outside CSR
+argument lists.
 
 The HyperBus core is a good reference for CSR style: group related registers,
 describe each field, use `values` for enumerations and connect fields by name.
@@ -148,7 +169,7 @@ the possible encodings:
 ```python
 self.config = CSRStorage(fields=[
     CSRField("rst",     offset=0, size=1, pulse=True, description="HyperRAM Rst."),
-    CSRField("latency", offset=8, size=8,             description="HyperRAM Latency (X1).", reset=default_latency),
+    CSRField("latency", offset=8, size=8,               description="HyperRAM Latency (X1).", reset=default_latency),
 ])
 self.comb += [
     self.core.rst.eq(    self.config.fields.rst),

@@ -1023,10 +1023,10 @@ class Zynq7000(CPU):
         elif if_type == "rgmii":
             # Status.
             self.rgmii_status = CSRStatus(fields=[
-                CSRField("link_status",   size=1, offset=0),
-                CSRField("clock_speed",   size=2, offset=1),
-                CSRField("duplex_status", size=1, offset=3),
-                CSRField("speed_mode",    size=2, offset=4),
+                CSRField("link_status",   size=1, offset=0, description="RGMII link status."),
+                CSRField("clock_speed",   size=2, offset=1, description="RGMII clock speed."),
+                CSRField("duplex_status", size=1, offset=3, description="RGMII duplex status."),
+                CSRField("speed_mode",    size=2, offset=4, description="RGMII speed mode."),
             ])
 
             # ps7 GMII connection

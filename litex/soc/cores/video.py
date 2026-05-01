@@ -205,17 +205,25 @@ class VideoTimingGenerator(LiteXModule):
             self.video_timings = vt = default_video_timings
 
         # MMAP Control/Status Registers.
-        self._enable      = CSRStorage(reset=1)
+        self._enable      = CSRStorage(reset=1, description="Video Timing Generator enable.")
 
-        self._hres        = CSRStorage(hbits, vt["h_active"])
-        self._hsync_start = CSRStorage(hbits, vt["h_active"] + vt["h_sync_offset"])
-        self._hsync_end   = CSRStorage(hbits, vt["h_active"] + vt["h_sync_offset"] + vt["h_sync_width"])
-        self._hscan       = CSRStorage(hbits, vt["h_active"] + vt["h_blanking"] - 1)
+        self._hres        = CSRStorage(hbits, vt["h_active"],
+            description="Horizontal active resolution.")
+        self._hsync_start = CSRStorage(hbits, vt["h_active"] + vt["h_sync_offset"],
+            description="Horizontal sync start.")
+        self._hsync_end   = CSRStorage(hbits, vt["h_active"] + vt["h_sync_offset"] + vt["h_sync_width"],
+            description="Horizontal sync end.")
+        self._hscan       = CSRStorage(hbits, vt["h_active"] + vt["h_blanking"] - 1,
+            description="Horizontal scan period.")
 
-        self._vres        = CSRStorage(vbits, vt["v_active"])
-        self._vsync_start = CSRStorage(vbits, vt["v_active"] + vt["v_sync_offset"])
-        self._vsync_end   = CSRStorage(vbits, vt["v_active"] + vt["v_sync_offset"] + vt["v_sync_width"])
-        self._vscan       = CSRStorage(vbits, vt["v_active"] + vt["v_blanking"] - 1)
+        self._vres        = CSRStorage(vbits, vt["v_active"],
+            description="Vertical active resolution.")
+        self._vsync_start = CSRStorage(vbits, vt["v_active"] + vt["v_sync_offset"],
+            description="Vertical sync start.")
+        self._vsync_end   = CSRStorage(vbits, vt["v_active"] + vt["v_sync_offset"] + vt["v_sync_width"],
+            description="Vertical sync end.")
+        self._vscan       = CSRStorage(vbits, vt["v_active"] + vt["v_blanking"] - 1,
+            description="Vertical scan period.")
 
         # Video Timing Source
         self.source = source = stream.Endpoint(video_timing_layout)
@@ -1089,15 +1097,15 @@ class VideoFrameBuffer(LiteXModule):
             ]
         elif (depth == 16):
             self.comb += [
-                source.r.eq(Cat(Signal(3, reset = 0), video_pipe_source.data[11:16])),
-                source.g.eq(Cat(Signal(2, reset = 0), video_pipe_source.data[ 5:11])),
-                source.b.eq(Cat(Signal(3, reset = 0), video_pipe_source.data[ 0: 5])),
+                source.r.eq(Cat(Signal(3, reset=0), video_pipe_source.data[11:16])),
+                source.g.eq(Cat(Signal(2, reset=0), video_pipe_source.data[ 5:11])),
+                source.b.eq(Cat(Signal(3, reset=0), video_pipe_source.data[ 0: 5])),
             ]
         elif (depth == 8 and format == "rgb332"):
             self.comb += [
-                source.r.eq(Cat(Signal(5, reset = 0), video_pipe_source.data[5:8])),
-                source.g.eq(Cat(Signal(5, reset = 0), video_pipe_source.data[2:5])),
-                source.b.eq(Cat(Signal(6, reset = 0), video_pipe_source.data[0:2])),
+                source.r.eq(Cat(Signal(5, reset=0), video_pipe_source.data[5:8])),
+                source.g.eq(Cat(Signal(5, reset=0), video_pipe_source.data[2:5])),
+                source.b.eq(Cat(Signal(6, reset=0), video_pipe_source.data[0:2])),
             ]
         elif (depth == 8 and format == "mono8"):
             self.comb += [
@@ -1107,9 +1115,9 @@ class VideoFrameBuffer(LiteXModule):
             ]
         else: # depth == 1
             self.comb += [
-               source.r.eq(Cat(Signal(7, reset = 0), video_pipe_source.data[0:1])),
-               source.g.eq(Cat(Signal(7, reset = 0), video_pipe_source.data[0:1])),
-               source.b.eq(Cat(Signal(7, reset = 0), video_pipe_source.data[0:1])),
+               source.r.eq(Cat(Signal(7, reset=0), video_pipe_source.data[0:1])),
+               source.g.eq(Cat(Signal(7, reset=0), video_pipe_source.data[0:1])),
+               source.b.eq(Cat(Signal(7, reset=0), video_pipe_source.data[0:1])),
             ]
 
         # Underflow.

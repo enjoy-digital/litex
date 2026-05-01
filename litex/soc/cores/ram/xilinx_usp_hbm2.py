@@ -30,7 +30,7 @@ class USPHBM2(LiteXModule):
 
         self.hbm_params = {}
 
-        self.init_done = CSRStatus()
+        self.init_done = CSRStatus(description="HBM2 initialization done.")
 
         # # #
 

@@ -33,13 +33,13 @@ class XilinxSystemMonitor(LiteXModule):
         channel.status = getattr(self, channel.name).status
 
     def expose_drp(self):
-        self.drp_enable = CSRStorage() # Set to 1 to use DRP and disable auto-sampling.
+        self.drp_enable = CSRStorage(1,                               description="Enable DRP access and disable auto-sampling.")
         self.drp_read   = CSR()
         self.drp_write  = CSR()
-        self.drp_drdy   = CSRStatus()
-        self.drp_adr    = CSRStorage(self.dadr_size,  reset_less=True)
-        self.drp_dat_w  = CSRStorage(16, reset_less=True)
-        self.drp_dat_r  = CSRStatus(16)
+        self.drp_drdy   = CSRStatus(1,                                description="DRP transfer done.")
+        self.drp_adr    = CSRStorage(self.dadr_size, reset_less=True, description="DRP address.")
+        self.drp_dat_w  = CSRStorage(16,             reset_less=True, description="DRP write data.")
+        self.drp_dat_r  = CSRStatus(16,                               description="DRP read data.")
 
         # # #
 
@@ -91,8 +91,8 @@ class S7SystemMonitor(XilinxSystemMonitor):
         for channel in channels:
             self.add_channel(channel)
 
-        # End of Convertion/Sequence
-        self.eoc = CSRStatus(description="End of Convertion Status, ``1``: Convertion Done.")
+        # End of Conversion/Sequence.
+        self.eoc = CSRStatus(description="End of Conversion Status, ``1``: Conversion Done.")
         self.eos = CSRStatus(description="End of Sequence Status,   ``1``: Sequence Done.")
 
         # Alarms

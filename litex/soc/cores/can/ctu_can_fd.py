@@ -35,16 +35,16 @@ class CTUCANFD(LiteXModule, EventManager):
 
         # CSRs.
         self.control = CSRStorage(32, fields=[
-            CSRField("reset", size=1, values=[
+            CSRField("reset",    size=1,  description="CTU CAN-FD reset control.", values=[
                 ("``0b0``", "Normal Operation."),
-                ("``0b1`",  "Hold the Core in Reset."),
+                ("``0b1``", "Hold the Core in Reset."),
             ], reset=0b0),
-            CSRField("reserved",size=31),
+            CSRField("reserved", size=31, description="Reserved."),
         ])
         self.status = CSRStatus(32, fields=[
-            CSRField("ready", size=1, values=[
+            CSRField("ready", size=1, description="CTU CAN-FD ready status.", values=[
                 ("``0b0``", "Core in Reset."),
-                ("``0b1`",  "Core Ready."),
+                ("``0b1``", "Core Ready."),
             ]),
         ])
 

@@ -115,13 +115,13 @@ class XilinxClocking(LiteXModule):
 
     def expose_drp(self):
         self.drp_reset  = CSR()
-        self.drp_locked = CSRStatus()
+        self.drp_locked = CSRStatus(1,                    description="DRP PLL/MMCM locked status.")
         self.drp_read   = CSR()
         self.drp_write  = CSR()
-        self.drp_drdy   = CSRStatus()
-        self.drp_adr    = CSRStorage(7,  reset_less=True)
-        self.drp_dat_w  = CSRStorage(16, reset_less=True)
-        self.drp_dat_r  = CSRStatus(16)
+        self.drp_drdy   = CSRStatus(1,                    description="DRP transfer done.")
+        self.drp_adr    = CSRStorage(7,  reset_less=True, description="DRP address.")
+        self.drp_dat_w  = CSRStorage(16, reset_less=True, description="DRP write data.")
+        self.drp_dat_r  = CSRStatus(16,                   description="DRP read data.")
 
         # # #
 
@@ -164,9 +164,9 @@ class XilinxClocking(LiteXModule):
 
         if with_csr:
             assert clk_domain == "sys"
-            self.dps_psen     = CSRStorage()
-            self.dps_psincdec = CSRStorage()
-            self.dps_psdone   = CSRStatus()
+            self.dps_psen     = CSRStorage(description="DPS phase-shift enable.")
+            self.dps_psincdec = CSRStorage(description="DPS phase-shift direction.")
+            self.dps_psdone   = CSRStatus(description="DPS phase-shift done.")
             self.dps_fsm = dps_fsm = FSM(reset_state="IDLE")
             dps_fsm.act("IDLE",
                 If(self.dps_psen.storage,

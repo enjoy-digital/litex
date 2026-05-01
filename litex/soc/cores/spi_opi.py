@@ -453,7 +453,7 @@ class S7SPIOPI(LiteXModule):
             fields=[
                 CSRField("cmd_arg", size=32, description="Argument to manual command")
             ])
-        self.cmd_rbk_data = CSRStatus(description = "Readback data from commands",
+        self.cmd_rbk_data = CSRStatus(description="Readback data from commands",
             fields=[
                 CSRField("cmd_rbk_data", size=32, description="Data read back from a cmd_code that has `write_code` set to 0"),
             ]

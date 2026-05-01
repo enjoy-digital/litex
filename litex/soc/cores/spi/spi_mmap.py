@@ -258,48 +258,48 @@ class SPICtrl(LiteXModule):
 
         # Create TX/RX Control/Status registers.
         self.tx_control  = CSRStorage(fields=[
-            CSRField("enable", size=1, offset=0, values=[
+            CSRField("enable",    size=1,  offset=0,  description="TX datapath enable.", values=[
                     ("``0b0``", "TX Disabled."),
                     ("``0b1``", "TX Enabled."),
             ], reset=default_tx_enable),
             CSRField("threshold", size=16, offset=16, description="TX_FIFO IRQ Threshold.", reset=0)
         ])
         self.tx_status  = CSRStatus(fields=[
-            CSRField("ongoing", size=1, offset=0, values=[
+            CSRField("ongoing", size=1,  offset=0,  description="TX transfer ongoing status.", values=[
                     ("``0b0``", "TX Xfer idle."),
                     ("``0b1``", "TX Xfer ongoing."),
             ]),
-            CSRField("empty", size=1, offset=1, values=[
-                    ("``0b0``", "TX FIFO Empty."),
+            CSRField("empty",   size=1,  offset=1,  description="TX FIFO empty status.", values=[
+                    ("``0b0``", "TX FIFO Not Empty."),
                     ("``0b1``", "TX FIFO Empty."),
             ]),
-            CSRField("full", size=1, offset=2, values=[
-                    ("``0b0``", "TX FIFO Full."),
+            CSRField("full",    size=1,  offset=2,  description="TX FIFO full status.", values=[
+                    ("``0b0``", "TX FIFO Not Full."),
                     ("``0b1``", "TX FIFO Full."),
             ]),
-            CSRField("level", size=16, offset=16, description="TX FIFO Level.")
+            CSRField("level",   size=16, offset=16, description="TX FIFO Level.")
         ])
         self.rx_control  = CSRStorage(fields=[
-            CSRField("enable", size=1, offset=0, values=[
+            CSRField("enable",    size=1,  offset=0,  description="RX datapath enable.", values=[
                     ("``0b0``", "RX Disabled."),
                     ("``0b1``", "RX Enabled."),
             ], reset=default_rx_enable),
             CSRField("threshold", size=16, offset=16, description="RX_FIFO IRQ Threshold.", reset=0)
         ])
         self.rx_status  = CSRStatus(fields=[
-            CSRField("ongoing", size=1, offset=0, values=[
+            CSRField("ongoing", size=1,  offset=0,  description="RX transfer ongoing status.", values=[
                     ("``0b0``", "RX Xfer idle."),
                     ("``0b1``", "RX Xfer ongoing."),
             ]),
-            CSRField("empty", size=1, offset=1, values=[
-                    ("``0b0``", "RX FIFO Empty."),
+            CSRField("empty",   size=1,  offset=1,  description="RX FIFO empty status.", values=[
+                    ("``0b0``", "RX FIFO Not Empty."),
                     ("``0b1``", "RX FIFO Empty."),
             ]),
-            CSRField("full", size=1, offset=2, values=[
-                    ("``0b0``", "RX FIFO Full."),
+            CSRField("full",    size=1,  offset=2,  description="RX FIFO full status.", values=[
+                    ("``0b0``", "RX FIFO Not Full."),
                     ("``0b1``", "RX FIFO Full."),
             ]),
-            CSRField("level", size=16, offset=16, description="RX FIFO Level.")
+            CSRField("level",   size=16, offset=16, description="RX FIFO Level.")
         ])
 
         # Create IRQ registers.
@@ -315,7 +315,7 @@ class SPICtrl(LiteXModule):
         ]
 
         self.engine  = CSRStorage(fields=[
-            CSRField("enable", size=1, offset=0, values=[
+            CSRField("enable", size=1, offset=0, description="SPI engine enable.", values=[
                     ("``0b0``", "SPI Engine Disabled."),
                     ("``0b1``", "SPI Engine Enabled."),
             ], reset=default_enable),
@@ -324,38 +324,38 @@ class SPICtrl(LiteXModule):
         # Create Slots Control/Status registers.
         for slot in range(nslots):
             control = CSRStorage(name=f"slot_control{slot}", fields=[
-                CSRField("enable", size=1, offset=0, values=[
+                CSRField("enable",   size=1,  offset=0,  description="Slot enable.", values=[
                     ("``0b0``", "Slot Disabled."),
                     ("``0b1``", "Slot Enabled."),
                 ], reset=default_slot_enable),
-                CSRField("mode", size=2, offset=1, values=[
+                CSRField("mode",     size=2,  offset=1,  description="Slot SPI mode.", values=[
                     ("``0b00``", "SPI Mode 0 (CPOL=0, CPHA=0)."),
                     ("``0b01``", "SPI Mode 1 (CPOL=0, CPHA=1)."),
                     ("``0b10``", "SPI Mode 2 (CPOL=1, CPHA=0)."),
                     ("``0b11``", "SPI Mode 3 (CPOL=1, CPHA=1)."),
                 ], reset=default_slot_mode),
-                CSRField("length", size=2, offset=3, values=[
+                CSRField("length",   size=2,  offset=3,  description="Slot transfer length.", values=[
                     ("``0b00``", "32-bit Max."),
                     ("``0b01``", "16-bit Max."),
                     ("``0b10``", " 8-bit Max."),
                     ("``0b11``", "24-bit Max."),
                 ], reset=default_slot_length),
-                CSRField("bitorder", size=1, offset=5, values=[
+                CSRField("bitorder", size=1,  offset=5,  description="Slot bit order.", values=[
                     ("``0b0``", "MSB-First."),
                     ("``0b1``", "LSB-First."),
                 ], reset=default_slot_bitorder),
-                CSRField("loopback", size=1, offset=6, values=[
+                CSRField("loopback", size=1,  offset=6,  description="Slot loopback mode.", values=[
                     ("``0b0``", "Loopback Disabled."),
                     ("``0b1``", "Loopback Enabled."),
                 ], reset=default_slot_loopback),
-                CSRField("divider", size=16, offset=16, values=[
+                CSRField("divider", size=16, offset=16, description="Slot clock divider.", values=[
                     ("``0x0000``", "Reserved."),
                     ("``0x0001``", "Reserved."),
                     ("``0x0002``", "SPI-Clk = Sys-Clk/2."),
                     ("``0x0004``", "SPI-Clk = Sys-Clk/4."),
                     ("``0xxxxx``", "SPI-Clk = Sys-Clk/xxxxx."),
                 ], reset=default_slot_divider),
-                CSRField("wait", size=16, offset=32, values=[
+                CSRField("wait",    size=16, offset=32, description="Slot wait time.", values=[
                     ("``0x0000``", "No wait time."),
                     ("``0x0001``", "wait = 1 / Sys-Clk."),
                     ("``0xxxxx``", "wait = xxxx / Sys-Clk."),

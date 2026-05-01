@@ -289,8 +289,8 @@ class ICAPBitstream(LiteXModule):
     the ICAPE2.
     """
     def __init__(self, fifo_depth=8, icap_clk_div=4, simulation=False):
-        self.sink_data  = CSRStorage(32, reset_less=True)
-        self.sink_ready = CSRStatus()
+        self.sink_data  = CSRStorage(32, reset_less=True, description="Bitstream FIFO write data.")
+        self.sink_ready = CSRStatus(1,                    description="Bitstream FIFO ready.")
 
         # # #
 

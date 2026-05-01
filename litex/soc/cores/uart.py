@@ -153,7 +153,12 @@ class RS232PHY(LiteXModule):
     def __init__(self, pads, clk_freq, baudrate=115200, with_dynamic_baudrate=False):
         tuning_word = int((baudrate/clk_freq)*2**32)
         if with_dynamic_baudrate:
-            self._tuning_word  = CSRStorage(32, reset=tuning_word, name="tuning_word")
+            self._tuning_word  = CSRStorage(
+                32,
+                reset=tuning_word,
+                name="tuning_word",
+                description="UART baudrate tuning word.",
+            )
             tuning_word = self._tuning_word.storage
         self.tx = RS232PHYTX(pads, tuning_word)
         self.rx = RS232PHYRX(pads, tuning_word)

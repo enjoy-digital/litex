@@ -119,12 +119,12 @@ class WishboneDMAReader(LiteXModule):
     def add_csr(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
         if not hasattr(self, "base"):
             self.add_ctrl()
-        self._base   = CSRStorage(64, reset=default_base)
-        self._length = CSRStorage(32, reset=default_length)
-        self._enable = CSRStorage(reset=default_enable)
-        self._done   = CSRStatus()
-        self._loop   = CSRStorage(reset=default_loop)
-        self._offset = CSRStatus(32)
+        self._base   = CSRStorage(64, reset=default_base,   description="DMA Reader base address.")
+        self._length = CSRStorage(32, reset=default_length, description="DMA Reader transfer length in bytes.")
+        self._enable = CSRStorage(reset=default_enable,     description="DMA Reader enable.")
+        self._done   = CSRStatus(1,                         description="DMA Reader transfer done.")
+        self._loop   = CSRStorage(reset=default_loop,       description="DMA Reader loop enable.")
+        self._offset = CSRStatus(32,                        description="DMA Reader current transfer offset.")
 
         # # #
 
@@ -229,12 +229,12 @@ class WishboneDMAWriter(LiteXModule):
     def add_csr(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
         if not hasattr(self, "base"):
             self.add_ctrl()
-        self._base   = CSRStorage(64, reset=default_base)
-        self._length = CSRStorage(32, reset=default_length)
-        self._enable = CSRStorage(reset=default_enable)
-        self._done   = CSRStatus()
-        self._loop   = CSRStorage(reset=default_loop)
-        self._offset = CSRStatus(32)
+        self._base   = CSRStorage(64, reset=default_base,   description="DMA Writer base address.")
+        self._length = CSRStorage(32, reset=default_length, description="DMA Writer transfer length in bytes.")
+        self._enable = CSRStorage(reset=default_enable,     description="DMA Writer enable.")
+        self._done   = CSRStatus(1,                         description="DMA Writer transfer done.")
+        self._loop   = CSRStorage(reset=default_loop,       description="DMA Writer loop enable.")
+        self._offset = CSRStatus(32,                        description="DMA Writer current transfer offset.")
 
         # # #
 

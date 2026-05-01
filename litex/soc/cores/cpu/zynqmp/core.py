@@ -317,11 +317,11 @@ class ZynqMP(CPU):
 
 
             sgmii_control = CSRStorage(fields=[
-                CSRField("reset", size=1, reset=0, values=[
+                CSRField("reset",        size=1, reset=0, description="SGMII reset control.", values=[
                     ("``0b0``", "Normal operations."),
                     ("``0b1``", "Reset mode."),
                 ]),
-                CSRField("tsu_inc_ctrl", size=2, reset=3, values=[
+                CSRField("tsu_inc_ctrl", size=2, reset=3, description="SGMII TSU increment control.", values=[
                     ("``0b00``", "Timer register increments based on the gem_tsu_ms value."),
                     ("``0b01``", "Timer register increments by an additional nanosecond."),
                     ("``0b10``", "Timer register increments by one nanosecond fewer."),
@@ -331,11 +331,11 @@ class ZynqMP(CPU):
             setattr(self, f"sgmii_control{n}", sgmii_control)
 
             sgmii_status = CSRStatus(fields=[
-                CSRField("status",          size=16, offset=0),
-                CSRField("pwrgood",         size=1,  offset=16),
-                CSRField("reset_done",      size=1,  offset=17),
-                CSRField("pma_reset_out",   size=1,  offset=18),
-                CSRField("mmcm_locked_out", size=1,  offset=19),
+                CSRField("status",          size=16, offset=0,  description="SGMII status."),
+                CSRField("pwrgood",         size=1,  offset=16, description="SGMII power-good status."),
+                CSRField("reset_done",      size=1,  offset=17, description="SGMII reset done status."),
+                CSRField("pma_reset_out",   size=1,  offset=18, description="SGMII PMA reset output status."),
+                CSRField("mmcm_locked_out", size=1,  offset=19, description="SGMII MMCM locked status."),
             ])
             setattr(self, f"sgmii_status{n}", sgmii_status)
 

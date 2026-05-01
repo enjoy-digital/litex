@@ -103,10 +103,10 @@ class S6DCM(XilinxClocking):
         self.specials += Instance("DCM_CLKGEN", name=self.name or "", **self.params)
 
     def expose_drp(self):
-        self._cmd_data      = CSRStorage(10)
+        self._cmd_data      = CSRStorage(10, description="DCM programming command data.")
         self._send_cmd_data = CSR()
         self._send_go       = CSR()
-        self._status        = CSRStatus(4)
+        self._status        = CSRStatus(4, description="DCM programming status.")
 
         progdata = Signal()
         progen   = Signal()

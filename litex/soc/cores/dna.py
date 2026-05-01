@@ -19,7 +19,7 @@ class XilinxDNA(LiteXModule):
     def __init__(self, nbits=57, primitive="DNA_PORT", clk_divider=2):
         self.nbits       = nbits
         self.clk_divider = clk_divider
-        self._id = CSRStatus(nbits)
+        self._id = CSRStatus(nbits, description="Xilinx Device DNA identifier.")
 
         # # #
 
