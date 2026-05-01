@@ -142,6 +142,7 @@ class SoCBusHandler(LiteXModule):
     supported_data_width    = [32, 64, 128, 256, 512]
     supported_address_width = [32, 64]
     supported_addressing    = ["word", "byte"]
+    supported_interconnect  = ["shared", "crossbar"]
 
     # Creation -------------------------------------------------------------------------------------
     def __init__(self, name="SoCBusHandler",
@@ -149,7 +150,7 @@ class SoCBusHandler(LiteXModule):
         data_width       = 32,
         address_width    = 32,
         addressing       = None,
-        timeout          = 1e6,
+        timeout          = int(1e6),
         bursting         = False,
         interconnect     = "shared", interconnect_register=True,
         reserved_regions = None,
@@ -201,6 +202,16 @@ class SoCBusHandler(LiteXModule):
             self.logger.error("{} addressing must be {} (got {}).".format(
                 colorer(standard), colorer("byte"), colorer(addressing, color="red")))
             raise SoCError()
+
+        # Check Bus Interconnect.
+        if interconnect not in self.supported_interconnect:
+            self.logger.error("Unsupported {} {}, supported are: {:s}".format(
+                colorer("Interconnect", color="red"),
+                colorer(interconnect),
+                colorer(", ".join(self.supported_interconnect))))
+            raise SoCError()
+        if timeout is not None:
+            timeout = int(timeout)
 
         # Create Bus
         self.standard              = standard
@@ -1067,7 +1078,7 @@ class SoC(LiteXModule):
         bus_data_width       = 32,
         bus_address_width    = 32,
         bus_addressing       = None,
-        bus_timeout          = 1e6,
+        bus_timeout          = int(1e6),
         bus_bursting         = False,
         bus_interconnect     = "shared",
         bus_reserved_regions = None,

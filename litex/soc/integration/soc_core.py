@@ -65,7 +65,7 @@ class SoCCore(LiteXSoC):
         bus_data_width             = 32,
         bus_address_width          = 32,
         bus_addressing             = None,
-        bus_timeout                = 1e6,
+        bus_timeout                = int(1e6),
         bus_bursting               = False,
         bus_interconnect           = "shared",
 
@@ -306,13 +306,13 @@ class SoCCore(LiteXSoC):
 def soc_core_args(parser):
     soc_group = parser.add_argument_group(title="SoC options")
     # Bus parameters.
-    soc_group.add_argument("--bus-standard",             default="wishbone",                 help="Select bus standard: {}.".format(", ".join(SoCBusHandler.supported_standard)))
-    soc_group.add_argument("--bus-data-width",           default=32,         type=auto_int,  help="Bus data-width.")
-    soc_group.add_argument("--bus-address-width",        default=32,         type=auto_int,  help="Bus address-width.")
-    soc_group.add_argument("--bus-addressing",           default=None,                       help="Bus addressing: word, byte (default: word for wishbone, byte for axi/axi-lite).")
-    soc_group.add_argument("--bus-timeout",              default=int(1e6),   type=float,     help="Bus timeout in cycles.")
-    soc_group.add_argument("--bus-bursting",             action="store_true",                help="Enable burst cycles on the bus if supported.")
-    soc_group.add_argument("--bus-interconnect",         default="shared",                   help="Select bus interconnect: shared (default) or crossbar.")
+    soc_group.add_argument("--bus-standard",             default="wishbone", choices=SoCBusHandler.supported_standard,       help="Select bus standard.")
+    soc_group.add_argument("--bus-data-width",           default=32,         type=auto_int, choices=SoCBusHandler.supported_data_width,    help="Bus data-width.")
+    soc_group.add_argument("--bus-address-width",        default=32,         type=auto_int, choices=SoCBusHandler.supported_address_width, help="Bus address-width.")
+    soc_group.add_argument("--bus-addressing",           default=None,                      choices=SoCBusHandler.supported_addressing,    help="Bus addressing (default: word for wishbone, byte for axi/axi-lite).")
+    soc_group.add_argument("--bus-timeout",              default=int(1e6),   type=auto_int,                                                        help="Bus timeout in cycles.")
+    soc_group.add_argument("--bus-bursting",             action="store_true",                                                                               help="Enable burst cycles on the bus if supported.")
+    soc_group.add_argument("--bus-interconnect",         default="shared",   choices=SoCBusHandler.supported_interconnect,   help="Select bus interconnect.")
 
     # CPU parameters.
     soc_group.add_argument("--cpu-type",                 default="vexriscv",                 help="Select CPU: {}.".format(", ".join(map(str, cpu.CPUS.keys()))))
@@ -334,10 +334,10 @@ def soc_core_args(parser):
     soc_group.add_argument("--integrated-main-ram-size", default=None,        type=auto_int, help="Size/enable the integrated main RAM.")
 
     # CSR parameters.
-    soc_group.add_argument("--csr-data-width",           default=32,          type=auto_int, help="CSR bus data-width (8 or 32).")
-    soc_group.add_argument("--csr-address-width",        default=14,          type=auto_int, help="CSR bus address-width.")
-    soc_group.add_argument("--csr-paging",               default=0x800,       type=auto_int, help="CSR bus paging.")
-    soc_group.add_argument("--csr-ordering",             default="big",                      help="CSR registers ordering (big or little).")
+    soc_group.add_argument("--csr-data-width",           default=32,          type=auto_int, choices=SoCCSRHandler.supported_data_width,    help="CSR bus data-width.")
+    soc_group.add_argument("--csr-address-width",        default=14,          type=auto_int, choices=SoCCSRHandler.supported_address_width, help="CSR bus address-width.")
+    soc_group.add_argument("--csr-paging",               default=0x800,       type=auto_int, choices=SoCCSRHandler.supported_paging,        help="CSR bus paging.")
+    soc_group.add_argument("--csr-ordering",             default="big",                      choices=SoCCSRHandler.supported_ordering,      help="CSR registers ordering.")
 
     # Identifier parameters.
     soc_group.add_argument("--ident",                    default=None,        type=str,      help="SoC identifier.")

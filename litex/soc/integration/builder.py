@@ -485,7 +485,7 @@ def builder_args(parser):
     builder_group.add_argument("--software-dir",          default=None,        help="Output directory for software files.")
     builder_group.add_argument("--include-dir",           default=None,        help="Output directory for header files.")
     builder_group.add_argument("--generated-dir",         default=None,        help="Output directory for generated files.")
-    builder_group.add_argument("--build-backend",         default="litex",     help="Select build backend: litex or edalize.")
+    builder_group.add_argument("--build-backend",         default="litex",     choices=["litex", "edalize"], help="Select build backend.")
     builder_group.add_argument("--no-compile",            action="store_true", help="Disable software and gateware compilation.")
     builder_group.add_argument("--no-compile-software",   action="store_true", help="Disable software compilation only.")
     builder_group.add_argument("--no-compile-gateware",   action="store_true", help="Disable gateware compilation only.")
