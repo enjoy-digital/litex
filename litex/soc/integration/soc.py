@@ -1989,7 +1989,12 @@ class LiteXSoC(SoC):
             port.data_width = 2**int(math.log2(port.data_width)) # Round to nearest power of 2.
 
             # Create Wishbone Slave.
-            wb_sdram = wishbone.Interface(data_width=self.bus.data_width, address_width=32, addressing="word")
+            wb_sdram = wishbone.Interface(
+                data_width    = self.bus.data_width,
+                address_width = 32,
+                addressing    = "word",
+                bursting      = self.bus.bursting,
+            )
             self.bus.add_slave(name="main_ram", slave=wb_sdram)
 
             # L2 Cache
@@ -2001,7 +2006,12 @@ class LiteXSoC(SoC):
                 l2_cache = wishbone.Cache(
                     cachesize = l2_cache_size//4,
                     master    = wb_sdram,
-                    slave     = wishbone.Interface(data_width=l2_cache_data_width, address_width=32, addressing="word"),
+                    slave     = wishbone.Interface(
+                        data_width    = l2_cache_data_width,
+                        address_width = 32,
+                        addressing    = "word",
+                        bursting      = self.bus.bursting,
+                    ),
                     reverse   = l2_cache_reverse)
                 if l2_cache_full_memory_we:
                     l2_cache = FullMemoryWE()(l2_cache)
@@ -2009,7 +2019,12 @@ class LiteXSoC(SoC):
                 litedram_wb = self.l2_cache.slave
                 self.add_config("L2_SIZE", l2_cache_size)
             else:
-                litedram_wb = wishbone.Interface(data_width=port.data_width, address_width=32, addressing="word")
+                litedram_wb = wishbone.Interface(
+                    data_width    = port.data_width,
+                    address_width = 32,
+                    addressing    = "word",
+                    bursting      = self.bus.bursting,
+                )
                 self.submodules += wishbone.Converter(wb_sdram, litedram_wb)
 
             # Wishbone Slave <--> LiteDRAM bridge.
@@ -2409,7 +2424,12 @@ class LiteXSoC(SoC):
         spiram_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size, mode="rwx")
         
         # Create Wishbone Slave.
-        wb_spiram = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        wb_spiram = wishbone.Interface(
+            data_width    = 32,
+            address_width = 32,
+            addressing    = "word",
+            bursting      = self.bus.bursting,
+        )
         self.bus.add_slave(name=name, slave=wb_spiram, region=spiram_region, strip_origin=True)
         
         # L2 Cache

@@ -469,7 +469,7 @@ class HyperRAMCore(LiteXModule):
         # Data Write State.
         self.sync += [
             If(bus_latch,
-                bus_cti.eq(bus_cti),
+                bus_cti.eq(bus.cti),
                 bus_we.eq(bus.we),
                 bus_sel.eq(bus.sel),
                 bus_adr.eq(bus.adr),

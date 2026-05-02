@@ -43,6 +43,11 @@ CTI_BURST_CONSTANT     = 0b001
 CTI_BURST_INCREMENTING = 0b010
 CTI_BURST_END          = 0b111
 
+BTE_BURST_LINEAR       = 0b00
+BTE_BURST_WRAP_4       = 0b01
+BTE_BURST_WRAP_8       = 0b10
+BTE_BURST_WRAP_16      = 0b11
+
 
 class Interface(Record):
     def __init__(self, data_width=32, adr_width=30, bursting=False, addressing="word", mode="rw", **kwargs):
@@ -293,16 +298,43 @@ class Decoder(LiteXModule):
     # but breaks Wishbone combinatorial feedback.
     def __init__(self, master, slaves, register=False):
         ns = len(slaves)
-        slave_sel = Signal(ns)
-        slave_sel_r = Signal(ns)
+        slave_sel      = Signal(ns)
+        slave_sel_cyc  = Signal(ns)
+        slave_sel_eff  = Signal(ns)
+        slave_sel_r    = Signal(ns)
+        slave_sel_lock = Signal()
 
         # decode slave addresses
         self.comb += [slave_sel[i].eq(fun(master.adr))
             for i, (fun, bus) in enumerate(slaves)]
+
+        # Lock burst cycles to the slave selected by the first beat. Bursts are
+        # not allowed to cross slave windows, and some slaves generate later
+        # burst addresses internally from the first address.
+        self.comb += [
+            slave_sel_eff.eq(slave_sel),
+            If(slave_sel_lock,
+                slave_sel_eff.eq(slave_sel_cyc)
+            )
+        ]
+        self.sync += [
+            If(~master.cyc,
+                slave_sel_lock.eq(0),
+                slave_sel_cyc.eq(0)
+            ).Elif(master.stb & ~slave_sel_lock &
+                  ((master.cti == CTI_BURST_CONSTANT) | (master.cti == CTI_BURST_INCREMENTING)),
+                slave_sel_lock.eq(1),
+                slave_sel_cyc.eq(slave_sel)
+            ).Elif(master.stb & master.ack & (master.cti == CTI_BURST_END),
+                slave_sel_lock.eq(0),
+                slave_sel_cyc.eq(0)
+            )
+        ]
+
         if register:
-            self.sync += slave_sel_r.eq(slave_sel)
+            self.sync += slave_sel_r.eq(slave_sel_eff)
         else:
-            self.comb += slave_sel_r.eq(slave_sel)
+            self.comb += slave_sel_r.eq(slave_sel_eff)
 
         # connect master->slaves signals except cyc
         for slave in slaves:
@@ -311,7 +343,7 @@ class Decoder(LiteXModule):
                     self.comb += getattr(slave[1], name).eq(getattr(master, name))
 
         # combine cyc with slave selection signals
-        self.comb += [slave[1].cyc.eq(master.cyc & slave_sel[i])
+        self.comb += [slave[1].cyc.eq(master.cyc & slave_sel_eff[i])
             for i, slave in enumerate(slaves)]
 
         # generate master ack (resp. err) by ORing all slave acks (resp. errs)
@@ -329,7 +361,8 @@ class InterconnectShared(LiteXModule):
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         adr_width = max([m.adr_width for m in masters])
-        shared = Interface(data_width=data_width, adr_width=adr_width)
+        bursting = any(getattr(port, "bursting", False) for port in masters + [s for _, s in slaves])
+        shared = Interface(data_width=data_width, adr_width=adr_width, bursting=bursting)
         self.arbiter = Arbiter(masters, shared)
         self.decoder = Decoder(shared, slaves, register)
         if timeout_cycles is not None:
@@ -341,7 +374,8 @@ class Crossbar(LiteXModule):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         matches, busses = zip(*slaves)
         adr_width = max([m.adr_width for m in masters])
-        access = [[Interface(data_width=data_width, adr_width=adr_width) for j in slaves] for i in masters]
+        bursting = any(getattr(port, "bursting", False) for port in masters + [s for _, s in slaves])
+        access = [[Interface(data_width=data_width, adr_width=adr_width, bursting=bursting) for j in slaves] for i in masters]
         # decode each master into its access row
         for row, master in zip(access, masters):
             row = list(zip(matches, row))
@@ -541,7 +575,7 @@ class SRAM(LiteXModule):
 
             adr_next = Signal(len(self.bus.adr))
 
-            # Only Incrementing Burts are supported.
+            # Only Incrementing Bursts are supported.
             self.comb += [
                 Case(self.bus.cti, {
                     # incrementing address burst cycle
@@ -799,6 +833,17 @@ class Cache(LiteXModule):
             else:
                 return 1
 
+        slave_burst_tags = []
+        if word is not None:
+            slave_burst_tags = [
+                slave.bte.eq(BTE_BURST_LINEAR),
+                If(word_is_last(word),
+                    slave.cti.eq(CTI_BURST_END)
+                ).Else(
+                    slave.cti.eq(CTI_BURST_INCREMENTING)
+                )
+            ]
+
         # FSM.
         # ----
         self.fsm = fsm = FSM(reset_state="IDLE")
@@ -832,6 +877,7 @@ class Cache(LiteXModule):
             slave.stb.eq(1),
             slave.cyc.eq(1),
             slave.we.eq(1),
+            *slave_burst_tags,
             If(slave.ack,
                 word_inc.eq(1),
                  If(word_is_last(word),
@@ -846,6 +892,7 @@ class Cache(LiteXModule):
             slave.stb.eq(1),
             slave.cyc.eq(1),
             slave.we.eq(0),
+            *slave_burst_tags,
             If(slave.ack,
                 write_from_slave.eq(1),
                 word_inc.eq(1),
