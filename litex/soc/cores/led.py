@@ -277,3 +277,215 @@ class WS2812(LiteXModule):
                 )
             )
         )
+
+
+# SK2812RGBW ---------------------------------------------------------------------------------------
+
+class SK2812RGBW(LiteXModule):
+    """SK2812RGBW Led Driver.
+
+    Description
+    -----------
+
+                ┌──────┐   ┌──────┐   ┌──────┐   ┌──────┐   ┌──────┐
+                │DI  DO│   │DI  DO│   │DI  DO│   │DI  DO│   │DI  DO│     Next leds
+        FPGA ───►      ├───►      ├───►      ├───►      ├───►      ├───►     or
+                │ LED0 │   │ LED1 │   │ LED2 │   │ LED3 │   │ LED4 │   end of chain.
+                └──────┘   └──────┘   └──────┘   └──────┘   └──────┘
+                 32-bit     32-bit     32-bit     32-bit     32-bit
+
+    SK2812RGBW Leds are smart RGBW Leds controlled over a simple one wire protocol:
+     - Each Led will "digest" a 32-bit control word:  (MSB) R-G-B-W (LSB).
+     - Leds can be chained through DIN->DOUT connection.
+
+     Each control sequence is separated by a reset code: Line low for > 80us.
+     Ones are transmitted as:
+                       ┌─────┐
+                       │ T0H │           │  T0H = 300ns +-150ns
+                       │     │    T0L    │  T0L = 900ns +-150ns
+                             └───────────┘
+     Zeros are transmitted as:
+                       ┌─────────┐
+                       │   T1H   │       │  T1H = 600ns +-150ns
+                       │         │  T1L  │  T1L = 600ns +-150ns
+                                 └───────┘
+
+    Integration
+    -----------
+
+     The core handles the SK2812RGBW protocol and exposes the Led chain as an MMAPed peripheral:
+
+                                         32-bit
+                                       WW_BB_RR_GG
+                                      ┌───────────┐
+                             Base + 0 │   LED0    │
+                                      ├───────────┤
+                             Base + 4 │   LED1    │
+                                      ├───────────┤
+                             Base + 8 │   LED2    │
+                                      └───────────┘
+                               ...        ...
+
+     It can be simply integrated in a LiteX SoC with:
+         self.sk2812rgbw = SK2812RGBW(platform.request("x"), nleds=32, sys_clk_freq=sys_clk_freq)
+         self.bus.add_slave(name="sk2812rgbw", slave=self.sk2812rgbw.bus, region=SoCRegion(
+             origin = 0x2000_0000,
+             size   = 32*4,
+         ))
+
+     Each Led can then be directly controlled from the Bus of the SoC.
+
+     Parameters
+     ----------
+     pad : Signal, in
+         FPGA DOut.
+     nleds : int, in
+         Number of Leds in the chain.
+     sys_clk_freq: int, in
+         System Clk Frequency.
+    """
+    def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None, init=None, bus_standard="wishbone"):
+        if bus_mastering:
+            self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        else:
+            # Memory.
+            mem_depth = max(nleds, 2)
+            self.mem  = mem  = Memory(32, mem_depth, init=init, name="sk2812rgbw_mem")
+            self.port = port = mem.get_port()
+            if "csr" not in bus_standard:
+                self.autocsr_exclude = {"mem"}
+
+                ram_cls = {
+                    "wishbone": wishbone.SRAM,
+                    "axi-lite": axi.AXILiteSRAM,
+                    "axi"     : axi.AXILiteSRAM, # FIXME: Use AXI-Lite for now, create AXISRAM.
+                }[bus_standard]
+                interface_cls = {
+                    "wishbone": wishbone.Interface,
+                    "axi-lite": axi.AXILiteInterface,
+                    "axi"     : axi.AXILiteInterface, # FIXME: Use AXI-Lite for now, create AXISRAM.
+                }[bus_standard]
+
+                # Wishbone Memory.
+                self.bus_mem = ram_cls(
+                    mem_or_size = mem,
+                    read_only   = False,
+                    bus         = interface_cls(data_width=32, address_width=32)
+                )
+                self.bus = self.bus_mem.bus
+
+
+        # Internal Signals.
+        led_count  = Signal(max=max(nleds, 2))
+        led_data   = Signal(32)
+        xfer_start = Signal()
+        xfer_done  = Signal()
+        xfer_data  = Signal(32)
+
+        # Timings
+        self.trst = trst = 80e-6*1.25
+        self.t0h  = t0h  = 0.30e-6
+        self.t0l  = t0l  = 0.90e-6
+        self.t1h  = t1h  = 0.60e-6
+        self.t1l  = t1l  = 0.60e-6
+
+        # Timers.
+        trst_timer = WaitTimer(trst*sys_clk_freq)
+        self.submodules += trst_timer
+
+        t0h_timer = WaitTimer(t0h*sys_clk_freq)
+        t0l_timer = WaitTimer(t0l*sys_clk_freq - 1) # Compensate Xfer FSM latency.
+        self.submodules += t0h_timer, t0l_timer
+
+        t1h_timer = WaitTimer(t1h*sys_clk_freq)
+        t1l_timer = WaitTimer(t1l*sys_clk_freq - 1) # Compensate Xfer FSM latency.
+        self.submodules += t1h_timer, t1l_timer
+
+        # Main FSM.
+        self.fsm = fsm = FSM(reset_state="RST")
+        fsm.act("RST",
+            NextValue(led_count, 0),
+            trst_timer.wait.eq(xfer_done),
+            If(trst_timer.done,
+                NextState("LED-READ")
+            )
+        )
+        if bus_mastering:
+             fsm.act("LED-READ",
+                bus.stb.eq(1),
+                bus.cyc.eq(1),
+                bus.we.eq(0),
+                bus.sel.eq(2**(bus.data_width//8)-1),
+                bus.adr.eq(bus_base[2:] + led_count),
+                If(bus.ack,
+                    NextValue(led_data, bus.dat_r),
+                    NextState("LED-SEND")
+                )
+            )
+        else:
+            self.comb += port.adr.eq(led_count)
+            fsm.act("LED-READ",
+                NextState("LED-LATCH")
+            )
+            fsm.act("LED-LATCH",
+                NextValue(led_data, port.dat_r),
+                NextState("LED-SEND")
+            )
+
+        fsm.act("LED-SEND",
+            If(xfer_done,
+                xfer_start.eq(1),
+                NextState("LED-SHIFT")
+            )
+        )
+        fsm.act("LED-SHIFT",
+            If(led_count == (nleds - 1),
+                NextState("RST")
+            ).Else(
+                NextValue(led_count, led_count + 1),
+                NextState("LED-READ")
+            )
+        )
+
+        # XFER FSM.
+        xfer_bit = Signal(5)
+        xfer_fsm = FSM(reset_state="IDLE")
+        self.submodules += xfer_fsm
+        xfer_fsm.act("IDLE",
+            xfer_done.eq(1),
+            If(xfer_start,
+                NextValue(xfer_bit, 32-1),
+                NextValue(xfer_data, led_data),
+                NextState("RUN")
+            )
+        )
+        xfer_fsm.act("RUN",
+            # Send a one.
+            If(xfer_data[-1],
+                t1h_timer.wait.eq(1),
+                t1l_timer.wait.eq(t1h_timer.done),
+                pad.eq(~t1h_timer.done),
+            # Send a zero.
+            ).Else(
+                t0h_timer.wait.eq(1),
+                t0l_timer.wait.eq(t0h_timer.done),
+                pad.eq(~t0h_timer.done),
+            ),
+
+            # When bit has been sent:
+            If(t0l_timer.done | t1l_timer.done,
+                # Clear wait on timers.
+                t0h_timer.wait.eq(0),
+                t0l_timer.wait.eq(0),
+                t1h_timer.wait.eq(0),
+                t1l_timer.wait.eq(0),
+                # Shift xfer_data.
+                NextValue(xfer_data, Cat(Signal(), xfer_data)),
+                # Decrement xfer_bit.
+                NextValue(xfer_bit, xfer_bit - 1),
+                # When xfer_bit reaches 0.
+                If(xfer_bit == 0,
+                    NextState("IDLE")
+                )
+            )
+        )
