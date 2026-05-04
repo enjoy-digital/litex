@@ -70,6 +70,22 @@ class _RomFakeSoC:
         self.init_rom_calls.append((name, contents, auto_size))
 
 
+class _IncludeFakeSoC:
+    def __init__(self):
+        self.mem_regions = {
+            "rom"  : SoCRegion(origin=0x00000000, size=0x1000, mode="rx"),
+            "sram" : SoCRegion(origin=0x10000000, size=0x1000),
+            "csr"  : SoCRegion(origin=0xe0000000, size=0x10000, cached=False),
+        }
+        self.constants   = {"CONFIG_CLOCK_FREQUENCY": 100000000}
+        self.csr_regions = {}
+        self.csr         = SimpleNamespace(ordering="big")
+        self.cpu         = SimpleNamespace(
+            reset_address        = 0x00000000,
+            linker_output_format = "elf32-littleriscv",
+        )
+
+
 def _make_builder(output_dir, soc=None, **kwargs):
     if soc is None:
         soc = _FakeSoC()
@@ -209,6 +225,83 @@ class TestBuilderJsonImports(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "JSON constant collision on FOO"):
                 builder._merge_json_items({"FOO": 1}, {"FOO": 2}, "constant")
+
+
+class TestBuilderGeneratedFiles(unittest.TestCase):
+    def test_generate_includes_without_bios_writes_runtime_headers_only(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            memory_x = os.path.join(tmp_dir, "memory.x")
+            builder  = _make_builder(tmp_dir, soc=_IncludeFakeSoC(), memory_x=memory_x)
+
+            with patch("litex.soc.cores.bitbang.collect_i2c_info", return_value=([], [])):
+                builder._generate_includes(with_bios=False)
+
+            generated_dir = builder.generated_dir
+            self.assertTrue(os.path.exists(os.path.join(generated_dir, "mem.h")))
+            self.assertTrue(os.path.exists(os.path.join(generated_dir, "soc.h")))
+            self.assertTrue(os.path.exists(os.path.join(generated_dir, "csr.h")))
+            self.assertTrue(os.path.exists(os.path.join(generated_dir, "git.h")))
+            self.assertTrue(os.path.exists(memory_x))
+            self.assertFalse(os.path.exists(os.path.join(generated_dir, "variables.mak")))
+            self.assertFalse(os.path.exists(os.path.join(generated_dir, "output_format.ld")))
+            self.assertFalse(os.path.exists(os.path.join(generated_dir, "regions.ld")))
+
+    def test_generate_includes_with_bios_writes_linker_files(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            builder = _make_builder(tmp_dir, soc=_IncludeFakeSoC(), compile_software=False)
+
+            with patch("litex.soc.integration.builder.export.get_cpu_mak", return_value=[
+                ("TRIPLE",        "--not-found--"),
+                ("CPU",           "unitcpu"),
+                ("CPUFAMILY",     "riscv"),
+                ("CPUFLAGS",      ""),
+                ("CPUENDIANNESS", "little"),
+                ("CLANG",         "0"),
+                ("CPU_DIRECTORY", tmp_dir),
+            ]):
+                with patch("litex.soc.cores.bitbang.collect_i2c_info", return_value=([], [])):
+                    builder._generate_includes(with_bios=True)
+
+            generated_dir = builder.generated_dir
+            self.assertTrue(os.path.exists(os.path.join(generated_dir, "variables.mak")))
+            self.assertTrue(os.path.exists(os.path.join(generated_dir, "output_format.ld")))
+            self.assertTrue(os.path.exists(os.path.join(generated_dir, "regions.ld")))
+
+    def test_generate_csr_map_writes_default_csv_and_json_exports(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            builder = _make_builder(tmp_dir, soc=_IncludeFakeSoC())
+
+            builder._generate_csr_map()
+
+            with open(builder.csr_json) as f:
+                csr_json = json.load(f)
+            with open(builder.csr_csv) as f:
+                csr_csv = f.read()
+
+            self.assertEqual(csr_json["constants"]["config_clock_frequency"], 100000000)
+            self.assertIn("memory_region,csr,0xe0000000,65536", csr_csv)
+
+    def test_variables_contents_escapes_makefile_paths_and_validates_console(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            builder = _make_builder(tmp_dir, soc=_IncludeFakeSoC(), compile_software=False)
+            builder.add_software_package("custom", r"C:\liteX\custom")
+
+            with patch("litex.soc.integration.builder.export.get_cpu_mak", return_value=[
+                ("TRIPLE",        "--not-found--"),
+                ("CPU",           "unitcpu"),
+                ("CPUFAMILY",     "riscv"),
+                ("CPUFLAGS",      ""),
+                ("CPUENDIANNESS", "little"),
+                ("CLANG",         "0"),
+                ("CPU_DIRECTORY", r"C:\cpu"),
+            ]):
+                variables = builder._get_variables_contents()
+                builder.bios_console = "invalid"
+                with self.assertRaisesRegex(ValueError, "Unsupported BIOS console"):
+                    builder._get_variables_contents()
+
+            self.assertIn(r"CUSTOM_DIRECTORY=C:\\liteX\\custom", variables)
+            self.assertIn("BIOS_CONSOLE_FULL=1", variables)
 
 
 class TestBuilderRomSoftware(unittest.TestCase):
