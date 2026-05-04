@@ -176,7 +176,7 @@ class ConnectorManager:
                 else:
                     assert pn < len(conn_entry), f"There is no pin with number '{pn}' on connector '{conn}', maximum is {len(conn_entry)-1}"
                 conn_pn = self.connector_table[conn][pn]
-                if ":" in conn_pn:
+                if conn_pn is not None and ":" in conn_pn:
                     conn_pn = self.resolve_identifiers([conn_pn])[0]
                 r.append(conn_pn)
             else:
