@@ -391,18 +391,28 @@ class TestGenericPlatform(unittest.TestCase):
 
 
 class TestGenericToolchain(unittest.TestCase):
+    def setUp(self):
+        self._test_cwd = os.getcwd()
+        self.addCleanup(os.chdir, self._test_cwd)
+
+    def _assert_cwd_restored(self):
+        try:
+            cwd = os.getcwd()
+        except FileNotFoundError:
+            cwd = None
+        self.assertEqual(cwd, self._test_cwd)
+
     def _assert_build_restores_cwd_on_failure(self, toolchain, message):
         platform = _make_platform(io=[])
         platform.toolchain = toolchain
         dut = Module()
         dut.clock_domains.cd_sys = ClockDomain("sys")
-        cwd = os.getcwd()
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             with self.assertRaisesRegex(RuntimeError, message):
                 toolchain.build(platform, dut, build_dir=os.path.join(tmp_dir, "build"), run=True)
 
-        self.assertEqual(os.getcwd(), cwd)
+            self._assert_cwd_restored()
 
     def test_period_constraint_ignores_none_and_can_skip_keep(self):
         toolchain = GenericToolchain()
@@ -473,6 +483,7 @@ class TestGenericToolchain(unittest.TestCase):
             build_dir = os.path.join(tmp_dir, "build")
             vns = toolchain.build(platform, dut, build_dir=build_dir, build_name="top", run=False)
 
+            self._assert_cwd_restored()
             self.assertTrue(os.path.exists(os.path.join(build_dir, "top.v")))
             self.assertIs(toolchain._vns, vns)
             self.assertEqual(toolchain.finalize_calls, 1)
@@ -491,19 +502,20 @@ class TestGenericToolchain(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             toolchain.build(platform, dut, build_dir=os.path.join(tmp_dir, "build"), run=True)
 
+            self._assert_cwd_restored()
+
         self.assertEqual(toolchain.run_calls, ["build.sh"])
 
     def test_build_restores_cwd_when_finalize_fails(self):
         platform  = _make_platform(io=[])
         toolchain = _DummyToolchain()
         dut       = Module()
-        cwd       = os.getcwd()
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             with self.assertRaises(NotImplementedError):
                 toolchain.build(platform, dut, build_dir=os.path.join(tmp_dir, "build"), run=False)
 
-        self.assertEqual(os.getcwd(), cwd)
+            self._assert_cwd_restored()
 
     def test_build_restores_cwd_when_timing_constraints_fail(self):
         class _FailingTimingToolchain(_DummyToolchain):
@@ -543,13 +555,12 @@ class TestGenericToolchain(unittest.TestCase):
         platform.toolchain = toolchain
         dut = Module()
         dut.clock_domains.cd_sys = ClockDomain("sys")
-        cwd = os.getcwd()
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             with self.assertRaisesRegex(RuntimeError, "script failed"):
                 toolchain.build(platform, dut, build_dir=os.path.join(tmp_dir, "build"), run=True)
 
-        self.assertEqual(os.getcwd(), cwd)
+            self._assert_cwd_restored()
 
     def test_build_restores_cwd_when_backend_is_unsupported(self):
         platform = _make_platform(io=[])
@@ -557,7 +568,6 @@ class TestGenericToolchain(unittest.TestCase):
         platform.toolchain = toolchain
         dut = Module()
         dut.clock_domains.cd_sys = ClockDomain("sys")
-        cwd = os.getcwd()
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             with self.assertRaises(NotImplementedError):
@@ -569,7 +579,7 @@ class TestGenericToolchain(unittest.TestCase):
                     run           = False,
                 )
 
-        self.assertEqual(os.getcwd(), cwd)
+            self._assert_cwd_restored()
 
     def test_build_edalize_backend_generates_mixed_language_file_list(self):
         captured = {}
@@ -617,6 +627,7 @@ class TestGenericToolchain(unittest.TestCase):
                     run           = True,
                 )
 
+            self._assert_cwd_restored()
             files_by_name = {os.path.basename(f["name"]): f["file_type"] for f in captured["edam"]["files"]}
 
             self.assertEqual(captured["tool"], "dummy")
@@ -650,7 +661,6 @@ class TestGenericToolchain(unittest.TestCase):
         platform.toolchain = toolchain
         dut = Module()
         dut.clock_domains.cd_sys = ClockDomain("sys")
-        cwd = os.getcwd()
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             fake_edalize = types.SimpleNamespace(get_edatool=get_edatool)
@@ -664,7 +674,7 @@ class TestGenericToolchain(unittest.TestCase):
                         run           = False,
                     )
 
-        self.assertEqual(os.getcwd(), cwd)
+            self._assert_cwd_restored()
 
 
 if __name__ == "__main__":
