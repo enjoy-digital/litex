@@ -15,6 +15,7 @@ from litex.soc.integration.soc import (
     SoCCSRRegion,
     SoCError,
     SoCIORegion,
+    SoCIRQHandler,
     SoCRegion,
     add_ip_address_constants,
     add_mac_address_constants,
@@ -127,6 +128,16 @@ class TestSoCBusHandler(unittest.TestCase):
         with _assert_raises_soc_error(self):
             SoCBusHandler(standard="axi", addressing="word")
 
+    def test_address_width_conversion_between_bus_standards(self):
+        wishbone_bus = SoCBusHandler(standard="wishbone", data_width=32, address_width=32)
+        axi_bus      = SoCBusHandler(standard="axi",      data_width=64, address_width=32)
+
+        self.assertEqual(wishbone_bus.get_address_width("wishbone"), 32)
+        self.assertEqual(wishbone_bus.get_address_width("axi-lite"), 34)
+        self.assertEqual(wishbone_bus.get_address_width("axi"),      34)
+        self.assertEqual(axi_bus.get_address_width("axi"),           32)
+        self.assertEqual(axi_bus.get_address_width("wishbone"),      29)
+
     def test_regions_are_auto_allocated_after_existing_regions(self):
         bus = SoCBusHandler()
 
@@ -134,6 +145,13 @@ class TestSoCBusHandler(unittest.TestCase):
         bus.add_region("auto", SoCRegion(origin=None,   size=0x1000))
 
         self.assertEqual(bus.regions["auto"].origin, 0x1000)
+
+    def test_duplicate_region_names_are_rejected(self):
+        bus = SoCBusHandler()
+        bus.add_region("boot", SoCRegion(origin=0x0000, size=0x1000))
+
+        with _assert_raises_soc_error(self):
+            bus.add_region("boot", SoCRegion(origin=0x1000, size=0x1000))
 
     def test_overlapping_regions_are_rejected(self):
         bus = SoCBusHandler()
@@ -150,8 +168,36 @@ class TestSoCBusHandler(unittest.TestCase):
         with _assert_raises_soc_error(self):
             bus.add_region("cached_uart", SoCRegion(origin=0x80000100, size=0x100, cached=True))
 
+    def test_uncached_region_must_be_inside_io_region(self):
+        bus = SoCBusHandler()
+
+        with _assert_raises_soc_error(self):
+            bus.add_region("uncached", SoCRegion(origin=0x20000000, size=0x1000, cached=False))
+
+    def test_linker_region_overlaps_are_ignored_unless_requested(self):
+        bus = SoCBusHandler()
+        regions = {
+            "boot"   : SoCRegion(origin=0x0000, size=0x1000, linker=True),
+            "linker" : SoCRegion(origin=0x0800, size=0x1000),
+        }
+
+        self.assertIsNone(bus.check_regions_overlap(regions))
+        self.assertEqual(bus.check_regions_overlap(regions, check_linker=True), ("boot", "linker"))
+
 
 class TestSoCCSRHandler(unittest.TestCase):
+    def test_invalid_csr_handler_parameters_are_rejected(self):
+        for kwargs in [
+            {"data_width": 16},
+            {"address_width": 13},
+            {"alignment": 16},
+            {"paging": 0x200},
+            {"ordering": "middle"},
+        ]:
+            with self.subTest(kwargs=kwargs):
+                with _assert_raises_soc_error(self):
+                    SoCCSRHandler(**kwargs)
+
     def test_address_map_allocates_and_reuses_locations(self):
         csr = SoCCSRHandler(reserved_csrs={"ctrl": 0})
 
@@ -166,6 +212,30 @@ class TestSoCCSRHandler(unittest.TestCase):
         self.assertIn("timer0", csr.regions)
         with _assert_raises_soc_error(self):
             csr.add_region("misaligned", SoCCSRRegion(origin=csr.paging + 4, busword=32, obj=object()))
+
+
+class TestSoCIRQHandler(unittest.TestCase):
+    def test_irq_handler_requires_enable_before_add(self):
+        irq = SoCIRQHandler(n_irqs=4)
+
+        with _assert_raises_soc_error(self):
+            irq.add("timer0")
+
+        irq.enable()
+        irq.add("timer0")
+        irq.add("uart", 3)
+
+        self.assertEqual(irq.locs, {"timer0": 0, "uart": 3})
+
+    def test_irq_handler_rejects_duplicate_and_out_of_range_locations(self):
+        irq = SoCIRQHandler(n_irqs=2)
+        irq.enable()
+        irq.add("timer0", 0)
+
+        with _assert_raises_soc_error(self):
+            irq.add("uart", 0)
+        with _assert_raises_soc_error(self):
+            irq.add("ethmac", 2)
 
 
 class TestSoC(unittest.TestCase):
@@ -185,6 +255,34 @@ class TestSoC(unittest.TestCase):
         soc.add_constant("foo", 2, check_duplicate=False)
 
         self.assertEqual(soc.constants["FOO"], 2)
+
+    def test_duplicate_constants_are_rejected_by_default(self):
+        soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        soc.add_constant("foo", 1)
+        with _assert_raises_soc_error(self):
+            soc.add_constant("foo", 2)
+
+    def test_config_names_are_prefixed(self):
+        soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        soc.add_config("FEATURE", 1)
+
+        self.assertEqual(soc.constants["CONFIG_FEATURE"], 1)
+
+    def test_bios_requirements_check_required_csr_and_regions(self):
+        soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.check_bios_requirements()
+
+        soc.csr.locs["timer0"] = 0
+        with _assert_raises_soc_error(self):
+            soc.check_bios_requirements()
+
+        soc.bus.add_region("rom",  SoCRegion(origin=0x00000000, size=0x1000, mode="rx"))
+        soc.bus.add_region("sram", SoCRegion(origin=0x10000000, size=0x1000))
+        soc.check_bios_requirements()
 
     def test_build_uses_platform_name_and_sanitizes_numeric_build_name(self):
         platform = _FakePlatform()
