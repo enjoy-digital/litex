@@ -521,6 +521,17 @@ class SoCBusHandler(LiteXModule):
                     addressing    = self.addressing)
                 if main_bus_cls is axi.AXIInterface:
                     args["id_width"] = self._get_axi_id_width()
+                else:
+                    for arg in [
+                        "version",
+                        "id_width",
+                        "aw_user_width",
+                        "w_user_width",
+                        "b_user_width",
+                        "ar_user_width",
+                        "r_user_width",
+                    ]:
+                        args.pop(arg, None)
                 adapted_interface = main_bus_cls(**args)
                 if direction == "m2s":
                     master, slave = interface, adapted_interface

@@ -8,6 +8,8 @@ import sys
 import unittest
 from contextlib import contextmanager
 
+from litex.soc.interconnect import axi, wishbone
+
 from litex.soc.integration.soc import (
     SoC,
     SoCBusHandler,
@@ -50,6 +52,10 @@ class _FakePlatform:
     def build(self, soc, *args, **kwargs):
         self.build_calls.append((soc, args, kwargs))
         return "built"
+
+
+def _make_bus_interface(interface_cls, data_width=32, address_width=32):
+    return interface_cls(data_width=data_width, address_width=address_width)
 
 
 class TestSoCAddressConstants(unittest.TestCase):
@@ -183,6 +189,73 @@ class TestSoCBusHandler(unittest.TestCase):
 
         self.assertIsNone(bus.check_regions_overlap(regions))
         self.assertEqual(bus.check_regions_overlap(regions, check_linker=True), ("boot", "linker"))
+
+
+class TestSoCBusStandardIntegration(unittest.TestCase):
+    def test_slaves_are_adapted_to_bus_standard(self):
+        cases = [
+            ("wishbone", axi.AXILiteInterface, wishbone.Interface),
+            ("wishbone", axi.AXIInterface,     wishbone.Interface),
+            ("axi-lite", wishbone.Interface,   axi.AXILiteInterface),
+            ("axi-lite", axi.AXIInterface,     axi.AXILiteInterface),
+            ("axi",      wishbone.Interface,   axi.AXIInterface),
+            ("axi",      axi.AXILiteInterface, axi.AXIInterface),
+        ]
+
+        for bus_standard, source_cls, expected_cls in cases:
+            with self.subTest(bus_standard=bus_standard, source_cls=source_cls.__name__):
+                bus       = SoCBusHandler(standard=bus_standard)
+                interface = _make_bus_interface(source_cls)
+
+                bus.add_slave("slave", interface, SoCRegion(origin=0x00000000, size=0x1000))
+
+                self.assertIsInstance(bus.slaves["slave"], expected_cls)
+                self.assertEqual(bus.slaves["slave"].data_width,    bus.data_width)
+                self.assertEqual(bus.slaves["slave"].address_width, bus.address_width)
+
+    def test_masters_are_adapted_to_bus_standard(self):
+        cases = [
+            ("wishbone", axi.AXIInterface,     wishbone.Interface),
+            ("axi-lite", wishbone.Interface,   axi.AXILiteInterface),
+            ("axi-lite", axi.AXIInterface,     axi.AXILiteInterface),
+            ("axi",      axi.AXILiteInterface, axi.AXIInterface),
+        ]
+
+        for bus_standard, source_cls, expected_cls in cases:
+            with self.subTest(bus_standard=bus_standard, source_cls=source_cls.__name__):
+                bus       = SoCBusHandler(standard=bus_standard)
+                interface = _make_bus_interface(source_cls)
+
+                bus.add_master("master", interface)
+
+                self.assertIsInstance(bus.masters["master"], expected_cls)
+                self.assertEqual(bus.masters["master"].data_width,    bus.data_width)
+                self.assertEqual(bus.masters["master"].address_width, bus.address_width)
+
+    def test_native_slave_interface_is_kept(self):
+        cases = [
+            ("wishbone", wishbone.Interface),
+            ("axi-lite", axi.AXILiteInterface),
+            ("axi",      axi.AXIInterface),
+        ]
+
+        for bus_standard, interface_cls in cases:
+            with self.subTest(bus_standard=bus_standard):
+                bus       = SoCBusHandler(standard=bus_standard)
+                interface = _make_bus_interface(interface_cls)
+
+                bus.add_slave("slave", interface, SoCRegion(origin=0x00000000, size=0x1000))
+
+                self.assertIs(bus.slaves["slave"], interface)
+
+    def test_slave_data_width_is_converted_to_bus_width(self):
+        bus       = SoCBusHandler(standard="wishbone", data_width=64)
+        interface = wishbone.Interface(data_width=32, address_width=32)
+
+        bus.add_slave("slave", interface, SoCRegion(origin=0x00000000, size=0x1000))
+
+        self.assertIsInstance(bus.slaves["slave"], wishbone.Interface)
+        self.assertEqual(bus.slaves["slave"].data_width, 64)
 
 
 class TestSoCCSRHandler(unittest.TestCase):
