@@ -315,6 +315,20 @@ int serialboot(void)
 
 #endif
 
+static int json_token_to_string(char *dst, size_t dst_size, const char *json, jsmntok_t *token)
+{
+	int len;
+
+	if ((token->start < 0) || (token->end < token->start))
+		return 0;
+	len = token->end - token->start;
+	if (len >= (int)dst_size)
+		return 0;
+	memcpy(dst, json + token->start, len);
+	dst[len] = 0;
+	return 1;
+}
+
 /*-----------------------------------------------------------------------*/
 /* Ethernet Boot                                                         */
 /*-----------------------------------------------------------------------*/
@@ -472,20 +486,6 @@ void set_mac_addr(const char * mac_address)
 }
 
 #endif
-
-static int json_token_to_string(char *dst, size_t dst_size, const char *json, jsmntok_t *token)
-{
-	int len;
-
-	if ((token->start < 0) || (token->end < token->start))
-		return 0;
-	len = token->end - token->start;
-	if (len >= (int)dst_size)
-		return 0;
-	memcpy(dst, json + token->start, len);
-	dst[len] = 0;
-	return 1;
-}
 
 static void netboot_from_json(const char * filename, unsigned int ip, unsigned short tftp_port)
 {
