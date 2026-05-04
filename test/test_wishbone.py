@@ -332,6 +332,95 @@ class TestWishbone(unittest.TestCase):
             (0x09, wishbone.CTI_BURST_END,          0),
         ])
 
+    def test_cache_prefetches_next_wide_line_on_burst_read(self):
+        observed = []
+
+        def line_data(adr):
+            base = adr*4
+            return sum((base + (3 - i)) << (32*i) for i in range(4))
+
+        @passive
+        def slave_handler(dut):
+            yield dut.slave.ack.eq(0)
+            while True:
+                if (yield dut.slave.cyc) and (yield dut.slave.stb):
+                    adr = (yield dut.slave.adr)
+                    observed.append((adr, (yield dut.slave.cti), (yield dut.slave.we)))
+                    yield dut.slave.dat_r.eq(line_data(adr))
+                    yield
+                    yield dut.slave.ack.eq(1)
+                    yield
+                    yield dut.slave.ack.eq(0)
+                yield
+
+        def generator(dut):
+            addrs = list(range(0x10, 0x18))
+            self.assertEqual((yield from wishbone_read_burst(dut.master, addrs)), addrs)
+
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.master = wishbone.Interface(data_width=32,  address_width=32, addressing="word", bursting=True)
+                self.slave  = wishbone.Interface(data_width=128, address_width=32, addressing="word", bursting=True)
+                self.submodules.cache = wishbone.Cache(
+                    cachesize = 16,
+                    master    = self.master,
+                    slave     = self.slave,
+                )
+
+        dut = DUT()
+        run_simulation(dut, [generator(dut), slave_handler(dut)])
+        self.assertEqual(observed, [
+            (0x04, wishbone.CTI_BURST_INCREMENTING, 0),
+            (0x05, wishbone.CTI_BURST_END,          0),
+        ])
+
+    def test_cache_does_not_prefetch_dirty_next_wide_line(self):
+        observed = []
+
+        def line_data(adr):
+            base = adr*4
+            return sum((base + (3 - i)) << (32*i) for i in range(4))
+
+        @passive
+        def slave_handler(dut):
+            yield dut.slave.ack.eq(0)
+            while True:
+                if (yield dut.slave.cyc) and (yield dut.slave.stb):
+                    adr = (yield dut.slave.adr)
+                    observed.append((adr, (yield dut.slave.cti), (yield dut.slave.we)))
+                    yield dut.slave.dat_r.eq(line_data(adr))
+                    yield
+                    yield dut.slave.ack.eq(1)
+                    yield
+                    yield dut.slave.ack.eq(0)
+                yield
+
+        def generator(dut):
+            yield from dut.master.write(0x14, 0x5555aaaa)
+            yield
+            observed.clear()
+
+            addrs  = list(range(0x10, 0x18))
+            values = list(addrs)
+            values[4] = 0x5555aaaa
+            self.assertEqual((yield from wishbone_read_burst(dut.master, addrs)), values)
+
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.master = wishbone.Interface(data_width=32,  address_width=32, addressing="word", bursting=True)
+                self.slave  = wishbone.Interface(data_width=128, address_width=32, addressing="word", bursting=True)
+                self.submodules.cache = wishbone.Cache(
+                    cachesize = 16,
+                    master    = self.master,
+                    slave     = self.slave,
+                )
+
+        dut = DUT()
+        run_simulation(dut, [generator(dut), slave_handler(dut)])
+        self.assertEqual(observed, [
+            (0x04, wishbone.CTI_BURST_NONE, 0),
+        ])
+
     def test_sram_burst_constant(self):
         def generator(dut):
             yield from dut.wb.write(0x0001, 0x01234567, cti=wishbone.CTI_BURST_CONSTANT)

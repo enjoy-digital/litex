@@ -760,6 +760,7 @@ class Cache(LiteXModule):
         wordbits                      = log2_int(max(dw_from//dw_to, 1))
         adr_offset, adr_line, adr_tag = split(master.adr, offsetbits, linebits, tagbits)
         word                          = Signal(wordbits) if wordbits else None
+        with_next_line_prefetch       = (word is None) and (offsetbits > 0) and (linebits > 0)
 
         # Data Memory.
         # ------------
@@ -808,10 +809,37 @@ class Cache(LiteXModule):
             tag_port.adr.eq(adr_line),
             tag_di.tag.eq(adr_tag)
         ]
+
+        if with_next_line_prefetch:
+            prefetch_candidate = Signal()
+            prefetch_checked   = Signal()
+            prefetch_pending   = Signal()
+            prefetch_adr       = Signal.like(slave.adr)
+            prefetch_adr_line  = Signal(linebits)
+            prefetch_adr_tag   = Signal(tagbits)
+            prefetch_tag_port  = tag_mem.get_port(write_capable=False)
+            prefetch_tag_do    = Record(tag_layout)
+            self.specials += prefetch_tag_port
+
+            self.comb += [
+                prefetch_candidate.eq(
+                    master.cyc & master.stb & ~master.we &
+                    (master.cti == CTI_BURST_INCREMENTING) &
+                    (master.bte == BTE_BURST_LINEAR)
+                ),
+                prefetch_adr.eq(Cat(adr_line, adr_tag) + 1),
+                prefetch_adr_line.eq(prefetch_adr[:linebits]),
+                prefetch_adr_tag.eq(prefetch_adr[linebits:]),
+                prefetch_tag_port.adr.eq(prefetch_adr_line),
+                prefetch_tag_do.raw_bits().eq(prefetch_tag_port.dat_r),
+            ]
+
         if word is not None:
             self.comb += slave.adr.eq(Cat(word, adr_line, tag_do.tag))
+            refill_slave_adr = [slave.adr.eq(Cat(word, adr_line, adr_tag))]
         else:
             self.comb += slave.adr.eq(Cat(adr_line, tag_do.tag))
+            refill_slave_adr = [slave.adr.eq(Cat(adr_line, adr_tag))]
 
         # Slave word compute.
         # -------------------
@@ -843,9 +871,34 @@ class Cache(LiteXModule):
                     slave.cti.eq(CTI_BURST_INCREMENTING)
                 )
             ]
+        elif with_next_line_prefetch:
+            slave_burst_tags = [
+                slave.bte.eq(BTE_BURST_LINEAR),
+                If(prefetch_pending,
+                    slave.cti.eq(CTI_BURST_INCREMENTING)
+                )
+            ]
 
         # FSM.
         # ----
+        miss_clean = [
+            # Write the tag first to set the slave address
+            tag_port.we.eq(1),
+            word_clr.eq(1),
+            NextState("REFILL")
+        ]
+        if with_next_line_prefetch:
+            miss_clean = [
+                If(prefetch_candidate,
+                    NextState("PREFETCH-LOOKUP")
+                ).Else(
+                    # Write the tag first to set the slave address
+                    tag_port.we.eq(1),
+                    word_clr.eq(1),
+                    NextState("REFILL")
+                )
+            ]
+
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(master.cyc & master.stb,
@@ -865,13 +918,32 @@ class Cache(LiteXModule):
                 If(tag_do.dirty,
                     NextState("EVICT")
                 ).Else(
-                    # Write the tag first to set the slave address
-                    tag_port.we.eq(1),
-                    word_clr.eq(1),
-                    NextState("REFILL")
+                    *miss_clean
                 )
             )
         )
+
+        if with_next_line_prefetch:
+            fsm.act("PREFETCH-LOOKUP",
+                NextState("PREFETCH-TEST")
+            )
+            fsm.act("PREFETCH-TEST",
+                If(prefetch_tag_do.dirty,
+                    NextValue(prefetch_pending, 0)
+                ).Else(
+                    NextValue(prefetch_pending, 1)
+                ),
+                NextValue(prefetch_checked, 1),
+                NextState("REFILL-TAG")
+            )
+            fsm.act("REFILL-TAG",
+                # Write the requested tag first to set the slave address.
+                tag_port.adr.eq(adr_line),
+                tag_di.tag.eq(adr_tag),
+                tag_port.we.eq(1),
+                word_clr.eq(1),
+                NextState("REFILL")
+            )
 
         fsm.act("EVICT",
             slave.stb.eq(1),
@@ -888,18 +960,55 @@ class Cache(LiteXModule):
                 )
             )
         )
+
+        refill_done = [NextState("TEST_HIT")]
+        if with_next_line_prefetch:
+            refill_done = [
+                If(prefetch_pending,
+                    NextState("REFILL-PREFETCH")
+                ).Elif(prefetch_checked,
+                    NextState("REFILL-DONE")
+                ).Else(
+                    NextState("TEST_HIT")
+                )
+            ]
+
         fsm.act("REFILL",
             slave.stb.eq(1),
             slave.cyc.eq(1),
             slave.we.eq(0),
+            *refill_slave_adr,
             *slave_burst_tags,
             If(slave.ack,
                 write_from_slave.eq(1),
                 word_inc.eq(1),
                 If(word_is_last(word),
-                    NextState("TEST_HIT"),
+                    *refill_done
                 ).Else(
                     NextState("REFILL")
                 )
             )
         )
+        if with_next_line_prefetch:
+            fsm.act("REFILL-DONE",
+                NextValue(prefetch_checked, 0),
+                NextState("TEST_HIT")
+            )
+            fsm.act("REFILL-PREFETCH",
+                slave.stb.eq(1),
+                slave.cyc.eq(1),
+                slave.we.eq(0),
+                slave.bte.eq(BTE_BURST_LINEAR),
+                slave.cti.eq(CTI_BURST_END),
+                slave.adr.eq(prefetch_adr),
+                tag_port.adr.eq(prefetch_adr_line),
+                tag_di.tag.eq(prefetch_adr_tag),
+                tag_port.we.eq(1),
+                data_port.adr.eq(prefetch_adr_line),
+                If(slave.ack,
+                    write_from_slave.eq(1),
+                    NextValue(prefetch_checked, 0),
+                    NextValue(prefetch_pending, 0),
+                    NextState("IDLE")
+                )
+            )
