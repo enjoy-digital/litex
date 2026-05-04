@@ -226,6 +226,23 @@ class TestBuilderJsonImports(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "JSON constant collision on FOO"):
                 builder._merge_json_items({"FOO": 1}, {"FOO": 2}, "constant")
 
+    def test_json_constant_exclusion_can_be_disabled(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            json_file = os.path.join(tmp_dir, "remote.json")
+            with open(json_file, "w") as f:
+                json.dump({
+                    "csr_bases": {},
+                    "constants": {
+                        "timer0_interrupt": 1,
+                    },
+                    "memories": {},
+                }, f)
+
+            builder = _make_builder(tmp_dir)
+            builder.add_json(json_file, exclude_constants=[])
+
+            self.assertEqual(builder._get_json_constants()["TIMER0_INTERRUPT"], 1)
+
 
 class TestBuilderGeneratedFiles(unittest.TestCase):
     def test_generate_includes_without_bios_writes_runtime_headers_only(self):
@@ -365,6 +382,39 @@ class TestBuilderRomSoftware(unittest.TestCase):
 
         check_call.assert_not_called()
 
+    def test_prepare_rom_software_creates_all_package_directories(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            builder = object.__new__(Builder)
+            builder.software_dir      = tmp_dir
+            builder.software_packages = [
+                ("libbase", "libbase_src"),
+                ("bios",    "bios_src"),
+            ]
+
+            builder._prepare_rom_software()
+
+            self.assertTrue(os.path.isdir(os.path.join(tmp_dir, "libbase")))
+            self.assertTrue(os.path.isdir(os.path.join(tmp_dir, "bios")))
+
+    def test_check_meson_accepts_supported_version(self):
+        builder = object.__new__(Builder)
+
+        with patch("litex.soc.integration.builder.shutil.which", return_value="/usr/bin/meson"):
+            with patch("litex.soc.integration.builder.subprocess.check_output", return_value=b"0.60.0\n"):
+                builder._check_meson()
+
+    def test_check_meson_rejects_missing_or_old_version(self):
+        builder = object.__new__(Builder)
+
+        with patch("litex.soc.integration.builder.shutil.which", return_value=None):
+            with self.assertRaisesRegex(OSError, "Unable to find valid Meson"):
+                builder._check_meson()
+
+        with patch("litex.soc.integration.builder.shutil.which", return_value="/usr/bin/meson"):
+            with patch("litex.soc.integration.builder.subprocess.check_output", return_value=b"0.58.0\n"):
+                with self.assertRaisesRegex(OSError, "Meson version too old"):
+                    builder._check_meson()
+
 
 class TestBuilderBuild(unittest.TestCase):
     def test_build_adds_bios_package_only_once(self):
@@ -449,6 +499,47 @@ class TestBuilderBuild(unittest.TestCase):
             self.assertFalse(kwargs["hierarchical"])
             self.assertEqual(kwargs["build_backend"], "edalize")
             self.assertEqual(kwargs["build_name"], "top")
+
+    def test_build_removes_software_dir_when_variables_change(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            soc     = _BuildableFakeSoC()
+            builder = _make_builder(tmp_dir, soc=soc, compile_gateware=False)
+            stale_file = os.path.join(builder.software_dir, "stale.txt")
+
+            os.makedirs(builder.generated_dir)
+            with open(os.path.join(builder.generated_dir, "variables.mak"), "w") as f:
+                f.write("old")
+            with open(stale_file, "w") as f:
+                f.write("stale")
+
+            builder._get_variables_contents = Mock(return_value="new")
+            builder._generate_includes      = Mock()
+            builder._generate_csr_map       = Mock()
+
+            builder.build()
+
+            self.assertFalse(os.path.exists(stale_file))
+            self.assertTrue(os.path.isdir(builder.software_dir))
+
+    def test_build_keeps_software_dir_when_variables_are_unchanged(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            soc     = _BuildableFakeSoC()
+            builder = _make_builder(tmp_dir, soc=soc, compile_gateware=False)
+            stale_file = os.path.join(builder.software_dir, "stale.txt")
+
+            os.makedirs(builder.generated_dir)
+            with open(os.path.join(builder.generated_dir, "variables.mak"), "w") as f:
+                f.write("same")
+            with open(stale_file, "w") as f:
+                f.write("stale")
+
+            builder._get_variables_contents = Mock(return_value="same")
+            builder._generate_includes      = Mock()
+            builder._generate_csr_map       = Mock()
+
+            builder.build()
+
+            self.assertTrue(os.path.exists(stale_file))
 
 
 if __name__ == "__main__":
