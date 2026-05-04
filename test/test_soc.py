@@ -7,6 +7,7 @@
 import sys
 import unittest
 from contextlib import contextmanager
+from types import SimpleNamespace
 
 from litex.soc.interconnect import axi, wishbone
 
@@ -191,6 +192,26 @@ class TestSoCBusHandler(unittest.TestCase):
         with _assert_raises_soc_error(self):
             bus.add_region("uncached", SoCRegion(origin=0x20000000, size=0x1000, cached=False))
 
+        self.assertNotIn("uncached", bus.regions)
+
+    def test_uncached_region_can_be_auto_allocated_in_io_region(self):
+        bus = SoCBusHandler()
+        bus.add_region("io", SoCIORegion(origin=0x80000000, size=0x2000))
+
+        bus.add_region("uart", SoCRegion(origin=None, size=0x1000, cached=False))
+
+        self.assertEqual(bus.regions["uart"].origin, 0x80000000)
+        self.assertFalse(bus.regions["uart"].cached)
+
+    def test_uncached_auto_allocation_failure_does_not_mutate_regions(self):
+        bus = SoCBusHandler()
+        bus.add_region("io", SoCIORegion(origin=0x80000000, size=0x1000))
+
+        with _assert_raises_soc_error(self):
+            bus.add_region("too_big", SoCRegion(origin=None, size=0x2000, cached=False))
+
+        self.assertNotIn("too_big", bus.regions)
+
     def test_failed_overlapping_io_region_add_does_not_mutate_io_regions(self):
         bus = SoCBusHandler()
         bus.add_region("io0", SoCIORegion(origin=0x80000000, size=0x10000))
@@ -211,6 +232,27 @@ class TestSoCBusHandler(unittest.TestCase):
 
         self.assertIsNone(bus.check_regions_overlap(regions))
         self.assertEqual(bus.check_regions_overlap(regions, check_linker=True), ("boot", "linker"))
+
+    def test_region_io_containment_uses_exact_boundaries(self):
+        bus       = SoCBusHandler()
+        io_region = SoCIORegion(origin=0x80000000, size=0x1000)
+        bus.add_region("io", io_region)
+
+        self.assertTrue(bus.check_region_is_io(SoCRegion(origin=0x80000f00, size=0x100, cached=False)))
+        self.assertFalse(bus.check_region_is_io(SoCRegion(origin=0x80001000, size=0x100, cached=False)))
+
+    def test_region_decoder_rejects_misaligned_origin(self):
+        bus = SoCBusHandler()
+
+        with _assert_raises_soc_error(self):
+            SoCRegion(origin=0x0800, size=0x1000).decoder(bus)
+
+    def test_full_address_region_decoder_always_matches(self):
+        bus     = SoCBusHandler()
+        decoder = SoCRegion(origin=0x00000000, size=2**bus.address_width).decoder(bus)
+
+        self.assertTrue(decoder(0))
+        self.assertTrue(decoder(0xffffffff))
 
 
 class TestSoCBusStandardIntegration(unittest.TestCase):
@@ -313,6 +355,44 @@ class TestSoCBusStandardIntegration(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "direction must be"):
             bus.add_adapter("bad", wishbone.Interface(), direction="sideways")
 
+    def test_auto_named_masters_and_slaves_are_stable(self):
+        bus = SoCBusHandler()
+
+        bus.add_master(master=wishbone.Interface())
+        bus.add_master(master=wishbone.Interface())
+        bus.add_slave(slave=wishbone.Interface(), region=SoCRegion(origin=0x00000000, size=0x1000))
+        bus.add_slave(slave=wishbone.Interface(), region=SoCRegion(origin=0x00001000, size=0x1000))
+
+        self.assertEqual(list(bus.masters.keys()), ["master0", "master1"])
+        self.assertEqual(list(bus.slaves.keys()),  ["slave0",  "slave1"])
+
+    def test_slave_can_use_predeclared_region(self):
+        bus = SoCBusHandler()
+        bus.add_region("ram", SoCRegion(origin=0x00000000, size=0x1000))
+
+        bus.add_slave("ram", wishbone.Interface())
+
+        self.assertIn("ram", bus.slaves)
+        self.assertEqual(bus.regions["ram"].origin, 0x00000000)
+
+    def test_slave_requires_name_or_region(self):
+        bus = SoCBusHandler()
+
+        with _assert_raises_soc_error(self):
+            bus.add_slave(slave=wishbone.Interface())
+        with _assert_raises_soc_error(self):
+            bus.add_slave("missing", wishbone.Interface())
+
+    def test_duplicate_master_does_not_replace_existing_master(self):
+        bus    = SoCBusHandler()
+        master = wishbone.Interface()
+        bus.add_master("cpu", master)
+
+        with _assert_raises_soc_error(self):
+            bus.add_master("cpu", wishbone.Interface())
+
+        self.assertIs(bus.masters["cpu"], master)
+
 
 class TestSoCCSRHandler(unittest.TestCase):
     def test_invalid_csr_handler_parameters_are_rejected(self):
@@ -334,6 +414,14 @@ class TestSoCCSRHandler(unittest.TestCase):
         self.assertEqual(csr.address_map("timer0"), 1)
         self.assertEqual(csr.address_map("timer0", origin=True), csr.paging)
 
+    def test_address_map_uses_memory_name_override(self):
+        csr    = SoCCSRHandler()
+        memory = SimpleNamespace(name_override="buffer")
+
+        loc = csr.address_map("dma", memory=memory)
+
+        self.assertEqual(csr.locs["dma_buffer"], loc)
+
     def test_csr_region_must_be_paging_aligned(self):
         csr = SoCCSRHandler()
         csr.add_region("timer0", SoCCSRRegion(origin=csr.paging, busword=32, obj=object()))
@@ -341,6 +429,38 @@ class TestSoCCSRHandler(unittest.TestCase):
         self.assertIn("timer0", csr.regions)
         with _assert_raises_soc_error(self):
             csr.add_region("misaligned", SoCCSRRegion(origin=csr.paging + 4, busword=32, obj=object()))
+
+    def test_csr_region_duplicate_is_rejected_without_replacing_region(self):
+        csr    = SoCCSRHandler()
+        region = SoCCSRRegion(origin=csr.paging, busword=32, obj=object())
+        csr.add_region("timer0", region)
+
+        with _assert_raises_soc_error(self):
+            csr.add_region("timer0", SoCCSRRegion(origin=2*csr.paging, busword=32, obj=object()))
+
+        self.assertIs(csr.regions["timer0"], region)
+
+    def test_csr_master_checks_data_width_and_duplicates(self):
+        csr    = SoCCSRHandler(data_width=32)
+        master = SimpleNamespace(data_width=32)
+        csr.add_master("main", master)
+
+        self.assertIs(csr.masters["main"], master)
+        with _assert_raises_soc_error(self):
+            csr.add_master("main", SimpleNamespace(data_width=32))
+        with _assert_raises_soc_error(self):
+            csr.add_master("wide", SimpleNamespace(data_width=8))
+
+    def test_csr_location_exhaustion_does_not_mutate_locs(self):
+        csr = SoCCSRHandler(address_width=14, paging=0x4000)
+
+        for n in range(csr.n_locs):
+            csr.add(f"csr{n}")
+
+        with _assert_raises_soc_error(self):
+            csr.add("overflow")
+
+        self.assertNotIn("overflow", csr.locs)
 
 
 class TestSoCIRQHandler(unittest.TestCase):
@@ -365,6 +485,16 @@ class TestSoCIRQHandler(unittest.TestCase):
             irq.add("uart", 0)
         with _assert_raises_soc_error(self):
             irq.add("ethmac", 2)
+
+    def test_irq_auto_allocation_exhaustion_does_not_mutate_locs(self):
+        irq = SoCIRQHandler(n_irqs=1)
+        irq.enable()
+        irq.add("timer0")
+
+        with _assert_raises_soc_error(self):
+            irq.add("uart")
+
+        self.assertNotIn("uart", irq.locs)
 
 
 class TestSoC(unittest.TestCase):
