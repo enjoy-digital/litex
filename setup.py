@@ -63,7 +63,8 @@ setup(
             "litex_periph_gen = litex.tools.litex_periph_gen:main",
 
             # Simulation.
-            "litex_sim=litex.tools.litex_sim:main",
+            "litex_sim                      = litex.tools.litex_sim:main",
+            "litex_wishbone_burst_benchmark = litex.tools.litex_wishbone_burst_benchmark:main",
 
             # Demos.
             "litex_bare_metal_demo=litex.soc.software.demo.demo:main",

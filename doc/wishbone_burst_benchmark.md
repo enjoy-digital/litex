@@ -57,6 +57,42 @@ initialization, freezes the monitor counters, prints parseable
 `wishbone_burst_monitor ... key=value` lines, and exits through the simulation
 finish CSR.
 
+The host-side sweep helper can run several L2 widths, sizes, and workloads and
+write both raw logs and summaries:
+
+```sh
+python3 -m litex.tools.litex_wishbone_burst_benchmark \
+    --pythonpath=/home/florent/dev/litex/litedram \
+    --l2-cache-min-data-widths=128,256 \
+    --sizes=8192,65536 \
+    --workloads=sequential-read,sequential-read-write,random-read \
+    --output-dir=build/wishbone_burst_benchmark_sweep
+```
+
+It writes `summary.csv`, `summary.md`, and one `litex_sim.log` per benchmark
+case.
+
+Example 128-bit/256-bit sweep results:
+
+| L2 minimum data width | Size | Workload | Write speed | Read speed | L2/DRAM max burst beats |
+| ---: | ---: | --- | ---: | ---: | ---: |
+| 128-bit | 8KiB | sequential-read | - | 536.3KiB/s | 2 |
+| 256-bit | 8KiB | sequential-read | - | 617.7KiB/s | 2 |
+| 128-bit | 8KiB | sequential-read-write | 1.6MiB/s | 536.2KiB/s | 2 |
+| 256-bit | 8KiB | sequential-read-write | 1.6MiB/s | 617.8KiB/s | 2 |
+| 128-bit | 8KiB | random-read | - | 93.2KiB/s | 2 |
+| 256-bit | 8KiB | random-read | - | 94.4KiB/s | 2 |
+| 128-bit | 64KiB | sequential-read | - | 542.3KiB/s | 2 |
+| 256-bit | 64KiB | sequential-read | - | 625.9KiB/s | 2 |
+| 128-bit | 64KiB | sequential-read-write | 366.7KiB/s | 542.3KiB/s | 2 |
+| 256-bit | 64KiB | sequential-read-write | 527.2KiB/s | 625.9KiB/s | 2 |
+| 128-bit | 64KiB | random-read | - | 55.3KiB/s | 2 |
+| 256-bit | 64KiB | random-read | - | 50.6KiB/s | 2 |
+
+The mixed sweep confirms that 256-bit L2 lines are beneficial for sequential
+traffic but should not be enabled as a global default without broader workload
+coverage.
+
 Results:
 
 | Revision | Sequential write | Sequential read |
@@ -191,8 +227,8 @@ beats; increasing the L2 width improves this sequential case but spends BRAM.
 
 ## Next Steps
 
-- Repeat the benchmark with larger `mem_speed` ranges to reduce measurement
-  noise and expose steady-state behavior beyond the 8KiB L2 size.
+- Use `litex_wishbone_burst_benchmark` with larger ranges and mixed workloads
+  to reduce measurement noise and expose behavior beyond the 8KiB L2 size.
 - Evaluate `--l2-cache-min-data-width=256` on larger Artix-7/Kintex-7 and
   DDR3/DDR4 targets to see whether the sim throughput gain generalizes without
   excessive BRAM pressure.
