@@ -273,6 +273,17 @@ class TestWS2812(unittest.TestCase, SerialLedTestMixin):
         with self.assertRaises(ValueError):
             WS2812(Signal(), nleds=1, sys_clk_freq=10e6, bus_mastering=True, revision="old")
 
+    def test_ws2812_rejects_invalid_parameters(self):
+        with self.assertRaisesRegex(ValueError, "nleds"):
+            WS2812(Signal(), nleds=0, sys_clk_freq=10e6, revision="old")
+        with self.assertRaisesRegex(ValueError, "revision"):
+            WS2812(Signal(), nleds=1, sys_clk_freq=10e6, revision="invalid")
+        with self.assertRaisesRegex(ValueError, "aligned"):
+            WS2812(Signal(), nleds=1, sys_clk_freq=10e6,
+                bus_mastering=True, bus_base=0x20000002, revision="old")
+        with self.assertRaisesRegex(ValueError, "sys_clk_freq"):
+            WS2812(Signal(), nleds=1, sys_clk_freq=1e6, revision="old")
+
 
 # SK2812RGBW -------------------------------------------------------------------------------------
 
@@ -318,6 +329,15 @@ class TestSK2812RGBW(unittest.TestCase, SerialLedTestMixin):
     def test_sk2812rgbw_bus_master_requires_base(self):
         with self.assertRaises(ValueError):
             SK2812RGBW(Signal(), nleds=1, sys_clk_freq=10e6, bus_mastering=True)
+
+    def test_sk2812rgbw_rejects_invalid_parameters(self):
+        with self.assertRaisesRegex(ValueError, "nleds"):
+            SK2812RGBW(Signal(), nleds=0, sys_clk_freq=10e6)
+        with self.assertRaisesRegex(ValueError, "aligned"):
+            SK2812RGBW(Signal(), nleds=1, sys_clk_freq=10e6,
+                bus_mastering=True, bus_base=0x20000002)
+        with self.assertRaisesRegex(ValueError, "sys_clk_freq"):
+            SK2812RGBW(Signal(), nleds=1, sys_clk_freq=1e6)
 
 
 # LedChaser ---------------------------------------------------------------------------------------

@@ -21,7 +21,21 @@ _CONTROL_MODE = 1
 def _get_word_address(address):
     if address is None:
         raise ValueError("bus_base must be specified when bus_mastering=True")
-    return (address >> 2) if isinstance(address, int) else address[2:]
+    if isinstance(address, int):
+        if address & 0x3:
+            raise ValueError("bus_base must be 32-bit aligned")
+        return address >> 2
+    return address[2:]
+
+def _validate_nleds(nleds):
+    if nleds <= 0:
+        raise ValueError("nleds must be greater than 0")
+
+def _timer_count(timing, sys_clk_freq, name, latency=0):
+    count = int(timing*sys_clk_freq - latency)
+    if count <= 0:
+        raise ValueError(f"sys_clk_freq too low for {name} timing")
+    return count
 
 class LedChaser(LiteXModule):
     def __init__(self, pads, sys_clk_freq, period=1e0, polarity=0):
@@ -136,6 +150,10 @@ class WS2812(LiteXModule):
          System Clk Frequency.
     """
     def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None, revision="new", init=None, bus_standard="wishbone"):
+        _validate_nleds(nleds)
+        if revision not in ["old", "new"]:
+            raise ValueError("revision must be 'old' or 'new'")
+
         if bus_mastering:
             bus_base = _get_word_address(bus_base)
             self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
@@ -182,15 +200,15 @@ class WS2812(LiteXModule):
         self.t1l  = t1l  = 0.45e-6
 
         # Timers.
-        trst_timer = WaitTimer(trst*sys_clk_freq)
+        trst_timer = WaitTimer(_timer_count(trst, sys_clk_freq, "trst"))
         self.submodules += trst_timer
 
-        t0h_timer = WaitTimer(t0h*sys_clk_freq)
-        t0l_timer = WaitTimer(t0l*sys_clk_freq - 1) # Compensate Xfer FSM latency.
+        t0h_timer = WaitTimer(_timer_count(t0h, sys_clk_freq, "t0h"))
+        t0l_timer = WaitTimer(_timer_count(t0l, sys_clk_freq, "t0l", latency=1))
         self.submodules += t0h_timer, t0l_timer
 
-        t1h_timer = WaitTimer(t1h*sys_clk_freq)
-        t1l_timer = WaitTimer(t1l*sys_clk_freq - 1) # Compensate Xfer FSM latency.
+        t1h_timer = WaitTimer(_timer_count(t1h, sys_clk_freq, "t1h"))
+        t1l_timer = WaitTimer(_timer_count(t1l, sys_clk_freq, "t1l", latency=1))
         self.submodules += t1h_timer, t1l_timer
 
         # Main FSM.
@@ -349,6 +367,8 @@ class SK2812RGBW(LiteXModule):
          System Clk Frequency.
     """
     def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None, init=None, bus_standard="wishbone"):
+        _validate_nleds(nleds)
+
         if bus_mastering:
             bus_base = _get_word_address(bus_base)
             self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
@@ -395,15 +415,15 @@ class SK2812RGBW(LiteXModule):
         self.t1l  = t1l  = 0.60e-6
 
         # Timers.
-        trst_timer = WaitTimer(trst*sys_clk_freq)
+        trst_timer = WaitTimer(_timer_count(trst, sys_clk_freq, "trst"))
         self.submodules += trst_timer
 
-        t0h_timer = WaitTimer(t0h*sys_clk_freq)
-        t0l_timer = WaitTimer(t0l*sys_clk_freq - 1) # Compensate Xfer FSM latency.
+        t0h_timer = WaitTimer(_timer_count(t0h, sys_clk_freq, "t0h"))
+        t0l_timer = WaitTimer(_timer_count(t0l, sys_clk_freq, "t0l", latency=1))
         self.submodules += t0h_timer, t0l_timer
 
-        t1h_timer = WaitTimer(t1h*sys_clk_freq)
-        t1l_timer = WaitTimer(t1l*sys_clk_freq - 1) # Compensate Xfer FSM latency.
+        t1h_timer = WaitTimer(_timer_count(t1h, sys_clk_freq, "t1h"))
+        t1l_timer = WaitTimer(_timer_count(t1l, sys_clk_freq, "t1l", latency=1))
         self.submodules += t1h_timer, t1l_timer
 
         # Main FSM.
