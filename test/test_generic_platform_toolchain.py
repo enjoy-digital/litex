@@ -5,8 +5,11 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import sys
 import tempfile
+import types
 import unittest
+from unittest import mock
 
 from migen import ClockDomain, Module, Signal
 
@@ -67,6 +70,13 @@ class _DummyToolchain(GenericToolchain):
 
     def run_script(self, script):
         self.run_calls.append(script)
+
+
+class _EdalizeToolchain(_DummyToolchain):
+    supported_build_backend = ["litex", "edalize"]
+
+    def get_tool_options(self):
+        return ("dummy", {"parameters": {"unit": 1}})
 
 
 def _make_platform(io=None, connectors=None):
@@ -558,6 +568,101 @@ class TestGenericToolchain(unittest.TestCase):
                     build_backend = "unsupported",
                     run           = False,
                 )
+
+        self.assertEqual(os.getcwd(), cwd)
+
+    def test_build_edalize_backend_generates_mixed_language_file_list(self):
+        captured = {}
+
+        class _Backend:
+            def __init__(self, edam, work_root):
+                captured["edam"]      = edam
+                captured["work_root"] = work_root
+
+            def configure(self):
+                captured["configured"] = True
+
+            def build(self):
+                captured["built"] = True
+
+        def get_edatool(tool):
+            captured["tool"] = tool
+            return _Backend
+
+        platform = _make_platform(io=[])
+        toolchain = _EdalizeToolchain()
+        platform.toolchain = toolchain
+        dut = Module()
+        dut.clock_domains.cd_sys = ClockDomain("sys")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            build_dir = os.path.join(tmp_dir, "build")
+            sources_dir = os.path.join(tmp_dir, "sources")
+            os.makedirs(sources_dir)
+            for filename in ["rtl.v", "rtl.sv", "rtl.vhd"]:
+                open(os.path.join(sources_dir, filename), "w").close()
+
+            platform.add_source(os.path.join(sources_dir, "rtl.v"))
+            platform.add_source(os.path.join(sources_dir, "rtl.sv"))
+            platform.add_source(os.path.join(sources_dir, "rtl.vhd"))
+
+            fake_edalize = types.SimpleNamespace(get_edatool=get_edatool)
+            with mock.patch.dict(sys.modules, {"edalize": fake_edalize}):
+                toolchain.build(
+                    platform,
+                    dut,
+                    build_dir     = build_dir,
+                    build_name    = "top",
+                    build_backend = "edalize",
+                    run           = True,
+                )
+
+            files_by_name = {os.path.basename(f["name"]): f["file_type"] for f in captured["edam"]["files"]}
+
+            self.assertEqual(captured["tool"], "dummy")
+            self.assertEqual(captured["work_root"], build_dir)
+            self.assertTrue(captured["configured"])
+            self.assertTrue(captured["built"])
+            self.assertEqual(captured["edam"]["name"], "top")
+            self.assertEqual(captured["edam"]["toplevel"], "top")
+            self.assertEqual(captured["edam"]["parameters"], {"unit": 1})
+            self.assertEqual(files_by_name["rtl.v"],   "verilogSource")
+            self.assertEqual(files_by_name["rtl.sv"],  "systemVerilogSource")
+            self.assertEqual(files_by_name["rtl.vhd"], "vhdlSource")
+            self.assertEqual(files_by_name["top.v"],   "verilogSource")
+            self.assertEqual(files_by_name["io.pcf"],  "PCF")
+            self.assertEqual(files_by_name["timing.sdc"], "SDC")
+            self.assertNotIn("", files_by_name)
+
+    def test_build_edalize_backend_restores_cwd_when_configure_fails(self):
+        class _Backend:
+            def __init__(self, edam, work_root):
+                pass
+
+            def configure(self):
+                raise RuntimeError("configure failed")
+
+        def get_edatool(tool):
+            return _Backend
+
+        platform = _make_platform(io=[])
+        toolchain = _EdalizeToolchain()
+        platform.toolchain = toolchain
+        dut = Module()
+        dut.clock_domains.cd_sys = ClockDomain("sys")
+        cwd = os.getcwd()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            fake_edalize = types.SimpleNamespace(get_edatool=get_edatool)
+            with mock.patch.dict(sys.modules, {"edalize": fake_edalize}):
+                with self.assertRaisesRegex(RuntimeError, "configure failed"):
+                    toolchain.build(
+                        platform,
+                        dut,
+                        build_dir     = os.path.join(tmp_dir, "build"),
+                        build_backend = "edalize",
+                        run           = False,
+                    )
 
         self.assertEqual(os.getcwd(), cwd)
 
