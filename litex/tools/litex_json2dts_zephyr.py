@@ -104,6 +104,11 @@ def dts_reg_names(regs, levels=1):
 
     return indent_all(dtsi, levels) + '\n'
 
+def dts_dma_coherent(csr, levels=1):
+    if 'config_cpu_has_dma_bus' in csr['constants']:
+        return indent('dma-coherent;\n', levels)
+    return ''
+
 
 # DTS handlers
 def disabled_handler(name, parm, csr):
@@ -281,6 +286,8 @@ def peripheral_handler(name, parm, csr):
         dtsi += dts_intr(name, csr)
     except KeyError as e:
         print('  dtsi key', e, 'not found, no interrupt override')
+
+    dtsi += dts_dma_coherent(csr)
     return dtsi
 
 
