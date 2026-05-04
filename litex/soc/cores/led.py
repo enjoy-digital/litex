@@ -5,8 +5,6 @@
 # Copyright (c) 2022 Wolfgang Nagele <mail@wnagele.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import math
-
 from migen import *
 
 from litex.gen import *
@@ -19,6 +17,11 @@ from litex.soc.interconnect import axi, wishbone
 
 _CHASER_MODE  = 0
 _CONTROL_MODE = 1
+
+def _get_word_address(address):
+    if address is None:
+        raise ValueError("bus_base must be specified when bus_mastering=True")
+    return (address >> 2) if isinstance(address, int) else address[2:]
 
 class LedChaser(LiteXModule):
     def __init__(self, pads, sys_clk_freq, period=1e0, polarity=0):
@@ -79,12 +82,12 @@ class WS2812(LiteXModule):
      - Leds can be chained through DIN->DOUT connection.
 
      Each control sequence is separated by a reset code: Line low for > 50us (old) or > 280us (new).
-     Ones are transmitted as:
+     Zeros are transmitted as:
                        ┌─────┐
                        │ T0H │           │  T0H = 400ns +-150ns
                        │     │    T0L    │  T0L = 800ns +-150ns
                              └───────────┘
-     Zeros are transmitted as:
+     Ones are transmitted as:
                        ┌──────────┐
                        │   T1H    │      │  T1H = 850ns +-150ns
                        │          │ T1L  │  T1L = 450ns +-150ns
@@ -134,6 +137,7 @@ class WS2812(LiteXModule):
     """
     def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None, revision="new", init=None, bus_standard="wishbone"):
         if bus_mastering:
+            bus_base = _get_word_address(bus_base)
             self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         else:
             # Memory.
@@ -204,7 +208,7 @@ class WS2812(LiteXModule):
                 bus.cyc.eq(1),
                 bus.we.eq(0),
                 bus.sel.eq(2**(bus.data_width//8)-1),
-                bus.adr.eq(bus_base[2:] + led_count),
+                bus.adr.eq(bus_base + led_count),
                 If(bus.ack,
                     NextValue(led_data, bus.dat_r),
                     NextState("LED-SEND")
@@ -299,12 +303,12 @@ class SK2812RGBW(LiteXModule):
      - Leds can be chained through DIN->DOUT connection.
 
      Each control sequence is separated by a reset code: Line low for > 80us.
-     Ones are transmitted as:
+     Zeros are transmitted as:
                        ┌─────┐
                        │ T0H │           │  T0H = 300ns +-150ns
                        │     │    T0L    │  T0L = 900ns +-150ns
                              └───────────┘
-     Zeros are transmitted as:
+     Ones are transmitted as:
                        ┌─────────┐
                        │   T1H   │       │  T1H = 600ns +-150ns
                        │         │  T1L  │  T1L = 600ns +-150ns
@@ -316,7 +320,7 @@ class SK2812RGBW(LiteXModule):
      The core handles the SK2812RGBW protocol and exposes the Led chain as an MMAPed peripheral:
 
                                          32-bit
-                                       WW_BB_RR_GG
+                                       RR_GG_BB_WW
                                       ┌───────────┐
                              Base + 0 │   LED0    │
                                       ├───────────┤
@@ -346,6 +350,7 @@ class SK2812RGBW(LiteXModule):
     """
     def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None, init=None, bus_standard="wishbone"):
         if bus_mastering:
+            bus_base = _get_word_address(bus_base)
             self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         else:
             # Memory.
@@ -416,7 +421,7 @@ class SK2812RGBW(LiteXModule):
                 bus.cyc.eq(1),
                 bus.we.eq(0),
                 bus.sel.eq(2**(bus.data_width//8)-1),
-                bus.adr.eq(bus_base[2:] + led_count),
+                bus.adr.eq(bus_base + led_count),
                 If(bus.ack,
                     NextValue(led_data, bus.dat_r),
                     NextState("LED-SEND")
