@@ -76,9 +76,162 @@ class LedChaser(LiteXModule):
         self.comb += If(~self.pwm.pwm, self.pads.eq(self.polarity*(2**self.n-1)))
 
 
+# Serial LED Base ----------------------------------------------------------------------------------
+
+class _SerialLed(LiteXModule):
+    def __init__(self, pad, nleds, sys_clk_freq, data_width, timings, mem_name,
+        bus_mastering=False, bus_base=None, init=None, bus_standard="wishbone"):
+        _validate_nleds(nleds)
+
+        if bus_mastering:
+            bus_base = _get_word_address(bus_base)
+            self.bus = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        else:
+            # Memory.
+            mem_depth = max(nleds, 2)
+            self.mem  = mem  = Memory(data_width, mem_depth, init=init, name=mem_name)
+            self.port = port = mem.get_port()
+            if "csr" not in bus_standard:
+                self.autocsr_exclude = {"mem"}
+
+                ram_cls = {
+                    "wishbone": wishbone.SRAM,
+                    "axi-lite": axi.AXILiteSRAM,
+                    "axi"     : axi.AXILiteSRAM, # FIXME: Use AXI-Lite for now, create AXISRAM.
+                }[bus_standard]
+                interface_cls = {
+                    "wishbone": wishbone.Interface,
+                    "axi-lite": axi.AXILiteInterface,
+                    "axi"     : axi.AXILiteInterface, # FIXME: Use AXI-Lite for now, create AXISRAM.
+                }[bus_standard]
+
+                # Wishbone Memory.
+                self.bus_mem = ram_cls(
+                    mem_or_size = mem,
+                    read_only   = False,
+                    bus         = interface_cls(data_width=32, address_width=32)
+                )
+                self.bus = self.bus_mem.bus
+
+        # Internal Signals.
+        led_count  = Signal(max=max(nleds, 2))
+        led_data   = Signal(data_width)
+        xfer_start = Signal()
+        xfer_done  = Signal()
+        xfer_data  = Signal(data_width)
+
+        # Timings.
+        self.trst = trst = timings["trst"]
+        self.t0h  = t0h  = timings["t0h"]
+        self.t0l  = t0l  = timings["t0l"]
+        self.t1h  = t1h  = timings["t1h"]
+        self.t1l  = t1l  = timings["t1l"]
+
+        # Timers.
+        trst_timer = WaitTimer(_timer_count(trst, sys_clk_freq, "trst"))
+        self.submodules += trst_timer
+
+        t0h_timer = WaitTimer(_timer_count(t0h, sys_clk_freq, "t0h"))
+        t0l_timer = WaitTimer(_timer_count(t0l, sys_clk_freq, "t0l", latency=1))
+        self.submodules += t0h_timer, t0l_timer
+
+        t1h_timer = WaitTimer(_timer_count(t1h, sys_clk_freq, "t1h"))
+        t1l_timer = WaitTimer(_timer_count(t1l, sys_clk_freq, "t1l", latency=1))
+        self.submodules += t1h_timer, t1l_timer
+
+        # Main FSM.
+        self.fsm = fsm = FSM(reset_state="RST")
+        fsm.act("RST",
+            NextValue(led_count, 0),
+            trst_timer.wait.eq(xfer_done),
+            If(trst_timer.done,
+                NextState("LED-READ")
+            )
+        )
+        if bus_mastering:
+            fsm.act("LED-READ",
+                bus.stb.eq(1),
+                bus.cyc.eq(1),
+                bus.we.eq(0),
+                bus.sel.eq(2**(bus.data_width//8)-1),
+                bus.adr.eq(bus_base + led_count),
+                If(bus.ack,
+                    NextValue(led_data, bus.dat_r),
+                    NextState("LED-SEND")
+                )
+            )
+        else:
+            self.comb += port.adr.eq(led_count)
+            fsm.act("LED-READ",
+                NextState("LED-LATCH")
+            )
+            fsm.act("LED-LATCH",
+                NextValue(led_data, port.dat_r),
+                NextState("LED-SEND")
+            )
+
+        fsm.act("LED-SEND",
+            If(xfer_done,
+                xfer_start.eq(1),
+                NextState("LED-SHIFT")
+            )
+        )
+        fsm.act("LED-SHIFT",
+            If(led_count == (nleds - 1),
+                NextState("RST")
+            ).Else(
+                NextValue(led_count, led_count + 1),
+                NextState("LED-READ")
+            )
+        )
+
+        # XFER FSM.
+        xfer_bit = Signal(max=data_width)
+        xfer_fsm = FSM(reset_state="IDLE")
+        self.submodules += xfer_fsm
+        xfer_fsm.act("IDLE",
+            xfer_done.eq(1),
+            If(xfer_start,
+                NextValue(xfer_bit, data_width-1),
+                NextValue(xfer_data, led_data),
+                NextState("RUN")
+            )
+        )
+        xfer_fsm.act("RUN",
+            # Send a one.
+            If(xfer_data[-1],
+                t1h_timer.wait.eq(1),
+                t1l_timer.wait.eq(t1h_timer.done),
+                pad.eq(~t1h_timer.done),
+            # Send a zero.
+            ).Else(
+                t0h_timer.wait.eq(1),
+                t0l_timer.wait.eq(t0h_timer.done),
+                pad.eq(~t0h_timer.done),
+            ),
+
+            # When bit has been sent:
+            If(t0l_timer.done | t1l_timer.done,
+                # Clear wait on timers.
+                t0h_timer.wait.eq(0),
+                t0l_timer.wait.eq(0),
+                t1h_timer.wait.eq(0),
+                t1l_timer.wait.eq(0),
+                # Shift xfer_data.
+                NextValue(xfer_data, Cat(Signal(), xfer_data)),
+                # Decrement xfer_bit.
+                NextValue(xfer_bit, xfer_bit - 1),
+                # When xfer_bit reaches 0.
+                If(xfer_bit == 0,
+                    NextState("IDLE")
+                )
+            )
+        )
+
+
 # WS2812/NeoPixel ----------------------------------------------------------------------------------
 
-class WS2812(LiteXModule):
+class WS2812(_SerialLed):
     """WS2812/NeoPixel Led Driver.
 
     Description
@@ -150,160 +303,32 @@ class WS2812(LiteXModule):
          System Clk Frequency.
     """
     def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None, revision="new", init=None, bus_standard="wishbone"):
-        _validate_nleds(nleds)
         if revision not in ["old", "new"]:
             raise ValueError("revision must be 'old' or 'new'")
 
-        if bus_mastering:
-            bus_base = _get_word_address(bus_base)
-            self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
-        else:
-            # Memory.
-            mem_depth = max(nleds, 2)
-            self.mem  = mem  = Memory(24, mem_depth, init=init, name="ws2812_mem")
-            self.port = port = mem.get_port()
-            if "csr" not in bus_standard:
-                self.autocsr_exclude = {"mem"}
-
-                ram_cls = {
-                    "wishbone": wishbone.SRAM,
-                    "axi-lite": axi.AXILiteSRAM,
-                    "axi"     : axi.AXILiteSRAM, # FIXME: Use AXI-Lite for now, create AXISRAM.
-                }[bus_standard]
-                interface_cls = {
-                    "wishbone": wishbone.Interface,
-                    "axi-lite": axi.AXILiteInterface,
-                    "axi"     : axi.AXILiteInterface, # FIXME: Use AXI-Lite for now, create AXISRAM.
-                }[bus_standard]
-
-                # Wishbone Memory.
-                self.bus_mem = ram_cls(
-                    mem_or_size = mem,
-                    read_only   = False,
-                    bus         = interface_cls(data_width=32, address_width=32)
-                )
-                self.bus = self.bus_mem.bus
-
-
-        # Internal Signals.
-        led_count  = Signal(max=max(nleds, 2))
-        led_data   = Signal(24)
-        xfer_start = Signal()
-        xfer_done  = Signal()
-        xfer_data  = Signal(24)
-
-        # Timings
-        self.trst = trst = {"old": 50e-6*1.25, "new": 280e-6*1.25}[revision]
-        self.t0h  = t0h  = 0.40e-6
-        self.t0l  = t0l  = 0.85e-6
-        self.t1h  = t1h  = 0.80e-6
-        self.t1l  = t1l  = 0.45e-6
-
-        # Timers.
-        trst_timer = WaitTimer(_timer_count(trst, sys_clk_freq, "trst"))
-        self.submodules += trst_timer
-
-        t0h_timer = WaitTimer(_timer_count(t0h, sys_clk_freq, "t0h"))
-        t0l_timer = WaitTimer(_timer_count(t0l, sys_clk_freq, "t0l", latency=1))
-        self.submodules += t0h_timer, t0l_timer
-
-        t1h_timer = WaitTimer(_timer_count(t1h, sys_clk_freq, "t1h"))
-        t1l_timer = WaitTimer(_timer_count(t1l, sys_clk_freq, "t1l", latency=1))
-        self.submodules += t1h_timer, t1l_timer
-
-        # Main FSM.
-        self.fsm = fsm = FSM(reset_state="RST")
-        fsm.act("RST",
-            NextValue(led_count, 0),
-            trst_timer.wait.eq(xfer_done),
-            If(trst_timer.done,
-                NextState("LED-READ")
-            )
-        )
-        if bus_mastering:
-             fsm.act("LED-READ",
-                bus.stb.eq(1),
-                bus.cyc.eq(1),
-                bus.we.eq(0),
-                bus.sel.eq(2**(bus.data_width//8)-1),
-                bus.adr.eq(bus_base + led_count),
-                If(bus.ack,
-                    NextValue(led_data, bus.dat_r),
-                    NextState("LED-SEND")
-                )
-            )
-        else:
-            self.comb += port.adr.eq(led_count)
-            fsm.act("LED-READ",
-                NextState("LED-LATCH")
-            )
-            fsm.act("LED-LATCH",
-                NextValue(led_data, port.dat_r),
-                NextState("LED-SEND")
-            )
-
-        fsm.act("LED-SEND",
-            If(xfer_done,
-                xfer_start.eq(1),
-                NextState("LED-SHIFT")
-            )
-        )
-        fsm.act("LED-SHIFT",
-            If(led_count == (nleds - 1),
-                NextState("RST")
-            ).Else(
-                NextValue(led_count, led_count + 1),
-                NextState("LED-READ")
-            )
-        )
-
-        # XFER FSM.
-        xfer_bit = Signal(5)
-        xfer_fsm = FSM(reset_state="IDLE")
-        self.submodules += xfer_fsm
-        xfer_fsm.act("IDLE",
-            xfer_done.eq(1),
-            If(xfer_start,
-                NextValue(xfer_bit, 24-1),
-                NextValue(xfer_data, led_data),
-                NextState("RUN")
-            )
-        )
-        xfer_fsm.act("RUN",
-            # Send a one.
-            If(xfer_data[-1],
-                t1h_timer.wait.eq(1),
-                t1l_timer.wait.eq(t1h_timer.done),
-                pad.eq(~t1h_timer.done),
-            # Send a zero.
-            ).Else(
-                t0h_timer.wait.eq(1),
-                t0l_timer.wait.eq(t0h_timer.done),
-                pad.eq(~t0h_timer.done),
-            ),
-
-            # When bit has been sent:
-            If(t0l_timer.done | t1l_timer.done,
-                # Clear wait on timers.
-                t0h_timer.wait.eq(0),
-                t0l_timer.wait.eq(0),
-                t1h_timer.wait.eq(0),
-                t1l_timer.wait.eq(0),
-                # Shift xfer_data.
-                NextValue(xfer_data, Cat(Signal(), xfer_data)),
-                # Decrement xfer_bit.
-                NextValue(xfer_bit, xfer_bit - 1),
-                # When xfer_bit reaches 0.
-                If(xfer_bit == 0,
-                    NextState("IDLE")
-                )
-            )
+        _SerialLed.__init__(self,
+            pad           = pad,
+            nleds         = nleds,
+            sys_clk_freq  = sys_clk_freq,
+            data_width    = 24,
+            timings       = {
+                "trst": {"old": 50e-6*1.25, "new": 280e-6*1.25}[revision],
+                "t0h" : 0.40e-6,
+                "t0l" : 0.85e-6,
+                "t1h" : 0.80e-6,
+                "t1l" : 0.45e-6,
+            },
+            mem_name      = "ws2812_mem",
+            bus_mastering = bus_mastering,
+            bus_base      = bus_base,
+            init          = init,
+            bus_standard  = bus_standard,
         )
 
 
 # SK2812RGBW ---------------------------------------------------------------------------------------
 
-class SK2812RGBW(LiteXModule):
+class SK2812RGBW(_SerialLed):
     """SK2812RGBW Led Driver.
 
     Description
@@ -367,150 +392,21 @@ class SK2812RGBW(LiteXModule):
          System Clk Frequency.
     """
     def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None, init=None, bus_standard="wishbone"):
-        _validate_nleds(nleds)
-
-        if bus_mastering:
-            bus_base = _get_word_address(bus_base)
-            self.bus  = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
-        else:
-            # Memory.
-            mem_depth = max(nleds, 2)
-            self.mem  = mem  = Memory(32, mem_depth, init=init, name="sk2812rgbw_mem")
-            self.port = port = mem.get_port()
-            if "csr" not in bus_standard:
-                self.autocsr_exclude = {"mem"}
-
-                ram_cls = {
-                    "wishbone": wishbone.SRAM,
-                    "axi-lite": axi.AXILiteSRAM,
-                    "axi"     : axi.AXILiteSRAM, # FIXME: Use AXI-Lite for now, create AXISRAM.
-                }[bus_standard]
-                interface_cls = {
-                    "wishbone": wishbone.Interface,
-                    "axi-lite": axi.AXILiteInterface,
-                    "axi"     : axi.AXILiteInterface, # FIXME: Use AXI-Lite for now, create AXISRAM.
-                }[bus_standard]
-
-                # Wishbone Memory.
-                self.bus_mem = ram_cls(
-                    mem_or_size = mem,
-                    read_only   = False,
-                    bus         = interface_cls(data_width=32, address_width=32)
-                )
-                self.bus = self.bus_mem.bus
-
-
-        # Internal Signals.
-        led_count  = Signal(max=max(nleds, 2))
-        led_data   = Signal(32)
-        xfer_start = Signal()
-        xfer_done  = Signal()
-        xfer_data  = Signal(32)
-
-        # Timings
-        self.trst = trst = 80e-6*1.25
-        self.t0h  = t0h  = 0.30e-6
-        self.t0l  = t0l  = 0.90e-6
-        self.t1h  = t1h  = 0.60e-6
-        self.t1l  = t1l  = 0.60e-6
-
-        # Timers.
-        trst_timer = WaitTimer(_timer_count(trst, sys_clk_freq, "trst"))
-        self.submodules += trst_timer
-
-        t0h_timer = WaitTimer(_timer_count(t0h, sys_clk_freq, "t0h"))
-        t0l_timer = WaitTimer(_timer_count(t0l, sys_clk_freq, "t0l", latency=1))
-        self.submodules += t0h_timer, t0l_timer
-
-        t1h_timer = WaitTimer(_timer_count(t1h, sys_clk_freq, "t1h"))
-        t1l_timer = WaitTimer(_timer_count(t1l, sys_clk_freq, "t1l", latency=1))
-        self.submodules += t1h_timer, t1l_timer
-
-        # Main FSM.
-        self.fsm = fsm = FSM(reset_state="RST")
-        fsm.act("RST",
-            NextValue(led_count, 0),
-            trst_timer.wait.eq(xfer_done),
-            If(trst_timer.done,
-                NextState("LED-READ")
-            )
-        )
-        if bus_mastering:
-             fsm.act("LED-READ",
-                bus.stb.eq(1),
-                bus.cyc.eq(1),
-                bus.we.eq(0),
-                bus.sel.eq(2**(bus.data_width//8)-1),
-                bus.adr.eq(bus_base + led_count),
-                If(bus.ack,
-                    NextValue(led_data, bus.dat_r),
-                    NextState("LED-SEND")
-                )
-            )
-        else:
-            self.comb += port.adr.eq(led_count)
-            fsm.act("LED-READ",
-                NextState("LED-LATCH")
-            )
-            fsm.act("LED-LATCH",
-                NextValue(led_data, port.dat_r),
-                NextState("LED-SEND")
-            )
-
-        fsm.act("LED-SEND",
-            If(xfer_done,
-                xfer_start.eq(1),
-                NextState("LED-SHIFT")
-            )
-        )
-        fsm.act("LED-SHIFT",
-            If(led_count == (nleds - 1),
-                NextState("RST")
-            ).Else(
-                NextValue(led_count, led_count + 1),
-                NextState("LED-READ")
-            )
-        )
-
-        # XFER FSM.
-        xfer_bit = Signal(5)
-        xfer_fsm = FSM(reset_state="IDLE")
-        self.submodules += xfer_fsm
-        xfer_fsm.act("IDLE",
-            xfer_done.eq(1),
-            If(xfer_start,
-                NextValue(xfer_bit, 32-1),
-                NextValue(xfer_data, led_data),
-                NextState("RUN")
-            )
-        )
-        xfer_fsm.act("RUN",
-            # Send a one.
-            If(xfer_data[-1],
-                t1h_timer.wait.eq(1),
-                t1l_timer.wait.eq(t1h_timer.done),
-                pad.eq(~t1h_timer.done),
-            # Send a zero.
-            ).Else(
-                t0h_timer.wait.eq(1),
-                t0l_timer.wait.eq(t0h_timer.done),
-                pad.eq(~t0h_timer.done),
-            ),
-
-            # When bit has been sent:
-            If(t0l_timer.done | t1l_timer.done,
-                # Clear wait on timers.
-                t0h_timer.wait.eq(0),
-                t0l_timer.wait.eq(0),
-                t1h_timer.wait.eq(0),
-                t1l_timer.wait.eq(0),
-                # Shift xfer_data.
-                NextValue(xfer_data, Cat(Signal(), xfer_data)),
-                # Decrement xfer_bit.
-                NextValue(xfer_bit, xfer_bit - 1),
-                # When xfer_bit reaches 0.
-                If(xfer_bit == 0,
-                    NextState("IDLE")
-                )
-            )
+        _SerialLed.__init__(self,
+            pad           = pad,
+            nleds         = nleds,
+            sys_clk_freq  = sys_clk_freq,
+            data_width    = 32,
+            timings       = {
+                "trst": 80e-6*1.25,
+                "t0h" : 0.30e-6,
+                "t0l" : 0.90e-6,
+                "t1h" : 0.60e-6,
+                "t1l" : 0.60e-6,
+            },
+            mem_name      = "sk2812rgbw_mem",
+            bus_mastering = bus_mastering,
+            bus_base      = bus_base,
+            init          = init,
+            bus_standard  = bus_standard,
         )
