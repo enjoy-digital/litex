@@ -29,6 +29,8 @@ from litex.soc.cores.bitbang import *
 from litex.soc.cores.gpio    import GPIOTristate
 from litex.soc.cores.cpu     import CPUS
 from litex.soc.cores.video   import VideoGenericPHY
+from litex.soc.interconnect import wishbone
+from litex.soc.interconnect.csr import AutoCSR, CSRField, CSRStorage, CSRStatus
 
 from liteeth.common             import *
 from liteeth.phy.gmii           import LiteEthPHYGMII
@@ -150,6 +152,149 @@ class Platform(SimPlatform):
     def __init__(self):
         SimPlatform.__init__(self, "SIM", _io)
 
+# Wishbone Burst Monitor ---------------------------------------------------------------------------
+
+class WishboneBurstMonitor(LiteXModule, AutoCSR):
+    def __init__(self, bus):
+        self._control = CSRStorage(fields=[
+            CSRField("clear", size=1, offset=0, pulse=True,
+                description="Clear all monitor counters."),
+        ])
+        self._cycles              = CSRStatus(32, description="Cycles with CYC and STB asserted.")
+        self._beats               = CSRStatus(32, description="Acknowledged Wishbone beats.")
+        self._read_beats          = CSRStatus(32, description="Acknowledged read beats.")
+        self._write_beats         = CSRStatus(32, description="Acknowledged write beats.")
+        self._cti_none_beats      = CSRStatus(32, description="Acknowledged beats with CTI classic/no-burst.")
+        self._cti_constant_beats  = CSRStatus(32, description="Acknowledged beats with CTI constant burst.")
+        self._cti_increment_beats = CSRStatus(32, description="Acknowledged beats with CTI incrementing burst.")
+        self._cti_end_beats       = CSRStatus(32, description="Acknowledged beats with CTI burst end.")
+        self._burst_count         = CSRStatus(32, description="Observed burst transactions.")
+        self._burst_beats         = CSRStatus(32, description="Total beats belonging to observed bursts.")
+        self._max_burst_beats     = CSRStatus(32, description="Maximum observed burst length in beats.")
+        self._orphan_end_count    = CSRStatus(32, description="CTI burst-end beats without a preceding burst beat.")
+        self._unsupported_bte     = CSRStatus(32, description="Acknowledged burst beats using non-linear BTE.")
+
+        cycles              = Signal(32)
+        beats               = Signal(32)
+        read_beats          = Signal(32)
+        write_beats         = Signal(32)
+        cti_none_beats      = Signal(32)
+        cti_constant_beats  = Signal(32)
+        cti_increment_beats = Signal(32)
+        cti_end_beats       = Signal(32)
+        burst_count         = Signal(32)
+        burst_beats         = Signal(32)
+        max_burst_beats     = Signal(32)
+        orphan_end_count    = Signal(32)
+        unsupported_bte     = Signal(32)
+
+        in_burst            = Signal()
+        current_burst_beats = Signal(32)
+
+        bus_active = Signal()
+        beat       = Signal()
+        burst_beat = Signal()
+        burst_end  = Signal()
+        burst_len  = Signal(32)
+
+        self.comb += [
+            bus_active.eq(bus.cyc & bus.stb),
+            beat.eq(bus_active & bus.ack),
+            burst_beat.eq((bus.cti == wishbone.CTI_BURST_CONSTANT) |
+                          (bus.cti == wishbone.CTI_BURST_INCREMENTING)),
+            burst_end.eq(bus.cti == wishbone.CTI_BURST_END),
+            burst_len.eq(current_burst_beats + 1),
+
+            self._cycles.status.eq(cycles),
+            self._beats.status.eq(beats),
+            self._read_beats.status.eq(read_beats),
+            self._write_beats.status.eq(write_beats),
+            self._cti_none_beats.status.eq(cti_none_beats),
+            self._cti_constant_beats.status.eq(cti_constant_beats),
+            self._cti_increment_beats.status.eq(cti_increment_beats),
+            self._cti_end_beats.status.eq(cti_end_beats),
+            self._burst_count.status.eq(burst_count),
+            self._burst_beats.status.eq(burst_beats),
+            self._max_burst_beats.status.eq(max_burst_beats),
+            self._orphan_end_count.status.eq(orphan_end_count),
+            self._unsupported_bte.status.eq(unsupported_bte),
+        ]
+
+        self.sync += [
+            If(self._control.fields.clear,
+                cycles.eq(0),
+                beats.eq(0),
+                read_beats.eq(0),
+                write_beats.eq(0),
+                cti_none_beats.eq(0),
+                cti_constant_beats.eq(0),
+                cti_increment_beats.eq(0),
+                cti_end_beats.eq(0),
+                burst_count.eq(0),
+                burst_beats.eq(0),
+                max_burst_beats.eq(0),
+                orphan_end_count.eq(0),
+                unsupported_bte.eq(0),
+                in_burst.eq(0),
+                current_burst_beats.eq(0),
+            ).Else(
+                If(bus_active,
+                    cycles.eq(cycles + 1)
+                ),
+                If(beat,
+                    beats.eq(beats + 1),
+                    If(bus.we,
+                        write_beats.eq(write_beats + 1)
+                    ).Else(
+                        read_beats.eq(read_beats + 1)
+                    ),
+                    If(bus.cti == wishbone.CTI_BURST_NONE,
+                        cti_none_beats.eq(cti_none_beats + 1)
+                    ),
+                    If(bus.cti == wishbone.CTI_BURST_CONSTANT,
+                        cti_constant_beats.eq(cti_constant_beats + 1)
+                    ),
+                    If(bus.cti == wishbone.CTI_BURST_INCREMENTING,
+                        cti_increment_beats.eq(cti_increment_beats + 1)
+                    ),
+                    If(burst_end,
+                        cti_end_beats.eq(cti_end_beats + 1)
+                    ),
+                    If((burst_beat | burst_end) & (bus.bte != wishbone.BTE_BURST_LINEAR),
+                        unsupported_bte.eq(unsupported_bte + 1)
+                    ),
+                    If(burst_beat,
+                        If(~in_burst,
+                            burst_count.eq(burst_count + 1),
+                            current_burst_beats.eq(1),
+                        ).Else(
+                            current_burst_beats.eq(current_burst_beats + 1)
+                        ),
+                        in_burst.eq(1),
+                    ).Elif(burst_end,
+                        If(in_burst,
+                            burst_beats.eq(burst_beats + burst_len),
+                            If(burst_len > max_burst_beats,
+                                max_burst_beats.eq(burst_len)
+                            ),
+                        ).Else(
+                            burst_count.eq(burst_count + 1),
+                            burst_beats.eq(burst_beats + 1),
+                            orphan_end_count.eq(orphan_end_count + 1),
+                            If(max_burst_beats == 0,
+                                max_burst_beats.eq(1)
+                            ),
+                        ),
+                        in_burst.eq(0),
+                        current_burst_beats.eq(0),
+                    ).Else(
+                        in_burst.eq(0),
+                        current_burst_beats.eq(0),
+                    )
+                )
+            )
+        ]
+
 # Simulation SoC -----------------------------------------------------------------------------------
 
 class SimSoC(SoCCore):
@@ -177,6 +322,7 @@ class SimSoC(SoCCore):
         with_video_framebuffer = False,
         with_video_terminal    = False,
         with_video_colorbars   = False,
+        with_wishbone_burst_monitor = False,
         sim_debug              = False,
         trace_reset_on         = False,
         with_jtag              = False,
@@ -384,6 +530,22 @@ class SimSoC(SoCCore):
                 clock_domain = "sys",
                 csr_csv      = "analyzer.csv")
 
+        # Wishbone Burst Monitoring ----------------------------------------------------------------
+        if with_wishbone_burst_monitor:
+            for name in ["ibus", "dbus", "idbus", "pbus"]:
+                if hasattr(self.cpu, name):
+                    cpu_bus = getattr(self.cpu, name)
+                    if isinstance(cpu_bus, wishbone.Interface):
+                        setattr(self.submodules,
+                            f"wishbone_burst_monitor_{name}",
+                            WishboneBurstMonitor(cpu_bus))
+            if "main_ram" in self.bus.slaves:
+                self.submodules.wishbone_burst_monitor_main_ram = WishboneBurstMonitor(
+                    self.bus.slaves["main_ram"])
+            if hasattr(self, "l2_cache") and isinstance(self.l2_cache.slave, wishbone.Interface):
+                self.submodules.wishbone_burst_monitor_l2_slave = WishboneBurstMonitor(
+                    self.l2_cache.slave)
+
 # Build --------------------------------------------------------------------------------------------
 
 def generate_gtkw_savefile(builder, vns, trace_fst):
@@ -469,6 +631,7 @@ def sim_args(parser):
 
     # Analyzer.
     parser.add_argument("--with-analyzer",        action="store_true",     help="Enable Analyzer support.")
+    parser.add_argument("--with-wishbone-burst-monitor", action="store_true", help="Enable Wishbone burst monitor CSRs.")
 
     # Video.
     parser.add_argument("--with-video-framebuffer", action="store_true",   help="Enable Video Framebuffer.")
@@ -600,6 +763,7 @@ def main():
         with_video_framebuffer = args.with_video_framebuffer,
         with_video_terminal    = args.with_video_terminal,
         with_video_colorbars   = args.with_video_colorbars,
+        with_wishbone_burst_monitor = args.with_wishbone_burst_monitor,
         sim_debug              = args.sim_debug,
         trace_reset_on         = int(float(args.trace_start)) > 0 or int(float(args.trace_end)) > 0,
         spi_flash_init         = None if args.spi_flash_init is None else get_mem_data(args.spi_flash_init, endianness="big"),
