@@ -817,9 +817,6 @@ class Cache(LiteXModule):
             prefetch_adr       = Signal.like(slave.adr)
             prefetch_adr_line  = Signal(linebits)
             prefetch_adr_tag   = Signal(tagbits)
-            prefetch_tag_port  = tag_mem.get_port(write_capable=False)
-            prefetch_tag_do    = Record(tag_layout)
-            self.specials += prefetch_tag_port
 
             self.comb += [
                 prefetch_candidate.eq(
@@ -830,8 +827,6 @@ class Cache(LiteXModule):
                 prefetch_adr.eq(Cat(adr_line, adr_tag) + 1),
                 prefetch_adr_line.eq(prefetch_adr[:linebits]),
                 prefetch_adr_tag.eq(prefetch_adr[linebits:]),
-                prefetch_tag_port.adr.eq(prefetch_adr_line),
-                prefetch_tag_do.raw_bits().eq(prefetch_tag_port.dat_r),
             ]
 
         if word is not None:
@@ -925,10 +920,11 @@ class Cache(LiteXModule):
 
         if with_next_line_prefetch:
             fsm.act("PREFETCH-LOOKUP",
+                tag_port.adr.eq(prefetch_adr_line),
                 NextState("PREFETCH-TEST")
             )
             fsm.act("PREFETCH-TEST",
-                If(prefetch_tag_do.dirty,
+                If(tag_do.dirty,
                     NextValue(prefetch_pending, 0)
                 ).Else(
                     NextValue(prefetch_pending, 1)
