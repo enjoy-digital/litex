@@ -57,6 +57,21 @@ class _BuildableFakeSoC(_FakeSoC):
         self.exit_calls.append(vns)
 
 
+class _NoBiosBuildableFakeSoC(_BuildableFakeSoC):
+    def __init__(self):
+        _BuildableFakeSoC.__init__(self)
+        self.cpu_type = None
+
+
+class _InitMemsFakeSoC(_BuildableFakeSoC):
+    def __init__(self):
+        _BuildableFakeSoC.__init__(self)
+        self.init_mems_calls = []
+
+    def init_mems(self, **kwargs):
+        self.init_mems_calls.append(kwargs)
+
+
 class _RomFakeSoC:
     def __init__(self):
         self.bus = SimpleNamespace(
@@ -351,6 +366,15 @@ class TestBuilderRomSoftware(unittest.TestCase):
             get_mem_data.assert_called_once_with(bios_file, data_width=32, endianness="little")
             self.assertEqual(builder.soc.init_rom_calls, [("rom", [1, 2, 0, 0], False)])
 
+    def test_initialize_rom_software_does_not_truncate_when_auto_size_is_disabled(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            builder = self._make_rom_builder(tmp_dir, auto_size=False)
+
+            with patch("litex.soc.integration.builder.soc_core.get_mem_data", return_value=[1, 2, 3, 4, 5]):
+                builder._initialize_rom_software()
+
+            self.assertEqual(builder.soc.init_rom_calls, [("rom", [1, 2, 3, 4, 5], False)])
+
     def test_generate_rom_software_skips_bios_when_disabled(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             builder = object.__new__(Builder)
@@ -499,6 +523,53 @@ class TestBuilderBuild(unittest.TestCase):
             self.assertFalse(kwargs["hierarchical"])
             self.assertEqual(kwargs["build_backend"], "edalize")
             self.assertEqual(kwargs["build_name"], "top")
+
+    def test_build_without_cpu_does_not_add_bios_or_create_software_dir(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            soc     = _NoBiosBuildableFakeSoC()
+            builder = _make_builder(tmp_dir, soc=soc, compile_software=False, compile_gateware=False)
+
+            builder._generate_includes = Mock()
+            builder._generate_csr_map  = Mock()
+            builder.build()
+
+            self.assertFalse(any(package[0] == "bios" for package in builder.software_packages))
+            self.assertFalse(os.path.exists(builder.software_dir))
+            builder._generate_includes.assert_called_once_with(with_bios=False)
+
+    def test_build_passes_user_kwargs_to_init_mems(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            soc     = _InitMemsFakeSoC()
+            builder = _make_builder(tmp_dir, soc=soc, compile_software=False, compile_gateware=False)
+
+            builder._generate_includes = Mock()
+            builder._generate_csr_map  = Mock()
+            builder.build(load=True, build_name="top")
+
+            self.assertEqual(soc.init_mems_calls, [{"load": True, "build_name": "top"}])
+
+    def test_build_generates_docs_when_requested(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            soc     = _BuildableFakeSoC()
+            builder = _make_builder(
+                tmp_dir,
+                soc=soc,
+                compile_software=False,
+                compile_gateware=False,
+                generate_doc=True,
+            )
+
+            builder._generate_includes = Mock()
+            builder._generate_csr_map  = Mock()
+            with patch("litex.soc.doc.generate_docs") as generate_docs:
+                with patch("litex.soc.integration.builder.subprocess.check_call") as check_call:
+                    builder.build()
+
+            doc_dir = os.path.join(builder.output_dir, "doc")
+            generate_docs.assert_called_once_with(soc, doc_dir)
+            check_call.assert_called_once_with([
+                "sphinx-build", "-M", "html", doc_dir, os.path.join(doc_dir, "_build")
+            ])
 
     def test_build_removes_software_dir_when_variables_change(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
