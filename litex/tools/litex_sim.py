@@ -374,7 +374,8 @@ class SimSoC(SoCCore):
                 phy                     = self.sdrphy,
                 module                  = sdram_module,
                 l2_cache_size           = kwargs.get("l2_size", 8192),
-                l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
+                l2_cache_min_data_width = kwargs.get("l2_cache_min_data_width",
+                    kwargs.get("min_l2_data_width", 128)),
                 l2_cache_reverse        = False,
                 with_bist               = with_sdram_bist
             )

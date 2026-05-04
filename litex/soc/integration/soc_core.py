@@ -157,7 +157,8 @@ class SoCCore(LiteXSoC):
         )
 
         # Attributes.
-        self.config = {}
+        self.config                  = {}
+        self.l2_cache_min_data_width = kwargs.get("l2_cache_min_data_width", 128)
 
         # Parameters management --------------------------------------------------------------------
 
@@ -367,12 +368,13 @@ def soc_core_args(parser):
 
     # L2 Cache.
     soc_group.add_argument("--l2-size",                  default=8192, type=auto_int,        help="L2 cache size.")
+    soc_group.add_argument("--l2-cache-min-data-width",  default=128,  type=auto_int,        help="L2 cache minimum data-width.")
 
 def soc_core_argdict(args):
     r = dict()
     # Iterate on all arguments.
     soc_args  = inspect.getfullargspec(SoCCore.__init__).args
-    full_args = soc_args + ["l2_size"]
+    full_args = soc_args + ["l2_size", "l2_cache_min_data_width"]
     for a in full_args:
         # Exclude specific arguments.
         if a in ["self", "platform"]:

@@ -1840,7 +1840,7 @@ class LiteXSoC(SoC):
         with_bist               = False,
         with_soc_interconnect   = True,
         l2_cache_size           = 8192,
-        l2_cache_min_data_width = 128,
+        l2_cache_min_data_width = None,
         l2_cache_reverse        = False,
         l2_cache_full_memory_we = True,
         **kwargs):
@@ -1854,6 +1854,8 @@ class LiteXSoC(SoC):
 
         # LiteDRAM core.
         self.check_if_exists(name)
+        if l2_cache_min_data_width is None:
+            l2_cache_min_data_width = getattr(self, "l2_cache_min_data_width", 128)
         sdram = LiteDRAMCore(
             phy             = phy,
             geom_settings   = module.geom_settings,

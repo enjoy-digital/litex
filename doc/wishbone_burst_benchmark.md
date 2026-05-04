@@ -12,7 +12,7 @@ Pre-burst baseline:
 
 Current burst branch:
 
-- LiteX: `c7578d364` (`interconnect: reuse tag port for cache prefetch lookup`)
+- LiteX: `7773973f3` (`tools: automate Wishbone burst benchmarking`)
 - LiteDRAM: `ea756f9` (`test: cover Wishbone burst prefetch backpressure`)
 
 ## litex_sim
@@ -79,6 +79,37 @@ actual burst traffic:
 The automated 64KiB run still showed a maximum two-beat burst at the L2/DRAM
 side while the CPU/main RAM side reached eight-beat bursts.
 
+The L2/DRAM-side two-beat maximum comes from the L2 refill/prefetch shape in
+this configuration: the default L2 line is 128 bits, so two 128-bit L2 beats
+cover eight 32-bit CPU beats. Sweeping the L2 minimum data width with the
+automated benchmark shows that wider L2 lines improve this sequential-read
+case:
+
+```sh
+python3 -m litex.tools.litex_sim \
+    --with-sdram \
+    --sdram-data-width=32 \
+    --bus-bursting \
+    --l2-cache-min-data-width=256 \
+    --wishbone-burst-benchmark \
+    --wishbone-burst-benchmark-size=65536 \
+    --cpu-type=vexriscv \
+    --cpu-variant=full \
+    --output-dir=build/sim_burst_benchmark_l2w256 \
+    --threads=1
+```
+
+| L2 minimum data width | Sequential read | L2/DRAM max burst beats |
+| ---: | ---: | ---: |
+| 64-bit | 428.9KiB/s | 2 |
+| 128-bit | 542.3KiB/s | 2 |
+| 256-bit | 625.9KiB/s | 2 |
+| 512-bit | 676.5KiB/s | 2 |
+
+The 512-bit result is about 37.5% faster than the pre-burst 491.9KiB/s
+baseline and about 24.7% faster than the current default 128-bit L2 result.
+This needs an FPGA resource/timing sweep before changing defaults.
+
 ## Digilent Arty A7-35 Vivado Build
 
 Command shape:
@@ -139,8 +170,11 @@ still fragmented before reaching LiteDRAM.
 
 - Repeat the benchmark with larger `mem_speed` ranges to reduce measurement
   noise and expose steady-state behavior beyond the 8KiB L2 size.
-- Inspect the L2 cache refill path and LiteDRAM Wishbone frontend to understand
-  the current two-beat limit on the L2/DRAM side.
+- Run a Vivado resource/timing sweep for `--l2-cache-min-data-width=256` and
+  `--l2-cache-min-data-width=512` on Arty A7-35 before considering a default
+  L2 line-width change.
+- Inspect whether wider L2 lines hurt mixed/random workloads; sequential reads
+  benefit, but overfetch can be bad for less linear access patterns.
 - Compare CPU variants with different cache line sizes or burst capabilities to
   separate CPU-side limitations from interconnect and LiteDRAM frontend limits.
 - Add at least one non-sim FPGA target report to check whether the Arty timing
