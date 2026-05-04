@@ -274,7 +274,11 @@ class ConstraintManager:
             if resource[0] == name and (number is None or
                                         resource[1] == number):
                 if subname is not None:
-                    return getattr(obj, subname)
+                    if hasattr(obj, subname):
+                        return getattr(obj, subname)
+                    if loose:
+                        return None
+                    raise ConstraintError("Resource not found: {}:{}:{}".format(name, number, subname))
                 else:
                     return obj
 

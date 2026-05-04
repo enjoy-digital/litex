@@ -113,6 +113,18 @@ class TestConstraintManager(unittest.TestCase):
         with self.assertRaises(ConstraintError):
             platform.request("missing")
 
+    def test_lookup_request_loose_handles_missing_resource_and_subsignal(self):
+        platform = _make_platform()
+
+        self.assertIsNone(platform.lookup_request("user_led", 0, loose=True))
+        with self.assertRaises(ConstraintError):
+            platform.lookup_request("user_led", 0)
+
+        platform.request("serial")
+        self.assertIsNone(platform.lookup_request("serial:cts", loose=True))
+        with self.assertRaisesRegex(ConstraintError, "serial:None:cts"):
+            platform.lookup_request("serial:cts")
+
     def test_request_all_and_remaining_collect_resources(self):
         platform_all = _make_platform()
         platform_rem = _make_platform()
@@ -122,6 +134,17 @@ class TestConstraintManager(unittest.TestCase):
 
         self.assertEqual(len(all_leds), 2)
         self.assertEqual(len(rest),     2)
+
+    def test_request_all_stops_at_first_numbering_gap(self):
+        platform = _make_platform(io=[
+            ("lane", 0, Pins("A1")),
+            ("lane", 2, Pins("A2")),
+        ])
+
+        lanes = platform.request_all("lane")
+
+        self.assertEqual(len(lanes), 1)
+        self.assertIsNotNone(platform.request("lane", 2))
 
     def test_request_remaining_skips_reserved_resources(self):
         platform = _make_platform()
@@ -142,6 +165,16 @@ class TestConstraintManager(unittest.TestCase):
         self.assertIs(constraints[0][0], led)
         self.assertEqual(constraints[0][1], ["Z9"])
 
+    def test_extension_append_keeps_existing_resource_priority(self):
+        platform = _make_platform()
+
+        platform.add_extension([("user_led", 0, Pins("Z9"))], prepend=False)
+        led = platform.request("user_led", 0)
+        constraints = platform.constraint_manager.get_sig_constraints()
+
+        self.assertIs(constraints[0][0], led)
+        self.assertEqual(constraints[0][1], ["A1"])
+
     def test_connector_resolution_supports_string_dict_and_recursion(self):
         platform = _make_platform(io=[("debug", 0, Pins("K:A"))])
 
@@ -154,6 +187,31 @@ class TestConstraintManager(unittest.TestCase):
     def test_duplicate_connectors_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "Connector specified more than once"):
             _make_platform(connectors=[("J", "P1"), ("J", "P2")])
+
+    def test_connector_resolution_reports_missing_or_malformed_connectors(self):
+        platform = _make_platform(io=[("debug", 0, Pins("M:0"))])
+        platform.request("debug")
+        with self.assertRaisesRegex(AssertionError, "No connector named 'M'"):
+            platform.constraint_manager.get_sig_constraints()
+
+        platform = _make_platform(io=[("debug", 0, Pins("J:5"))])
+        platform.request("debug")
+        with self.assertRaisesRegex(AssertionError, "maximum is 2"):
+            platform.constraint_manager.get_sig_constraints()
+
+        platform = _make_platform(io=[("debug", 0, Pins("K:B"))])
+        platform.request("debug")
+        with self.assertRaisesRegex(AssertionError, "There is no pin 'B'"):
+            platform.constraint_manager.get_sig_constraints()
+
+        platform = _make_platform(io=[("debug", 0, Pins("J:0:1"))])
+        platform.request("debug")
+        with self.assertRaisesRegex(ValueError, '"J:0:1"'):
+            platform.constraint_manager.get_sig_constraints()
+
+    def test_unsupported_connector_pin_list_type_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "Unsupported pin list type"):
+            _make_platform(connectors=[("J", ["P1"])])
 
     def test_resolved_sig_constraints_include_subsignals_and_top_constraints(self):
         platform = _make_platform()
@@ -203,6 +261,23 @@ class TestConstraintManager(unittest.TestCase):
         _, commands = platform.resolve_signals(_VNS())
 
         self.assertEqual(commands, ["set_property MARK_DEBUG true resolved_led"])
+
+    def test_platform_command_resolution_accepts_multiple_signals(self):
+        platform = _make_platform()
+        led0     = platform.request("user_led", 0)
+        led1     = platform.request("user_led", 1)
+        platform.add_platform_command("connect {src} {dst}", src=led0, dst=led1)
+
+        class _VNS:
+            def get_name(self, sig):
+                return {
+                    led0: "led0",
+                    led1: "led1",
+                }[sig]
+
+        _, commands = platform.resolve_signals(_VNS())
+
+        self.assertEqual(commands, ["connect led0 led1"])
 
 
 class TestGenericPlatform(unittest.TestCase):
@@ -293,6 +368,8 @@ class TestGenericPlatform(unittest.TestCase):
         self.assertIsNone(_make_platform().get_bitstream_extension())
         self.assertEqual(StringExtPlatform("dev", [], name="p").get_bitstream_extension("flash"), ".bit")
         self.assertEqual(DictExtPlatform("dev", [], name="p").get_bitstream_extension("flash"), ".bin")
+        with self.assertRaises(KeyError):
+            DictExtPlatform("dev", [], name="p").get_bitstream_extension("unsupported")
 
     def test_jtag_support_variants(self):
         class ListPlatform(GenericPlatform):
