@@ -252,17 +252,19 @@ class SoCBusHandler(LiteXModule):
             raise SoCError()
         # Check if is SoCIORegion.
         if isinstance(region, SoCIORegion):
-            self.io_regions[name] = region
+            io_regions = dict(self.io_regions)
+            io_regions[name] = region
             # Check for overlap with others IO regions.
-            overlap = self.check_regions_overlap(self.io_regions)
+            overlap = self.check_regions_overlap(io_regions)
             if overlap is not None:
                 self.logger.error("IO Region {} between {} and {}:".format(
                     colorer("overlap", color="red"),
                     colorer(overlap[0]),
                     colorer(overlap[1])))
-                self.logger.error(str(self.io_regions[overlap[0]]))
-                self.logger.error(str(self.io_regions[overlap[1]]))
+                self.logger.error(str(io_regions[overlap[0]]))
+                self.logger.error(str(io_regions[overlap[1]]))
                 raise SoCError()
+            self.io_regions[name] = region
             self.logger.info("{} Region {} at {}.".format(
                 colorer(name,    color="underline"),
                 colorer("added", color="green"),
@@ -303,17 +305,19 @@ class SoCBusHandler(LiteXModule):
                                 str(region)))
                             self.logger.error(self)
                             raise SoCError()
-                self.regions[name] = region
+                regions = dict(self.regions)
+                regions[name] = region
                 # Check for overlap with others IO regions.
-                overlap = self.check_regions_overlap(self.regions)
+                overlap = self.check_regions_overlap(regions)
                 if overlap is not None:
                     self.logger.error("Region {} between {} and {}:".format(
                         colorer("overlap", color="red"),
                         colorer(overlap[0]),
                         colorer(overlap[1])))
-                    self.logger.error(str(self.regions[overlap[0]]))
-                    self.logger.error(str(self.regions[overlap[1]]))
+                    self.logger.error(str(regions[overlap[0]]))
+                    self.logger.error(str(regions[overlap[1]]))
                     raise SoCError()
+                self.regions[name] = region
             self.logger.info("{} Region {} at {}.".format(
                 colorer(name, color="underline"),
                 colorer("allocated" if allocated else "added", color="cyan" if allocated else "green"),
@@ -633,7 +637,11 @@ class SoCBusHandler(LiteXModule):
             master = self.add_remapper(name, master, region.origin, region.size)
         master = self.add_adapter(name, master, "m2s")
         self.masters[name] = master
-        self._check_axi_id_widths()
+        try:
+            self._check_axi_id_widths()
+        except Exception:
+            del self.masters[name]
+            raise
         self.logger.info("{} {} as Bus Master.".format(
             colorer(name,    color="underline"),
             colorer("added", color="green")))
@@ -644,6 +652,7 @@ class SoCBusHandler(LiteXModule):
     def add_slave(self, name=None, slave=None, region=None, strip_origin=False):
         no_name   = name   is None
         no_region = region is None
+        region_added = False
         if no_name and no_region:
             self.logger.error("Please {} {} and/or {} of Bus Slave.".format(
                 colorer("specify", color="red"),
@@ -661,17 +670,25 @@ class SoCBusHandler(LiteXModule):
                 raise SoCError()
         else:
             self.add_region(name, region)
+            region_added = True
         if name in self.slaves.keys():
             self.logger.error("{} {} as Bus Slave:".format(
                 colorer(name),
                 colorer("already declared", color="red")))
             self.logger.error(self)
             raise SoCError()
-        if strip_origin:
-            slave = self.add_offset(name, slave, self.regions[name].origin)
-        slave = self.add_adapter(name, slave, "s2m")
-        self.slaves[name] = slave
-        self._check_axi_id_widths()
+        try:
+            if strip_origin:
+                slave = self.add_offset(name, slave, self.regions[name].origin)
+            slave = self.add_adapter(name, slave, "s2m")
+            self.slaves[name] = slave
+            self._check_axi_id_widths()
+        except Exception:
+            self.slaves.pop(name, None)
+            if region_added:
+                self.regions.pop(name, None)
+                self.io_regions.pop(name, None)
+            raise
         self.logger.info("{} {} as Bus Slave.".format(
             colorer(name, color="underline"),
             colorer("added", color="green")))

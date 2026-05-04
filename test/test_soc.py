@@ -166,6 +166,17 @@ class TestSoCBusHandler(unittest.TestCase):
         with _assert_raises_soc_error(self):
             bus.add_region("overlap", SoCRegion(origin=0x0800, size=0x1000))
 
+    def test_failed_overlapping_region_add_does_not_mutate_regions(self):
+        bus = SoCBusHandler()
+        bus.add_region("boot", SoCRegion(origin=0x0000, size=0x1000))
+
+        with _assert_raises_soc_error(self):
+            bus.add_region("overlap", SoCRegion(origin=0x0800, size=0x1000))
+
+        self.assertNotIn("overlap", bus.regions)
+        bus.add_region("next", SoCRegion(origin=0x1000, size=0x1000))
+        self.assertIn("next", bus.regions)
+
     def test_io_region_requires_uncached_bus_region(self):
         bus = SoCBusHandler()
         bus.add_region("io", SoCIORegion(origin=0x80000000, size=0x10000))
@@ -179,6 +190,17 @@ class TestSoCBusHandler(unittest.TestCase):
 
         with _assert_raises_soc_error(self):
             bus.add_region("uncached", SoCRegion(origin=0x20000000, size=0x1000, cached=False))
+
+    def test_failed_overlapping_io_region_add_does_not_mutate_io_regions(self):
+        bus = SoCBusHandler()
+        bus.add_region("io0", SoCIORegion(origin=0x80000000, size=0x10000))
+
+        with _assert_raises_soc_error(self):
+            bus.add_region("io1", SoCIORegion(origin=0x80008000, size=0x10000))
+
+        self.assertNotIn("io1", bus.io_regions)
+        bus.add_region("io2", SoCIORegion(origin=0x80010000, size=0x10000))
+        self.assertIn("io2", bus.io_regions)
 
     def test_linker_region_overlaps_are_ignored_unless_requested(self):
         bus = SoCBusHandler()
@@ -256,6 +278,40 @@ class TestSoCBusStandardIntegration(unittest.TestCase):
 
         self.assertIsInstance(bus.slaves["slave"], wishbone.Interface)
         self.assertEqual(bus.slaves["slave"].data_width, 64)
+
+    def test_axi_slave_adaptation_uses_existing_master_id_width(self):
+        bus = SoCBusHandler(standard="axi")
+        bus.add_master("cpu", axi.AXIInterface(id_width=4))
+
+        bus.add_slave("wb", wishbone.Interface(), SoCRegion(origin=0x00000000, size=0x1000))
+
+        self.assertIsInstance(bus.slaves["wb"], axi.AXIInterface)
+        self.assertEqual(bus.slaves["wb"].id_width, 4)
+
+    def test_axi_id_width_mismatch_on_new_master_rolls_back_master(self):
+        bus = SoCBusHandler(standard="axi")
+        bus.add_slave("ram", axi.AXIInterface(id_width=1), SoCRegion(origin=0x00000000, size=0x1000))
+
+        with _assert_raises_soc_error(self):
+            bus.add_master("cpu", axi.AXIInterface(id_width=4))
+
+        self.assertNotIn("cpu", bus.masters)
+
+    def test_axi_id_width_mismatch_on_new_slave_rolls_back_slave_and_region(self):
+        bus = SoCBusHandler(standard="axi")
+        bus.add_master("cpu", axi.AXIInterface(id_width=4))
+
+        with _assert_raises_soc_error(self):
+            bus.add_slave("ram", axi.AXIInterface(id_width=1), SoCRegion(origin=0x00000000, size=0x1000))
+
+        self.assertNotIn("ram", bus.slaves)
+        self.assertNotIn("ram", bus.regions)
+
+    def test_invalid_adapter_direction_is_rejected(self):
+        bus = SoCBusHandler()
+
+        with self.assertRaisesRegex(ValueError, "direction must be"):
+            bus.add_adapter("bad", wishbone.Interface(), direction="sideways")
 
 
 class TestSoCCSRHandler(unittest.TestCase):
