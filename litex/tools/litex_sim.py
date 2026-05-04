@@ -159,6 +159,8 @@ class WishboneBurstMonitor(LiteXModule, AutoCSR):
         self._control = CSRStorage(fields=[
             CSRField("clear", size=1, offset=0, pulse=True,
                 description="Clear all monitor counters."),
+            CSRField("freeze", size=1, offset=1,
+                description="Freeze all monitor counters."),
         ])
         self._cycles              = CSRStatus(32, description="Cycles with CYC and STB asserted.")
         self._beats               = CSRStatus(32, description="Acknowledged Wishbone beats.")
@@ -237,7 +239,7 @@ class WishboneBurstMonitor(LiteXModule, AutoCSR):
                 unsupported_bte.eq(0),
                 in_burst.eq(0),
                 current_burst_beats.eq(0),
-            ).Else(
+            ).Elif(~self._control.fields.freeze,
                 If(bus_active,
                     cycles.eq(cycles + 1)
                 ),
@@ -632,6 +634,18 @@ def sim_args(parser):
     # Analyzer.
     parser.add_argument("--with-analyzer",        action="store_true",     help="Enable Analyzer support.")
     parser.add_argument("--with-wishbone-burst-monitor", action="store_true", help="Enable Wishbone burst monitor CSRs.")
+    parser.add_argument("--wishbone-burst-benchmark", action="store_true",
+        help="Run an automated BIOS memory benchmark and dump Wishbone burst monitor counters.")
+    parser.add_argument("--wishbone-burst-benchmark-addr", default=None,
+        help="Benchmark address. Defaults to the main_ram origin.")
+    parser.add_argument("--wishbone-burst-benchmark-size", default="8192",
+        help="Benchmark size in bytes.")
+    parser.add_argument("--wishbone-burst-benchmark-write", action="store_true",
+        help="Measure writes before reads. Defaults to read-only benchmarking.")
+    parser.add_argument("--wishbone-burst-benchmark-random", action="store_true",
+        help="Use random accesses instead of sequential accesses.")
+    parser.add_argument("--wishbone-burst-benchmark-no-finish", action="store_true",
+        help="Keep the BIOS console alive after the automated benchmark.")
 
     # Video.
     parser.add_argument("--with-video-framebuffer", action="store_true",   help="Enable Video Framebuffer.")
@@ -653,6 +667,13 @@ def main():
 
     if args.with_sdram and args.integrated_main_ram_size is None and args.ram_init is not None:
         parser.error("--ram-init cannot be used with --with-sdram; use --sdram-init.")
+    if args.wishbone_burst_benchmark and not (args.with_sdram or args.integrated_main_ram_size):
+        parser.error("--wishbone-burst-benchmark requires --with-sdram or --integrated-main-ram-size.")
+
+    if args.wishbone_burst_benchmark:
+        args.with_wishbone_burst_monitor = True
+        args.sim_debug                   = True
+        args.non_interactive             = True
 
     soc_kwargs = soc_core_argdict(args)
 
@@ -777,6 +798,27 @@ def main():
             soc.add_constant("LOCALIP{}".format(i+1), int(args.local_ip.split(".")[i]))
         for i in range(4):
             soc.add_constant("REMOTEIP{}".format(i+1), int(args.remote_ip.split(".")[i]))
+
+    # Wishbone Burst Benchmark.
+    if args.wishbone_burst_benchmark:
+        if args.wishbone_burst_benchmark_addr is None:
+            if "main_ram" not in soc.bus.regions:
+                parser.error("--wishbone-burst-benchmark-addr is required when main_ram is not present.")
+            benchmark_addr = soc.bus.regions["main_ram"].origin
+        else:
+            benchmark_addr = int(args.wishbone_burst_benchmark_addr, 0)
+
+        benchmark_size = int(args.wishbone_burst_benchmark_size, 0)
+        if benchmark_size <= 0:
+            parser.error("--wishbone-burst-benchmark-size must be greater than zero.")
+
+        soc.add_config("BIOS_NO_BOOT")
+        soc.add_config("WISHBONE_BURST_BENCHMARK")
+        soc.add_constant("WISHBONE_BURST_BENCHMARK_ADDR",      benchmark_addr)
+        soc.add_constant("WISHBONE_BURST_BENCHMARK_SIZE",      benchmark_size)
+        soc.add_constant("WISHBONE_BURST_BENCHMARK_READ_ONLY", int(not args.wishbone_burst_benchmark_write))
+        soc.add_constant("WISHBONE_BURST_BENCHMARK_RANDOM",    int(args.wishbone_burst_benchmark_random))
+        soc.add_constant("WISHBONE_BURST_BENCHMARK_FINISH",    int(not args.wishbone_burst_benchmark_no_finish))
 
     # Build/Run ------------------------------------------------------------------------------------
     def pre_run_callback(vns):

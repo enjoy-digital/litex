@@ -10,6 +10,7 @@
 
 #include "../command.h"
 #include "../helpers.h"
+#include "../wishbone_burst_benchmark.h"
 
 /**
  * Command "mem_list"
@@ -264,6 +265,65 @@ static void mem_speed_handler(int nb_params, char **params)
 	memspeed(addr, size, read_only, random);
 }
 define_command(mem_speed, mem_speed_handler, "Test memory speed", MEM_CMDS);
+
+/**
+ * Command "wb_burst_benchmark"
+ *
+ * Wishbone Burst Benchmark
+ *
+ */
+static void wb_burst_benchmark_handler(int nb_params, char **params)
+{
+	char *c;
+	unsigned int *addr;
+	unsigned long size;
+	bool read_only = true;
+	bool random = false;
+
+	if (nb_params >= 1) {
+		addr = (unsigned int *)strtoul(params[0], &c, 0);
+		if (*c != 0) {
+			printf("Incorrect address");
+			return;
+		}
+	} else {
+#ifdef MAIN_RAM_BASE
+		addr = (unsigned int *)MAIN_RAM_BASE;
+#else
+		printf("wb_burst_benchmark <addr> <size> [<readonly>] [<random>]");
+		return;
+#endif
+	}
+
+	if (nb_params >= 2) {
+		size = strtoul(params[1], &c, 0);
+		if (*c != 0) {
+			printf("Incorrect size");
+			return;
+		}
+	} else {
+		size = MEMTEST_DATA_SIZE;
+	}
+
+	if (nb_params >= 3) {
+		read_only = (bool) strtoul(params[2], &c, 0);
+		if (*c != 0) {
+			printf("Incorrect readonly value");
+			return;
+		}
+	}
+
+	if (nb_params >= 4) {
+		random = (bool) strtoul(params[3], &c, 0);
+		if (*c != 0) {
+			printf("Incorrect random value");
+			return;
+		}
+	}
+
+	wishbone_burst_benchmark(addr, size, read_only, random, false);
+}
+define_command(wb_burst_benchmark, wb_burst_benchmark_handler, "Run Wishbone burst benchmark", MEM_CMDS);
 
 /**
  * Command "mem_cmp"

@@ -37,12 +37,33 @@ Manual BIOS command used after boot:
 mem_speed 0x40000000 8192 1 0
 ```
 
+The same workload can now be run automatically from `litex_sim`:
+
+```sh
+python3 -m litex.tools.litex_sim \
+    --with-sdram \
+    --sdram-data-width=32 \
+    --bus-bursting \
+    --wishbone-burst-benchmark \
+    --wishbone-burst-benchmark-size=8192 \
+    --cpu-type=vexriscv \
+    --cpu-variant=full \
+    --output-dir=build/sim_burst_benchmark_auto \
+    --threads=1
+```
+
+This enables the Wishbone burst monitors, runs the BIOS benchmark after SDRAM
+initialization, freezes the monitor counters, prints parseable
+`wishbone_burst_monitor ... key=value` lines, and exits through the simulation
+finish CSR.
+
 Results:
 
 | Revision | Sequential write | Sequential read |
 | --- | ---: | ---: |
 | Pre-burst | 1.6MiB/s | 491.9KiB/s |
 | Current burst | 1.6MiB/s | 535.5KiB/s |
+| Current burst, automated 64KiB read-only | - | 542.3KiB/s |
 
 The measured sequential-read gain is about 8.9% for this VexRiscv Full,
 32-bit SDRAM, 8KiB L2 configuration.
@@ -54,6 +75,9 @@ actual burst traffic:
 | --- | ---: | ---: | ---: |
 | CPU/main_ram side | 3 | 24 | 8 |
 | L2/DRAM side | 512 | 1024 | 2 |
+
+The automated 64KiB run still showed a maximum two-beat burst at the L2/DRAM
+side while the CPU/main RAM side reached eight-beat bursts.
 
 ## Digilent Arty A7-35 Vivado Build
 
@@ -115,8 +139,6 @@ still fragmented before reaching LiteDRAM.
 
 - Repeat the benchmark with larger `mem_speed` ranges to reduce measurement
   noise and expose steady-state behavior beyond the 8KiB L2 size.
-- Add an automated sim benchmark mode that clears burst monitors, runs a fixed
-  memory workload, dumps counters, and exits without console interaction.
 - Inspect the L2 cache refill path and LiteDRAM Wishbone frontend to understand
   the current two-beat limit on the L2/DRAM side.
 - Compare CPU variants with different cache line sizes or burst capabilities to

@@ -25,6 +25,7 @@
 #include "readline.h"
 #include "helpers.h"
 #include "command.h"
+#include "wishbone_burst_benchmark.h"
 
 #include <generated/csr.h>
 #include <generated/soc.h>
@@ -233,6 +234,32 @@ __attribute__((__used__)) int main(int i, char **c)
 
 	/* Execute  initialization functions */
 	init_dispatcher();
+
+	/* Run automated Wishbone burst benchmark. */
+#ifdef CONFIG_WISHBONE_BURST_BENCHMARK
+#ifndef WISHBONE_BURST_BENCHMARK_ADDR
+#define WISHBONE_BURST_BENCHMARK_ADDR MAIN_RAM_BASE
+#endif
+#ifndef WISHBONE_BURST_BENCHMARK_SIZE
+#define WISHBONE_BURST_BENCHMARK_SIZE MEMTEST_DATA_SIZE
+#endif
+#ifndef WISHBONE_BURST_BENCHMARK_READ_ONLY
+#define WISHBONE_BURST_BENCHMARK_READ_ONLY 1
+#endif
+#ifndef WISHBONE_BURST_BENCHMARK_RANDOM
+#define WISHBONE_BURST_BENCHMARK_RANDOM 0
+#endif
+#ifndef WISHBONE_BURST_BENCHMARK_FINISH
+#define WISHBONE_BURST_BENCHMARK_FINISH 1
+#endif
+	wishbone_burst_benchmark(
+		(unsigned int *) WISHBONE_BURST_BENCHMARK_ADDR,
+		WISHBONE_BURST_BENCHMARK_SIZE,
+		WISHBONE_BURST_BENCHMARK_READ_ONLY,
+		WISHBONE_BURST_BENCHMARK_RANDOM,
+		WISHBONE_BURST_BENCHMARK_FINISH
+	);
+#endif
 
 	/* Execute Boot sequence */
 #ifndef CONFIG_BIOS_NO_BOOT

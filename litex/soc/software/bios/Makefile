@@ -19,6 +19,7 @@ OBJECTS = boot-helper.o	\
 	  cmd_litesdcard.o  \
 	  cmd_litesata.o    \
 	  sim_debug.o		\
+	  wishbone_burst_benchmark.o \
 	  main.o            \
 	  crt0.o
 
