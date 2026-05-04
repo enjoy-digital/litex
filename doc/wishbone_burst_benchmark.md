@@ -12,7 +12,7 @@ Pre-burst baseline:
 
 Current burst branch:
 
-- LiteX: `7773973f3` (`tools: automate Wishbone burst benchmarking`)
+- LiteX: `985225ccc` (`soc: expose L2 cache width tuning`)
 - LiteDRAM: `ea756f9` (`test: cover Wishbone burst prefetch backpressure`)
 
 ## litex_sim
@@ -108,7 +108,7 @@ python3 -m litex.tools.litex_sim \
 
 The 512-bit result is about 37.5% faster than the pre-burst 491.9KiB/s
 baseline and about 24.7% faster than the current default 128-bit L2 result.
-This needs an FPGA resource/timing sweep before changing defaults.
+The Arty A7-35 FPGA sweep below shows the associated resource cost.
 
 ## Digilent Arty A7-35 Vivado Build
 
@@ -144,6 +144,21 @@ Results from place-and-route reports:
 | Combinational loops | 0 | 0 | unchanged |
 | Bitstream generation | OK | OK | unchanged |
 
+L2 minimum data-width sweep on the current burst branch:
+
+| L2 minimum data width | Sim 64KiB sequential read | WNS | Slice LUTs | Slice Registers | Block RAM Tile | DSPs | Bitstream |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| 128-bit | 542.3KiB/s | 0.795ns | 4834 | 3905 | 23.5 | 4 | OK |
+| 256-bit | 625.9KiB/s | 0.568ns | 5072 | 4316 | 31.5 | 4 | OK |
+| 512-bit | 676.5KiB/s | 0.712ns | 5606 | 4830 | 47.5 | 4 | OK |
+
+Compared to the current 128-bit default, the 256-bit option gives +15.4%
+sequential-read throughput in `litex_sim` for +238 LUTs, +411 registers, and
++8 BRAM tiles on Arty A7-35. The 512-bit option gives +24.7% throughput for
++772 LUTs, +925 registers, and +24 BRAM tiles. The 512-bit option uses 95% of
+the A7-35 BRAM tiles, so 256-bit is the more realistic candidate for a small
+Artix-7 default or board-level option.
+
 Report paths from the measured builds:
 
 - Pre-burst:
@@ -154,6 +169,14 @@ Report paths from the measured builds:
   `build/arty_burst_fixed/gateware/digilent_arty_timing.rpt`
 - Current burst:
   `build/arty_burst_fixed/gateware/digilent_arty_utilization_place.rpt`
+- Current burst, L2 256-bit:
+  `build/arty_burst_l2w256/gateware/digilent_arty_timing.rpt`
+- Current burst, L2 256-bit:
+  `build/arty_burst_l2w256/gateware/digilent_arty_utilization_place.rpt`
+- Current burst, L2 512-bit:
+  `build/arty_burst_l2w512/gateware/digilent_arty_timing.rpt`
+- Current burst, L2 512-bit:
+  `build/arty_burst_l2w512/gateware/digilent_arty_utilization_place.rpt`
 
 ## Current Interpretation
 
@@ -162,20 +185,20 @@ with a modest logic cost and no BRAM or DSP increase on Arty A7-35. Timing is
 clean and, for this run, improved versus the pre-burst build despite the extra
 logic.
 
-The current maximum observed L2/DRAM-side burst length is two 32-bit Wishbone
-beats. Further throughput work should focus on why wider CPU cache refills are
-still fragmented before reaching LiteDRAM.
+The current maximum observed L2/DRAM-side burst length is two wide L2 Wishbone
+beats. For the default 128-bit L2 line this already covers eight 32-bit CPU
+beats; increasing the L2 width improves this sequential case but spends BRAM.
 
 ## Next Steps
 
 - Repeat the benchmark with larger `mem_speed` ranges to reduce measurement
   noise and expose steady-state behavior beyond the 8KiB L2 size.
-- Run a Vivado resource/timing sweep for `--l2-cache-min-data-width=256` and
-  `--l2-cache-min-data-width=512` on Arty A7-35 before considering a default
-  L2 line-width change.
+- Evaluate `--l2-cache-min-data-width=256` on larger Artix-7/Kintex-7 and
+  DDR3/DDR4 targets to see whether the sim throughput gain generalizes without
+  excessive BRAM pressure.
 - Inspect whether wider L2 lines hurt mixed/random workloads; sequential reads
   benefit, but overfetch can be bad for less linear access patterns.
 - Compare CPU variants with different cache line sizes or burst capabilities to
   separate CPU-side limitations from interconnect and LiteDRAM frontend limits.
-- Add at least one non-sim FPGA target report to check whether the Arty timing
-  result is representative or just placement variance.
+- Add more non-sim FPGA target reports to check whether the Arty timing and
+  BRAM tradeoffs are representative or board-specific.
