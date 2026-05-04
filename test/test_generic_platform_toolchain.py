@@ -381,6 +381,19 @@ class TestGenericPlatform(unittest.TestCase):
 
 
 class TestGenericToolchain(unittest.TestCase):
+    def _assert_build_restores_cwd_on_failure(self, toolchain, message):
+        platform = _make_platform(io=[])
+        platform.toolchain = toolchain
+        dut = Module()
+        dut.clock_domains.cd_sys = ClockDomain("sys")
+        cwd = os.getcwd()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with self.assertRaisesRegex(RuntimeError, message):
+                toolchain.build(platform, dut, build_dir=os.path.join(tmp_dir, "build"), run=True)
+
+        self.assertEqual(os.getcwd(), cwd)
+
     def test_period_constraint_ignores_none_and_can_skip_keep(self):
         toolchain = GenericToolchain()
         clk       = Signal()
@@ -428,6 +441,17 @@ class TestGenericToolchain(unittest.TestCase):
         self.assertIn("keep", a.attr)
         self.assertIn("keep", b.attr)
 
+    def test_false_path_constraints_can_skip_keep(self):
+        toolchain = GenericToolchain()
+        a         = Signal()
+        b         = Signal()
+
+        toolchain.add_false_path_constraint(None, a, b, keep=False)
+
+        self.assertEqual(toolchain.false_paths, {(a, b)})
+        self.assertNotIn("keep", a.attr)
+        self.assertNotIn("keep", b.attr)
+
     def test_build_litex_backend_generates_verilog_project_and_script(self):
         platform = _make_platform(io=[])
         toolchain = _DummyToolchain()
@@ -470,6 +494,34 @@ class TestGenericToolchain(unittest.TestCase):
                 toolchain.build(platform, dut, build_dir=os.path.join(tmp_dir, "build"), run=False)
 
         self.assertEqual(os.getcwd(), cwd)
+
+    def test_build_restores_cwd_when_timing_constraints_fail(self):
+        class _FailingTimingToolchain(_DummyToolchain):
+            def build_timing_constraints(self, vns):
+                raise RuntimeError("timing failed")
+
+        self._assert_build_restores_cwd_on_failure(_FailingTimingToolchain(), "timing failed")
+
+    def test_build_restores_cwd_when_io_constraints_fail(self):
+        class _FailingIOToolchain(_DummyToolchain):
+            def build_io_constraints(self):
+                raise RuntimeError("io failed")
+
+        self._assert_build_restores_cwd_on_failure(_FailingIOToolchain(), "io failed")
+
+    def test_build_restores_cwd_when_project_generation_fails(self):
+        class _FailingProjectToolchain(_DummyToolchain):
+            def build_project(self):
+                raise RuntimeError("project failed")
+
+        self._assert_build_restores_cwd_on_failure(_FailingProjectToolchain(), "project failed")
+
+    def test_build_restores_cwd_when_script_generation_fails(self):
+        class _FailingScriptToolchain(_DummyToolchain):
+            def build_script(self):
+                raise RuntimeError("script generation failed")
+
+        self._assert_build_restores_cwd_on_failure(_FailingScriptToolchain(), "script generation failed")
 
     def test_build_restores_cwd_when_run_script_fails(self):
         class _FailingRunToolchain(_DummyToolchain):
