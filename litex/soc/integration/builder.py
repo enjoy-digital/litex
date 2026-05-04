@@ -145,6 +145,9 @@ class Builder:
             src_dir = os.path.join(soc_directory, "software", name)
         self.software_packages.append((name, src_dir))
 
+    def _has_software_package(self, name):
+        return any(package_name == name for package_name, _ in self.software_packages)
+
     def add_software_library(self, name):
         self.software_libraries.append(name)
 
@@ -380,7 +383,7 @@ class Builder:
 
         # Check if BIOS is used and add software package if so.
         with_bios = self.soc.cpu_type is not None
-        if with_bios:
+        if with_bios and not self._has_software_package("bios"):
             self.add_software_package("bios")
 
         # Create Gateware directory.
