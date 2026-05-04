@@ -400,6 +400,56 @@ class TestBuilderBuild(unittest.TestCase):
             bios_packages = [package for package in builder.software_packages if package[0] == "bios"]
             self.assertEqual(bios_packages, [("bios", bios_dir)])
 
+    def test_build_copies_marked_platform_sources_to_gateware_dir(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            source_dir = os.path.join(tmp_dir, "src")
+            os.makedirs(source_dir)
+            copied_source = os.path.join(source_dir, "copied.v")
+            kept_source   = os.path.join(source_dir, "kept.v")
+            with open(copied_source, "w") as f:
+                f.write("module copied(); endmodule\n")
+            with open(kept_source, "w") as f:
+                f.write("module kept(); endmodule\n")
+
+            soc = _BuildableFakeSoC()
+            soc.platform.sources = [
+                (copied_source, "verilog", "work", True),
+                (kept_source,   "verilog", "work"),
+            ]
+            builder = _make_builder(tmp_dir, soc=soc, compile_software=False, compile_gateware=False)
+
+            builder._generate_includes = Mock()
+            builder._generate_csr_map  = Mock()
+            builder.build()
+
+            self.assertTrue(os.path.exists(os.path.join(builder.gateware_dir, "copied.v")))
+            self.assertEqual(soc.platform.sources, [
+                ("copied.v",  "verilog", "work"),
+                (kept_source, "verilog", "work"),
+            ])
+
+    def test_build_preserves_explicit_run_and_hierarchical_kwargs(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            soc     = _BuildableFakeSoC()
+            builder = _make_builder(
+                tmp_dir,
+                soc=soc,
+                compile_software=False,
+                compile_gateware=False,
+                build_backend="edalize",
+                hierarchical=True,
+            )
+
+            builder._generate_includes = Mock()
+            builder._generate_csr_map  = Mock()
+            builder.build(run=True, hierarchical=False, build_name="top")
+
+            _, kwargs = soc.build_calls[0]
+            self.assertTrue(kwargs["run"])
+            self.assertFalse(kwargs["hierarchical"])
+            self.assertEqual(kwargs["build_backend"], "edalize")
+            self.assertEqual(kwargs["build_name"], "top")
+
 
 if __name__ == "__main__":
     unittest.main()
