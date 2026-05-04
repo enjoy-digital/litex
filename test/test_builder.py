@@ -34,6 +34,9 @@ class _FakeSoC:
         self.platform = _FakePlatform()
         self.cpu_type = cpu_type
 
+    def get_build_name(self):
+        return self.platform.name
+
 
 class _BuildableFakeSoC(_FakeSoC):
     def __init__(self):
@@ -121,6 +124,43 @@ class TestBuilderArguments(unittest.TestCase):
         self.assertTrue(argdict["hierarchical"])
 
 
+class TestBuilderPaths(unittest.TestCase):
+    def test_default_directories_and_exports_are_under_output_dir(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            builder = _make_builder(tmp_dir)
+
+            self.assertEqual(builder.output_dir,    os.path.abspath(tmp_dir))
+            self.assertEqual(builder.gateware_dir,  os.path.join(os.path.abspath(tmp_dir), "gateware"))
+            self.assertEqual(builder.software_dir,  os.path.join(os.path.abspath(tmp_dir), "software"))
+            self.assertEqual(builder.include_dir,   os.path.join(os.path.abspath(tmp_dir), "software", "include"))
+            self.assertEqual(builder.generated_dir, os.path.join(os.path.abspath(tmp_dir), "software", "include", "generated"))
+            self.assertEqual(builder.csr_csv,       os.path.join(os.path.abspath(tmp_dir), "csr.csv"))
+            self.assertEqual(builder.csr_json,      os.path.join(os.path.abspath(tmp_dir), "csr.json"))
+
+    def test_output_filename_helpers(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            builder = _make_builder(tmp_dir)
+
+            self.assertEqual(
+                builder.get_bios_filename(),
+                os.path.join(builder.software_dir, "bios", "bios.bin"),
+            )
+            self.assertEqual(
+                builder.get_bitstream_filename(),
+                os.path.join(builder.gateware_dir, "unit.bit"),
+            )
+            self.assertEqual(
+                builder.get_bitstream_filename(mode="flash"),
+                os.path.join(builder.gateware_dir, "unit.bin"),
+            )
+            self.assertEqual(
+                builder.get_bitstream_filename(ext=".fs"),
+                os.path.join(builder.gateware_dir, "unit.fs"),
+            )
+            with self.assertRaisesRegex(ValueError, "Unsupported bitstream mode"):
+                builder.get_bitstream_filename(mode="invalid")
+
+
 class TestBuilderJsonImports(unittest.TestCase):
     def test_json_imports_are_namespaced_and_interrupt_constants_are_filtered(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -200,6 +240,37 @@ class TestBuilderRomSoftware(unittest.TestCase):
 
             get_mem_data.assert_called_once_with(bios_file, data_width=32, endianness="little")
             self.assertEqual(builder.soc.init_rom_calls, [("rom", [1, 2, 0, 0], False)])
+
+    def test_generate_rom_software_skips_bios_when_disabled(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            builder = object.__new__(Builder)
+            builder.software_dir       = tmp_dir
+            builder.compile_software   = True
+            builder.software_packages  = [
+                ("libbase", os.path.join(tmp_dir, "libbase_src")),
+                ("bios",    os.path.join(tmp_dir, "bios_src")),
+            ]
+
+            with patch("litex.soc.integration.builder.os.cpu_count", return_value=2):
+                with patch("litex.soc.integration.builder.subprocess.check_call") as check_call:
+                    builder._generate_rom_software(compile_bios=False)
+
+            check_call.assert_called_once_with([
+                "make", "-j2",
+                "-C", os.path.join(tmp_dir, "libbase"),
+                "-f", os.path.join(tmp_dir, "libbase_src", "Makefile"),
+            ])
+
+    def test_generate_rom_software_is_noop_when_software_compile_is_disabled(self):
+        builder = object.__new__(Builder)
+        builder.software_dir       = "software"
+        builder.compile_software   = False
+        builder.software_packages  = [("libbase", "libbase_src")]
+
+        with patch("litex.soc.integration.builder.subprocess.check_call") as check_call:
+            builder._generate_rom_software()
+
+        check_call.assert_not_called()
 
 
 class TestBuilderBuild(unittest.TestCase):
