@@ -548,6 +548,26 @@ def _read_os_release():
     with open("/etc/os-release", "r", encoding="utf-8") as f:
         return f.read().lower()
 
+def toolchain_install_cmd(toolchain, cmd):
+    try:
+        subprocess.check_call(cmd)
+    except FileNotFoundError:
+        print_error(f"{cmd[0]} was not found while installing the {toolchain} GCC toolchain.")
+        print_status("Install the toolchain manually or use a supported package manager.")
+        raise SetupError
+    except subprocess.CalledProcessError:
+        print_error(f"{toolchain} GCC toolchain could not be installed.")
+        print_status("Failed command:")
+        print_status(f"  {' '.join(cmd)}")
+        if sys.platform.startswith("linux"):
+            print_status("You may need to run this command with sudo/root privileges.")
+        print_status("Install the toolchain manually or rerun after fixing package-manager access.")
+        raise SetupError
+
+def toolchain_manual_install(toolchain):
+    print_error(f"{toolchain} GCC requires manual installation on {sys.platform}.")
+    raise SetupError
+
 # RISC-V toolchain.
 # -----------------
 
@@ -558,26 +578,26 @@ def riscv_gcc_install():
         os_release = _read_os_release()
         # Fedora.
         if "fedora" in os_release:
-            subprocess.check_call(["dnf", "install", "gcc-riscv64-linux-gnu"])
+            toolchain_install_cmd("RISC-V", ["dnf", "install", "gcc-riscv64-linux-gnu"])
         # Arch.
         elif "arch" in os_release:
-            subprocess.check_call(["pacman", "-S", "riscv64-linux-gnu-gcc"])
+            toolchain_install_cmd("RISC-V", ["pacman", "-S", "riscv64-linux-gnu-gcc"])
         # Alpine.
         elif "alpine" in os_release:
-            subprocess.check_call(["apk", "add", "gcc-cross-embedded"])
+            toolchain_install_cmd("RISC-V", ["apk", "add", "gcc-cross-embedded"])
         # Ubuntu.
         else:
-            subprocess.check_call(["apt", "install", "gcc-riscv64-unknown-elf"])
+            toolchain_install_cmd("RISC-V", ["apt", "install", "gcc-riscv64-unknown-elf"])
 
     # Mac OS.
     # -------
     elif sys.platform.startswith("darwin"):
-        subprocess.check_call(["brew", "install", "riscv-tools"])
+        toolchain_install_cmd("RISC-V", ["brew", "install", "riscv-tools"])
 
     # Manual installation.
     # --------------------
     else:
-        raise NotImplementedError(f"RISC-V GCC requires manual installation on {sys.platform}.")
+        toolchain_manual_install("RISC-V")
 
 # PowerPC toolchain.
 # -----------------
@@ -589,21 +609,21 @@ def powerpc_gcc_install():
         os_release = _read_os_release()
         # Fedora.
         if "fedora" in os_release:
-            subprocess.check_call(["dnf", "install", "gcc-powerpc64le-linux-gnu"]) # FIXME: binutils-multiarch?
+            toolchain_install_cmd("PowerPC", ["dnf", "install", "gcc-powerpc64le-linux-gnu"]) # FIXME: binutils-multiarch?
         # Arch (AUR repository).
         elif "arch" in os_release:
-            subprocess.check_call(["yay", "-S", "powerpc64le-linux-gnu-gcc"])
+            toolchain_install_cmd("PowerPC", ["yay", "-S", "powerpc64le-linux-gnu-gcc"])
         # Alpine.
         elif "alpine" in os_release:
-            subprocess.check_call(["apk", "add", "gcc", "binutils-ppc64le"])
+            toolchain_install_cmd("PowerPC", ["apk", "add", "gcc", "binutils-ppc64le"])
         # Ubuntu.
         else:
-            subprocess.check_call(["apt", "install", "gcc-powerpc64le-linux-gnu", "binutils-multiarch"])
+            toolchain_install_cmd("PowerPC", ["apt", "install", "gcc-powerpc64le-linux-gnu", "binutils-multiarch"])
 
     # Manual installation.
     # --------------------
     else:
-        raise NotImplementedError(f"PowerPC GCC requires manual installation on {sys.platform}.")
+        toolchain_manual_install("PowerPC")
 
 # OpenRISC toolchain.
 # -------------------
@@ -615,21 +635,21 @@ def openrisc_gcc_install():
         os_release = _read_os_release()
         # Fedora.
         if "fedora" in os_release:
-            subprocess.check_call(["dnf", "install", "gcc-or1k-elf"])
+            toolchain_install_cmd("OpenRISC", ["dnf", "install", "gcc-or1k-elf"])
         # Arch.
         elif "arch" in os_release:
-            subprocess.check_call(["pacman", "-S", "or1k-elf-gcc"])
+            toolchain_install_cmd("OpenRISC", ["pacman", "-S", "or1k-elf-gcc"])
         # Alpine.
         elif "alpine" in os_release:
-            subprocess.check_call(["apk", "add", "gcc-cross-embedded"])
+            toolchain_install_cmd("OpenRISC", ["apk", "add", "gcc-cross-embedded"])
         # Ubuntu.
         else:
-            subprocess.check_call(["apt", "install", "gcc-or1k-elf"])
+            toolchain_install_cmd("OpenRISC", ["apt", "install", "gcc-or1k-elf"])
 
     # Manual installation.
     # --------------------
     else:
-        raise NotImplementedError(f"OpenRISC GCC requires manual installation on {sys.platform}.")
+        toolchain_manual_install("OpenRISC")
 
 # Run ----------------------------------------------------------------------------------------------
 

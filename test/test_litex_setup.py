@@ -200,6 +200,39 @@ class TestLiteXSetup(unittest.TestCase):
         self.assertIn("-m pip install --editable . --user", output)
         self.assertNotIn("Traceback", output + stderr)
 
+    def test_toolchain_command_failure_has_actionable_error(self):
+        with mock.patch("subprocess.check_call", side_effect=subprocess.CalledProcessError(1, ["apt"])), \
+             mock.patch.object(sys, "platform", "linux"):
+            output, stderr = self.assert_setup_error(
+                litex_setup.toolchain_install_cmd,
+                "RISC-V",
+                ["apt", "install", "gcc-riscv64-unknown-elf"],
+            )
+
+        self.assertIn("RISC-V GCC toolchain could not be installed.", output)
+        self.assertIn("apt install gcc-riscv64-unknown-elf", output)
+        self.assertIn("sudo/root privileges", output)
+        self.assertNotIn("Traceback", output + stderr)
+
+    def test_toolchain_missing_package_manager_has_actionable_error(self):
+        with mock.patch("subprocess.check_call", side_effect=FileNotFoundError):
+            output, stderr = self.assert_setup_error(
+                litex_setup.toolchain_install_cmd,
+                "RISC-V",
+                ["missing-package-manager", "install", "gcc"],
+            )
+
+        self.assertIn("missing-package-manager was not found", output)
+        self.assertIn("supported package manager", output)
+        self.assertNotIn("Traceback", output + stderr)
+
+    def test_toolchain_unsupported_platform_is_clean_error(self):
+        with mock.patch.object(sys, "platform", "unknown-os"):
+            output, stderr = self.assert_setup_error(litex_setup.riscv_gcc_install)
+
+        self.assertIn("RISC-V GCC requires manual installation on unknown-os.", output)
+        self.assertNotIn("Traceback", output + stderr)
+
     def test_invalid_config_is_rejected_cleanly(self):
         litex_setup.install_configs = {"minimal": [], "standard": [], "full": []}
 
