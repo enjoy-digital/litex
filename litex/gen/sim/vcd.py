@@ -30,7 +30,7 @@ class VCDWriter:
         self.filename = filename
         self.out_file = None
         self.buffer_file = tempfile.TemporaryFile(
-            dir=os.path.dirname(filename), mode="w+")
+            dir=os.path.dirname(filename) or None, mode="w+")
         self.initialized = False
         self.codegen = vcd_codes()
         self.codes = OrderedDict()
