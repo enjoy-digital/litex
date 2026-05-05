@@ -635,6 +635,11 @@ class SoCBusHandler(LiteXModule):
             raise SoCError()
         if region:
             master = self.add_remapper(name, master, region.origin, region.size)
+        if isinstance(master, wishbone.Interface) and master.addressing == "byte" and self.addressing == "word":
+            self.logger.warning("{} byte-addressed Bus Master added to word-addressed main Bus; "
+                "addresses driven by this master must be full byte addresses in the SoC memory map. "
+                "For CSR accesses, use SoC.get_csr_address() rather than csr.address_map(..., origin=True).".format(
+                    colorer(name, color="underline")))
         master = self.add_adapter(name, master, "m2s")
         self.masters[name] = master
         try:
@@ -1355,6 +1360,21 @@ class SoC(LiteXModule):
         self.add_config("CSR_DATA_WIDTH", self.csr.data_width)
         self.add_config("CSR_ALIGNMENT",  self.csr.alignment)
         self.add_config(f"CSR_ORDERING_{self.csr.ordering.upper()}")
+
+    def get_csr_address(self, name, memory=None):
+        """Return the main-bus byte address of a CSR bank or CSR memory.
+
+        ``self.csr.address_map(..., origin=True)`` returns a CSR-local offset.
+        This helper adds the SoC CSR bus origin and should be used by main-bus
+        masters that access CSRs through the CSR bridge.
+        """
+        csr_origin = self.mem_map.get("csr", None)
+        if csr_origin is None and "csr" in self.bus.regions:
+            csr_origin = self.bus.regions["csr"].origin
+        if csr_origin is None:
+            self.logger.error("CSR main-bus origin is not defined.")
+            raise SoCError()
+        return csr_origin + self.csr.address_map(name, memory=memory, origin=True)
 
     # Add CPU --------------------------------------------------------------------------------------
     def add_cpu(self, name="vexriscv", variant="standard", reset_address=None, cfu=None):

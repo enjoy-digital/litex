@@ -393,6 +393,15 @@ class TestSoCBusStandardIntegration(unittest.TestCase):
 
         self.assertIs(bus.masters["cpu"], master)
 
+    def test_byte_addressed_master_warns_on_word_addressed_bus(self):
+        bus    = SoCBusHandler(standard="wishbone", addressing="word")
+        master = wishbone.Interface(addressing="byte")
+
+        with self.assertLogs("SoCBusHandler", level="WARNING") as logs:
+            bus.add_master("csr_dma", master)
+
+        self.assertIn("full byte addresses in the SoC memory map", "\n".join(logs.output))
+
 
 class TestSoCCSRHandler(unittest.TestCase):
     def test_invalid_csr_handler_parameters_are_rejected(self):
@@ -528,6 +537,13 @@ class TestSoC(unittest.TestCase):
         soc.add_config("FEATURE", 1)
 
         self.assertEqual(soc.constants["CONFIG_FEATURE"], 1)
+
+    def test_get_csr_address_returns_main_bus_address(self):
+        soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.mem_map["csr"] = 0xf0000000
+
+        self.assertEqual(soc.csr.address_map("timer0", origin=True), 0)
+        self.assertEqual(soc.get_csr_address("timer0"), soc.mem_map["csr"])
 
     def test_bios_requirements_check_required_csr_and_regions(self):
         soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
