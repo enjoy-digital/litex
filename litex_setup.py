@@ -170,17 +170,17 @@ def print_indented(output, indent="    ", max_lines=None):
         lines = lines[:max_lines] + [f"... ({remaining} more line(s))"]
     print("\n".join(indent + line for line in lines))
 
-def git_checkout(sha1=None, tag=None, quiet=False):
+def git_checkout(sha1=None, tag=None, quiet=False, cwd=None):
     assert not ((sha1 is None) and (tag is None))
     checkout_cmd = ["git", "-c", "advice.detachedHead=false", "checkout"]
     if quiet:
         checkout_cmd.append("--quiet")
     if sha1 is not None:
-        subprocess.check_call(checkout_cmd + [f"{sha1:07x}"])
+        subprocess_check_output(checkout_cmd + [f"{sha1:07x}"], cwd=cwd)
     if tag is not None:
         sha1_tag_cmd = ["git", "rev-list", "-n 1", tag]
-        sha1_tag     = subprocess.check_output(sha1_tag_cmd).decode("UTF-8")[:-1]
-        subprocess.check_call(checkout_cmd + [sha1_tag])
+        sha1_tag     = subprocess_check_output(sha1_tag_cmd, cwd=cwd).strip()
+        subprocess_check_output(checkout_cmd + [sha1_tag], cwd=cwd)
 
 def git_pull(repo_path):
     color  = "always" if sys.stdout.isatty() else "never"
@@ -190,6 +190,15 @@ def git_pull(repo_path):
         return
     if output:
         print_indented(output)
+
+def git_is_repository(repo_path):
+    if not os.path.isdir(repo_path):
+        return False
+    repo_cmd = ["git", "rev-parse", "--is-inside-work-tree"]
+    r = subprocess.run(repo_cmd, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if r.returncode != 0:
+        return False
+    return r.stdout.decode("UTF-8", errors="ignore").strip() == "true"
 
 def git_status(repo_path, short=False):
     status_cmd = ["git", "-c", "color.ui=never", "status"]
@@ -229,6 +238,19 @@ def git_update_error(name, repo_path, action):
     print_status("  git pull --ff-only     # retry once the branch can fast-forward")
     print_status("If you have local commits, rebase/merge them or move them to another branch first.")
 
+def git_init_error(name, repo_path, action):
+    print_error(f"Could not {action} {name} Git repository.")
+    if os.path.exists(repo_path):
+        if git_is_repository(repo_path):
+            status = git_status(repo_path)
+            if status:
+                print_status("Repository status:")
+                print_indented(status, max_lines=12)
+        else:
+            print_status(f"{repo_path} exists but is not a valid Git repository.")
+    print_status("Check the remote URL, network/SSH access and local path, then retry --init.")
+    print_status("If a partial clone was left behind, move or remove that directory before retrying.")
+
 # Git repositories initialization ------------------------------------------------------------------
 
 def litex_setup_init_repos(config="standard", tag=None, dev_mode=False):
@@ -236,7 +258,8 @@ def litex_setup_init_repos(config="standard", tag=None, dev_mode=False):
     for name in install_configs[config]:
         repo = git_repos[name]
         os.chdir(os.path.join(current_path))
-        if not os.path.exists(name):
+        repo_path = os.path.join(current_path, name)
+        if not os.path.exists(repo_path):
             # Clone Repo.
             print_status(f"Cloning {name} Git repository...")
             repo_url = repo.url
@@ -246,24 +269,48 @@ def litex_setup_init_repos(config="standard", tag=None, dev_mode=False):
             if repo.clone == "recursive":
                 clone_cmd.append("--recursive")
             clone_cmd.append(repo_url + name + ".git")
-            subprocess.check_call(clone_cmd)
-            os.chdir(os.path.join(current_path, name))
+            try:
+                subprocess_check_output(clone_cmd, cwd=current_path)
+            except subprocess.CalledProcessError:
+                git_init_error(name, repo_path, "clone")
+                raise SetupError
             # Use specific Branch.
-            subprocess.check_call(["git", "checkout", "--quiet", repo.branch])
+            try:
+                subprocess_check_output(["git", "checkout", "--quiet", repo.branch], cwd=repo_path)
+            except subprocess.CalledProcessError:
+                git_init_error(name, repo_path, f"checkout branch {repo.branch} in")
+                raise SetupError
             # Use specific Tag (Optional).
             if repo.tag is not None:
                 # Priority to passed tag (if specified).
                 if tag is not None:
-                    git_checkout(tag=tag)
+                    try:
+                        git_checkout(tag=tag, cwd=repo_path)
+                    except subprocess.CalledProcessError:
+                        git_init_error(name, repo_path, f"checkout tag {tag} in")
+                        raise SetupError
                     continue
                 # Else fallback to repo tag (if specified).
                 if isinstance(repo.tag, str):
-                    git_checkout(tag=repo.tag)
+                    try:
+                        git_checkout(tag=repo.tag, cwd=repo_path)
+                    except subprocess.CalledProcessError:
+                        git_init_error(name, repo_path, f"checkout tag {repo.tag} in")
+                        raise SetupError
                     continue
             # Use specific SHA1 (Optional).
             if repo.sha1 is not None:
-                git_checkout(sha1=repo.sha1)
+                try:
+                    git_checkout(sha1=repo.sha1, cwd=repo_path)
+                except subprocess.CalledProcessError:
+                    git_init_error(name, repo_path, f"checkout SHA1 {repo.sha1:07x} in")
+                    raise SetupError
         else:
+            if not git_is_repository(repo_path):
+                print_error(f"{name} directory already exists but is not a Git repository.")
+                print_status(f"Path: {repo_path}")
+                print_status("Move or remove it, then retry --init.")
+                raise SetupError
             print_status(f"{name} Git Repo already present.")
 
 # Git repositories update --------------------------------------------------------------------------
@@ -283,7 +330,7 @@ def litex_setup_update_repos(config="standard", tag=None):
         repo_path = os.path.join(current_path, name)
         git_confirm_update_with_local_changes(name, repo_path)
         try:
-            subprocess.check_call(["git", "checkout", "--quiet", repo.branch])
+            subprocess_check_output(["git", "checkout", "--quiet", repo.branch], cwd=repo_path)
         except subprocess.CalledProcessError:
             git_update_error(name, repo_path, f"checkout {repo.branch} in")
             raise SetupError
@@ -307,7 +354,7 @@ def litex_setup_update_repos(config="standard", tag=None):
             # Priority to passed tag (if specified).
             if tag is not None:
                 try:
-                    git_checkout(tag=tag, quiet=True)
+                    git_checkout(tag=tag, quiet=True, cwd=repo_path)
                 except subprocess.CalledProcessError:
                     git_update_error(name, repo_path, f"checkout tag {tag} in")
                     raise SetupError
@@ -315,7 +362,7 @@ def litex_setup_update_repos(config="standard", tag=None):
             # Else fallback to repo tag (if specified).
             if isinstance(repo.tag, str):
                 try:
-                    git_checkout(tag=repo.tag, quiet=True)
+                    git_checkout(tag=repo.tag, quiet=True, cwd=repo_path)
                 except subprocess.CalledProcessError:
                     git_update_error(name, repo_path, f"checkout tag {repo.tag} in")
                     raise SetupError
@@ -323,7 +370,7 @@ def litex_setup_update_repos(config="standard", tag=None):
         # Use specific SHA1 (Optional).
         if repo.sha1 is not None:
             try:
-                git_checkout(sha1=repo.sha1, quiet=True)
+                git_checkout(sha1=repo.sha1, quiet=True, cwd=repo_path)
             except subprocess.CalledProcessError:
                 git_update_error(name, repo_path, f"checkout SHA1 {repo.sha1:07x} in")
                 raise SetupError

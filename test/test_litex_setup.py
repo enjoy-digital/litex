@@ -91,6 +91,14 @@ class TestLiteXSetup(unittest.TestCase):
         sys.stderr = self.old_stderr
         return output.getvalue()
 
+    def assert_setup_error(self, callback, *args, **kwargs):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with self.assertRaises(litex_setup.SetupError):
+                callback(*args, **kwargs)
+        return stdout.getvalue(), stderr.getvalue()
+
     def test_update_can_be_cancelled_when_repo_has_local_changes(self):
         _upstream_path, repo_path = self.create_repo()
         self.append_file(os.path.join(repo_path, "README.md"), "local change\n")
@@ -119,6 +127,43 @@ class TestLiteXSetup(unittest.TestCase):
         self.assertIn("LiteX only performs fast-forward updates", output)
         self.assertIn("git pull --ff-only", output)
         self.assertNotIn("Traceback", output)
+
+    def test_init_rejects_existing_non_git_directory(self):
+        os.makedirs(os.path.join(self.workspace, "litex"))
+        litex_setup.git_repos = {
+            "litex": SimpleNamespace(
+                url=self.workspace + "/",
+                clone="regular",
+                branch="master",
+                tag=None,
+                sha1=None,
+            ),
+        }
+        litex_setup.install_configs = {"minimal": ["litex"]}
+
+        output, stderr = self.assert_setup_error(litex_setup.litex_setup_init_repos, config="minimal")
+
+        self.assertIn("litex directory already exists but is not a Git repository.", output)
+        self.assertIn("Move or remove it, then retry --init.", output)
+        self.assertNotIn("Traceback", output + stderr)
+
+    def test_init_clone_failure_has_actionable_error(self):
+        litex_setup.git_repos = {
+            "litex": SimpleNamespace(
+                url=os.path.join(self.workspace, "missing") + "/",
+                clone="regular",
+                branch="master",
+                tag=None,
+                sha1=None,
+            ),
+        }
+        litex_setup.install_configs = {"minimal": ["litex"]}
+
+        output, stderr = self.assert_setup_error(litex_setup.litex_setup_init_repos, config="minimal")
+
+        self.assertIn("Could not clone litex Git repository.", output)
+        self.assertIn("Check the remote URL, network/SSH access and local path, then retry --init.", output)
+        self.assertNotIn("Traceback", output + stderr)
 
     def test_invalid_config_is_rejected_cleanly(self):
         litex_setup.install_configs = {"minimal": [], "standard": [], "full": []}
