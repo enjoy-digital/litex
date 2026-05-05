@@ -63,8 +63,7 @@ def print_warning(status):
     print(colorer(f"[{exec_time:8.3f}]", color="yellow") + " " + colorer(status))
 
 class SetupError(Exception):
-    def __init__(self):
-        sys.stderr = None # Error already described, avoid traceback/exception.
+    pass
 
 # Script location / auto-update --------------------------------------------------------------------
 
@@ -130,6 +129,13 @@ def litex_setup_import_repos(download=False):
         repos = importlib.import_module("litex_repos")
     git_repos       = repos.git_repos
     install_configs = repos.install_configs
+
+def litex_setup_validate_config(config):
+    if config in install_configs:
+        return
+    print_error(f"{config} is not a valid install config.")
+    print_status(f"Available configs: {', '.join(install_configs)}")
+    raise SetupError
 
 def litex_setup_auto_update():
     print_status("LiteX Setup auto-update...")
@@ -575,7 +581,8 @@ def main():
     parser.add_argument("--tag",       default=None,        help="Use version from release tag.")
 
     # GCC toolchains.
-    parser.add_argument("--gcc", default=None, help="Install GCC Toolchain (riscv, powerpc or openrisc).")
+    parser.add_argument("--gcc", default=None, choices=["riscv", "powerpc", "openrisc"],
+        help="Install GCC Toolchain (riscv, powerpc or openrisc).")
 
     # Development mode.
     parser.add_argument("--dev",            action="store_true",
@@ -603,6 +610,7 @@ def main():
         if not args.dev:
             litex_setup_update_repos_file()
         litex_setup_import_repos(download=not args.dev)
+        litex_setup_validate_config(args.config)
 
     # Init.
     if args.init:
@@ -631,5 +639,14 @@ def main():
     if args.gcc == "openrisc":
         openrisc_gcc_install()
 
+def run():
+    try:
+        main()
+    except SetupError:
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print_status("Cancelled.")
+        sys.exit(130)
+
 if __name__ == "__main__":
-    main()
+    run()

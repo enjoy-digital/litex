@@ -120,6 +120,46 @@ class TestLiteXSetup(unittest.TestCase):
         self.assertIn("git pull --ff-only", output)
         self.assertNotIn("Traceback", output)
 
+    def test_invalid_config_is_rejected_cleanly(self):
+        litex_setup.install_configs = {"minimal": [], "standard": [], "full": []}
+
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            with self.assertRaises(litex_setup.SetupError):
+                litex_setup.litex_setup_validate_config("unknown")
+
+        self.assertIn("unknown is not a valid install config.", output.getvalue())
+        self.assertIn("Available configs: minimal, standard, full", output.getvalue())
+
+    def test_invalid_gcc_choice_is_rejected_by_argparse(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch.object(sys, "argv", ["litex_setup.py", "--gcc", "invalid"]), \
+             contextlib.redirect_stdout(stdout), \
+             contextlib.redirect_stderr(stderr):
+            with self.assertRaises(SystemExit) as cm:
+                litex_setup.main()
+
+        self.assertEqual(cm.exception.code, 2)
+        self.assertIn("invalid choice", stderr.getvalue())
+
+    def test_run_exits_cleanly_on_setup_error(self):
+        with mock.patch("litex_setup.main", side_effect=litex_setup.SetupError):
+            with self.assertRaises(SystemExit) as cm:
+                litex_setup.run()
+
+        self.assertEqual(cm.exception.code, 1)
+
+    def test_run_reports_keyboard_interrupt(self):
+        output = io.StringIO()
+        with mock.patch("litex_setup.main", side_effect=KeyboardInterrupt), \
+             contextlib.redirect_stdout(output):
+            with self.assertRaises(SystemExit) as cm:
+                litex_setup.run()
+
+        self.assertEqual(cm.exception.code, 130)
+        self.assertIn("Cancelled.", output.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()
