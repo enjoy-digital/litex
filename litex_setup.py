@@ -377,14 +377,23 @@ def litex_setup_update_repos(config="standard", tag=None):
 
 # Git repositories install -------------------------------------------------------------------------
 
-def _pip_install(packages, user_mode=False, editable=False):
+def pip_install_cmd(packages, user_mode=False, editable=False):
     pip_cmd = [sys.executable, "-m", "pip", "install"]
     if editable:
         pip_cmd.append("--editable")
     pip_cmd += packages
     if user_mode:
         pip_cmd.append("--user")
+    return pip_cmd
+
+def _pip_install(packages, user_mode=False, editable=False):
+    pip_cmd = pip_install_cmd(packages, user_mode=user_mode, editable=editable)
     subprocess.check_call(pip_cmd)
+
+def pip_install_error(description, packages, user_mode=False, editable=False):
+    print_error(f"{description} could not be installed.")
+    print_status("Try:")
+    print_status(f"  {' '.join(pip_install_cmd(packages, user_mode=user_mode, editable=editable))}")
 
 def litex_setup_install_repos(config="standard", user_mode=False):
     print_status("Installing Git repositories...", underline=True)
@@ -394,8 +403,21 @@ def litex_setup_install_repos(config="standard", user_mode=False):
         # Install Repo.
         if repo.develop:
             print_status(f"Installing {name} Git repository...")
-            os.chdir(os.path.join(current_path, name))
-            _pip_install(["."], user_mode=user_mode, editable=repo.editable)
+            repo_path = os.path.join(current_path, name)
+            if not git_is_repository(repo_path):
+                print_error(f"{name} Git repository is not initialized, please run --init first.")
+                raise SetupError
+            os.chdir(repo_path)
+            try:
+                _pip_install(["."], user_mode=user_mode, editable=repo.editable)
+            except subprocess.CalledProcessError:
+                pip_install_error(
+                    f"{name} Git repository",
+                    ["."],
+                    user_mode = user_mode,
+                    editable  = repo.editable,
+                )
+                raise SetupError
 
     # Install optional Python dependencies.
     if config in ["standard", "full"]:
@@ -414,22 +436,18 @@ def litex_setup_install_repos(config="standard", user_mode=False):
         try:
             _pip_install(luna_packages, user_mode=user_mode)
         except subprocess.CalledProcessError:
-            print_error("Optional LUNA ACM dependencies could not be installed.")
+            pip_install_error("Optional LUNA ACM dependencies", luna_packages, user_mode=user_mode)
             print_status("USB ACM via LUNA may not be usable until dependencies are installed manually.")
-            print_status("Try:")
-            print_status(f"  pip3 install --user {' '.join(luna_packages)}")
 
         print_status("Installing optional Amaranth CPU Python dependencies...")
         try:
             _pip_install(amaranth_packages, user_mode=user_mode)
         except subprocess.CalledProcessError:
-            print_error("Optional Amaranth CPU dependencies could not be installed.")
+            pip_install_error("Optional Amaranth CPU dependencies", amaranth_packages, user_mode=user_mode)
             print_status(
                 "Amaranth-based CPUs (ex: Minerva/Sentinel) may not be usable "
                 "until dependencies are installed manually."
             )
-            print_status("Try:")
-            print_status(f"  pip3 install --user {' '.join(amaranth_packages)}")
     if user_mode:
         if ".local/bin" not in os.environ.get("PATH", ""):
             print_status("Make sure that ~/.local/bin is in your PATH.")

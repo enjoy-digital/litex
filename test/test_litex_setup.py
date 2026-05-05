@@ -78,7 +78,14 @@ class TestLiteXSetup(unittest.TestCase):
         self.configure_user(repo_path)
 
         litex_setup.git_repos = {
-            "litex": SimpleNamespace(branch="master", clone="regular", tag=None, sha1=None),
+            "litex": SimpleNamespace(
+                branch="master",
+                clone="regular",
+                tag=None,
+                sha1=None,
+                develop=True,
+                editable=True,
+            ),
         }
         litex_setup.install_configs = {"minimal": ["litex"]}
         return upstream_path, repo_path
@@ -163,6 +170,34 @@ class TestLiteXSetup(unittest.TestCase):
 
         self.assertIn("Could not clone litex Git repository.", output)
         self.assertIn("Check the remote URL, network/SSH access and local path, then retry --init.", output)
+        self.assertNotIn("Traceback", output + stderr)
+
+    def test_install_rejects_missing_repository(self):
+        litex_setup.git_repos = {
+            "litex": SimpleNamespace(develop=True, editable=True),
+        }
+        litex_setup.install_configs = {"minimal": ["litex"]}
+
+        output, stderr = self.assert_setup_error(litex_setup.litex_setup_install_repos, config="minimal")
+
+        self.assertIn("litex Git repository is not initialized, please run --init first.", output)
+        self.assertNotIn("Traceback", output + stderr)
+
+    def test_install_pip_failure_has_actionable_error(self):
+        self.create_repo()
+
+        with mock.patch(
+            "litex_setup._pip_install",
+            side_effect=subprocess.CalledProcessError(1, [sys.executable, "-m", "pip"]),
+        ):
+            output, stderr = self.assert_setup_error(
+                litex_setup.litex_setup_install_repos,
+                config="minimal",
+                user_mode=True,
+            )
+
+        self.assertIn("litex Git repository could not be installed.", output)
+        self.assertIn("-m pip install --editable . --user", output)
         self.assertNotIn("Traceback", output + stderr)
 
     def test_invalid_config_is_rejected_cleanly(self):
