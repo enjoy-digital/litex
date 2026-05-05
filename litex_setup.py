@@ -58,6 +58,10 @@ def print_error(status):
     exec_time = (time.time() - start_time)
     print(colorer(f"[{exec_time:8.3f}]", color="red") + " " + colorer(status))
 
+def print_warning(status):
+    exec_time = (time.time() - start_time)
+    print(colorer(f"[{exec_time:8.3f}]", color="yellow") + " " + colorer(status))
+
 class SetupError(Exception):
     def __init__(self):
         sys.stderr = None # Error already described, avoid traceback/exception.
@@ -153,8 +157,12 @@ def subprocess_check_output(cmd, cwd=None):
         raise subprocess.CalledProcessError(r.returncode, cmd, output=r.stdout, stderr=r.stderr)
     return r.stdout.decode("UTF-8")
 
-def print_indented(output, indent="    "):
-    print("\n".join(indent + line for line in output.splitlines()))
+def print_indented(output, indent="    ", max_lines=None):
+    lines = output.splitlines()
+    if max_lines is not None and len(lines) > max_lines:
+        remaining = len(lines) - max_lines
+        lines = lines[:max_lines] + [f"... ({remaining} more line(s))"]
+    print("\n".join(indent + line for line in lines))
 
 def git_checkout(sha1=None, tag=None, quiet=False):
     assert not ((sha1 is None) and (tag is None))
@@ -176,6 +184,44 @@ def git_pull(repo_path):
         return
     if output:
         print_indented(output)
+
+def git_status(repo_path, short=False):
+    status_cmd = ["git", "-c", "color.ui=never", "status"]
+    if short:
+        status_cmd.append("--short")
+    else:
+        status_cmd += ["--short", "--branch"]
+    r = subprocess.run(status_cmd, cwd=repo_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if r.returncode != 0:
+        return None
+    return r.stdout.decode("UTF-8", errors="ignore").strip()
+
+def git_confirm_update_with_local_changes(name, repo_path):
+    status = git_status(repo_path, short=True)
+    if not status or not sys.stdin.isatty():
+        return
+    print_warning(f"{name} Git repository has local changes.")
+    print_status("Updating can fail if these changes overlap with upstream changes.")
+    print_status("Local changes:")
+    print_indented(status, max_lines=12)
+    confirm = input("Continue updating this repository? [y/N]: ")
+    if confirm.strip().lower() not in ["y", "yes"]:
+        print_status("Update cancelled.")
+        raise SetupError
+
+def git_update_error(name, repo_path, action):
+    print_error(f"Could not {action} {name} Git repository.")
+    status = git_status(repo_path)
+    if status:
+        print_status("Repository status:")
+        print_indented(status, max_lines=12)
+    print_status("LiteX only performs fast-forward updates and will not merge, rebase or discard local work.")
+    print_status("Inspect and resolve the repository manually, then retry:")
+    print_status(f"  cd {repo_path}")
+    print_status("  git status")
+    print_status("  git stash push -u      # save uncommitted changes")
+    print_status("  git pull --ff-only     # retry once the branch can fast-forward")
+    print_status("If you have local commits, rebase/merge them or move them to another branch first.")
 
 # Git repositories initialization ------------------------------------------------------------------
 
@@ -229,27 +275,52 @@ def litex_setup_update_repos(config="standard", tag=None):
         print_status(f"Updating {name} Git repository...")
         os.chdir(os.path.join(current_path, name))
         repo_path = os.path.join(current_path, name)
-        subprocess.check_call(["git", "checkout", "--quiet", repo.branch])
-        git_pull(repo_path)
+        git_confirm_update_with_local_changes(name, repo_path)
+        try:
+            subprocess.check_call(["git", "checkout", "--quiet", repo.branch])
+        except subprocess.CalledProcessError:
+            git_update_error(name, repo_path, f"checkout {repo.branch} in")
+            raise SetupError
+        try:
+            git_pull(repo_path)
+        except subprocess.CalledProcessError:
+            git_update_error(name, repo_path, "fast-forward")
+            raise SetupError
         # Recursive Update (Optional).
         if repo.clone == "recursive":
             submodule_cmd = ["git", "submodule", "update", "--init", "--recursive"]
-            output        = subprocess_check_output(submodule_cmd, cwd=repo_path).strip()
+            try:
+                output = subprocess_check_output(submodule_cmd, cwd=repo_path).strip()
+            except subprocess.CalledProcessError:
+                git_update_error(name, repo_path, "update submodules in")
+                raise SetupError
             if output:
                 print(output)
         # Use specific Tag (Optional).
         if repo.tag is not None:
             # Priority to passed tag (if specified).
             if tag is not None:
-                git_checkout(tag=tag, quiet=True)
+                try:
+                    git_checkout(tag=tag, quiet=True)
+                except subprocess.CalledProcessError:
+                    git_update_error(name, repo_path, f"checkout tag {tag} in")
+                    raise SetupError
                 continue
             # Else fallback to repo tag (if specified).
             if isinstance(repo.tag, str):
-                git_checkout(tag=repo.tag, quiet=True)
+                try:
+                    git_checkout(tag=repo.tag, quiet=True)
+                except subprocess.CalledProcessError:
+                    git_update_error(name, repo_path, f"checkout tag {repo.tag} in")
+                    raise SetupError
                 continue
         # Use specific SHA1 (Optional).
         if repo.sha1 is not None:
-            git_checkout(sha1=repo.sha1, quiet=True)
+            try:
+                git_checkout(sha1=repo.sha1, quiet=True)
+            except subprocess.CalledProcessError:
+                git_update_error(name, repo_path, f"checkout SHA1 {repo.sha1:07x} in")
+                raise SetupError
 
 # Git repositories install -------------------------------------------------------------------------
 
