@@ -359,34 +359,38 @@ def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=
         for state in states:
             name      = state["name"]
             repo_path = state["repo_path"]
-            os.chdir(repo_path)
-            setup_path = os.path.join(repo_path, "setup.py")
-            if not os.path.exists(setup_path):
-                setup.print_status(f"No setup.py in {name}, skipping bump.")
-                continue
-            current_version = get_setup_version(setup_path)
-            if current_version == "No version found":
-                setup.print_status(f"No version in {name} setup.py, skipping bump.")
-                continue
-            if current_version == tag:
-                setup.print_status(f"Version in {name} already at {tag}, skipping bump.")
-                continue
+            cwd       = os.getcwd()
+            try:
+                os.chdir(repo_path)
+                setup_path = os.path.join(repo_path, "setup.py")
+                if not os.path.exists(setup_path):
+                    setup.print_status(f"No setup.py in {name}, skipping bump.")
+                    continue
+                current_version = get_setup_version(setup_path)
+                if current_version == "No version found":
+                    setup.print_status(f"No version in {name} setup.py, skipping bump.")
+                    continue
+                if current_version == tag:
+                    setup.print_status(f"Version in {name} already at {tag}, skipping bump.")
+                    continue
 
-            setup.print_status(f"Bumping version in {name} setup.py from {current_version} to {tag}...")
-            with open(setup_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            new_content = re.sub(r'version\s*=\s*["\'][^"\']+["\']', f'version = "{tag}"', content)
-            with open(setup_path, "w", encoding="utf-8") as f:
-                f.write(new_content)
-            git_call(repo_path, "add", "setup.py")
-            git_call(repo_path, "commit", "-m", f"Bump to version {tag}")
-            add_release_event(
-                release_state,
-                state_file,
-                "bump",
-                name,
-                commit = git_output(repo_path, "rev-parse", "HEAD"),
-            )
+                setup.print_status(f"Bumping version in {name} setup.py from {current_version} to {tag}...")
+                with open(setup_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                new_content = re.sub(r'version\s*=\s*["\'][^"\']+["\']', f'version = "{tag}"', content)
+                with open(setup_path, "w", encoding="utf-8") as f:
+                    f.write(new_content)
+                git_call(repo_path, "add", "setup.py")
+                git_call(repo_path, "commit", "-m", f"Bump to version {tag}")
+                add_release_event(
+                    release_state,
+                    state_file,
+                    "bump",
+                    name,
+                    commit = git_output(repo_path, "rev-parse", "HEAD"),
+                )
+            finally:
+                os.chdir(cwd)
         complete_release_phase(release_state, state_file, "bump")
 
     if "tag" in phases:

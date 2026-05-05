@@ -148,6 +148,7 @@ class TestLiteXRelease(unittest.TestCase):
     def test_release_writes_state_file(self):
         repo_path  = self.create_repo()
         state_file = os.path.join(self.workspace, "release_state.json")
+        cwd        = os.getcwd()
 
         with mock.patch("builtins.input", return_value="Y"), \
              mock.patch("litex_release.git_call", side_effect=self.git):
@@ -159,6 +160,7 @@ class TestLiteXRelease(unittest.TestCase):
                 state_file=state_file,
             )
 
+        self.assertEqual(os.getcwd(), cwd)
         with open(state_file, "r", encoding="utf-8") as f:
             state = json.load(f)
 
