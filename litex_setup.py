@@ -45,6 +45,7 @@ def print_banner():
     b.append("       /____/_/\\__/\\__/_/|_|         ")
     b.append("     Build your hardware, easily!      ")
     b.append("          LiteX Setup utility.         ")
+    b.append(" Copyright 2012-2026 / Enjoy-Digital & LiteX developers")
     b.append("")
     print("\n".join(b))
 
