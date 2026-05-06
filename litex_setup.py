@@ -211,9 +211,19 @@ def git_status(repo_path, short=False):
         return None
     return r.stdout.decode("UTF-8", errors="ignore").strip()
 
+def git_status_has_tracked_changes(status):
+    if not status:
+        return False
+    for line in status.splitlines():
+        if len(line) < 2:
+            continue
+        if line[:2] != "??":
+            return True
+    return False
+
 def git_confirm_update_with_local_changes(name, repo_path):
     status = git_status(repo_path, short=True)
-    if not status or not sys.stdin.isatty():
+    if not git_status_has_tracked_changes(status) or not sys.stdin.isatty():
         return
     print_warning(f"{name} Git repository has local changes.")
     print_status("Updating can fail if these changes overlap with upstream changes.")
