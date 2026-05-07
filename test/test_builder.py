@@ -6,6 +6,7 @@
 
 import argparse
 import json
+import logging
 import os
 import tempfile
 import unittest
@@ -14,6 +15,7 @@ from unittest.mock import Mock, patch
 
 from litex.soc.integration.builder import Builder, builder_argdict, builder_args
 from litex.soc.integration.soc import SoCRegion
+from litex.build.log import buffer_build_log, start_build_log, stop_build_log
 
 
 class _FakePlatform:
@@ -61,6 +63,14 @@ class _NoBiosBuildableFakeSoC(_BuildableFakeSoC):
     def __init__(self):
         _BuildableFakeSoC.__init__(self)
         self.cpu_type = None
+
+
+class _LoggingBuildableFakeSoC(_BuildableFakeSoC):
+    def finalize(self):
+        print("unit stdout from finalize")
+        os.write(2, b"unit stderr from finalize\n")
+        logging.getLogger("unit").warning("unit logging from finalize")
+        _BuildableFakeSoC.finalize(self)
 
 
 class _InitMemsFakeSoC(_BuildableFakeSoC):
@@ -129,6 +139,17 @@ class TestBuilderArguments(unittest.TestCase):
         self.assertTrue(no_gateware["compile_software"])
         self.assertFalse(no_gateware["compile_gateware"])
 
+    def test_build_log_options_are_mapped(self):
+        default  = _make_argdict()
+        explicit = _make_argdict("--build-log", "custom.log")
+        enabled  = _make_argdict("--build-log")
+        disabled = _make_argdict("--no-build-log")
+
+        self.assertTrue(default["build_log"])
+        self.assertEqual(explicit["build_log"], "custom.log")
+        self.assertTrue(enabled["build_log"])
+        self.assertFalse(disabled["build_log"])
+
     def test_export_and_bios_options_are_mapped(self):
         argdict = _make_argdict(
             "--soc-json", "soc.json",
@@ -167,6 +188,15 @@ class TestBuilderPaths(unittest.TestCase):
             self.assertEqual(builder.generated_dir, os.path.join(os.path.abspath(tmp_dir), "software", "include", "generated"))
             self.assertEqual(builder.csr_csv,       os.path.join(os.path.abspath(tmp_dir), "csr.csv"))
             self.assertEqual(builder.csr_json,      os.path.join(os.path.abspath(tmp_dir), "csr.json"))
+            self.assertEqual(builder.get_build_log_filename(), os.path.join(os.path.abspath(tmp_dir), "litex.log"))
+
+    def test_build_log_filename_can_be_disabled_or_explicit(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            disabled = _make_builder(tmp_dir, build_log=False)
+            explicit = _make_builder(tmp_dir, build_log="custom.log")
+
+            self.assertIsNone(disabled.get_build_log_filename())
+            self.assertEqual(explicit.get_build_log_filename(), os.path.abspath("custom.log"))
 
     def test_output_filename_helpers(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -547,6 +577,67 @@ class TestBuilderBuild(unittest.TestCase):
             builder.build(load=True, build_name="top")
 
             self.assertEqual(soc.init_mems_calls, [{"load": True, "build_name": "top"}])
+
+    def test_build_writes_default_build_log(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            soc     = _LoggingBuildableFakeSoC()
+            builder = _make_builder(tmp_dir, soc=soc, compile_software=False, compile_gateware=False)
+
+            builder._generate_includes = Mock()
+            builder._generate_csr_map  = Mock()
+            builder.build()
+
+            log_file = os.path.join(builder.output_dir, "litex.log")
+            with open(log_file, "r") as f:
+                log = f.read()
+            self.assertIn("# LiteX build log", log)
+            self.assertIn("unit stdout from finalize", log)
+            self.assertIn("unit stderr from finalize", log)
+            self.assertIn("unit logging from finalize", log)
+
+    def test_build_log_includes_buffered_early_soc_logs(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            soc     = _BuildableFakeSoC()
+            builder = _make_builder(tmp_dir, soc=soc, compile_software=False, compile_gateware=False)
+
+            builder._generate_includes = Mock()
+            builder._generate_csr_map  = Mock()
+            buffer_build_log()
+            logging.getLogger("unit").warning("early soc log")
+            builder.build()
+
+            with open(os.path.join(builder.output_dir, "litex.log"), "r") as f:
+                log = f.read()
+            self.assertIn("early soc log", log)
+
+    def test_build_log_can_be_disabled(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            soc     = _LoggingBuildableFakeSoC()
+            builder = _make_builder(tmp_dir, soc=soc, compile_software=False, compile_gateware=False, build_log=False)
+
+            builder._generate_includes = Mock()
+            builder._generate_csr_map  = Mock()
+            builder.build()
+
+            self.assertFalse(os.path.exists(os.path.join(builder.output_dir, "litex.log")))
+
+    def test_active_build_log_is_not_nested_by_builder(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            log_file = os.path.join(tmp_dir, "litex.log")
+            soc      = _LoggingBuildableFakeSoC()
+            builder  = _make_builder(tmp_dir, soc=soc, compile_software=False, compile_gateware=False, build_log=log_file)
+
+            builder._generate_includes = Mock()
+            builder._generate_csr_map  = Mock()
+            start_build_log(log_file)
+            try:
+                builder.build()
+            finally:
+                stop_build_log()
+
+            with open(log_file, "r") as f:
+                log = f.read()
+            self.assertEqual(log.count("unit stdout from finalize"), 1)
 
     def test_build_generates_docs_when_requested(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

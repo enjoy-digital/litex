@@ -14,6 +14,7 @@ import importlib.util
 from litex.soc.cores import cpu
 from litex.soc.integration import soc_core
 from litex.soc.integration import builder
+from litex.build.log import configure_build_log
 
 from litex.gen.common import *
 
@@ -252,6 +253,11 @@ class LiteXArgumentParser(argparse.ArgumentParser):
                 "error"    : logging.ERROR,
                 "critical" : logging.CRITICAL,
             }[self._args.log_level]
+        )
+
+        configure_build_log(
+            build_log  = getattr(self._args, "build_log", True),
+            output_dir = getattr(self._args, "output_dir", None),
         )
 
         return self._args

@@ -18,6 +18,7 @@ from migen import *
 
 from litex.gen                import colorer
 from litex.gen                import LiteXModule, LiteXContext
+from litex.build.log         import buffer_build_log, start_pending_build_log
 from litex.gen.genlib.misc    import WaitTimer
 from litex.gen.fhdl.hierarchy import LiteXHierarchyExplorer
 
@@ -1132,6 +1133,8 @@ class SoC(LiteXModule):
         # Create logging config only if not already configured.
         if not len(logging.root.handlers):
             logging.basicConfig(level=logging.INFO)
+        start_pending_build_log(platform.name)
+        buffer_build_log()
         self.logger = logging.getLogger("SoC")
         self.logger.info(colorer("        __   _ __      _  __  ", color="bright"))
         self.logger.info(colorer("       / /  (_) /____ | |/_/  ", color="bright"))
