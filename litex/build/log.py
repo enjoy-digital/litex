@@ -8,6 +8,7 @@ import atexit
 import datetime
 import logging
 import os
+import re
 import sys
 import threading
 
@@ -15,6 +16,10 @@ import threading
 _active_build_log = None
 _build_log_buffer = None
 _pending_build_log = None
+
+_ansi_escape_re            = re.compile(rb"\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+_ansi_escape_text_re       = re.compile(r"\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+_incomplete_ansi_escape_re = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*)?$")
 
 
 def _flush_stdio():
@@ -38,6 +43,45 @@ def _logging_uses_stdio():
     return False
 
 
+def _strip_ansi_text(s):
+    return _ansi_escape_text_re.sub("", s)
+
+
+def _strip_ansi_bytes(data):
+    return _ansi_escape_re.sub(b"", data)
+
+
+class _ANSIPlainTextFilter:
+    def __init__(self):
+        self._pending = b""
+
+    def feed(self, data):
+        data = self._pending + data
+        self._pending = b""
+
+        incomplete = _incomplete_ansi_escape_re.search(data)
+        if incomplete is not None:
+            self._pending = data[incomplete.start():]
+            data = data[:incomplete.start()]
+
+        return _strip_ansi_bytes(data)
+
+
+class _PlainTextFormatter(logging.Formatter):
+    def format(self, record):
+        return _strip_ansi_text(logging.Formatter.format(self, record))
+
+
+class _PlainTextFileHandler(logging.FileHandler):
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            self.stream.write(_strip_ansi_text(msg + self.terminator))
+            self.flush()
+        except Exception:
+            self.handleError(record)
+
+
 class _BuildLogBuffer(logging.Handler):
     def __init__(self):
         logging.Handler.__init__(self)
@@ -45,7 +89,7 @@ class _BuildLogBuffer(logging.Handler):
         self.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
 
     def emit(self, record):
-        self.records.append((self.format(record) + "\n").encode("utf-8", errors="replace"))
+        self.records.append(_strip_ansi_text(self.format(record) + "\n").encode("utf-8", errors="replace"))
 
 
 class BuildLogTee:
@@ -77,8 +121,8 @@ class BuildLogTee:
             self._threads.append(thread)
 
         if logging.root.handlers and not _logging_uses_stdio():
-            self._logging_handler = logging.FileHandler(self.filename)
-            self._logging_handler.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
+            self._logging_handler = _PlainTextFileHandler(self.filename)
+            self._logging_handler.setFormatter(_PlainTextFormatter("%(levelname)s:%(name)s:%(message)s"))
             logging.root.addHandler(self._logging_handler)
 
         return self
@@ -97,6 +141,7 @@ class BuildLogTee:
         os.write(self._log_fd, ("\n".join(header) + "\n").encode("utf-8", errors="replace"))
 
     def _tee_fd(self, read_fd, saved_fd):
+        log_filter = _ANSIPlainTextFilter()
         try:
             while True:
                 data = os.read(read_fd, 8192)
@@ -104,7 +149,9 @@ class BuildLogTee:
                     break
                 os.write(saved_fd, data)
                 with self._lock:
-                    os.write(self._log_fd, data)
+                    data = log_filter.feed(data)
+                    if data:
+                        os.write(self._log_fd, data)
         finally:
             os.close(read_fd)
 

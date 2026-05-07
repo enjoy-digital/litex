@@ -67,9 +67,9 @@ class _NoBiosBuildableFakeSoC(_BuildableFakeSoC):
 
 class _LoggingBuildableFakeSoC(_BuildableFakeSoC):
     def finalize(self):
-        print("unit stdout from finalize")
-        os.write(2, b"unit stderr from finalize\n")
-        logging.getLogger("unit").warning("unit logging from finalize")
+        print("\x1b[1munit stdout from finalize\x1b[0m")
+        os.write(2, b"\x1b[32munit stderr from finalize\x1b[0m\n")
+        logging.getLogger("unit").warning("\x1b[36munit logging from finalize\x1b[0m")
         _BuildableFakeSoC.finalize(self)
 
 
@@ -594,6 +594,7 @@ class TestBuilderBuild(unittest.TestCase):
             self.assertIn("unit stdout from finalize", log)
             self.assertIn("unit stderr from finalize", log)
             self.assertIn("unit logging from finalize", log)
+            self.assertNotIn("\x1b[", log)
 
     def test_build_log_includes_buffered_early_soc_logs(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -603,12 +604,39 @@ class TestBuilderBuild(unittest.TestCase):
             builder._generate_includes = Mock()
             builder._generate_csr_map  = Mock()
             buffer_build_log()
-            logging.getLogger("unit").warning("early soc log")
+            logging.getLogger("unit").warning("\x1b[33mearly soc log\x1b[0m")
             builder.build()
 
             with open(os.path.join(builder.output_dir, "litex.log"), "r") as f:
                 log = f.read()
             self.assertIn("early soc log", log)
+            self.assertNotIn("\x1b[", log)
+
+    def test_build_log_strips_direct_logging_handler_colors(self):
+        root = logging.getLogger()
+        old_handlers = root.handlers[:]
+        try:
+            for handler in old_handlers:
+                root.removeHandler(handler)
+            root.addHandler(logging.NullHandler())
+
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                log_file = os.path.join(tmp_dir, "litex.log")
+                start_build_log(log_file)
+                try:
+                    logging.getLogger("unit").warning("\x1b[32mdirect logging handler\x1b[0m")
+                finally:
+                    stop_build_log()
+
+                with open(log_file, "r") as f:
+                    log = f.read()
+                self.assertIn("direct logging handler", log)
+                self.assertNotIn("\x1b[", log)
+        finally:
+            for handler in root.handlers[:]:
+                root.removeHandler(handler)
+            for handler in old_handlers:
+                root.addHandler(handler)
 
     def test_build_log_can_be_disabled(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
