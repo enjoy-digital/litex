@@ -8,6 +8,7 @@
 import pexpect
 import os
 import socket
+import subprocess
 import sys
 import tempfile
 import time
@@ -106,12 +107,19 @@ def boot_test(cpu_type="vexriscv", cpu_variant="standard", args="", output_dir=N
 
 def test_serialboot_abort_recovers(tmp_path):
     port = _get_free_tcp_port()
-    cmd = (
-        "litex_sim --cpu-type=vexriscv --cpu-variant=standard "
-        f"--uart-tcp --uart-tcp-port={port} "
-        "--integrated-main-ram-size=65536 "
-        f"--output-dir={tmp_path} --opt-level=O0 --jobs {_sim_jobs()} --non-interactive"
-    )
+    cmd = [
+        "litex_sim",
+        "--cpu-type=vexriscv",
+        "--cpu-variant=standard",
+        "--uart-tcp",
+        f"--uart-tcp-port={port}",
+        "--integrated-main-ram-size=65536",
+        f"--output-dir={tmp_path}",
+        "--opt-level=O0",
+        f"--jobs={_sim_jobs()}",
+        "--non-interactive",
+    ]
+    gateware_dir = os.path.join(tmp_path, "gateware")
     litex_prompt = b"litex"
     abort = SFLFrame()
     abort.cmd = sfl_cmd_abort
@@ -119,10 +127,17 @@ def test_serialboot_abort_recovers(tmp_path):
     is_success = True
 
     with tempfile.TemporaryFile(mode="w+", prefix="litex_test") as log_file:
-        log_file.writelines(f"Command: {cmd}\n")
+        log_file.writelines("Command: {}\n".format(" ".join(cmd)))
         log_file.flush()
-        p = pexpect.spawn(cmd, timeout=None, encoding=sys.getdefaultencoding(), logfile=log_file)
+        p = None
         try:
+            # Keep pexpect's timeout focused on the simulator runtime. On slow
+            # CI workers, compile time alone can consume the UART wait timeout.
+            subprocess.check_call(cmd + ["--no-compile-gateware"])
+            subprocess.check_call(["bash", "build_sim.sh"], cwd=gateware_dir)
+
+            p = pexpect.spawn(os.path.join(gateware_dir, "obj_dir", "Vsim"), cwd=gateware_dir, timeout=None,
+                encoding=sys.getdefaultencoding(), logfile=log_file)
             p.expect(f"Found port {port}", timeout=1200)
             sock = _connect_tcp_uart(port)
 
@@ -137,15 +152,16 @@ def test_serialboot_abort_recovers(tmp_path):
             sock.sendall(abort.encode())
             _recv_until(sock, sfl_ack_success, timeout=10)
             _recv_until(sock, litex_prompt, timeout=10)
-        except (OSError, pexpect.EOF, pexpect.TIMEOUT, TimeoutError):
+        except (OSError, subprocess.CalledProcessError, pexpect.EOF, pexpect.TIMEOUT, TimeoutError):
             is_success = False
-            print(f"*** Serialboot abort recovery failure: {cmd}")
+            print("*** Serialboot abort recovery failure: {}".format(" ".join(cmd)))
             log_file.seek(0)
             print(log_file.read())
         finally:
             if sock is not None:
                 sock.close()
-            p.terminate(force=True)
+            if p is not None:
+                p.terminate(force=True)
 
     assert is_success
 
