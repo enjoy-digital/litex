@@ -478,6 +478,8 @@ def sim_args(parser):
 
     # Debug/Waveform.
     parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules.")
+    parser.add_argument("--sim-speed",            action="store_true",     help="Report effective simulated sys_clk speed.")
+    parser.add_argument("--sim-speed-interval",   default=5.0, type=float, help="Set simulation speed report interval in seconds.")
     parser.add_argument("--gtkwave-savefile",     action="store_true",     help="Generate GTKWave savefile.")
     parser.add_argument("--non-interactive",      action="store_true",     help="Run simulation without user input.")
 
@@ -490,12 +492,19 @@ def main():
 
     if args.with_sdram and args.integrated_main_ram_size is None and args.ram_init is not None:
         parser.error("--ram-init cannot be used with --with-sdram; use --sdram-init.")
+    if args.sim_speed_interval <= 0:
+        parser.error("--sim-speed-interval must be greater than 0.")
 
     soc_kwargs = soc_core_argdict(args)
 
     sys_clk_freq = int(1e6)
     sim_config   = SimConfig()
     sim_config.add_clocker("sys_clk", freq_hz=sys_clk_freq)
+    if args.sim_speed:
+        sim_config.add_module("sim_perf", [], clocks="sys_clk", args={
+            "freq_hz"    : sys_clk_freq,
+            "interval_s" : args.sim_speed_interval,
+        })
 
     # Configuration --------------------------------------------------------------------------------
 
