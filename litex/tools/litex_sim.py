@@ -498,13 +498,10 @@ def main():
     soc_kwargs = soc_core_argdict(args)
 
     sys_clk_freq = int(1e6)
-    sim_config   = SimConfig()
+    sim_config           = SimConfig()
+    sim_speed_interfaces = []
+    sim_speed_console    = False
     sim_config.add_clocker("sys_clk", freq_hz=sys_clk_freq)
-    if args.sim_speed:
-        sim_config.add_module("sim_perf", [], clocks="sys_clk", args={
-            "freq_hz"    : sys_clk_freq,
-            "interval_s" : args.sim_speed_interval,
-        })
 
     # Configuration --------------------------------------------------------------------------------
 
@@ -530,6 +527,8 @@ def main():
         # Console (stdin/stdout) UART bridge (serial2console).
         else:
             sim_config.add_module("serial2console", "serial")
+            sim_speed_interfaces.append("serial")
+            sim_speed_console = True
 
     # Create config SoC that will be used to prepare/configure real one.
     conf_soc = SimSoC(**soc_kwargs)
@@ -590,6 +589,14 @@ def main():
     # Video.
     if args.with_video_framebuffer or args.with_video_terminal or args.with_video_colorbars:
         sim_config.add_module("video", "vga", args={"render_on_vsync": args.video_vsync})
+
+    # Simulation speed reporting.
+    if args.sim_speed:
+        sim_config.add_module("sim_perf", sim_speed_interfaces, clocks="sys_clk", args={
+            "freq_hz"    : sys_clk_freq,
+            "interval_s" : args.sim_speed_interval,
+            "console"    : sim_speed_console,
+        })
 
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
