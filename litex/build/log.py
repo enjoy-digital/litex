@@ -92,6 +92,35 @@ class _BuildLogBuffer(logging.Handler):
         self.records.append(_strip_ansi_text(self.format(record) + "\n").encode("utf-8", errors="replace"))
 
 
+class _BuildLogTextTee:
+    def __init__(self, stream, log_fd, lock):
+        self.stream  = stream
+        self._log_fd = log_fd
+        self._lock   = lock
+
+    def write(self, s):
+        ret = self.stream.write(s)
+        if s:
+            data = _strip_ansi_text(s).encode("utf-8", errors="replace")
+            if data:
+                with self._lock:
+                    os.write(self._log_fd, data)
+        return ret
+
+    def flush(self):
+        return self.stream.flush()
+
+    def __getattr__(self, name):
+        return getattr(self.stream, name)
+
+
+def _stream_uses_fd(stream, fd):
+    try:
+        return stream.fileno() == fd
+    except (AttributeError, OSError, ValueError):
+        return False
+
+
 class BuildLogTee:
     def __init__(self, filename):
         self.filename = os.path.abspath(filename)
@@ -99,6 +128,8 @@ class BuildLogTee:
         self._lock    = threading.Lock()
         self._fds     = []
         self._threads = []
+        self._stdout  = None
+        self._stderr  = None
         self._logging_handler = None
         self._closed = False
 
@@ -119,6 +150,13 @@ class BuildLogTee:
             thread.start()
             self._fds.append((fd, saved_fd))
             self._threads.append(thread)
+
+        if not _stream_uses_fd(sys.stdout, 1):
+            self._stdout = sys.stdout
+            sys.stdout = _BuildLogTextTee(sys.stdout, self._log_fd, self._lock)
+        if not _stream_uses_fd(sys.stderr, 2):
+            self._stderr = sys.stderr
+            sys.stderr = _BuildLogTextTee(sys.stderr, self._log_fd, self._lock)
 
         if logging.root.handlers and not _logging_uses_stdio():
             self._logging_handler = _PlainTextFileHandler(self.filename)
@@ -171,6 +209,13 @@ class BuildLogTee:
             logging.root.removeHandler(self._logging_handler)
             self._logging_handler.close()
             self._logging_handler = None
+
+        if self._stdout is not None:
+            sys.stdout = self._stdout
+            self._stdout = None
+        if self._stderr is not None:
+            sys.stderr = self._stderr
+            self._stderr = None
 
         for fd, saved_fd in self._fds:
             os.dup2(saved_fd, fd)
