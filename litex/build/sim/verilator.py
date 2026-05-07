@@ -74,9 +74,15 @@ def _generate_sim_cpp(platform, trace=False, trace_start=0, trace_end=-1, load_s
 #include <verilated.h>
 #include "sim_header.h"
 
-extern "C" void litex_sim_init_tracer(void *vsim, long start, long end,long load_start, long save_start);
+extern "C" void litex_sim_init_runtime(long load_start, long save_start);
+"""
+    if trace:
+        content += """\
+extern "C" void litex_sim_init_tracer(void *vsim, long start, long end);
 extern "C" void litex_sim_tracer_dump();
 
+"""
+    content += """\
 extern "C" void litex_sim_dump()
 {
 """
@@ -93,9 +99,13 @@ extern "C" void litex_sim_init(void **out)
 
     sim = new Vsim;
 
-    litex_sim_init_tracer(sim, {}, {}, {}, {});
+    litex_sim_init_runtime({}, {});
+""".format(load_start, save_start)
+    if trace:
+        content += """\
+    litex_sim_init_tracer(sim, {}, {});
 
-""".format(trace_start, trace_end,load_start, save_start)
+""".format(trace_start, trace_end)
     for args in platform.sim_requested:
         content += _generate_sim_cpp_struct(*args)
 
@@ -133,7 +143,7 @@ def _generate_sim_config(config):
     tools.write_to_file("sim_config.js", content)
 
 
-def _build_sim(build_name, sources, jobs, threads, coverage, opt_level="O3", trace_fst=False, video=False, SAVABLE=False):
+def _build_sim(build_name, sources, jobs, threads, coverage, opt_level="O3", trace=False, trace_fst=False, video=False, SAVABLE=False):
     makefile = os.path.join(core_directory, 'Makefile')
 
     cc_srcs = []
@@ -143,13 +153,14 @@ def _build_sim(build_name, sources, jobs, threads, coverage, opt_level="O3", tra
 
     build_script_contents = """\
 rm -rf obj_dir/
-make -C . -f {} {} {} {} {} {} {} {} {}
+make -C . -f {} {} {} {} {} {} {} {} {} {}
 """.format(makefile,
     "CC_SRCS=\"{}\"".format("".join(cc_srcs)),
     "JOBS={}".format(jobs) if jobs else "",
     "THREADS={}".format(threads) if int(threads) > 1 else "",
     "COVERAGE=1" if coverage else "",
     "OPT_LEVEL={}".format(opt_level),
+    "TRACE=1" if trace else "",
     "TRACE_FST=1" if trace_fst else "",
     "VIDEO=1" if video else "",
     "SAVABLE=1" if SAVABLE else ""
@@ -242,7 +253,8 @@ class SimVerilatorToolchain:
 
             # Generate cpp header/main/variables
             _generate_sim_h(platform)
-            _generate_sim_cpp(platform, trace, trace_start, trace_end,load_start, save_start)
+            trace_enabled = trace or trace_fst
+            _generate_sim_cpp(platform, trace_enabled, trace_start, trace_end, load_start, save_start)
 
             _generate_sim_variables(platform.verilog_include_paths,
                                     extra_mods,
@@ -263,6 +275,7 @@ class SimVerilatorToolchain:
                 threads    = threads,
                 coverage   = coverage,
                 opt_level  = opt_level,
+                trace      = trace_enabled,
                 trace_fst  = trace_fst,
                 video      = video,
                 SAVABLE    = savable
