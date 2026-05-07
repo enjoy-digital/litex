@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "Vsim.h"
 #include "verilated.h"
+
 #if VM_TRACE
 #ifdef TRACE_FST
 #include "verilated_fst_c.h"
@@ -16,38 +17,53 @@
 
 #if VM_TRACE
 #ifdef TRACE_FST
-VerilatedFstC* tfp;
+VerilatedFstC *tfp;
 #else
-VerilatedVcdC* tfp;
+VerilatedVcdC *tfp;
 #endif
 uint64_t tfp_start;
 uint64_t tfp_end;
 Vsim *g_sim = nullptr;
 #endif
+
 uint64_t main_time = 0;
 uint64_t save_time = -1;
 uint64_t load_time = 0;
 
-
 #ifdef SAVABLE
-static void litex_sim_save_state(void *vsim,const char* filename);
-static void litex_sim_restore_state(void *vsim,const char* filename);
+static void litex_sim_save_state(void *vsim, const char *filename);
+static void litex_sim_restore_state(void *vsim, const char *filename);
 #endif
 
+#if VM_TRACE
+static void litex_sim_tracer_flush(void)
+{
+  if (tfp != nullptr) {
+    tfp->flush();
+  }
+}
+
+static void litex_sim_tracer_close(void)
+{
+  if (tfp != nullptr) {
+    tfp->close();
+  }
+}
+#endif
 
 extern "C" void litex_sim_eval(void *vsim, uint64_t time_ps)
 {
-  #ifdef SAVABLE
+#ifdef SAVABLE
   if (main_time == load_time && load_time > 0) {
     printf("MDEBUG: Restoring state at time %ld\n", load_time);
-    litex_sim_restore_state(vsim,"sim_default.vlt");
+    litex_sim_restore_state(vsim, "sim_default.vlt");
   }
   if (main_time == save_time) {
     printf("MDEBUG: Saving state at time %ld\n", save_time);
-    litex_sim_save_state(vsim,"sim_default.vlt");
+    litex_sim_save_state(vsim, "sim_default.vlt");
   }
-  #endif
-  Vsim *sim = (Vsim*)vsim;
+#endif
+  Vsim *sim = (Vsim *)vsim;
   sim->eval();
   main_time = time_ps;
 }
@@ -67,18 +83,18 @@ extern "C" void litex_sim_init_runtime(long load_start, long save_start)
 extern "C" void litex_sim_init_tracer(void *vsim, long start, long end)
 {
 #if VM_TRACE
-  Vsim *sim = (Vsim*)vsim;
+  Vsim *sim = (Vsim *)vsim;
   tfp_start = start;
   tfp_end = end >= 0 ? end : UINT64_MAX;
   Verilated::traceEverOn(true);
 #ifdef TRACE_FST
-      tfp = new VerilatedFstC;
-      sim->trace(tfp, 99);
-      tfp->open("sim.fst");
+  tfp = new VerilatedFstC;
+  sim->trace(tfp, 99);
+  tfp->open("sim.fst");
 #else
-      tfp = new VerilatedVcdC;
-      sim->trace(tfp, 99);
-      tfp->open("sim.vcd");
+  tfp = new VerilatedVcdC;
+  sim->trace(tfp, 99);
+  tfp->open("sim.vcd");
 #endif
   tfp->set_time_unit("1ps");
   tfp->set_time_resolution("1ps");
@@ -90,29 +106,27 @@ extern "C" void litex_sim_init_tracer(void *vsim, long start, long end)
 #endif
 }
 
-
 #ifdef SAVABLE
-// --- Save Function ---
-static void litex_sim_save_state(void *vsim,const char* filename) {
-    Vsim *sim = (Vsim*)vsim;
-    VerilatedSave vs;
-    vs.open(filename);
-    vs << main_time;
-    vs << *sim;
-    vs.close();
+static void litex_sim_save_state(void *vsim, const char *filename)
+{
+  Vsim *sim = (Vsim *)vsim;
+  VerilatedSave vs;
+  vs.open(filename);
+  vs << main_time;
+  vs << *sim;
+  vs.close();
 }
 
-// --- Restore Function ---
-static void litex_sim_restore_state(void *vsim,const char* filename) {
-    Vsim *sim = (Vsim*)vsim;
-    VerilatedRestore vr;
-    vr.open(filename);
-    vr >> main_time;
-    vr >> *sim;
-    vr.close();
+static void litex_sim_restore_state(void *vsim, const char *filename)
+{
+  Vsim *sim = (Vsim *)vsim;
+  VerilatedRestore vr;
+  vr.open(filename);
+  vr >> main_time;
+  vr >> *sim;
+  vr.close();
 }
 #endif
-
 
 extern "C" void litex_sim_tracer_dump()
 {
@@ -121,7 +135,7 @@ extern "C" void litex_sim_tracer_dump()
   bool dump_enabled = true;
 
   if (g_sim != nullptr) {
-    dump_enabled = g_sim->sim_trace != 0 ? true : false;
+    dump_enabled = (g_sim->sim_trace != 0);
     if (last_enabled == 0 && dump_enabled) {
       printf("<DUMP ON>");
       fflush(stdout);
@@ -140,20 +154,19 @@ extern "C" void litex_sim_tracer_dump()
 
 extern "C" int litex_sim_got_finish()
 {
-  int finished;
+  int finished = Verilated::gotFinish();
+
 #if VM_TRACE
-  if(tfp) {
-    tfp->flush();
-  }
+  litex_sim_tracer_flush();
 #endif
-  if((finished = Verilated::gotFinish())) {
+
+  if (finished) {
 #if VM_TRACE
-    if(tfp) {
-      tfp->close();
-    }
+    litex_sim_tracer_close();
 #endif
   }
-  return Verilated::gotFinish();
+
+  return finished;
 }
 
 #if VM_COVERAGE

@@ -18,11 +18,11 @@ from litex.build.generic_platform import *
 
 
 sim_directory = os.path.abspath(os.path.dirname(__file__))
-core_directory = os.path.join(sim_directory, 'core')
+core_directory = os.path.join(sim_directory, "core")
 
 
 def _generate_sim_h_struct(name, index, siglist):
-    content = ''
+    content = ""
 
     content += 'struct pad_s {}{}[] = {{\n'.format(name, index)
     for signame, sigbits, dummy in siglist:
@@ -54,7 +54,7 @@ void litex_sim_init(void **out);
 
 
 def _generate_sim_cpp_struct(name, index, siglist):
-    content = ''
+    content = ""
 
     for i, (signame, sigbits, sigfname) in enumerate(siglist):
         content += '    {}{}[{}].signal = &sim->{};\n'.format(name, index, i, sigfname)
@@ -65,7 +65,8 @@ def _generate_sim_cpp_struct(name, index, siglist):
     return content
 
 
-def _generate_sim_cpp(platform, trace=False, trace_start=0, trace_end=-1, load_start=0, save_start=-1):
+def _generate_sim_cpp(platform, trace=False, trace_start=0, trace_end=-1,
+        load_start=0, save_start=-1):
     content = """\
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,7 +91,7 @@ extern "C" void litex_sim_dump()
         content += """\
     litex_sim_tracer_dump();
 """
-    content  += """\
+    content += """\
 }}
 
 extern "C" void litex_sim_init(void **out)
@@ -110,7 +111,7 @@ extern "C" void litex_sim_init(void **out)
         content += _generate_sim_cpp_struct(*args)
 
     content += """\
-    *out=sim;
+    *out = sim;
 }
 """
     tools.write_to_file("sim_init.cpp", content)
@@ -120,7 +121,7 @@ def _generate_sim_variables(include_paths, extra_mods, extra_mods_path, video):
     tapcfg_dir = get_data_mod("misc", "tapcfg").data_location
     include = ""
     for path in include_paths:
-        include += "-I"+path+" "
+        include += "-I" + path + " "
     content = """\
 SRC_DIR = {}
 INC_DIR = {}
@@ -134,7 +135,6 @@ TAPCFG_DIRECTORY = {}
         content += "EXTRA_MOD_BASE_DIR = " + extra_mods_path + "\n"
         tools.write_to_file(extra_mods_path + "/variables.mak", content)
 
-
     tools.write_to_file("variables.mak", content)
 
 
@@ -143,30 +143,34 @@ def _generate_sim_config(config):
     tools.write_to_file("sim_config.js", content)
 
 
-def _build_sim(build_name, sources, jobs, threads, coverage, opt_level="O3", trace=False, trace_fst=False, video=False, SAVABLE=False):
-    makefile = os.path.join(core_directory, 'Makefile')
+def _build_sim(build_name, sources, jobs, threads, coverage, opt_level="O3",
+        trace=False, trace_fst=False, video=False, savable=False):
+    makefile = os.path.join(core_directory, "Makefile")
 
     cc_srcs = []
     for filename, language, library, *copy in sources:
         if Path(filename).suffix not in [".hex", ".init"]:
             cc_srcs.append("--cc " + filename + " ")
 
+    make_args = [
+        'CC_SRCS="{}"'.format("".join(cc_srcs)),
+        "JOBS={}".format(jobs) if jobs else "",
+        "THREADS={}".format(threads) if int(threads) > 1 else "",
+        "COVERAGE=1" if coverage else "",
+        "OPT_LEVEL={}".format(opt_level),
+        "TRACE=1" if trace else "",
+        "TRACE_FST=1" if trace_fst else "",
+        "VIDEO=1" if video else "",
+        "SAVABLE=1" if savable else "",
+    ]
+
     build_script_contents = """\
 rm -rf obj_dir/
-make -C . -f {} {} {} {} {} {} {} {} {} {}
-""".format(makefile,
-    "CC_SRCS=\"{}\"".format("".join(cc_srcs)),
-    "JOBS={}".format(jobs) if jobs else "",
-    "THREADS={}".format(threads) if int(threads) > 1 else "",
-    "COVERAGE=1" if coverage else "",
-    "OPT_LEVEL={}".format(opt_level),
-    "TRACE=1" if trace else "",
-    "TRACE_FST=1" if trace_fst else "",
-    "VIDEO=1" if video else "",
-    "SAVABLE=1" if SAVABLE else ""
-    )
+make -C . -f {} {}
+""".format(makefile, " ".join(arg for arg in make_args if arg))
     build_script_file = "build_" + build_name + ".sh"
     tools.write_to_file(build_script_file, build_script_contents, force_unix=True)
+
 
 def _compile_sim(build_name, verbose):
     build_script_file = "build_" + build_name + ".sh"
@@ -181,6 +185,7 @@ def _compile_sim(build_name, verbose):
         raise OSError("Subprocess failed with {}\n{}".format(p.returncode, "\n".join(error_messages)))
     if verbose:
         print(output)
+
 
 def _run_sim(build_name, as_root=False, interactive=True):
     run_script_contents = "sudo " if as_root else ""
@@ -201,6 +206,7 @@ def _run_sim(build_name, as_root=False, interactive=True):
 
 class SimVerilatorToolchain:
     support_mixed_language = False
+
     def build(self, platform, fragment,
             build_dir        = "build",
             build_name       = "sim",
@@ -225,8 +231,8 @@ class SimVerilatorToolchain:
             pre_run_callback = None,
             extra_mods       = None,
             extra_mods_path  = "",
-            load_start      = 0,
-            save_start      = -1,
+            load_start       = 0,
+            save_start       = -1,
             **kwargs):
 
         # Create build directory
@@ -278,7 +284,7 @@ class SimVerilatorToolchain:
                 trace      = trace_enabled,
                 trace_fst  = trace_fst,
                 video      = video,
-                SAVABLE    = savable
+                savable    = savable,
             )
 
         # Run
@@ -303,6 +309,7 @@ class SimVerilatorToolchain:
         if build:
             return v_output.ns
 
+
 def verilator_build_args(parser):
     toolchain_group = parser.add_argument_group(title="Verilator toolchain options")
     toolchain_group.add_argument("--jobs",         default=None,        help="Limit the number of compiler jobs.")
@@ -312,18 +319,19 @@ def verilator_build_args(parser):
     toolchain_group.add_argument("--trace-start",  default="0",         help="Time to start tracing (ps).")
     toolchain_group.add_argument("--trace-end",    default="-1",        help="Time to end tracing (ps).")
     toolchain_group.add_argument("--opt-level",    default="O3",        help="Compilation optimization level.")
-    toolchain_group.add_argument("--load-start",    default="0",        help="Time to load s(ps).")
-    toolchain_group.add_argument("--save-start",    default="-1",        help="Time to save s(ps).")
+    toolchain_group.add_argument("--load-start",   default="0",         help="Time to restore simulation state (ps).")
+    toolchain_group.add_argument("--save-start",   default="-1",        help="Time to save simulation state (ps).")
+
 
 def verilator_build_argdict(args):
     return {
-        "jobs"     :    args.jobs,
+        "jobs"        : args.jobs,
         "threads"     : args.threads,
         "trace"       : args.trace,
         "trace_fst"   : args.trace_fst,
         "trace_start" : int(float(args.trace_start)),
         "trace_end"   : int(float(args.trace_end)),
         "opt_level"   : args.opt_level,
-        "load_start" : int(float(args.load_start)),
-        "save_start" : int(float(args.save_start))
+        "load_start"  : int(float(args.load_start)),
+        "save_start"  : int(float(args.save_start)),
     }
