@@ -366,6 +366,7 @@ class LiteXTerm:
     def open(self, port, baudrate):
         if hasattr(self, "port"):
             return
+        self.port_url = port
         self.port = serial.serial_for_url(port, baudrate)
 
     def close(self):
@@ -463,6 +464,10 @@ class LiteXTerm:
     def baudrate(self):
         return getattr(self.port, "baudrate", 115200) or 115200
 
+    def is_usb_acm(self):
+        port = getattr(self, "port_url", "")
+        return "ttyACM" in port or "cu.usbmodem" in port
+
     def frame_time(self, data_length=None):
         data_length = self.length if data_length is None else data_length
         frame_length = 1 + 2 + 1 + sfl_address_length + data_length
@@ -506,8 +511,12 @@ class LiteXTerm:
 
         if working:
             self.delay       = 0
-            self.length      = working_length
-            self.outstanding = 1
+            if self.is_usb_acm():
+                self.length      = working_length
+                self.outstanding = 1
+            else:
+                self.length      = max_probe_length
+                self.outstanding = sfl_default_outstanding
             print(f"(inter-frame: {self.delay*1e6:5.2f}us, length: {self.length}, window: {self.outstanding})")
             return True
 
