@@ -315,6 +315,7 @@ int serialboot(void)
 
 #endif
 
+#if defined(CSR_ETHMAC_BASE) || defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCARD_BASE) || defined(CSR_SATA_SECTOR2MEM_BASE)
 static int json_token_to_string(char *dst, size_t dst_size, const char *json, jsmntok_t *token)
 {
 	int len;
@@ -328,6 +329,7 @@ static int json_token_to_string(char *dst, size_t dst_size, const char *json, js
 	dst[len] = 0;
 	return 1;
 }
+#endif
 
 /*-----------------------------------------------------------------------*/
 /* Ethernet Boot                                                         */
