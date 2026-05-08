@@ -47,9 +47,11 @@ class FakePort:
         return len(data)
 
 
-def make_term(port):
+def make_term(port, port_url=None):
     term = LiteXTerm.__new__(LiteXTerm)
     term.port = port
+    if port_url is not None:
+        term.port_url = port_url
     term.safe = True
     term.delay = 0
     term.length = 64
@@ -176,7 +178,7 @@ class TestLiteXTermSFL(unittest.TestCase):
 
     def test_upload_calibration_uses_safe_stop_and_wait(self):
         port = FakePort(write_replies=[sfl_ack_success] * 12)
-        term = make_term(port)
+        term = make_term(port, port_url="/dev/ttyACM0")
         term.safe = False
         term.outstanding = 8
 
@@ -190,6 +192,24 @@ class TestLiteXTermSFL(unittest.TestCase):
         self.assertEqual(term.delay, 0)
         self.assertEqual(term.length, 64)
         self.assertEqual(term.outstanding, 1)
+        self.assertEqual(port.written, frame.encode() * 4)
+
+    def test_upload_calibration_enables_fast_profile_on_non_usb_acm(self):
+        port = FakePort(write_replies=[sfl_ack_success] * 12)
+        term = make_term(port, port_url="/dev/ttyUSB0")
+        term.safe = False
+        term.outstanding = 8
+
+        with mock.patch.object(litex_term.time, "sleep"), redirect_stdout(io.StringIO()):
+            term.upload_calibration(0x40000000)
+
+        frame = SFLFrame()
+        frame.cmd = sfl_cmd_load
+        frame.payload = (0x40000000).to_bytes(4, "big") + bytes(64)
+
+        self.assertEqual(term.delay, 0)
+        self.assertEqual(term.length, litex_term.sfl_data_length)
+        self.assertEqual(term.outstanding, litex_term.sfl_default_outstanding)
         self.assertEqual(port.written, frame.encode() * 4)
 
     def test_upload_retries_crc_error_in_stop_and_wait_mode(self):
