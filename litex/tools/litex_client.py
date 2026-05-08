@@ -183,84 +183,111 @@ def reg2addr(host, csr_csv, reg):
     else:
         raise ValueError(f"Register {reg} not present, exiting.")
 
-def dump_identifier(host, csr_csv, port):
-    bus = RemoteClient(host=host, csr_csv=csr_csv, port=port)
-    bus.open()
-
+def dump_identifier(host, csr_csv, port, timeout=2.0, raise_on_timeout=False):
     fpga_identifier = ""
 
-    for i in range(256):
-        c = chr(bus.read(bus.bases.identifier_mem + 4*i) & 0xff)
-        fpga_identifier += c
-        if c == "\0":
-            break
+    with RemoteClient(
+        host             = host,
+        csr_csv          = csr_csv,
+        port             = port,
+        timeout          = timeout,
+        raise_on_timeout = raise_on_timeout,
+    ) as bus:
+        for i in range(256):
+            c = chr(bus.read(bus.bases.identifier_mem + 4*i) & 0xff)
+            fpga_identifier += c
+            if c == "\0":
+                break
 
     print(fpga_identifier)
 
-    bus.close()
+def dump_registers(host, csr_csv, port, filter=None, binary=False, timeout=2.0, raise_on_timeout=False):
+    with RemoteClient(
+        host             = host,
+        csr_csv          = csr_csv,
+        port             = port,
+        timeout          = timeout,
+        raise_on_timeout = raise_on_timeout,
+    ) as bus:
+        for name, register in bus.regs.__dict__.items():
+            if (filter is None) or filter in name:
+                register_value = {
+                    True  : f"0b{register.read():032b}",
+                    False : f"0x{register.read():08x}",
+                }[binary]
+                print("0x{:08x} : {} {}".format(register.addr, register_value, name))
 
-def dump_registers(host, csr_csv, port, filter=None, binary=False):
-    bus = RemoteClient(host=host, csr_csv=csr_csv, port=port)
-    bus.open()
+def _word_count(length):
+    return (length + 3) // 4
 
-    for name, register in bus.regs.__dict__.items():
-        if (filter is None) or filter in name:
-            register_value = {
-                True  : f"0b{register.read():032b}",
-                False : f"0x{register.read():08x}",
-            }[binary]
-            print("0x{:08x} : {} {}".format(register.addr, register_value, name))
+def read_memory(host, csr_csv, port, addr, length, binary=False, file=None, endianness="little", timeout=2.0,
+    raise_on_timeout=False):
+    word_count = _word_count(length)
 
-    bus.close()
-
-def read_memory(host, csr_csv, port, addr, length, binary=False, file=None, endianness="little"):
-    bus = RemoteClient(host=host, csr_csv=csr_csv, port=port)
-    bus.open()
+    with RemoteClient(
+        host             = host,
+        csr_csv          = csr_csv,
+        port             = port,
+        timeout          = timeout,
+        raise_on_timeout = raise_on_timeout,
+    ) as bus:
+        datas = [] if word_count == 0 else bus.read(addr, word_count, burst="incr")
 
     if file:
-        # Read from memory and write to file in binary mode
-        with open(file, 'wb') as f:
-            for offset in range(length // 4):
-                data = bus.read(addr + 4 * offset)
-                f.write(data.to_bytes(4, byteorder=endianness))
+        # Read from memory and write to file in binary mode.
+        with open(file, "wb") as f:
+            data = b"".join([data.to_bytes(4, byteorder=endianness) for data in datas])[:length]
+            f.write(data)
     else:
-        # Print to console
-        for offset in range(length // 4):
+        # Print to console.
+        for offset, data in enumerate(datas):
             register_value = {
-                True  : f"0b{bus.read(addr + 4 * offset):032b}",
-                False : f"0x{bus.read(addr + 4 * offset):08x}",
+                True  : f"0b{data:032b}",
+                False : f"0x{data:08x}",
             }[binary]
             print(f"0x{addr + 4 * offset:08x} : {register_value}")
 
-    bus.close()
+def write_memory(host, csr_csv, port, addr, data, file=None, length=None, endianness="little", timeout=2.0,
+    raise_on_timeout=False):
+    with RemoteClient(
+        host             = host,
+        csr_csv          = csr_csv,
+        port             = port,
+        timeout          = timeout,
+        raise_on_timeout = raise_on_timeout,
+    ) as bus:
+        if file:
+            # Read from file and write to memory.
+            with open(file, "rb") as f:
+                if length:
+                    data = f.read(length)
+                else:
+                    data = f.read()
 
-def write_memory(host, csr_csv, port, addr, data, file=None, length=None, endianness="little"):
-    bus = RemoteClient(host=host, csr_csv=csr_csv, port=port)
-    bus.open()
-
-    if file:
-        # Read from file and write to memory
-        with open(file, 'rb') as f:
-            if length:
-                data = f.read(length)
-            else:
-                data = f.read()
-            # Write data in 32-bit chunks
+            datas = []
             for i in range(0, len(data), 4):
-                word = int.from_bytes(data[i:i + 4], byteorder=endianness)
-                bus.write(addr + i, word)
-    else:
-        # Write single data value to memory
-        bus.write(addr, data)
+                chunk = data[i:i + 4]
+                chunk += bytes(4 - len(chunk))
+                datas.append(int.from_bytes(chunk, byteorder=endianness))
 
-    bus.close()
+            if datas:
+                bus.write(addr, datas, burst="incr")
+        else:
+            # Write single data value to memory.
+            bus.write(addr, data)
 
 # GUI ----------------------------------------------------------------------------------------------
 
-def run_gui(host, csr_csv, port):
+def run_gui(host, csr_csv, port, timeout=2.0, raise_on_timeout=False):
     import dearpygui.dearpygui as dpg
 
-    bus = RemoteClient(host, csr_csv=csr_csv, port=port)
+    bus = RemoteClient(
+        host,
+        csr_csv          = csr_csv,
+        port             = port,
+        timeout          = timeout,
+        raise_on_timeout = raise_on_timeout,
+    )
     bus.open()
 
     # Board capabilities.
@@ -691,6 +718,8 @@ def main():
     parser.add_argument("--binary",     action="store_true",     help="Use binary format for displayed values.")
     parser.add_argument("--file",       default=None,            help="File to read from or write to in binary mode.")
     parser.add_argument("--endianness", default="little",        choices=["little", "big"], help="Endianness for memory accesses (little or big).")
+    parser.add_argument("--timeout",        default="2.0",          help="Socket timeout.")
+    parser.add_argument("--strict-timeout", action="store_true",    help="Raise on remote read timeout.")
 
     # Identifier.
     parser.add_argument("--ident",      action="store_true",     help="Dump SoC identifier.")
@@ -713,23 +742,28 @@ def main():
     host    = args.host
     csr_csv = args.csr_csv
     port    = int(args.port, 0)
+    timeout = float(args.timeout)
 
     # Identifier.
     if args.ident:
         dump_identifier(
-            host    = host,
-            csr_csv = csr_csv,
-            port    = port,
+            host             = host,
+            csr_csv          = csr_csv,
+            port             = port,
+            timeout          = timeout,
+            raise_on_timeout = args.strict_timeout,
         )
 
     # Registers.
     if args.regs:
         dump_registers(
-            host    = host,
-            csr_csv = csr_csv,
-            port    = port,
-            filter  = args.filter,
-            binary  = args.binary,
+            host             = host,
+            csr_csv          = csr_csv,
+            port             = port,
+            filter           = args.filter,
+            binary           = args.binary,
+            timeout          = timeout,
+            raise_on_timeout = args.strict_timeout,
         )
 
     # Memory Read.
@@ -739,14 +773,16 @@ def main():
         except ValueError:
             addr = reg2addr(host, csr_csv, args.read)
         read_memory(
-            host       = host,
-            csr_csv    = csr_csv,
-            port       = port,
-            addr       = addr,
-            length     = int(args.length, 0),
-            binary     = args.binary,
-            file       = args.file,
-            endianness = args.endianness,
+            host             = host,
+            csr_csv          = csr_csv,
+            port             = port,
+            addr             = addr,
+            length           = int(args.length, 0),
+            binary           = args.binary,
+            file             = args.file,
+            endianness       = args.endianness,
+            timeout          = timeout,
+            raise_on_timeout = args.strict_timeout,
         )
 
     # Memory Write.
@@ -765,22 +801,26 @@ def main():
             data = int(args.write[1], 0)
 
         write_memory(
-            host       = host,
-            csr_csv    = csr_csv,
-            port       = port,
-            addr       = addr,
-            data       = data,
-            file       = args.file,
-            length     = int(args.length, 0) if args.length else None,
-            endianness = args.endianness,
+            host             = host,
+            csr_csv          = csr_csv,
+            port             = port,
+            addr             = addr,
+            data             = data,
+            file             = args.file,
+            length           = int(args.length, 0) if args.length else None,
+            endianness       = args.endianness,
+            timeout          = timeout,
+            raise_on_timeout = args.strict_timeout,
         )
 
     # GUI.
     if args.gui:
         run_gui(
-            host    = host,
-            csr_csv = csr_csv,
-            port    = port,
+            host             = host,
+            csr_csv          = csr_csv,
+            port             = port,
+            timeout          = timeout,
+            raise_on_timeout = args.strict_timeout,
         )
 
 if __name__ == "__main__":
