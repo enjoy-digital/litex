@@ -21,7 +21,7 @@ from litex.tools.remote.etherbone import EtherboneIPC
 
 # Read Merger --------------------------------------------------------------------------------------
 
-def _read_merger(addrs, max_length=256, bursts=["incr", "fixed"]):
+def _read_merger(addrs, max_length=256, bursts=None):
     """Sequential reads merger
 
     Take a list of read addresses as input and merge the sequential/fixed reads in (base, length, burst) tuples:
@@ -31,6 +31,7 @@ def _read_merger(addrs, max_length=256, bursts=["incr", "fixed"]):
     most of the access delay and allows minimizing number of commands by grouping them in UARTBone
     packets.
     """
+    bursts = ["incr", "fixed"] if bursts is None else bursts
     assert "incr" in bursts
     burst_base   = addrs[0]
     burst_length = 1

@@ -97,7 +97,8 @@ class CSRBuilder:
 
     @staticmethod
     def get_csr_items(csr_csv):
-        return list(csv.reader(filter(lambda row: row[0] != "#", open(csr_csv))))
+        with open(csr_csv, encoding="utf-8") as f:
+            return list(csv.reader(filter(lambda row: row[0] != "#", f)))
 
     def build_bases(self):
         d = {}
