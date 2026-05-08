@@ -21,41 +21,47 @@ from litex.tools.remote.csr_builder import CSRBuilder
 # Remote Client ------------------------------------------------------------------------------------
 
 class RemoteClient(EtherboneIPC, CSRBuilder):
+    max_burst_length = 255
+
     def __init__(self, host="localhost", port=1234, base_address=0, csr_csv=None, csr_data_width=None,
-        csr_bus_address_width=None, debug=False):
+        csr_bus_address_width=None, debug=False, timeout=2.0, raise_on_timeout=False):
         # If csr_csv set to None and local csr.csv file exists, use it.
         if csr_csv is None and os.path.exists("csr.csv"):
             csr_csv = "csr.csv"
         # If valid csr_csv file found, build the CSRs.
         if csr_csv is not None:
-            CSRBuilder.__init__(self, self, csr_csv, csr_data_width)
+            CSRBuilder.__init__(self, self, csr_csv, csr_data_width, csr_bus_address_width)
         else:
-            # Else if csr_data_width set to None, force to csr_data_width 32-bit.
-            if csr_data_width is None:
-                self.csr_data_width = 32
-            # Else if csr_bus_address_width set to None, force to csr_bus_address_width 32-bit.
-            if csr_bus_address_width is None:
-                self.csr_bus_address_width = 32
-        self.host         = host
-        self.port         = port
-        self.debug        = debug
-        self.binded       = False
-        self.base_address = base_address if base_address is not None else 0
+            # Else use provided CSR widths, defaulting to 32-bit.
+            self.csr_data_width        = 32 if csr_data_width        is None else csr_data_width
+            self.csr_bus_address_width = 32 if csr_bus_address_width is None else csr_bus_address_width
+        self.host             = host
+        self.port             = port
+        self.debug            = debug
+        self.timeout          = timeout
+        self.binded           = False
+        self.base_address     = base_address if base_address is not None else 0
+        self.raise_on_timeout = raise_on_timeout
 
     def _receive_server_info(self):
-        info = str(self.socket.recv(128))
+        info = self.socket.recv(128).decode("utf-8", errors="ignore")
 
         # With LitePCIe, CSRs are translated to 0 to limit BAR0 size, so also translate base address.
-        if "CommPCIe" in info:
+        if "CommPCIe" in info and hasattr(self, "mems") and hasattr(self.mems, "csr"):
             self.base_address = -self.mems.csr.base
 
     def open(self):
         if self.binded:
             return
-        self.socket = socket.create_connection((self.host, self.port))
-        self.socket.settimeout(2.0)
-        self._receive_server_info()
-        self.binded = True
+        self.socket = socket.create_connection((self.host, self.port), timeout=self.timeout)
+        try:
+            self.socket.settimeout(self.timeout)
+            self._receive_server_info()
+            self.binded = True
+        except Exception:
+            self.socket.close()
+            del self.socket
+            raise
 
     def close(self):
         if not self.binded:
@@ -63,6 +69,13 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
         self.socket.close()
         del self.socket
         self.binded = False
+
+    def __enter__(self):
+        self.open()
+        return self
+
+    def __exit__(self, *args):
+        self.close()
 
     def clear_socket_buffer(self):
         try:
@@ -73,15 +86,20 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
         except (TimeoutError, socket.error):
             pass
 
-    def read(self, addr, length=None, burst="incr"):
-        length_int = 1 if length is None else length
-        addr_size  = self.csr_bus_address_width // 8
+    @staticmethod
+    def _check_burst(burst):
+        if burst not in ["incr", "fixed"]:
+            raise ValueError("Unsupported burst mode: {}".format(burst))
+
+    def _read_chunk(self, addr, length, burst):
+        addr_size = self.csr_bus_address_width // 8
+        incr      = burst == "incr"
+
         # Prepare packet
         record = EtherboneRecord(addr_size)
-        incr = (burst == "incr")
         record.reads  = EtherboneReads(
             addr_size = addr_size,
-            addrs     = [self.base_address + addr + 4*incr*j for j in range(length_int)]
+            addrs     = [self.base_address + addr + 4*incr*j for j in range(length)]
         )
         record.rcount = len(record.reads)
 
@@ -94,11 +112,14 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
         # Receive response
         response = self.receive_packet(self.socket, addr_size)
         if response == 0:
-            # Handle error by returning default values
             if self.debug:
-                print("Timeout occurred during read. Returning default values.")
+                message = "Timeout occurred during read."
+                message += " Raising TimeoutError." if self.raise_on_timeout else " Returning default values."
+                print(message)
             self.clear_socket_buffer()
-            return 0 if length is None else [0] * length_int
+            if self.raise_on_timeout:
+                raise TimeoutError("Timeout occurred during read.")
+            return [0] * length
 
         packet = EtherbonePacket(
             addr_width = self.csr_bus_address_width,
@@ -108,17 +129,28 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
         datas = packet.records.pop().writes.get_datas()
         if self.debug:
             for i, data in enumerate(datas):
-                print("read 0x{:08x} @ 0x{:08x}".format(data, self.base_address + addr + 4*i))
+                print("read 0x{:08x} @ 0x{:08x}".format(data, self.base_address + addr + 4*incr*i))
+        return datas
+
+    def read(self, addr, length=None, burst="incr"):
+        self._check_burst(burst)
+        length_int = 1 if length is None else length
+        incr       = burst == "incr"
+        datas      = []
+
+        for offset in range(0, length_int, self.max_burst_length):
+            burst_length = min(length_int - offset, self.max_burst_length)
+            burst_addr   = addr + 4*incr*offset
+            datas += self._read_chunk(burst_addr, burst_length, burst)
         return datas[0] if length is None else datas
 
-    def write(self, addr, datas):
-        datas = datas if isinstance(datas, list) else [datas]
+    def _write_chunk(self, addr, datas):
         addr_size = self.csr_bus_address_width // 8
         record = EtherboneRecord(addr_size)
         record.writes = EtherboneWrites(
             base_addr = self.base_address + addr,
             addr_size = addr_size,
-            datas     = [d for d in datas]
+            datas     = datas
         )
         record.wcount = len(record.writes)
 
@@ -127,9 +159,20 @@ class RemoteClient(EtherboneIPC, CSRBuilder):
         packet.encode()
         self.send_packet(self.socket, packet)
 
+    def write(self, addr, datas, burst="incr"):
+        self._check_burst(burst)
+        datas = datas if isinstance(datas, list) else [datas]
+        incr  = burst == "incr"
+        step  = self.max_burst_length if incr else 1
+
+        for offset in range(0, len(datas), step):
+            burst_datas = datas[offset:offset + step]
+            burst_addr  = addr + 4*incr*offset
+            self._write_chunk(burst_addr, burst_datas)
+
         if self.debug:
             for i, data in enumerate(datas):
-                print("write 0x{:08x} @ 0x{:08x}".format(data, self.base_address + addr + 4*i))
+                print("write 0x{:08x} @ 0x{:08x}".format(data, self.base_address + addr + 4*incr*i))
 
 # Utils --------------------------------------------------------------------------------------------
 
