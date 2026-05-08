@@ -11,7 +11,7 @@ import threading
 import unittest
 from unittest import mock
 
-from litex.tools.litex_server import _read_merger
+from litex.tools.litex_server import RemoteServer, _read_merger
 from litex.tools.remote.etherbone import Packet
 from litex.tools.remote.etherbone import EtherboneIPC
 from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord
@@ -185,6 +185,30 @@ class TestReadMerger(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             list(_read_merger([0], bursts=["incr", "wrap"]))
+
+
+class TestRemoteServer(unittest.TestCase):
+    def test_uart_capabilities_are_cached(self):
+        class CommUART:
+            pass
+
+        server = RemoteServer(CommUART(), "localhost", addr_width=64)
+
+        self.assertEqual(server.addr_size, 8)
+        self.assertEqual(server.read_max_length, 255)
+        self.assertEqual(server.read_bursts, ["incr", "fixed"])
+        self.assertTrue(server.lock.acquire(blocking=False))
+        server.lock.release()
+
+    def test_default_capabilities_are_cached(self):
+        class CommUSB:
+            pass
+
+        server = RemoteServer(CommUSB(), "localhost")
+
+        self.assertEqual(server.addr_size, 4)
+        self.assertEqual(server.read_max_length, 1)
+        self.assertEqual(server.read_bursts, ["incr"])
 
 
 class TestRemoteClient(unittest.TestCase):
