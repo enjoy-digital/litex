@@ -12,6 +12,9 @@ import unittest
 from unittest import mock
 
 from litex.tools.litex_server import RemoteServer, _read_merger
+from litex.tools.remote.comm_uart import CommUART
+from litex.tools.remote.comm_uart import CMD_READ_BURST_INCR
+from litex.tools.remote.comm_uart import CMD_WRITE_BURST_INCR, CMD_WRITE_BURST_FIXED
 from litex.tools.remote.etherbone import Packet
 from litex.tools.remote.etherbone import EtherboneIPC
 from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord
@@ -86,6 +89,33 @@ class FakeRemoteClient:
 
     def write(self, addr, datas, burst="incr"):
         self.write_calls.append((addr, datas, burst))
+
+
+class FakeSerialPort:
+    def __init__(self, read_data=b""):
+        self.read_data  = bytearray(read_data)
+        self.read_calls = []
+        self.writes     = []
+
+    def inWaiting(self):
+        return 0
+
+    def read(self, length):
+        self.read_calls.append(length)
+        data = self.read_data[:length]
+        del self.read_data[:length]
+        return bytes(data)
+
+    def write(self, data):
+        self.writes.append(bytes(data))
+        return len(data)
+
+
+def _uart_payload(datas):
+    payload = bytearray()
+    for data in datas:
+        payload += data.to_bytes(4, byteorder="big")
+    return bytes(payload)
 
 
 class TestEtherboneHelpers(unittest.TestCase):
@@ -209,6 +239,74 @@ class TestRemoteServer(unittest.TestCase):
         self.assertEqual(server.addr_size, 4)
         self.assertEqual(server.read_max_length, 1)
         self.assertEqual(server.read_bursts, ["incr"])
+
+
+class TestCommUART(unittest.TestCase):
+    def _comm_uart(self, baudrate=115200, addr_width=32, read_data=b""):
+        port = FakeSerialPort(read_data=read_data)
+        with mock.patch("litex.tools.remote.comm_uart.serial.serial_for_url", return_value=port) as serial_for_url:
+            comm = CommUART("loop://", baudrate=baudrate, addr_width=addr_width)
+
+        serial_for_url.assert_called_once_with("loop://", int(float(baudrate)))
+        return comm, port
+
+    def test_write_uses_baudrate_sized_burst(self):
+        comm, port = self._comm_uart(baudrate=115200)
+        datas = list(range(20))
+
+        self.assertGreater(comm.max_write_burst_length, 8)
+        comm.write(0x1000, datas)
+
+        self.assertEqual(port.writes, [
+            bytes([CMD_WRITE_BURST_INCR, len(datas)]),
+            (0x1000//4).to_bytes(4, byteorder="big"),
+            _uart_payload(datas),
+        ])
+
+    def test_write_splits_slow_baudrate_bursts(self):
+        comm, port = self._comm_uart(baudrate=9600)
+        datas = list(range(25))
+
+        self.assertEqual(comm.max_write_burst_length, 10)
+        comm.write(0x1000, datas)
+
+        self.assertEqual([port.writes[i][1] for i in range(0, len(port.writes), 3)], [10, 10, 5])
+        self.assertEqual([int.from_bytes(port.writes[i], "big") for i in range(1, len(port.writes), 3)], [
+            0x1000//4,
+            0x1000//4 + 10,
+            0x1000//4 + 20,
+        ])
+        self.assertEqual(port.writes[2], _uart_payload(datas[:10]))
+        self.assertEqual(port.writes[5], _uart_payload(datas[10:20]))
+        self.assertEqual(port.writes[8], _uart_payload(datas[20:25]))
+
+    def test_fixed_write_keeps_chunk_address_fixed(self):
+        comm, port = self._comm_uart(baudrate=9600)
+        datas = list(range(25))
+
+        comm.write(0x2000, datas, burst="fixed")
+
+        self.assertEqual([port.writes[i][0] for i in range(0, len(port.writes), 3)], [CMD_WRITE_BURST_FIXED]*3)
+        self.assertEqual([int.from_bytes(port.writes[i], "big") for i in range(1, len(port.writes), 3)], [
+            0x2000//4,
+            0x2000//4,
+            0x2000//4,
+        ])
+
+    def test_read_batches_serial_read(self):
+        read_data = _uart_payload([0x11223344, 0x55667788, 0x99aabbcc])
+        comm, port = self._comm_uart(read_data=read_data)
+
+        self.assertEqual(comm.read(0x3000, length=3), [0x11223344, 0x55667788, 0x99aabbcc])
+        self.assertEqual(port.read_calls, [12])
+        self.assertEqual(port.writes, [
+            bytes([CMD_READ_BURST_INCR, 3]),
+            (0x3000//4).to_bytes(4, byteorder="big"),
+        ])
+
+    def test_invalid_baudrate_raises(self):
+        with self.assertRaises(ValueError):
+            self._comm_uart(baudrate=0)
 
 
 class TestRemoteClient(unittest.TestCase):

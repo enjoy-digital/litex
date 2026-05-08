@@ -16,15 +16,36 @@ CMD_READ_BURST_INCR   = 0x02
 CMD_WRITE_BURST_FIXED = 0x03
 CMD_READ_BURST_FIXED  = 0x04
 
+UARTBONE_MAX_BURST_LENGTH     = 255
+UARTBONE_WRITE_TIMEOUT        = 0.100
+UARTBONE_WRITE_TIMEOUT_MARGIN = 0.5
+
 # CommUART -----------------------------------------------------------------------------------------
 
 class CommUART(CSRBuilder):
     def __init__(self, port, baudrate=115200, csr_csv=None, debug=False, addr_width=32):
         CSRBuilder.__init__(self, comm=self, csr_csv=csr_csv)
-        self.port       = serial.serial_for_url(port, baudrate)
-        self.baudrate   = str(baudrate)
+        self.baudrate   = int(float(baudrate))
         self.debug      = debug
         self.addr_bytes = addr_width // 8
+        self.max_write_burst_length = self._get_max_write_burst_length(
+            baudrate   = self.baudrate,
+            addr_bytes = self.addr_bytes,
+        )
+        self.port = serial.serial_for_url(port, self.baudrate)
+
+    @staticmethod
+    def _get_max_write_burst_length(baudrate, addr_bytes):
+        if baudrate <= 0:
+            raise ValueError("baudrate must be greater than 0.")
+        # UARTBone's gateware timeout is 100ms while outside RECEIVE-CMD.
+        # Keep half of that budget for serial transmission and leave the rest
+        # for Wishbone accesses and host/USB adapter jitter.
+        timeout    = UARTBONE_WRITE_TIMEOUT*UARTBONE_WRITE_TIMEOUT_MARGIN
+        bytes_time = 10/baudrate # 1 start bit + 8 data bits + 1 stop bit.
+        max_bytes  = int(timeout/bytes_time)
+        max_words  = (max_bytes - (2 + addr_bytes)) // 4
+        return max(1, min(UARTBONE_MAX_BURST_LENGTH, max_words))
 
     def open(self):
         if hasattr(self, "port"):
@@ -65,8 +86,9 @@ class CommUART(CSRBuilder):
         }[burst]
         self._write([cmd, length_int])
         self._write(list((addr//4).to_bytes(self.addr_bytes, byteorder="big")))
+        raw = self._read(4*length_int)
         for i in range(length_int):
-            value = int.from_bytes(self._read(4), "big")
+            value = int.from_bytes(raw[4*i:4*(i + 1)], "big")
             if self.debug:
                 print("read 0x{:08x} @ 0x{:08x}".format(value, addr + 4*i))
             if length is None:
@@ -79,17 +101,22 @@ class CommUART(CSRBuilder):
         data   = data if isinstance(data, list) else [data]
         length = len(data)
         offset = 0
+        incr   = burst == "incr"
+        cmd = {
+            "incr" : CMD_WRITE_BURST_INCR,
+            "fixed": CMD_WRITE_BURST_FIXED,
+        }[burst]
         while length:
-            size = min(length, 8)
-            cmd = {
-                "incr" : CMD_WRITE_BURST_INCR,
-                "fixed": CMD_WRITE_BURST_FIXED,
-            }[burst]
+            size       = min(length, self.max_write_burst_length)
+            burst_addr = addr//4 + incr*offset
             self._write([cmd, size])
-            self._write(list(((addr//4 + offset).to_bytes(self.addr_bytes, byteorder="big"))))
+            self._write(list((burst_addr).to_bytes(self.addr_bytes, byteorder="big")))
+            payload = bytearray()
             for i, value in enumerate(data[offset:offset+size]):
-                self._write(list(value.to_bytes(4, byteorder="big")))
+                payload += value.to_bytes(4, byteorder="big")
                 if self.debug:
-                    print("write 0x{:08x} @ 0x{:08x}".format(value, addr + offset, 4*i))
+                    debug_addr = addr + 4*(offset + i) if incr else addr
+                    print("write 0x{:08x} @ 0x{:08x}".format(value, debug_addr))
+            self._write(payload)
             offset += size
             length -= size
