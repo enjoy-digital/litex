@@ -5,11 +5,14 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import socket
 import tempfile
+import threading
 import unittest
 from unittest import mock
 
 from litex.tools.remote.etherbone import Packet
+from litex.tools.remote.etherbone import EtherboneIPC
 from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord
 from litex.tools.remote.etherbone import EtherboneReads, EtherboneWrites
 from litex.tools.litex_client import RemoteClient, read_memory, write_memory
@@ -42,6 +45,21 @@ def _decode_write(packet_bytes, addr_width=32):
 class TimeoutSocket:
     def recv(self, length):
         raise TimeoutError
+
+
+class FailingInfoSocket:
+    def __init__(self):
+        self.closed = False
+        self.timeout = None
+
+    def settimeout(self, timeout):
+        self.timeout = timeout
+
+    def recv(self, length):
+        raise RuntimeError("server info failed")
+
+    def close(self):
+        self.closed = True
 
 
 class FakeRemoteClient:
@@ -106,11 +124,53 @@ class TestRemoteClient(unittest.TestCase):
         with mock.patch("litex.tools.litex_client.os.path.exists", return_value=False):
             return RemoteClient(**kwargs)
 
+    def test_csr_csv_sets_widths_and_registers(self):
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            f.write("constant,config_csr_data_width,32,,\n")
+            f.write("constant,config_bus_address_width,64,,\n")
+            f.write("csr_base,ctrl,0xe0000000,,\n")
+            f.write("csr_register,ctrl_reset,0xe0000000,1,rw\n")
+            f.write("memory_region,csr,0xe0000000,65536,io\n")
+            csr_csv = f.name
+        self.addCleanup(lambda: os.path.exists(csr_csv) and os.unlink(csr_csv))
+
+        bus = RemoteClient(csr_csv=csr_csv, csr_data_width=32, csr_bus_address_width=64)
+
+        self.assertEqual(bus.csr_data_width, 32)
+        self.assertEqual(bus.csr_bus_address_width, 64)
+        self.assertEqual(bus.bases.ctrl, 0xe0000000)
+        self.assertEqual(bus.regs.ctrl_reset.addr, 0xe0000000)
+        self.assertEqual(bus.mems.csr.base, 0xe0000000)
+
+    def test_csr_csv_rejects_mismatched_bus_address_width(self):
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            f.write("constant,config_csr_data_width,32,,\n")
+            f.write("constant,config_bus_address_width,32,,\n")
+            csr_csv = f.name
+        self.addCleanup(lambda: os.path.exists(csr_csv) and os.unlink(csr_csv))
+
+        with self.assertRaises(KeyError):
+            RemoteClient(csr_csv=csr_csv, csr_bus_address_width=64)
+
     def test_explicit_widths_without_csr_csv(self):
         bus = self._client(csr_data_width=8, csr_bus_address_width=64)
 
         self.assertEqual(bus.csr_data_width, 8)
         self.assertEqual(bus.csr_bus_address_width, 64)
+
+    def test_open_passes_timeout_and_cleans_up_on_info_error(self):
+        bus = self._client(timeout=3.5)
+        fake_socket = FailingInfoSocket()
+
+        with mock.patch("litex.tools.litex_client.socket.create_connection", return_value=fake_socket) as create_connection:
+            with self.assertRaisesRegex(RuntimeError, "server info failed"):
+                bus.open()
+
+        create_connection.assert_called_once_with(("localhost", 1234), timeout=3.5)
+        self.assertEqual(fake_socket.timeout, 3.5)
+        self.assertTrue(fake_socket.closed)
+        self.assertFalse(hasattr(bus, "socket"))
+        self.assertFalse(bus.binded)
 
     def test_pcie_server_info_without_csr_metadata(self):
         bus = self._client(base_address=0x1000)
@@ -120,6 +180,56 @@ class TestRemoteClient(unittest.TestCase):
         bus._receive_server_info()
 
         self.assertEqual(bus.base_address, 0x1000)
+
+    def test_pcie_server_info_translates_csr_base(self):
+        bus = self._client(base_address=0x1000)
+        bus.socket = mock.Mock()
+        bus.socket.recv.return_value = b"CommPCIe:localhost:1234"
+        bus.mems = mock.Mock()
+        bus.mems.csr.base = 0xe0000000
+
+        bus._receive_server_info()
+
+        self.assertEqual(bus.base_address, -0xe0000000)
+
+    def test_base_address_is_added_to_requests(self):
+        bus = self._client(base_address=0x10000000)
+        bus.socket = object()
+        sent = []
+
+        bus.send_packet    = lambda socket, packet: sent.append(packet.bytes)
+        bus.receive_packet = lambda socket, addr_size: _read_response([0x12345678])
+
+        self.assertEqual(bus.read(0x20), 0x12345678)
+        self.assertEqual(_decode_read_addrs(sent[0]), [0x10000020])
+
+        sent.clear()
+        bus.write(0x40, 0x5a5a5a5a)
+        self.assertEqual(_decode_write(sent[0]), (0x10000040, [0x5a5a5a5a]))
+
+    def test_read_uses_socket_send_and_receive_path(self):
+        bus = self._client()
+        client_socket, server_socket = socket.socketpair()
+        self.addCleanup(client_socket.close)
+        self.addCleanup(server_socket.close)
+        bus.socket = client_socket
+        bus.socket.settimeout(1.0)
+        server_socket.settimeout(1.0)
+        observed_addrs = []
+
+        def server():
+            request = EtherboneIPC().receive_packet(server_socket, addr_size=4)
+            observed_addrs.extend(_decode_read_addrs(request))
+            server_socket.sendall(_read_response([0xaa, 0xbb, 0xcc]))
+
+        server_thread = threading.Thread(target=server)
+        server_thread.start()
+
+        self.assertEqual(bus.read(0x8000, length=3), [0xaa, 0xbb, 0xcc])
+        server_thread.join(timeout=1.0)
+
+        self.assertFalse(server_thread.is_alive())
+        self.assertEqual(observed_addrs, [0x8000, 0x8004, 0x8008])
 
     def test_read_is_split_into_etherbone_sized_chunks(self):
         bus = self._client()
@@ -209,6 +319,7 @@ class TestRemoteClient(unittest.TestCase):
 class TestLiteXClientUtilities(unittest.TestCase):
     def setUp(self):
         FakeRemoteClient.instances = []
+        FakeRemoteClient.read_datas = []
 
     def test_read_memory_uses_burst_and_trims_file(self):
         FakeRemoteClient.read_datas = [0x11223344, 0x55667788]
@@ -221,8 +332,25 @@ class TestLiteXClientUtilities(unittest.TestCase):
 
         bus = FakeRemoteClient.instances[0]
         self.assertEqual(bus.read_calls, [(0x6000, 2, "incr")])
+        self.assertEqual(bus.kwargs["timeout"], 2.0)
+        self.assertFalse(bus.kwargs["raise_on_timeout"])
         with open(path, "rb") as f:
             self.assertEqual(f.read(), b"\x11\x22\x33\x44\x55\x66")
+
+    def test_read_memory_zero_length_does_not_read_bus(self):
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            path = f.name
+        self.addCleanup(lambda: os.path.exists(path) and os.unlink(path))
+
+        with mock.patch("litex.tools.litex_client.RemoteClient", FakeRemoteClient):
+            read_memory("host", "csr.csv", 1234, 0x6000, length=0, file=path, timeout=4.0, raise_on_timeout=True)
+
+        bus = FakeRemoteClient.instances[0]
+        self.assertEqual(bus.read_calls, [])
+        self.assertEqual(bus.kwargs["timeout"], 4.0)
+        self.assertTrue(bus.kwargs["raise_on_timeout"])
+        with open(path, "rb") as f:
+            self.assertEqual(f.read(), b"")
 
     def test_write_memory_uses_burst_and_pads_file(self):
         with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -235,6 +363,17 @@ class TestLiteXClientUtilities(unittest.TestCase):
 
         bus = FakeRemoteClient.instances[0]
         self.assertEqual(bus.write_calls, [(0x7000, [0x01020304, 0x05000000], "incr")])
+
+    def test_write_memory_empty_file_does_not_write_bus(self):
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            path = f.name
+        self.addCleanup(lambda: os.path.exists(path) and os.unlink(path))
+
+        with mock.patch("litex.tools.litex_client.RemoteClient", FakeRemoteClient):
+            write_memory("host", "csr.csv", 1234, 0x7000, data=0, file=path, length=None)
+
+        bus = FakeRemoteClient.instances[0]
+        self.assertEqual(bus.write_calls, [])
 
 
 if __name__ == "__main__":
