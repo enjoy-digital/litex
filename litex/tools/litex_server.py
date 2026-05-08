@@ -21,7 +21,7 @@ from litex.tools.remote.etherbone import EtherboneIPC
 
 # Read Merger --------------------------------------------------------------------------------------
 
-def _read_merger(addrs, max_length=256, bursts=None):
+def _read_merger(addrs, max_length=255, bursts=None):
     """Sequential reads merger
 
     Take a list of read addresses as input and merge the sequential/fixed reads in (base, length, burst) tuples:
@@ -32,7 +32,18 @@ def _read_merger(addrs, max_length=256, bursts=None):
     packets.
     """
     bursts = ["incr", "fixed"] if bursts is None else bursts
-    assert "incr" in bursts
+
+    if max_length <= 0:
+        raise ValueError("max_length must be greater than 0.")
+    if "incr" not in bursts:
+        raise ValueError("Read merger requires incr burst support.")
+    for burst in bursts:
+        if burst not in ["incr", "fixed"]:
+            raise ValueError("Unsupported burst mode: {}".format(burst))
+
+    if not addrs:
+        return
+
     burst_base   = addrs[0]
     burst_length = 1
     burst_type   = "incr"
@@ -41,7 +52,7 @@ def _read_merger(addrs, max_length=256, bursts=None):
         # Try to merge to a "fixed" burst if supported
         if ("fixed" in bursts):
             # If current burst matches
-            if (burst_type in [None, "fixed"]) or (burst_length == 1):
+            if (burst_type == "fixed") or (burst_length == 1):
                 # If addr matches
                 if (addr == burst_base):
                     if (burst_length != max_length):
@@ -52,7 +63,7 @@ def _read_merger(addrs, max_length=256, bursts=None):
         # Try to merge to an "incr" burst if supported
         if ("incr" in bursts):
             # If current burst matches
-            if (burst_type in [None, "incr"]) or (burst_length == 1):
+            if (burst_type == "incr") or (burst_length == 1):
                 # If addr matches
                 if (addr == burst_base + (4 * burst_length)):
                     if (burst_length != max_length):
@@ -142,7 +153,7 @@ class RemoteServer(EtherboneIPC):
                         # Handle Etherbone reads.
                         if record.reads != None:
                             max_length = {
-                                "CommUART": 256,
+                                "CommUART": 255,
                                 "CommUDP":    1,
                             }.get(self.comm.__class__.__name__, 1)
                             bursts = {

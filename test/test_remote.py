@@ -11,6 +11,7 @@ import threading
 import unittest
 from unittest import mock
 
+from litex.tools.litex_server import _read_merger
 from litex.tools.remote.etherbone import Packet
 from litex.tools.remote.etherbone import EtherboneIPC
 from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord
@@ -117,6 +118,73 @@ class TestEtherboneHelpers(unittest.TestCase):
         self.assertEqual(decoded.records[0].writes.base_addr, 0x1000)
         self.assertEqual(decoded.records[0].writes.get_datas(), [0x12345678])
         self.assertEqual(decoded.records[0].reads.get_addrs(), [0x2000, 0x2004])
+
+
+class TestReadMerger(unittest.TestCase):
+    @staticmethod
+    def _expand(reads):
+        addrs = []
+        for base, length, burst in reads:
+            if burst == "fixed":
+                addrs += [base] * length
+            else:
+                addrs += [base + 4*i for i in range(length)]
+        return addrs
+
+    def test_empty_reads(self):
+        self.assertEqual(list(_read_merger([])), [])
+
+    def test_incr_reads(self):
+        addrs = [0x00, 0x04, 0x08]
+        reads = list(_read_merger(addrs))
+
+        self.assertEqual(reads, [(0x00, 3, "incr")])
+        self.assertEqual(self._expand(reads), addrs)
+
+    def test_fixed_reads(self):
+        addrs = [0x20, 0x20, 0x20]
+        reads = list(_read_merger(addrs))
+
+        self.assertEqual(reads, [(0x20, 3, "fixed")])
+        self.assertEqual(self._expand(reads), addrs)
+
+    def test_mixed_reads_preserve_order(self):
+        addrs = [0x00, 0x04, 0x04, 0x08, 0x20, 0x20]
+        reads = list(_read_merger(addrs))
+
+        self.assertEqual(reads, [(0x00, 2, "incr"), (0x04, 2, "incr"), (0x20, 2, "fixed")])
+        self.assertEqual(self._expand(reads), addrs)
+
+    def test_fixed_disabled_preserves_repeated_reads(self):
+        addrs = [0x20, 0x20]
+        reads = list(_read_merger(addrs, bursts=["incr"]))
+
+        self.assertEqual(reads, [(0x20, 1, "incr"), (0x20, 1, "incr")])
+        self.assertEqual(self._expand(reads), addrs)
+
+    def test_max_length_splits_reads(self):
+        addrs = [4*i for i in range(5)]
+        reads = list(_read_merger(addrs, max_length=2))
+
+        self.assertEqual(reads, [(0x00, 2, "incr"), (0x08, 2, "incr"), (0x10, 1, "incr")])
+        self.assertEqual(self._expand(reads), addrs)
+
+    def test_default_max_length_is_etherbone_safe(self):
+        addrs = [4*i for i in range(256)]
+        reads = list(_read_merger(addrs))
+
+        self.assertEqual(reads, [(0x00, 255, "incr"), (0x3fc, 1, "incr")])
+        self.assertEqual(self._expand(reads), addrs)
+
+    def test_invalid_configuration(self):
+        with self.assertRaises(ValueError):
+            list(_read_merger([0], max_length=0))
+
+        with self.assertRaises(ValueError):
+            list(_read_merger([0], bursts=["fixed"]))
+
+        with self.assertRaises(ValueError):
+            list(_read_merger([0], bursts=["incr", "wrap"]))
 
 
 class TestRemoteClient(unittest.TestCase):
