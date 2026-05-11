@@ -1890,6 +1890,10 @@ class LiteXSoC(SoC):
     def add_sdram(self, name="sdram", phy=None, module=None, origin=None, size=None,
         with_bist               = False,
         with_soc_interconnect   = True,
+        region_name             = None,
+        main_ram                = True,
+        channel                 = None,
+        cached                  = True,
         l2_cache_size           = 8192,
         l2_cache_min_data_width = 128,
         l2_cache_reverse        = False,
@@ -1912,6 +1916,17 @@ class LiteXSoC(SoC):
             clk_freq        = self.sys_clk_freq,
             **kwargs)
         self.add_module(name=name, module=sdram)
+
+        # Register SDRAM controller.
+        if not hasattr(self, "sdram_controllers"):
+            self.sdram_controllers = {}
+        if not hasattr(self, "sdram_channels"):
+            self.sdram_channels = {}
+        if name in self.sdram_controllers:
+            self.logger.error("SDRAM Controller {} already declared.".format(colorer(name, color="red")))
+            raise SoCError()
+        self.sdram_controllers[name] = sdram
+        self.sdram_channels[channel if channel is not None else name] = sdram
 
         # Save SPD data to be able to verify it at runtime.
         if hasattr(module, "_spd_data"):
@@ -1940,8 +1955,6 @@ class LiteXSoC(SoC):
             self.add_module(name=f"{name}_generator", module=sdram_generator)
             self.add_module(name=f"{name}_checker",   module=sdram_checker)
 
-        if not with_soc_interconnect: return
-
         # Compute/Check SDRAM size.
         sdram_size = 2**(module.geom_settings.bankbits +
                          module.geom_settings.rowbits +
@@ -1949,22 +1962,31 @@ class LiteXSoC(SoC):
         if size is not None:
             sdram_size = min(sdram_size, size)
 
+        sdram.size        = sdram_size
+        sdram.main_ram    = main_ram
+        sdram.region_name = "main_ram" if main_ram else (region_name or name)
+        sdram.origin      = self.mem_map.get(sdram.region_name, origin)
+
+        if not with_soc_interconnect: return
+
         # Add SDRAM region.
-        main_ram_region = SoCRegion(
-            origin = self.mem_map.get("main_ram", origin),
+        sdram_region = SoCRegion(
+            origin = sdram.origin,
             size   = sdram_size,
-            mode   = "rwx")
-        self.bus.add_region("main_ram", main_ram_region)
+            mode   = "rwx",
+            cached = cached)
+        self.bus.add_region(sdram.region_name, sdram_region)
+        sdram.origin = self.bus.regions[sdram.region_name].origin
 
         # Add CPU's direct memory buses (if not already declared) ----------------------------------
-        if hasattr(self.cpu, "add_memory_buses"):
+        if main_ram and hasattr(self.cpu, "add_memory_buses"):
             self.cpu.add_memory_buses(
                 address_width = 32,
                 data_width    = sdram.crossbar.controller.data_width
             )
 
         # Connect CPU's direct memory buses to LiteDRAM --------------------------------------------
-        if len(self.cpu.memory_buses):
+        if main_ram and len(self.cpu.memory_buses):
             # When CPU has at least a direct memory bus, connect them directly to LiteDRAM.
             for mem_bus in self.cpu.memory_buses:
                 # Request a LiteDRAM native port.
@@ -1983,7 +2005,7 @@ class LiteXSoC(SoC):
                         self.submodules += LiteDRAMAXI2Native(
                             axi          = mem_bus,
                             port         = port,
-                            base_address = self.bus.regions["main_ram"].origin
+                            base_address = self.bus.regions[sdram.region_name].origin
                         )
                     # UpConvert.
                     elif data_width_ratio > 1:
@@ -1998,7 +2020,7 @@ class LiteXSoC(SoC):
                         self.submodules += LiteDRAMAXI2Native(
                             axi          = axi_port,
                             port         = port,
-                            base_address = self.bus.regions["main_ram"].origin
+                            base_address = self.bus.regions[sdram.region_name].origin
                         )
                     # DownConvert.
                     else:
@@ -2013,7 +2035,7 @@ class LiteXSoC(SoC):
                         self.submodules += LiteDRAMAXI2Native(
                             axi          = axi_port,
                             port         = port,
-                            base_address = self.bus.regions["main_ram"].origin
+                            base_address = self.bus.regions[sdram.region_name].origin
                         )
 
                 # Check if bus is a Native bus and connect it.
@@ -2029,22 +2051,25 @@ class LiteXSoC(SoC):
 
         # Connect Main bus to LiteDRAM (with optional L2 Cache) ------------------------------------
         connect_main_bus_to_dram = (
+            main_ram and (
             # No memory buses.
             (not len(self.cpu.memory_buses)) or
             # Memory buses but no DMA bus.
             (len(self.cpu.memory_buses) and not hasattr(self.cpu, "dma_bus"))
+            )
         )
-        if connect_main_bus_to_dram:
+        connect_soc_bus_to_dram = connect_main_bus_to_dram or (not main_ram)
+        if connect_soc_bus_to_dram:
             # Request a LiteDRAM native port.
             port = sdram.crossbar.get_port()
             port.data_width = 2**int(math.log2(port.data_width)) # Round to nearest power of 2.
 
             # Create Wishbone Slave.
-            wb_sdram = wishbone.Interface(data_width=self.bus.data_width, address_width=32, addressing="word")
-            self.bus.add_slave(name="main_ram", slave=wb_sdram)
+            wb_sdram = wishbone.Interface(data_width=self.bus.data_width, address_width=self.bus.address_width, addressing="word")
+            self.bus.add_slave(name=sdram.region_name, slave=wb_sdram)
 
             # L2 Cache
-            if l2_cache_size != 0:
+            if main_ram and l2_cache_size != 0:
                 # Insert L2 cache inbetween Wishbone bus and LiteDRAM
                 l2_cache_size = max(l2_cache_size, int(2*port.data_width/8)) # Use minimal size if lower
                 l2_cache_size = 2**int(math.log2(l2_cache_size))                  # Round to nearest power of 2
@@ -2052,7 +2077,7 @@ class LiteXSoC(SoC):
                 l2_cache = wishbone.Cache(
                     cachesize = l2_cache_size//4,
                     master    = wb_sdram,
-                    slave     = wishbone.Interface(data_width=l2_cache_data_width, address_width=32, addressing="word"),
+                    slave     = wishbone.Interface(data_width=l2_cache_data_width, address_width=self.bus.address_width, addressing="word"),
                     reverse   = l2_cache_reverse)
                 if l2_cache_full_memory_we:
                     l2_cache = FullMemoryWE()(l2_cache)
@@ -2060,15 +2085,20 @@ class LiteXSoC(SoC):
                 litedram_wb = self.l2_cache.slave
                 self.add_config("L2_SIZE", l2_cache_size)
             else:
-                litedram_wb = wishbone.Interface(data_width=port.data_width, address_width=32, addressing="word")
+                litedram_wb = wishbone.Interface(data_width=port.data_width, address_width=self.bus.address_width, addressing="word")
                 self.submodules += wishbone.Converter(wb_sdram, litedram_wb)
 
             # Wishbone Slave <--> LiteDRAM bridge.
-            self.wishbone_bridge = LiteDRAMWishbone2Native(
+            wishbone_bridge = LiteDRAMWishbone2Native(
                 wishbone     = litedram_wb,
                 port         = port,
-                base_address = self.bus.regions["main_ram"].origin
+                base_address = self.bus.regions[sdram.region_name].origin
             )
+            if main_ram:
+                self.wishbone_bridge = wishbone_bridge
+            else:
+                self.add_module(name=f"{name}_wishbone_bridge", module=wishbone_bridge)
+            sdram.wishbone_bridge = wishbone_bridge
 
     # Add Ethernet ---------------------------------------------------------------------------------
     def add_ethernet(self, name="ethmac", phy=None, phy_cd=None, dynamic_ip=False, software_debug=False,
