@@ -308,6 +308,14 @@ class TestBuilderGeneratedFiles(unittest.TestCase):
             self.assertFalse(os.path.exists(os.path.join(generated_dir, "output_format.ld")))
             self.assertFalse(os.path.exists(os.path.join(generated_dir, "regions.ld")))
 
+            with open(os.path.join(generated_dir, "mem.h")) as f:
+                mem_h = f.read()
+            self.assertIn("#define MEM_REGIONS \"", mem_h)
+            self.assertIn("#define MEM_REGIONS_DETAILS \"", mem_h)
+            self.assertIn("Region Origin     End        Size", mem_h)
+            self.assertIn("ROM    0x00000000 0x00000fff 0x1000", mem_h)
+            self.assertIn("CSR    0xe0000000 0xe000ffff 0x10000", mem_h)
+
     def test_generate_includes_with_bios_writes_linker_files(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             builder = _make_builder(tmp_dir, soc=_IncludeFakeSoC(), compile_software=False)

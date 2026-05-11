@@ -575,7 +575,7 @@ static void sdram_write_leveling_off(void) {
 void sdram_write_leveling_rst_cmd_delay(int show) {
 	_sdram_write_leveling_cmd_scan = 1;
 	if (show)
-		printf("Reseting Cmd delay\n");
+		printf("Resetting Cmd delay\n");
 }
 
 void sdram_write_leveling_force_cmd_delay(int taps, int show) {

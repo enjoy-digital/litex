@@ -16,7 +16,33 @@
 
 extern unsigned int _ftext, _edata_rom;
 
+#define BIOS_SECTION_WIDTH 42
 #define NUMBER_OF_BYTES_ON_A_LINE 16
+
+static void print_repeat(char c, int count)
+{
+	for (int i = 0; i < count; i++)
+		putchar(c);
+}
+
+void bios_print_section(const char *name)
+{
+	int fill = BIOS_SECTION_WIDTH - strlen(name) - 6;
+	int left = fill/2;
+	int right = fill - left;
+
+	printf("--");
+	print_repeat('=', left);
+	printf(" \e[1m%s\e[0m ", name);
+	print_repeat('=', right);
+	printf("--\n");
+}
+
+void bios_print_status(const char *label, int success)
+{
+	printf("%s: %s\n", label, success ? "OK" : "failed");
+}
+
 void dump_bytes(unsigned int *ptr, int count, unsigned long addr)
 {
 	uint32_t *dptr = (uint32_t *)ptr;

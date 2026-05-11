@@ -20,6 +20,7 @@
 
 #include "sfl.h"
 #include "boot.h"
+#include "helpers.h"
 
 #include <libbase/uart.h>
 
@@ -45,7 +46,7 @@ extern void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, un
 void __attribute__((noreturn)) boot(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr)
 {
 	printf("Executing booted program at 0x%08lx\n\n", addr);
-	printf("--============= \e[1mLiftoff!\e[0m ===============--\n");
+	bios_print_section("Liftoff!");
 #ifdef CSR_UART_BASE
 	uart_sync();
 #endif
@@ -380,10 +381,10 @@ uint8_t parse_ip(const char * ip_address, unsigned int * ip_to_change)
 	uint8_t i;
 	uint8_t size = strlen(ip_address);
 	unsigned int ip_to_set[4];
-	char buf[3];
+	char buf[4] = {0};
 
 	if (size < 7 || size > 15) {
-		printf("Error: Invalid IP address length.");
+		printf("Error: invalid IP address length\n");
 		return -1;
 	}
 
@@ -398,7 +399,7 @@ uint8_t parse_ip(const char * ip_address, unsigned int * ip_to_change)
 			buf[k] = ip_address[i];
 			k++;
 		} else {
-			printf("Error: Invalid IP address format. Correct format is \"X.X.X.X\".");
+			printf("Error: invalid IP address format; expected X.X.X.X\n");
 			return -1;
 		}
 	}
@@ -406,7 +407,7 @@ uint8_t parse_ip(const char * ip_address, unsigned int * ip_to_change)
 
 	/* Check if a correct number of numbers was extracted from the input*/
 	if (n != 3) {
-		printf("Error: Invalid IP address format. Correct format is \"X.X.X.X\".");
+		printf("Error: invalid IP address format; expected X.X.X.X\n");
 		return -1;
 	}
 
@@ -421,6 +422,7 @@ void set_local_ip(const char * ip_address)
 {
 	if (parse_ip(ip_address, local_ip) == 0) {
 		udp_set_ip(IPTOINT(local_ip[0], local_ip[1], local_ip[2], local_ip[3]));
+		printf("Local IP: %d.%d.%d.%d\n", local_ip[0], local_ip[1], local_ip[2], local_ip[3]);
 		net_init();
 	}
 }
@@ -428,7 +430,7 @@ void set_local_ip(const char * ip_address)
 void set_remote_ip(const char * ip_address)
 {
 	if (parse_ip(ip_address, remote_ip) == 0) {
-		printf("Remote IP: %d.%d.%d.%d", remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
+		printf("Remote IP: %d.%d.%d.%d\n", remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
 	}
 }
 
@@ -439,10 +441,10 @@ static uint8_t parse_mac_addr(const char * mac_address)
 	uint8_t i;
 	uint8_t size = strlen(mac_address);
 	unsigned int mac_to_set[6];
-	char buf[2];
+	char buf[3] = {0};
 
 	if (size != 17) {
-		printf("Error: Invalid MAC address length.");
+		printf("Error: invalid MAC address length\n");
 		return -1;
 	}
 
@@ -459,7 +461,7 @@ static uint8_t parse_mac_addr(const char * mac_address)
 			buf[k] = mac_address[i];
 			k++;
 		} else {
-			printf("Error: Invalid MAC address format. Correct format is \"XX:XX:XX:XX:XX:XX\".");
+			printf("Error: invalid MAC address format; expected XX:XX:XX:XX:XX:XX\n");
 			return -1;
 		}
 	}
@@ -467,7 +469,7 @@ static uint8_t parse_mac_addr(const char * mac_address)
 
 	/* Check if correct number of numbers was extracted from input */
 	if (n != 5) {
-		printf("Error: Invalid MAC address format. Correct format is \"XX:XX:XX:XX:XX:XX\".");
+		printf("Error: invalid MAC address format; expected XX:XX:XX:XX:XX:XX\n");
 		return -1;
 	}
 
@@ -482,7 +484,8 @@ void set_mac_addr(const char * mac_address)
 {
 	if (parse_mac_addr(mac_address) == 0) {
 		udp_set_mac(macadr);
-		printf("MAC address : %x:%x:%x:%x:%x:%x", macadr[0], macadr[1], macadr[2], macadr[3], macadr[4], macadr[5]);
+		printf("MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			macadr[0], macadr[1], macadr[2], macadr[3], macadr[4], macadr[5]);
 		net_init();
 	}
 }
@@ -639,7 +642,7 @@ static unsigned int check_image_in_flash(unsigned int base_address)
 
 	length = MMPTR(base_address);
 	if((length < 32) || (length > 16*1024*1024)) {
-		printf("Error: Invalid image length 0x%08lx\n", length);
+		printf("Error: invalid image length 0x%08lx\n", length);
 		return 0;
 	}
 
@@ -739,7 +742,7 @@ static int copy_file_from_sdcard_to_ram(const char * filename, unsigned long ram
 	for (;;) {
 		fr = f_read(&file, (void*) ram_address + offset,  0x8000, (UINT *)&br);
 		if (fr != FR_OK) {
-			printf("file read error.\n");
+			printf("Error: file read failed\n");
 			f_close(&file);
 			f_mount(0, "", 0);
 			return 0;
@@ -926,7 +929,7 @@ static int copy_file_from_sata_to_ram(const char * filename, unsigned long ram_a
 	for (;;) {
 		fr = f_read(&file, (void*) ram_address + offset,  0x8000, (UINT *) &br);
 		if (fr != FR_OK) {
-			printf("file read error.\n");
+			printf("Error: file read failed\n");
 			f_close(&file);
 			f_mount(0, "", 0);
 			return 0;
@@ -1027,7 +1030,7 @@ static void sataboot_from_json(const char * filename)
 			/* Get boot r3 (optional) */
 			else if (strncmp(json_name, "r3", 2) == 0) {
 				boot_r3 = strtoul(json_value, NULL, 0);
-			/* Copy Image from SDCard to address */
+			/* Copy Image from SATA to address */
 			} else {
 				result = copy_file_from_sata_to_ram(json_name, strtoul(json_value, NULL, 0));
 				if (result == 0)

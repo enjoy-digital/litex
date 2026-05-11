@@ -189,7 +189,7 @@ int _sdram_write_leveling_dat_delays[16];
 void sdram_write_leveling_rst_dat_delay(int module, int show) {
 	_sdram_write_leveling_dat_delays[module] = -1;
 	if (show)
-		printf("Reseting Dat delay of module %d\n", module);
+		printf("Resetting Dat delay of module %d\n", module);
 }
 
 void sdram_write_leveling_force_dat_delay(int module, int taps, int show) {
@@ -203,7 +203,7 @@ int _sdram_write_leveling_bitslips[16];
 void sdram_write_leveling_rst_bitslip(int module, int show) {
 	_sdram_write_leveling_bitslips[module] = -1;
 	if (show)
-		printf("Reseting Bitslip of module %d\n", module);
+		printf("Resetting Bitslip of module %d\n", module);
 }
 
 void sdram_write_leveling_force_bitslip(int module, int bitslip, int show) {

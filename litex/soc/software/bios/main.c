@@ -33,6 +33,7 @@
 
 #include <libbase/console.h>
 #include <libbase/crc.h>
+#include <libbase/format.h>
 #include <libbase/memtest.h>
 
 #include <libbase/spiflash.h>
@@ -124,7 +125,7 @@ __attribute__((__used__)) int main(int i, char **c)
 	printf("\n");
 	printf(" LiteX git sha1: "LITEX_GIT_SHA1"\n");
 	printf("\n");
-	printf("--=============== \e[1mSoC\e[0m ==================--\n");
+	bios_print_section("SoC");
 	printf("\e[1mCPU\e[0m:\t\t%s @ %dMHz\n",
 		CONFIG_CPU_HUMAN_NAME,
 #ifdef CONFIG_CPU_CLK_FREQ
@@ -132,10 +133,10 @@ __attribute__((__used__)) int main(int i, char **c)
 #else
 		CONFIG_CLOCK_FREQUENCY/1000000);
 #endif
-	printf("\e[1mBUS\e[0m:\t\t%s %d-bit @ %dGiB\n",
+	printf("\e[1mBUS\e[0m:\t\t%s %d-bit data/%d-bit addr\n",
 		CONFIG_BUS_STANDARD,
 		CONFIG_BUS_DATA_WIDTH,
-		(1 << (CONFIG_BUS_ADDRESS_WIDTH - 30)));
+		CONFIG_BUS_ADDRESS_WIDTH);
 	printf("\e[1mCSR\e[0m:\t\t%d-bit data ",
 		CONFIG_CSR_DATA_WIDTH);
 #ifdef CONFIG_CSR_ORDERING_BIG
@@ -144,26 +145,26 @@ __attribute__((__used__)) int main(int i, char **c)
 	printf("little ordering\n");
 #endif
 	printf("\e[1mROM\e[0m:\t\t");
-	print_size(ROM_SIZE);
+	litex_print_size(ROM_SIZE);
 	printf("\n");
 	printf("\e[1mSRAM\e[0m:\t\t");
-	print_size(SRAM_SIZE);
+	litex_print_size(SRAM_SIZE);
 	printf("\n");
 #ifdef CONFIG_L2_SIZE
 	printf("\e[1mL2\e[0m:\t\t");
-	print_size(CONFIG_L2_SIZE);
+	litex_print_size(CONFIG_L2_SIZE);
 	printf("\n");
 #endif
 #ifdef SPIFLASH_MODULE_TOTAL_SIZE
 	printf("\e[1mFLASH\e[0m:\t\t");
-	print_size(SPIFLASH_MODULE_TOTAL_SIZE);
+	litex_print_size(SPIFLASH_MODULE_TOTAL_SIZE);
 	printf("\n");
 #endif
 #ifdef MAIN_RAM_SIZE
 #ifdef CSR_SDRAM_BASE
 	uint64_t supported_memory = sdram_get_supported_memory();
 	printf("\e[1mSDRAM\e[0m:\t\t");
-	print_size(supported_memory);
+	litex_print_size(supported_memory);
 	printf(" %d-bit @ %dMT/s ",
 		sdram_get_databits(),
 		sdram_get_freq()/1000000);
@@ -173,21 +174,21 @@ __attribute__((__used__)) int main(int i, char **c)
 		printf(" CWL-%d", sdram_get_cwl());
 	printf(")\n");
 #endif
-	printf("\e[1mMAIN-RAM\e[0m:\t");
-	print_size(MAIN_RAM_SIZE);
+	printf("\e[1mMAIN RAM\e[0m:\t");
+	litex_print_size(MAIN_RAM_SIZE);
 	printf("\n");
 #endif
 	printf("\n");
 #endif
 
-    sdr_ok = 1;
+	sdr_ok = 1;
 
 #ifdef CSR_HYPERRAM_BASE
-    hyperram_init();
+	hyperram_init();
 #endif
 
 #if defined(CSR_ETHMAC_BASE) || defined(MAIN_RAM_BASE) || defined(CSR_SPIFLASH_BASE)
-    printf("--========== \e[1mInitialization\e[0m ============--\n");
+	bios_print_section("Initialization");
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
 	net_init();
@@ -237,7 +238,7 @@ __attribute__((__used__)) int main(int i, char **c)
 	/* Execute Boot sequence */
 #ifndef CONFIG_BIOS_NO_BOOT
 	if(sdr_ok) {
-		printf("--============== \e[1mBoot\e[0m ==================--\n");
+		bios_print_section("Boot");
 		boot_sequence();
 		printf("\n");
 	}
@@ -245,23 +246,23 @@ __attribute__((__used__)) int main(int i, char **c)
 
 	/* Console */
 #ifdef BIOS_CONSOLE_DISABLE
-	printf("--======= \e[1mDone (No Console) \e[0m ==========--\n");
+	bios_print_section("Done (No Console)");
 #else
-	printf("--============= \e[1mConsole\e[0m ================--\n");
+	bios_print_section("Console");
 #if !defined(BIOS_CONSOLE_LITE) && !defined(BIOS_CONSOLE_NO_HISTORY)
 	hist_init();
 #endif
 	printf("\n%s", PROMPT);
 	while(1) {
 		readline(buffer, CMD_LINE_BUFFER_SIZE);
+		printf("\n");
 		if (buffer[0] != 0) {
-			printf("\n");
 			nb_params = get_param(buffer, &command, params);
 			cmd = command_dispatcher(command, nb_params, params);
 			if (!cmd)
-				printf("Command not found");
+				printf("Command not found\n");
 		}
-		printf("\n%s", PROMPT);
+		printf("%s", PROMPT);
 	}
 #endif
 	return 0;

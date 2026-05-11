@@ -409,7 +409,7 @@ static uint64_t ping_ts_send = 0;
 int send_ping(uint32_t ip, unsigned short payload_length)
 {
 	if(!udp_arp_resolve(ip)) {
-		printf("ARP failed");
+		printf("ARP failed\n");
 		return -1;
 	}
 

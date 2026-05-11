@@ -42,7 +42,7 @@ static void spi_set_clk_freq(uint32_t clk_freq) {
     if (clk_freq > 1000000)
         printf("%d MHz\n", (CONFIG_CLOCK_FREQUENCY/divider)/1000000);
     else
-        printf("%d KHz\n", (CONFIG_CLOCK_FREQUENCY/divider)/1000);
+        printf("%d kHz\n", (CONFIG_CLOCK_FREQUENCY/divider)/1000);
 #endif
     spisdcard_clk_divider_write(divider);
 }

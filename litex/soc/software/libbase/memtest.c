@@ -7,6 +7,8 @@
 #include <generated/soc.h>
 #include <generated/csr.h>
 
+#include <libbase/format.h>
+
 //#define MEMTEST_BUS_DEBUG
 //#define MEMTEST_DATA_DEBUG
 //#define MEMTEST_ADDR_DEBUG
@@ -19,10 +21,6 @@
 #ifndef MEMTEST_DATA_RETRIES
 #define MEMTEST_DATA_RETRIES 0
 #endif
-
-#define KIB 1024
-#define MIB (KIB*1024)
-#define GIB (MIB*1024)
 
 #define ONEZERO 0xaaaaaaaa
 #define ZEROONE 0x55555555
@@ -165,26 +163,15 @@ int memtest_addr(unsigned int *addr, unsigned long size, int random)
 	return errors;
 }
 
-static void print_size(unsigned long size) {
-	if (size < KIB)
-		printf("%luB", size);
-	else if (size < MIB)
-		printf("%lu.%luKiB", size/KIB, (size/1   - KIB*(size/KIB))/(KIB/10));
-	else if (size < GIB)
-		printf("%lu.%luMiB", size/MIB, (size/KIB - KIB*(size/MIB))/(KIB/10));
-	else
-		printf("%lu.%luGiB", size/GIB, (size/MIB - KIB*(size/GIB))/(KIB/10));
-}
-
 static void print_speed(unsigned long speed) {
-	print_size(speed);
+	litex_print_size(speed);
 	printf("/s");
 }
 
 static void print_progress(const char * header, unsigned int offset, unsigned int addr)
 {
 	printf("%s 0x%x-0x%x ", header, offset, offset + addr);
-	print_size(addr);
+	litex_print_size(addr);
 	printf("   \r");
 }
 
@@ -275,7 +262,7 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool rando
 		printf("Random, ");
 	else
 		printf("Sequential, ");
-	print_size(size);
+	litex_print_size(size);
 	printf(")...\n");
 
 	/* Init timer */
@@ -366,7 +353,7 @@ int memtest(unsigned int *addr, unsigned long maxsize)
 	unsigned long data_size = maxsize;
 
 	printf("Memtest at %p (", addr);
-	print_size(data_size);
+	litex_print_size(data_size);
 	printf(")...\n");
 
 #ifdef CSR_CTRL_BASE

@@ -59,7 +59,7 @@ static void ident_handler(int nb_params, char **params)
 	buffer[0] = 0;
 #endif
 
-	printf("Ident: %s", *buffer ? buffer : "-");
+	printf("Ident: %s\n", *buffer ? buffer : "-");
 }
 
 define_command(ident, ident_handler, "Identifier of the system", SYSTEM_CMDS);
@@ -77,7 +77,7 @@ static void uptime_handler(int nb_params, char **params)
 
 	timer0_uptime_latch_write(1);
 	uptime = timer0_uptime_cycles_read();
-	printf("Uptime: %lld sys_clk cycles - %lld seconds",
+	printf("Uptime: %lld sys_clk cycles - %lld seconds\n",
 		uptime,
 		uptime / CONFIG_CLOCK_FREQUENCY
 	);
@@ -99,25 +99,25 @@ static void crc_handler(int nb_params, char **params)
 	size_t length;
 
 	if (nb_params < 2) {
-		printf("crc <address> <length>");
+		printf("crc <address> <length>\n");
 		return;
 	}
 
 	addr = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect address");
+		printf("Error: invalid address\n");
 		return;
 	}
 
 	length = strtoul(params[1], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect length");
+		printf("Error: invalid length\n");
 		return;
 	}
 
 	flush_cpu_dcache_range((void *)addr, length);
 	flush_l2_cache();
-	printf("CRC32: %08x", crc32((unsigned char *)addr, length));
+	printf("CRC32: %08x\n", crc32((unsigned char *)addr, length));
 }
 
 define_command(crc, crc_handler, "Compute CRC32 of a part of the address space", SYSTEM_CMDS);
@@ -144,7 +144,7 @@ define_command(flush_l2_cache, flush_l2_cache, "Flush L2 cache", SYSTEM_CMDS);
 /**
  * Command "buttons"
  *
- * Set Buttons value
+ * Get buttons value
  *
  */
 #ifdef CSR_BUTTONS_BASE
@@ -152,15 +152,15 @@ static void buttons_handler(int nb_params, char **params)
 {
 	unsigned int value;
 	value = buttons_in_read();
-	printf("Buttons value: 0x%x", value);
+	printf("Buttons value: 0x%x\n", value);
 }
-define_command(buttons, buttons_handler, "Get Buttons value", SYSTEM_CMDS);
+define_command(buttons, buttons_handler, "Get buttons value", SYSTEM_CMDS);
 #endif
 
 /**
  * Command "leds"
  *
- * Set Leds value
+ * Set LEDs value
  *
  */
 #ifdef CSR_LEDS_BASE
@@ -170,21 +170,21 @@ static void leds_handler(int nb_params, char **params)
 	unsigned int value;
 
 	if (nb_params < 1) {
-		printf("leds <value>");
+		printf("leds <value>\n");
 		return;
 	}
 
 	value = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect value");
+		printf("Error: invalid value\n");
 		return;
 	}
 
-	printf("Settings Leds to 0x%x", value);
+	printf("Setting LEDs to 0x%x\n", value);
 	leds_out_write(value);
 }
 
-define_command(leds, leds_handler, "Set Leds value", SYSTEM_CMDS);
+define_command(leds, leds_handler, "Set LEDs value", SYSTEM_CMDS);
 #endif
 
 /**

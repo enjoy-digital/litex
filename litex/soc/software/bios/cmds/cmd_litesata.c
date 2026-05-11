@@ -19,11 +19,7 @@
 #ifdef CSR_SATA_PHY_BASE
 static void sata_init_handler(int nb_params, char **params)
 {
-	printf("Initialize SATA... ");
-	if (sata_init(1))
-		printf("Successful.\n");
-	else
-		printf("Failed.\n");
+	bios_print_status("Initialize SATA", sata_init(1));
 }
 
 define_command(sata_init, sata_init_handler, "Initialize SATA", LITESATA_CMDS);
@@ -43,13 +39,13 @@ static void sata_read_handler(int nb_params, char **params)
 	uint8_t buf[512];
 
 	if (nb_params < 1) {
-		printf("sata_read <sector>");
+		printf("sata_read <sector>\n");
 		return;
 	}
 
 	sector = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect sector number");
+		printf("Error: invalid sector number\n");
 		return;
 	}
 
@@ -66,19 +62,19 @@ static void sata_sec2mem_handler(int nb_params, char **params)
 	uint8_t *dst;
 
 	if (nb_params < 2) {
-		printf("sata_sec2mem <sector> <dst_addr> [count]");
+		printf("sata_sec2mem <sector> <dst_addr> [count]\n");
 		return;
 	}
 
 	sec = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect sector number");
+		printf("Error: invalid sector number\n");
 		return;
 	}
 
 	dst = (uint8_t *)strtoul(params[1], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect destination address");
+		printf("Error: invalid destination address\n");
 		return;
 	}
 
@@ -87,7 +83,7 @@ static void sata_sec2mem_handler(int nb_params, char **params)
 	} else {
 		cnt = strtoul(params[2], &c, 0);
 		if (*c != 0) {
-			printf("Incorrect count");
+			printf("Error: invalid count\n");
 			return;
 		}
 	}
@@ -113,13 +109,13 @@ static void sata_write_handler(int nb_params, char **params)
 	char *c;
 
 	if (nb_params < 2) {
-		printf("sata_write <sector> <str>");
+		printf("sata_write <sector> <str>\n");
 		return;
 	}
 
 	sector = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect sector number");
+		printf("Error: invalid sector number\n");
 		return;
 	}
 
@@ -145,19 +141,19 @@ static void sata_mem2sec_handler(int nb_params, char **params)
 	uint8_t *src;
 
 	if (nb_params < 2) {
-		printf("sata_mem2sec <src_addr> <sector> [count]");
+		printf("sata_mem2sec <src_addr> <sector> [count]\n");
 		return;
 	}
 
 	src = (uint8_t *)strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect source address");
+		printf("Error: invalid source address\n");
 		return;
 	}
 
 	sec = strtoul(params[1], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect sector number");
+		printf("Error: invalid sector number\n");
 		return;
 	}
 
@@ -166,7 +162,7 @@ static void sata_mem2sec_handler(int nb_params, char **params)
 	} else {
 		cnt = strtoul(params[2], &c, 0);
 		if (*c != 0) {
-			printf("Incorrect count");
+			printf("Error: invalid count\n");
 			return;
 		}
 	}
@@ -287,32 +283,32 @@ static void sata_rwtest_handler(int nb_params, char **params)
 	char *c;
 
 	if (nb_params < 4) {
-		printf("sata_rwtest <sector> <address> <count> <str>");
+		printf("sata_rwtest <sector> <address> <count> <str>\n");
 		return;
 	}
 
 	sec = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("incorrect sector");
+		printf("Error: invalid sector\n");
 		return;
 	}
 
 	mem = (char *)strtoul(params[1], &c, 0);
 	if (*c != 0) {
-		printf("incorrect address");
+		printf("Error: invalid address\n");
 		return;
 	}
 
 	cnt = strtoul(params[2], &c, 0);
 	if (*c != 0) {
-		printf("incorrect count");
+		printf("Error: invalid count\n");
 		return;
 	}
 
 	if (sata_do_rwtest(sec, cnt, mem, params[3]))
-		printf("Failure.");
+		printf("Failure.\n");
 	else
-		printf("Success.");
+		printf("Success.\n");
 }
 define_command(sata_rwtest, sata_rwtest_handler, "SATA read/write test", LITESATA_CMDS);
 #endif

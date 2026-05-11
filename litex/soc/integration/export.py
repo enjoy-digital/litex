@@ -170,6 +170,18 @@ def get_mem_header(regions):
     r += "\"\n"
     r += "#endif\n"
 
+    r += "\n#ifndef MEM_REGIONS_DETAILS\n"
+    r += "#define MEM_REGIONS_DETAILS \""
+    if len(regions):
+        name_length = max(len("Region"), max([len(name) for name in regions.keys()]))
+        r += f"{'Region':<{name_length}} Origin     End        Size \\n"
+        for name, region in regions.items():
+            end = region.origin + region.size - 1
+            r += f"{name.upper():<{name_length}} 0x{region.origin:08x} 0x{end:08x} 0x{region.size:x} \\n"
+        r = r[:-2]
+    r += "\"\n"
+    r += "#endif\n"
+
     r += "#endif\n"
     return r
 
