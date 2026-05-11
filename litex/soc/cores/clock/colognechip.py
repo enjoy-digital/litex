@@ -6,7 +6,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen import *
 
@@ -98,9 +97,7 @@ class GateMatePLL(LiteXModule):
 
         clkout = Signal()
         self._clkouts[phase] = (clkout, freq)
-        if with_reset:
-            self.specials += AsyncResetSynchronizer(cd, ~self.locked)
-        self.comb += cd.clk.eq(clkout)
+        connect_clkout(self, cd, clkout, reset=~self.locked, with_reset=with_reset)
         create_clkout_log(self.logger, cd.name, freq, 0, phase)
 
     def do_finalize(self):

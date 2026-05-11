@@ -5,7 +5,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen import *
 
@@ -109,10 +108,8 @@ class GW1NPLL(LiteXModule):
         check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
         self.clkouts[self.nclkouts] = ClkOut(clkout, freq, phase, margin)
-        if with_reset:
-            # FIXME: Should use PLL's lock but does not seem stable.
-            self.specials += AsyncResetSynchronizer(cd, self.reset)
-        self.comb += cd.clk.eq(clkout)
+        # FIXME: Should use PLL's lock but does not seem stable.
+        connect_clkout(self, cd, clkout, reset=self.reset, with_reset=with_reset)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
 

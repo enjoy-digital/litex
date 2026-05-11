@@ -9,6 +9,7 @@ import math
 from collections import namedtuple
 
 from migen import ClockSignal, Record, Signal
+from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.build.io import DifferentialInput
 from litex.gen import colorer
@@ -85,6 +86,11 @@ def connect_clkin(module, clkin, differential=False):
     else:
         raise ValueError("Unsupported input clock.")
     return clkin_signal
+
+def connect_clkout(module, cd, clkout, reset=None, with_reset=True):
+    if with_reset and reset is not None:
+        module.specials += AsyncResetSynchronizer(cd, reset)
+    module.comb += cd.clk.eq(clkout)
 
 def clkout_freq_error(clk_freq, freq):
     return abs(clk_freq - freq)/freq
