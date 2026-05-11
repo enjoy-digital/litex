@@ -93,8 +93,7 @@ class GateMatePLL(LiteXModule):
         with_reset: bool
             drive cd reset
         """
-        if phase not in [0, 90, 180, 270]:
-            raise ValueError("Output clock phase must be 0, 90, 180 or 270 degrees.")
+        check_phase_allowed(phase, [0, 90, 180, 270])
         if phase in self._clkouts:
             raise ValueError("Output clock phase {} is already used.".format(phase))
         check_freq_range(freq, (0, self._max_freq), "Output clock frequency")

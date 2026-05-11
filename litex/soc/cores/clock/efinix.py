@@ -388,6 +388,5 @@ class TRIONPLL(EFINIXPLL):
             180: [2],
             270: [2]
         }
-        if phase not in c_ranges:
-            raise ValueError("Unsupported PLL clock phase: {} degrees.".format(phase))
+        check_phase_allowed(phase, c_ranges.keys(), "PLL clock phase")
         return c_ranges[phase]

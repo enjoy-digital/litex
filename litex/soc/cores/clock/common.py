@@ -75,6 +75,11 @@ def check_margin(margin, name="clock margin"):
     if margin < 0:
         raise ValueError("{} must be non-negative.".format(name))
 
+def check_phase_allowed(phase, allowed_phases, name="Output clock phase"):
+    if phase not in allowed_phases:
+        allowed = ", ".join(str(phase) for phase in allowed_phases)
+        raise ValueError("{} must be one of {} degrees.".format(name, allowed))
+
 def check_clkin_registered(clkin_registered):
     if not clkin_registered:
         raise ValueError("Input clock has not been registered.")
