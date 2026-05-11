@@ -388,24 +388,36 @@ def litex_setup_update_repos(config="standard", tag=None):
 
 # Git repositories install -------------------------------------------------------------------------
 
-def pip_install_cmd(packages, user_mode=False, editable=False):
+def pip_install_cmd(packages, user_mode=False, editable=False, no_build_isolation=False):
     pip_cmd = [sys.executable, "-m", "pip", "install"]
-    if editable:
+    if no_build_isolation:
         pip_cmd.append("--no-build-isolation")
+    if editable:
         pip_cmd.append("--editable")
     pip_cmd += packages
     if user_mode:
         pip_cmd.append("--user")
     return pip_cmd
 
-def _pip_install(packages, user_mode=False, editable=False):
-    pip_cmd = pip_install_cmd(packages, user_mode=user_mode, editable=editable)
+def _pip_install(packages, user_mode=False, editable=False, no_build_isolation=False):
+    pip_cmd = pip_install_cmd(
+        packages,
+        user_mode          = user_mode,
+        editable           = editable,
+        no_build_isolation = no_build_isolation,
+    )
     subprocess.check_call(pip_cmd)
 
-def pip_install_error(description, packages, user_mode=False, editable=False):
+def pip_install_error(description, packages, user_mode=False, editable=False, no_build_isolation=False):
     print_error(f"{description} could not be installed.")
     print_status("Try:")
-    print_status(f"  {' '.join(pip_install_cmd(packages, user_mode=user_mode, editable=editable))}")
+    pip_cmd = pip_install_cmd(
+        packages,
+        user_mode          = user_mode,
+        editable           = editable,
+        no_build_isolation = no_build_isolation,
+    )
+    print_status(f"  {' '.join(pip_cmd)}")
 
 def litex_setup_install_repos(config="standard", user_mode=False):
     print_status("Installing Git repositories...", underline=True)
@@ -421,13 +433,19 @@ def litex_setup_install_repos(config="standard", user_mode=False):
                 raise SetupError
             os.chdir(repo_path)
             try:
-                _pip_install(["."], user_mode=user_mode, editable=repo.editable)
+                _pip_install(
+                    ["."],
+                    user_mode          = user_mode,
+                    editable           = repo.editable,
+                    no_build_isolation = True,
+                )
             except subprocess.CalledProcessError:
                 pip_install_error(
                     f"{name} Git repository",
                     ["."],
-                    user_mode = user_mode,
-                    editable  = repo.editable,
+                    user_mode          = user_mode,
+                    editable           = repo.editable,
+                    no_build_isolation = True,
                 )
                 raise SetupError
 
