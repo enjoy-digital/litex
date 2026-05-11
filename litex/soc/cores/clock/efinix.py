@@ -292,7 +292,8 @@ class EFINIXPLL(LiteXModule):
             if p["O"] == o_div_max:
                 final_list.append(p)
 
-        assert len(final_list) != 0
+        if len(final_list) == 0:
+            raise ValueError("No PLL config found")
 
         # Select first parameters set.
         # ----------------------------

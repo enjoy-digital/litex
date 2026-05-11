@@ -281,6 +281,33 @@ class TestClock(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "only one non-zero phase"):
             pll.compute_config()
 
+    def test_pll_configs_prefer_closest_frequency(self):
+        test_cases = [
+            (S7PLL,    100e6, 70e6,     0.20, "clkout0_freq"),
+            (USPMMCM,  100e6, 70e6,     0.25, "clkout0_freq"),
+            (ECP5PLL,  100e6, 10e6,     0.20, "clko0_freq"),
+            (NXPLL,    100e6, 10e6,     0.20, "clko0_freq"),
+            (iCE40PLL,  12e6, 16.125e6, 0.20, "clkout_freq"),
+        ]
+        for pll_cls, clkin_freq, clkout_freq, margin, freq_key in test_cases:
+            with self.subTest(pll=pll_cls.__name__):
+                pll = pll_cls()
+                pll.register_clkin(Signal(), clkin_freq)
+                pll.create_clkout(ClockDomain("clkout"), clkout_freq, margin=margin)
+                config = pll.compute_config()
+
+                self.assert_frequency_close(config[freq_key], clkout_freq, margin=1e-9)
+
+    def test_intel_pll_config_score_balances_outputs(self):
+        pll = CycloneVPLL()
+        pll.register_clkin(Signal(), 50e6)
+        pll.create_clkout(ClockDomain("clkout0"), 20e6, margin=.05)
+        pll.create_clkout(ClockDomain("clkout1"), 31e6, margin=.05)
+        config = pll.compute_config()
+
+        self.assert_frequency_close(config["clk0_freq"], 20e6, margin=1e-9)
+        self.assert_frequency_close(config["clk1_freq"], 31e6, margin=1e-9)
+
     def test_pll_configs_match_requested_frequencies(self):
         test_cases = [
             (S7PLL,        100e6, 200e6, "clkout0_freq", 0),

@@ -171,8 +171,8 @@ class AgilexPLL(IntelClocking):
         if not valid_configs:
             raise ValueError("No valid PLL configuration found")
 
-        # Sort by VCO frequency (highest first), then by total error (lowest first).
-        valid_configs.sort(key=lambda x: (-x['vco_freq'], x['total_error']))
+        # Sort by output error, then by VCO frequency (highest first).
+        valid_configs.sort(key=lambda x: (x['max_error'], x['total_error'], -x['vco_freq']))
 
         best_config = valid_configs[0]
 

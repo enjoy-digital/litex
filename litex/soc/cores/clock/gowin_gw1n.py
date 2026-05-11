@@ -124,7 +124,7 @@ class GW1NPLL(LiteXModule):
         check_clkin_registered(hasattr(self, "clkin"))
         check_clkouts(self.nclkouts)
         # extract the highest frequency and associated margin
-        freq_max, m = max([(f, n) for (_, f, _, n) in self.clkouts.values()], key=lambda p: p[1])
+        freq_max, m = max([(f, n) for (_, f, _, n) in self.clkouts.values()], key=lambda p: p[0])
 
         configs = [] # corresponding VCO/FBDIV/IDIV/ODIV params + diff
 
@@ -152,18 +152,10 @@ class GW1NPLL(LiteXModule):
         if len(configs) == 0:
             raise ValueError("No PLL config found")
 
-        # select better combo (where diff f_real-f_req is the smallest)
-        config = configs[min([(i, v["diff"]) for i, v in enumerate(configs)], key=lambda p: p[1])[0]]
-
-        # out_freq using the selected configuration
-        out_freq = self.clkin_freq*config["fdiv"] / config["idiv"]
-
         # Phase
         phases = list({p for (_, _, p, _) in self.clkouts.values() if p != 0})
         if len(phases) >= 2:
             raise ValueError("Gowin PLL supports only one non-zero phase.")
-        # configure phase param
-        config["PSDA_SEL"] = f"{int(phases[0] // 22.5):04b}" if len(phases) == 1 else "0000"
 
         # frequencies
         # CLKOUT & CLKOUTP : VCODIV / 1
@@ -181,33 +173,54 @@ class GW1NPLL(LiteXModule):
             raise ValueError("Gowin PLL has two divisor: one /3 and an even divisor between 2 and 128")
 
         # configure sdiv for CLKOUTD (if it's required)
-        config["SDIV_SEL"] = int(clkoutd_div[0]) if len(clkoutd_div) == 1 else 2
+        sdiv = int(clkoutd_div[0]) if len(clkoutd_div) == 1 else 2
 
-        for c, (clock, freq, phase, margin) in self.clkouts.items():
-            th_div = int(freq_max // freq) # divisor to apply
-            r_freq = out_freq / th_div     # real frequency
-            diff_f = abs(r_freq - freq)    # diff between obtained and requested
-            # check if value fit criterion
-            if diff_f > r_freq*margin:
-                raise ValueError(f"Can't obtain requested frequency {diff_f} > {r_freq * margin}")
-            if th_div == 1: # no divisor: may be CLKOUT or CLKOUTP
-                if phase == 0:
-                    out = "" # CLKOUT
+        best_config = None
+        best_score  = None
+        for config in configs:
+            config   = dict(config)
+            errors   = []
+            out_freq = self.clkin_freq*config["fdiv"] / config["idiv"]
+
+            config["PSDA_SEL"] = f"{int(phases[0] // 22.5):04b}" if len(phases) == 1 else "0000"
+            config["SDIV_SEL"] = sdiv
+
+            all_valid = True
+            for c, (clock, freq, phase, margin) in self.clkouts.items():
+                th_div = int(freq_max // freq) # divisor to apply
+                r_freq = out_freq / th_div     # real frequency
+                error  = clkout_freq_error(r_freq, freq)
+                # check if value fit criterion
+                if error > margin:
+                    all_valid = False
+                    break
+                errors.append(error)
+                if th_div == 1: # no divisor: may be CLKOUT or CLKOUTP
+                    if phase == 0:
+                        out = "" # CLKOUT
+                    else:
+                        if "CLKOUTP" in config.keys():
+                            raise ValueError("Only one clock with freq == freq max and a phase != 0")
+                        out = "P"
+                elif th_div == 3:
+                    out = "D3"
                 else:
-                    if "CLKOUTP" in config.keys():
-                        raise ValueError("Only one clock with freq == freq max and a phase != 0")
-                    out = "P"
-            elif th_div == 3:
-                out = "D3"
-            else:
-                out = "D"
+                    out = "D"
 
-            config.update({
-                f"CLKOUT{out}"     : clock,
-                f"CLKOUT{out}_SRC" : "CLKOUT" if phase == 0 else "CLKOUTP",
-            })
+                config.update({
+                    f"CLKOUT{out}"     : clock,
+                    f"CLKOUT{out}_SRC" : "CLKOUT" if phase == 0 else "CLKOUTP",
+                })
 
-        return config
+            if all_valid:
+                score = clkout_config_score(errors, config["vco"])
+                if best_score is None or score < best_score:
+                    best_score  = score
+                    best_config = config
+
+        if best_config is not None:
+            return best_config
+        raise ValueError("No PLL config found")
 
     def do_finalize(self):
         check_clkin_registered(hasattr(self, "clkin"))

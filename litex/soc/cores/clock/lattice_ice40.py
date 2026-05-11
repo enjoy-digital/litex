@@ -65,32 +65,43 @@ class iCE40PLL(LiteXModule):
     def compute_config(self):
         check_clkin_registered(hasattr(self, "clkin"))
         check_clkouts(self.nclkouts)
-        config = {}
+        best_config = None
+        best_score  = None
         for divr in range(*self.divr_range):
             for divf in range(*self.divf_range):
                 all_valid = True
+                errors    = []
+                config    = {}
                 vco_freq = self.clkin_freq/(divr + 1)*(divf +  1)
                 (vco_freq_min, vco_freq_max) = self.vco_freq_range
                 if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
                     for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-                        valid = False
+                        best_clkout = None
                         for divq in range(*self.divq_range):
                             clk_freq = vco_freq/(2**divq)
-                            if abs(clk_freq - f) <= f*m:
-                                config["clkout_freq"] = clk_freq
-                                config["divq"]        = divq
-                                valid = True
-                                break
-                        if not valid:
+                            error    = clkout_freq_error(clk_freq, f)
+                            if error <= m and (best_clkout is None or error < best_clkout[0]):
+                                best_clkout = (error, clk_freq, divq)
+                        if best_clkout is None:
                             all_valid = False
+                            break
+                        error, clk_freq, divq = best_clkout
+                        errors.append(error)
+                        config["clkout_freq"] = clk_freq
+                        config["divq"]        = divq
                 else:
                     all_valid = False
                 if all_valid:
                     config["vco"] = vco_freq
                     config["divr"] = divr
                     config["divf"] = divf
-                    compute_config_log(self.logger, config)
-                    return config
+                    score = clkout_config_score(errors, vco_freq)
+                    if best_score is None or score < best_score:
+                        best_score  = score
+                        best_config = config
+        if best_config is not None:
+            compute_config_log(self.logger, best_config)
+            return best_config
         raise ValueError("No PLL config found")
 
     def do_finalize(self):

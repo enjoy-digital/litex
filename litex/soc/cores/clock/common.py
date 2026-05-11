@@ -70,6 +70,12 @@ def check_clkouts(nclkouts):
     if nclkouts == 0:
         raise ValueError("At least one output clock must be registered.")
 
+def clkout_freq_error(clk_freq, freq):
+    return abs(clk_freq - freq)/freq
+
+def clkout_config_score(errors, vco_freq=0):
+    return (max(errors), sum(errors), -vco_freq)
+
 def clkdiv_range(start, stop, step=1):
     start   = float(start)
     stop    = float(stop)
@@ -78,3 +84,25 @@ def clkdiv_range(start, stop, step=1):
     while current < stop:
         yield int(current) if math.floor(current) == current else current
         current += step
+
+def clkdiv_nearest(start, stop, step=1, ideal=None):
+    if ideal is None:
+        yield from clkdiv_range(start, stop, step)
+        return
+
+    start = float(start)
+    stop  = float(stop)
+    step  = float(step)
+    last  = int(math.floor((stop - start)/step - 1e-12))
+    if last < 0:
+        return
+
+    center = int(round((ideal - start)/step))
+    seen   = set()
+    for index in range(center - 2, center + 3):
+        index = min(max(index, 0), last)
+        if index in seen:
+            continue
+        seen.add(index)
+        current = start + index*step
+        yield int(current) if math.floor(current) == current else current

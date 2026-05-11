@@ -122,15 +122,13 @@ class GW5APLL(LiteXModule):
             raise ValueError("No PLL config found")
 
         best_config = None
-        best_diff_sum = 0
-        for i in range(0,len(configs)):
-            curr_diff_sum = 0
-            for n, clkout in self.clkouts.items():
-                curr_diff_sum += configs[i]["diff%d" % n]
-
-            if i == 0 or curr_diff_sum < best_diff_sum:
-                best_diff_sum = curr_diff_sum
-                best_config = configs[i]
+        best_score  = None
+        for config in configs:
+            errors = [config["diff%d" % n] for n in self.clkouts.keys()]
+            score  = clkout_config_score(errors, config["vco"])
+            if best_score is None or score < best_score:
+                best_score  = score
+                best_config = config
 
         return best_config
 

@@ -64,58 +64,104 @@ class ECP5PLL(LiteXModule):
     def compute_config(self):
         check_clkin_registered(hasattr(self, "clkin"))
         check_clkouts(self.nclkouts)
-        config = {}
+        best_config            = None
+        best_score             = None
+        best_feedback_clkout   = None
+        active_clkouts         = {n: clkout for n, clkout in self.clkouts.items() if clkout[1] > 0}
+        feedback_only_clkouts  = [n for n, clkout in self.clkouts.items() if clkout[1] == 0]
         # Iterate on CLKI dividers...
         for clki_div in range(*self.clki_div_range):
             # Check if in PFD range.
             (pfd_freq_min, pfd_freq_max) = self.pfd_freq_range
             if not (pfd_freq_min <= self.clkin_freq/clki_div <= pfd_freq_max):
                 continue
-            config["clki_div"] = clki_div
             # Iterate on CLKO dividers... (to get us in VCO range)
             for clkofb_div in range(*self.clko_div_range):
                 # Iterate on CLKFB dividers...
                 for clkfb_div in range(*self.clkfb_div_range):
+                    errors   = []
+                    config   = {"clki_div": clki_div}
                     vco_freq = (self.clkin_freq/clki_div)*clkfb_div*clkofb_div
                     (vco_freq_min, vco_freq_max) = self.vco_freq_range
                     all_valid = True
                     # If in VCO range, find dividers for all outputs.
                     if vco_freq_min <= vco_freq <= vco_freq_max:
-                        config["clkfb"] = None
-                        for n, (clk, f, p, m, dpa) in sorted(self.clkouts.items()):
-                            valid = False
+                        config["clkfb"]  = None
+                        clkout_configs   = {}
+                        feedback_configs = {}
+                        for n, (clk, f, p, m, dpa) in sorted(active_clkouts.items()):
+                            best_clkout = None
                             for d in range(*self.clko_div_range):
                                 clk_freq = vco_freq/d
+                                error    = clkout_freq_error(clk_freq, f)
                                 # If output is valid, save config.
-                                if abs(clk_freq - f) <= f*m:
-                                    config["clko{}_freq".format(n)]  = clk_freq
-                                    config["clko{}_div".format(n)]   = d
-                                    config["clko{}_phase".format(n)] = p
-                                    valid = True
-                                    # Check if ouptut can be used as feedback, if so use it.
-                                    # (We cannot use clocks with dynamic phase adjustment enabled)
-                                    if (d == clkofb_div) and (not (dpa and self.dpa_en)):
-                                        config["clkfb"] = n
-                                    break
-                            if not valid:
+                                if error <= m and (best_clkout is None or error < best_clkout[0]):
+                                    best_clkout = (error, clk_freq, d, p)
+                                # Check if output can be used as feedback, if so save it.
+                                # (We cannot use clocks with dynamic phase adjustment enabled)
+                                if error <= m and (d == clkofb_div) and (not (dpa and self.dpa_en)):
+                                    if n not in feedback_configs or error < feedback_configs[n][0]:
+                                        feedback_configs[n] = (error, clk_freq, d, p)
+                            if best_clkout is None:
                                 all_valid = False
-                        if self.nclkouts == self.nclkouts_max and not config["clkfb"]:
-                            # If there is no output suitable for feedback and no spare, not valid
-                            all_valid = False
+                                break
+                            clkout_configs[n] = best_clkout
+                        if all_valid:
+                            for n, (error, clk_freq, d, p) in sorted(clkout_configs.items()):
+                                if n in feedback_configs and d == feedback_configs[n][2]:
+                                    config["clkfb"] = n
+
+                            if config["clkfb"] is None and self.nclkouts == self.nclkouts_max and not feedback_only_clkouts:
+                                best_feedback_score  = None
+                                best_feedback_clkout = None
+                                for n, feedback_config in feedback_configs.items():
+                                    candidate_clkouts    = dict(clkout_configs)
+                                    candidate_clkouts[n] = feedback_config
+                                    candidate_errors     = [clkout[0] for clkout in candidate_clkouts.values()]
+                                    candidate_score      = clkout_config_score(candidate_errors, vco_freq)
+                                    if best_feedback_score is None or candidate_score < best_feedback_score:
+                                        best_feedback_score  = candidate_score
+                                        best_feedback_clkout = n
+                                if best_feedback_clkout is None:
+                                    # If there is no output suitable for feedback and no spare, not valid
+                                    all_valid = False
+                                else:
+                                    clkout_configs[best_feedback_clkout] = feedback_configs[best_feedback_clkout]
+                                    config["clkfb"] = best_feedback_clkout
+
+                        if all_valid:
+                            errors = []
+                            for n, (error, clk_freq, d, p) in sorted(clkout_configs.items()):
+                                errors.append(error)
+                                config["clko{}_freq".format(n)]  = clk_freq
+                                config["clko{}_div".format(n)]   = d
+                                config["clko{}_phase".format(n)] = p
                     else:
                         all_valid = False
                     if all_valid:
                         # If no output suitable for feedback, create a new output for it.
                         if config["clkfb"] is None:
                             # We need at least a free output...
-                            assert self.nclkouts < self.nclkouts_max
-                            config["clkfb"] = self.nclkouts
-                            self.clkouts[self.nclkouts] = (Signal(), 0, 0, 0, 0)
-                            config[f"clko{self.nclkouts}_div"] = int((vco_freq*clki_div)/(self.clkin_freq*clkfb_div))
+                            if feedback_only_clkouts:
+                                feedback_clkout = feedback_only_clkouts[0]
+                            else:
+                                feedback_clkout = self.nclkouts
+                            config["clkfb"] = feedback_clkout
+                            config[f"clko{feedback_clkout}_div"] = int((vco_freq*clki_div)/(self.clkin_freq*clkfb_div))
+                        else:
+                            feedback_clkout = None
                         config["vco"]       = vco_freq
                         config["clkfb_div"] = clkfb_div
-                        compute_config_log(self.logger, config)
-                        return config
+                        score = clkout_config_score(errors, vco_freq)
+                        if best_score is None or score < best_score:
+                            best_score           = score
+                            best_config          = dict(config)
+                            best_feedback_clkout = feedback_clkout
+        if best_config is not None:
+            if best_feedback_clkout is not None and best_feedback_clkout not in self.clkouts:
+                self.clkouts[best_feedback_clkout] = (Signal(), 0, 0, 0, 0)
+            compute_config_log(self.logger, best_config)
+            return best_config
         raise ValueError("No PLL config found")
 
     def expose_dpa(self):

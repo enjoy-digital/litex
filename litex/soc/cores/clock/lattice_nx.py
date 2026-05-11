@@ -166,33 +166,43 @@ class NXPLL(LiteXModule):
     def compute_config(self):
         check_clkin_registered(hasattr(self, "clkin"))
         check_clkouts(self.nclkouts)
-        config = {}
+        best_config = None
+        best_score  = None
         for clki_div in range(*self.clki_div_range):
-            config["clki_div"] = clki_div
             for clkfb_div in range(*self.clkfb_div_range):
                 all_valid = True
-                vco_freq = self.clkin_freq/clki_div*clkfb_div
+                errors    = []
+                config    = {"clki_div": clki_div}
+                vco_freq  = self.clkin_freq/clki_div*clkfb_div
                 (vco_freq_min, vco_freq_max) = self.vco_out_freq_range
                 if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
                     for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-                        valid = False
+                        best_clkout = None
                         for d in range(*self.clko_div_range):
                             clk_freq = vco_freq/d
-                            if abs(clk_freq - f) <= f*m:
-                                config["clko{}_freq".format(n)]  = clk_freq
-                                config["clko{}_div".format(n)]   = d
-                                config["clko{}_phase".format(n)] = p
-                                valid = True
-                                break
-                        if not valid:
+                            error    = clkout_freq_error(clk_freq, f)
+                            if error <= m and (best_clkout is None or error < best_clkout[0]):
+                                best_clkout = (error, clk_freq, d)
+                        if best_clkout is None:
                             all_valid = False
+                            break
+                        error, clk_freq, d = best_clkout
+                        errors.append(error)
+                        config["clko{}_freq".format(n)]  = clk_freq
+                        config["clko{}_div".format(n)]   = d
+                        config["clko{}_phase".format(n)] = p
                 else:
                     all_valid = False
                 if all_valid:
                     config["vco"] = vco_freq
                     config["clkfb_div"] = clkfb_div
-                    compute_config_log(self.logger, config)
-                    return config
+                    score = clkout_config_score(errors, vco_freq)
+                    if best_score is None or score < best_score:
+                        best_score  = score
+                        best_config = config
+        if best_config is not None:
+            compute_config_log(self.logger, best_config)
+            return best_config
         raise ValueError("No PLL config found")
 
     def calculate_analog_parameters(self, clki_freq, fb_div, bw_factor = 5):

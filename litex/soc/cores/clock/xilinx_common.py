@@ -81,40 +81,48 @@ class XilinxClocking(LiteXModule):
     def compute_config(self):
         check_clkin_registered(hasattr(self, "clkin"))
         check_clkouts(self.nclkouts)
-        config = {}
+        best_config = None
+        best_score  = None
         for divclk_divide in range(*self.divclk_divide_range):
-            config["divclk_divide"] = divclk_divide
             for clkfbout_mult in reversed(list(clkdiv_range(*self.clkfbout_mult_frange))): # Reverse to use highest VCO frequency.
                 all_valid = True
-                vco_freq = self.clkin_freq*clkfbout_mult/divclk_divide
+                errors    = []
+                config    = {"divclk_divide": divclk_divide}
+                vco_freq  = self.clkin_freq*clkfbout_mult/divclk_divide
                 (vco_freq_min, vco_freq_max) = self.vco_freq_range
                 if (vco_freq >= vco_freq_min*(1 + self.vco_margin) and
                     vco_freq <= vco_freq_max*(1 - self.vco_margin)):
                     for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-                        valid = False
+                        best_clkout = None
                         d_ranges = [self.clkout_divide_range]
                         if getattr(self, "clkout{}_divide_range".format(n), None) is not None:
                             d_ranges += [getattr(self, "clkout{}_divide_range".format(n))]
                         for d_range in d_ranges:
-                            for d in clkdiv_range(*d_range):
+                            for d in clkdiv_nearest(*d_range, ideal=vco_freq/f):
                                 clk_freq = vco_freq/d
-                                if abs(clk_freq - f) <= f*m:
-                                    config["clkout{}_freq".format(n)]   = clk_freq
-                                    config["clkout{}_divide".format(n)] = d
-                                    config["clkout{}_phase".format(n)]  = p
-                                    valid = True
-                                    break
-                                if valid:
-                                    break
-                        if not valid:
+                                error    = clkout_freq_error(clk_freq, f)
+                                if error <= m and (best_clkout is None or error < best_clkout[0]):
+                                    best_clkout = (error, clk_freq, d)
+                        if best_clkout is None:
                             all_valid = False
+                            break
+                        error, clk_freq, d = best_clkout
+                        errors.append(error)
+                        config["clkout{}_freq".format(n)]   = clk_freq
+                        config["clkout{}_divide".format(n)] = d
+                        config["clkout{}_phase".format(n)]  = p
                 else:
                     all_valid = False
                 if all_valid:
                     config["vco"]           = vco_freq
                     config["clkfbout_mult"] = clkfbout_mult
-                    compute_config_log(self.logger, config)
-                    return config
+                    score = clkout_config_score(errors, vco_freq)
+                    if best_score is None or score < best_score:
+                        best_score  = score
+                        best_config = config
+        if best_config is not None:
+            compute_config_log(self.logger, best_config)
+            return best_config
         raise ValueError("No PLL config found")
 
     def expose_drp(self):

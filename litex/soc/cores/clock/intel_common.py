@@ -6,8 +6,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import math
-from operator import mul
-from functools import reduce
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -21,10 +19,6 @@ from litex.soc.interconnect.csr import *
 from litex.soc.cores.clock.common import *
 
 # Intel / Generic ---------------------------------------------------------------------------------
-
-def geometric_mean(vals):
-    return reduce(mul, vals, 1) ** (1 / len(vals))
-
 
 class IntelClocking(LiteXModule):
     def __init__(self, vco_margin=0):
@@ -64,7 +58,7 @@ class IntelClocking(LiteXModule):
     def compute_config(self):
         check_clkin_registered(hasattr(self, "clkin"))
         check_clkouts(self.nclkouts)
-        valid_configs = {}
+        valid_configs = []
         clkdiv_range_list = list(clkdiv_range(*self.c_div_range)) # for speed
         # Only test values of N (input clock divisor) which result in a PFD
         # input frequency within the allowable range.
@@ -102,9 +96,9 @@ class IntelClocking(LiteXModule):
                 else:
                     all_valid = False
                 if all_valid:
-                    valid_configs[geometric_mean(diff_ratios)] = config
+                    valid_configs.append((clkout_config_score(diff_ratios, vco_freq), config))
         if len(valid_configs):
-            best_config = sorted(valid_configs.items())[0][1]
+            best_config = min(valid_configs, key=lambda v: v[0])[1]
             compute_config_log(self.logger, best_config)
             return best_config
         raise ValueError("No PLL config found")
