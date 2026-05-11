@@ -28,14 +28,17 @@ class GW1NOSC(LiteXModule):
             osc_freq = 210e6
 
         # Oscillator divider.
-        osc_div = None
+        best_config = None
         osc_div_min, osc_div_max = self.osc_div_range
         for div in range(osc_div_min, osc_div_max):
             clk_freq = osc_freq/div
-            if (clk_freq >= freq*(1 - margin) and clk_freq <= freq*(1 + margin)):
-                osc_div = div
-        if osc_div is None:
+            error    = clkout_freq_error(clk_freq, freq)
+            if error <= margin and (best_config is None or error < best_config["error"]):
+                best_config = {"error": error, "freq": clk_freq, "div": div}
+        if best_config is None:
             raise ValueError("No OSC config found")
+        osc_div = best_config["div"]
+        self.config = best_config
         self.logger.info(f"Configured to {(osc_freq/osc_div)/1e6:3.2f}MHz (div={osc_div}).")
 
         # Oscillator instance.

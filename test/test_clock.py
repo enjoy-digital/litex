@@ -331,6 +331,12 @@ class TestClock(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Oscillator frequency"):
             GW1NOSC("GW1N-4", 0)
 
+    def test_gw1n_osc_prefers_closest_frequency(self):
+        osc = GW1NOSC("GW1N-9", 110e6, margin=0.30)
+
+        self.assertEqual(osc.config["div"], 2)
+        self.assert_frequency_close(osc.config["freq"], 125e6, margin=1e-9)
+
     def test_efinix_pll_accepts_dyn_phase_pads(self):
         pads = {
             "shift_ena": Signal(),
