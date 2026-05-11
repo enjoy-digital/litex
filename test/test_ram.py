@@ -6,6 +6,9 @@
 
 import unittest
 
+from migen import Module, run_simulation
+from migen.fhdl.specials import Instance
+
 from litex.build.altera import AlteraPlatform
 from litex.build.efinix import EfinixPlatform
 from litex.soc.cores.ram.common import get_cpu_ram_filename
@@ -15,6 +18,12 @@ from litex.soc.cores.ram.lattice_nx import NXLRAM, initval_parameters
 from litex.soc.cores.ram.xilinx_fifo_sync_macro import FIFOSyncMacro
 
 kB = 1024
+
+
+class _IgnoreInstance:
+    @staticmethod
+    def lower(instance):
+        return Module()
 
 
 def instance_names(module):
@@ -34,6 +43,29 @@ def parameter_items_to_dict(items):
 
 
 class TestLatticeRAM(unittest.TestCase):
+    def assert_wishbone_ack_pulses(self, dut):
+        def generator():
+            yield
+            self.assertEqual((yield dut.bus.ack), 0)
+
+            yield dut.bus.cyc.eq(1)
+            yield dut.bus.stb.eq(1)
+            yield
+            self.assertEqual((yield dut.bus.ack), 0)
+            yield
+            self.assertEqual((yield dut.bus.ack), 1)
+            yield
+            self.assertEqual((yield dut.bus.ack), 0)
+
+            yield dut.bus.cyc.eq(0)
+            yield dut.bus.stb.eq(0)
+            yield
+            self.assertEqual((yield dut.bus.ack), 1)
+            yield
+            self.assertEqual((yield dut.bus.ack), 0)
+
+        run_simulation(dut, generator(), special_overrides={Instance: _IgnoreInstance})
+
     def test_up5k_spram_primitive_count_matches_width_and_size(self):
         test_cases = [
             (16,  32*kB, 1),
@@ -52,6 +84,9 @@ class TestLatticeRAM(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "size"):
             Up5kSPRAM(width=32, size=32*kB)
 
+    def test_up5k_spram_wishbone_ack_pulses(self):
+        self.assert_wishbone_ack_pulses(Up5kSPRAM(width=32, size=64*kB))
+
     def test_nxlram_primitive_count_matches_width_and_size(self):
         test_cases = [
             (32,  64*kB, 1),
@@ -69,6 +104,9 @@ class TestLatticeRAM(unittest.TestCase):
             NXLRAM(width=16)
         with self.assertRaisesRegex(ValueError, "size"):
             NXLRAM(width=64, size=64*kB)
+
+    def test_nxlram_wishbone_ack_pulses(self):
+        self.assert_wishbone_ack_pulses(NXLRAM(width=32, size=64*kB))
 
     def test_nxlram_initval_parameters_pack_32bit_words(self):
         contents = [0]*(524288//32)
