@@ -392,6 +392,7 @@ def pip_install_cmd(packages, user_mode=False, editable=False):
     pip_cmd = [sys.executable, "-m", "pip", "install"]
     if editable:
         pip_cmd.append("--editable")
+        pip_cmd.append("--no-build-isolation")
     pip_cmd += packages
     if user_mode:
         pip_cmd.append("--user")
