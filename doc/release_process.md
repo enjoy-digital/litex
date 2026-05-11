@@ -12,6 +12,10 @@ litescope, litejesd204b, litespi, litei2c, litex-boards
 Release commands live in `litex_release.py`; `litex_setup.py` is kept for
 checkout, update, install and toolchain setup tasks.
 
+PyPI publishing is integrated with the same release helper. The default PyPI
+scope is the default release set above; `pythondata-*` packages keep their own
+generated versions and are only included when `--with-pythondata` is passed.
+
 ## Prepare The Changelog
 
 During the cycle, keep the top `CHANGES.md` section as:
@@ -77,11 +81,18 @@ Useful scoping options:
 ```sh
 ./litex_release.py --release 2026.04 --dry-run --repos litex,liteeth
 ./litex_release.py --check --with-pythondata
+./litex_release.py --release 2026.04 --dry-run --pypi --test-pypi
 ```
 
 Override flags exist for deliberate exceptions after manual review:
 `--allow-dirty`, `--allow-branch-mismatch`, `--allow-unpushed` and
 `--allow-invalid-tag`.
+
+The PyPI preflight verifies package metadata, checks that the package version is
+not already present on PyPI/TestPyPI and, when `--pypi-build` is used, inspects
+the generated artifacts for Python bytecode/cache files. Use
+`--no-pypi-remote-check` only when PyPI is unreachable and the version has been
+checked manually.
 
 ## Finalize CHANGES.md
 
@@ -129,6 +140,41 @@ To split local preparation from pushing:
 To resume only one phase, use `--bump`, `--tag` or `--push` with
 `--release <tag>`.
 
+To include PyPI preflight/builds in the release:
+
+```sh
+./litex_release.py --release 2026.04 --pypi
+```
+
+`--pypi` runs the normal release phases plus `--pypi-check` and
+`--pypi-build`; artifact builds run before the push phase. With PyPI Trusted
+Publishing configured, the tag push starts the repository workflow and
+publishes the release artifacts.
+
+For a local/manual TestPyPI upload:
+
+```sh
+./litex_release.py --release 2026.04 --pypi-build --pypi-upload --test-pypi
+```
+
+For a local/manual production upload after the artifacts have been checked:
+
+```sh
+./litex_release.py --release 2026.04 --pypi-upload
+```
+
+For local/manual uploads, the helper uses `twine`; for regular tagged releases,
+each repository should publish from GitHub Actions using PyPI Trusted
+Publishing.
+
+Useful PyPI-only resumes:
+
+```sh
+./litex_release.py --release 2026.04 --pypi-check
+./litex_release.py --release 2026.04 --pypi-build
+./litex_release.py --release 2026.04 --pypi-upload
+```
+
 ## Post-Release Checks
 
 Run:
@@ -139,6 +185,16 @@ Run:
 
 Verify that `Last Tag` is the new release tag and `Setup Version` is the new
 release tag for versioned repositories.
+
+Check PyPI artifacts from a clean virtual environment:
+
+```sh
+python3 -m venv /tmp/litex-pypi-check
+/tmp/litex-pypi-check/bin/python -m pip install --upgrade pip
+/tmp/litex-pypi-check/bin/python -m pip install litex==2026.04
+/tmp/litex-pypi-check/bin/python -m pip install liteeth==2026.04 litedram==2026.04
+/tmp/litex-pypi-check/bin/litex_term --help
+```
 
 Check tagged checkout/update:
 

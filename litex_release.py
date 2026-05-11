@@ -8,12 +8,25 @@
 
 import os
 import re
+import sys
 import json
+import glob
 import argparse
+import tarfile
+import zipfile
+import shutil
+import tempfile
+import urllib.error
+import urllib.request
 import subprocess
 
 import litex_repos
 import litex_setup as setup
+
+# Constants ----------------------------------------------------------------------------------------
+
+PYPI_PHASES         = ["pypi-check", "pypi-build", "pypi-upload"]
+PYPI_DEFAULT_PHASES = ["pypi-check", "pypi-build"]
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -99,6 +112,67 @@ def git_output(repo_path, *args, check=True):
 def git_call(repo_path, *args):
     cmd = ["git"] + list(args)
     subprocess.check_call(cmd, cwd=repo_path)
+
+def normalize_package_name(name):
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+def repo_build_name(name):
+    return normalize_package_name(name).replace("-", "_")
+
+def get_setup_metadata(repo_path):
+    setup_path = os.path.join(repo_path, "setup.py")
+    if not os.path.exists(setup_path):
+        return {
+            "name"    : None,
+            "version" : None,
+            "error"   : "No setup.py",
+        }
+    cmd = [sys.executable, "setup.py", "--name", "--version"]
+    result = subprocess.run(
+        cmd,
+        cwd    = repo_path,
+        stdout = subprocess.PIPE,
+        stderr = subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        error = result.stderr.decode("UTF-8", errors="ignore").strip()
+        return {
+            "name"    : None,
+            "version" : None,
+            "error"   : error or "setup.py metadata query failed",
+        }
+    lines = [
+        line.strip()
+        for line in result.stdout.decode("UTF-8", errors="ignore").splitlines()
+        if line.strip()
+    ]
+    if len(lines) < 2:
+        return {
+            "name"    : None,
+            "version" : None,
+            "error"   : "setup.py did not report name and version",
+        }
+    return {
+        "name"    : lines[-2],
+        "version" : lines[-1],
+        "error"   : None,
+    }
+
+def python_build_available():
+    result = subprocess.run(
+        [sys.executable, "-m", "build", "--version"],
+        stdout = subprocess.PIPE,
+        stderr = subprocess.PIPE,
+    )
+    return result.returncode == 0
+
+def python_twine_available():
+    result = subprocess.run(
+        [sys.executable, "-m", "twine", "--version"],
+        stdout = subprocess.PIPE,
+        stderr = subprocess.PIPE,
+    )
+    return result.returncode == 0
 
 # Release State ------------------------------------------------------------------------------------
 
@@ -226,8 +300,14 @@ def release_actions(state, tag, phases):
             actions.append("bump")
     if "tag" in phases:
         actions.append("tag")
+    if "pypi-check" in phases:
+        actions.append("pypi-check")
+    if "pypi-build" in phases:
+        actions.append("pypi-build")
     if "push" in phases:
         actions.append("push")
+    if "pypi-upload" in phases:
+        actions.append("pypi-upload")
     return ",".join(actions) if actions else "check"
 
 def print_release_summary(states, tag, phases):
@@ -316,11 +396,243 @@ def release_list_repos(repos=None, with_pythondata=False):
     for name in names:
         print(name)
 
+# PyPI Checks/Builds -------------------------------------------------------------------------------
+
+def pypi_release_url(package, version, test_pypi=False):
+    base = "https://test.pypi.org/pypi" if test_pypi else "https://pypi.org/pypi"
+    return f"{base}/{normalize_package_name(package)}/{version}/json"
+
+def pypi_release_exists(package, version, test_pypi=False):
+    request = urllib.request.Request(
+        pypi_release_url(package, version, test_pypi=test_pypi),
+        headers = {"User-Agent": "litex-release"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return response.status == 200
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return False
+        raise
+
+def pypi_metadata_for_state(state, tag=None, phases=None):
+    metadata = get_setup_metadata(state["repo_path"])
+    if (
+        (tag is not None) and
+        (phases is not None) and
+        ("bump" in phases) and
+        (state["setup_version"] not in ["No setup.py", "No version found", "Not initialized"])
+    ):
+        metadata = dict(metadata)
+        metadata["version"] = tag
+    return metadata
+
+def print_pypi_summary(states, tag=None, phases=None, test_pypi=False):
+    target = "TestPyPI" if test_pypi else "PyPI"
+    setup.print_status(f"{target} package plan...", underline=True)
+    print(setup.colorer(
+        "Repo".ljust(35) +
+        "Package".ljust(35) +
+        "Version"
+    ))
+    print("-" * 90)
+    for state in states:
+        if not state["exists"]:
+            print(f"{state['name']:<35} {'Not initialized':<35} -")
+            continue
+        metadata = pypi_metadata_for_state(state, tag=tag, phases=phases)
+        package  = metadata["name"] or metadata["error"]
+        version  = metadata["version"] or "-"
+        print(f"{state['name']:<35} {package:<35} {version}")
+
+def check_pypi_state(states, tag=None, phases=None, test_pypi=False, allow_existing=False, check_remote=True):
+    errors = []
+    for state in states:
+        name = state["name"]
+        if not state["exists"]:
+            errors.append(f"{name}: repository is not initialized.")
+            continue
+        metadata = pypi_metadata_for_state(state, tag=tag, phases=phases)
+        if metadata["error"] is not None:
+            errors.append(f"{name}: {metadata['error']}.")
+            continue
+        package = metadata["name"]
+        version = metadata["version"]
+        if not package or not version:
+            errors.append(f"{name}: missing package name or version.")
+            continue
+        if not check_remote:
+            continue
+        try:
+            exists = pypi_release_exists(package, version, test_pypi=test_pypi)
+        except Exception as e:
+            errors.append(f"{name}: could not check {package} {version} on PyPI: {e}.")
+            continue
+        if exists and not allow_existing:
+            errors.append(f"{name}: {package} {version} already exists on PyPI.")
+
+    if errors:
+        setup.print_error("PyPI checks failed:")
+        for error in errors:
+            print(f"  - {error}")
+        raise setup.SetupError
+
+def artifact_members(path):
+    if path.endswith(".whl"):
+        with zipfile.ZipFile(path, "r") as z:
+            return z.namelist()
+    if path.endswith((".tar.gz", ".tgz")):
+        with tarfile.open(path, "r:gz") as t:
+            return t.getnames()
+    return []
+
+def artifact_contains_package(members, package_name, sdist=False):
+    module_name = package_name.replace("-", "_")
+    for member in members:
+        parts = member.split("/")
+        if sdist:
+            if len(parts) >= 2 and parts[1] == module_name:
+                return True
+        else:
+            if parts and parts[0] == module_name:
+                return True
+    return False
+
+def check_artifact_contents(path, package_name):
+    members = artifact_members(path)
+    errors  = []
+    is_sdist = path.endswith((".tar.gz", ".tgz"))
+    for member in members:
+        parts = member.split("/")
+        if member.endswith((".pyc", ".pyo")) or "__pycache__" in parts:
+            errors.append(f"{path}: contains bytecode/cache file {member}")
+            break
+        rel_parts = parts[1:] if is_sdist else parts
+        if rel_parts and rel_parts[0] in ["bench", "examples", "test", "tests"]:
+            errors.append(f"{path}: contains top-level {rel_parts[0]} directory")
+            break
+    if not artifact_contains_package(members, package_name, sdist=is_sdist):
+        errors.append(f"{path}: does not contain package module for {package_name}")
+    if package_name.startswith("pythondata-"):
+        module_name = package_name.replace("-", "_")
+        data_files = []
+        for member in members:
+            parts = member.split("/")
+            if is_sdist and len(parts) >= 3 and parts[1] == module_name:
+                rel = "/".join(parts[2:])
+            elif (not is_sdist) and len(parts) >= 2 and parts[0] == module_name:
+                rel = "/".join(parts[1:])
+            else:
+                continue
+            if rel and not rel.endswith(".py") and ".dist-info/" not in member:
+                data_files.append(member)
+        if not data_files:
+            errors.append(f"{path}: pythondata package has no packaged data files")
+    return errors
+
+def export_repo_tree(repo_path, work_path):
+    archive = subprocess.Popen(
+        ["git", "archive", "--format=tar", "HEAD"],
+        cwd    = repo_path,
+        stdout = subprocess.PIPE,
+    )
+    extract = subprocess.run(
+        ["tar", "-xf", "-", "-C", work_path],
+        stdin  = archive.stdout,
+        stdout = subprocess.PIPE,
+        stderr = subprocess.PIPE,
+    )
+    archive.stdout.close()
+    archive_rc = archive.wait()
+    if archive_rc != 0 or extract.returncode != 0:
+        error = extract.stderr.decode("UTF-8", errors="ignore").strip()
+        raise setup.SetupError(f"Could not export {repo_path}: {error}")
+
+def build_repo_artifacts(state, dist_root):
+    name      = state["name"]
+    repo_path = state["repo_path"]
+    repo_dist = os.path.join(dist_root, repo_build_name(name))
+    if os.path.exists(repo_dist):
+        shutil.rmtree(repo_dist)
+    os.makedirs(repo_dist, exist_ok=True)
+
+    with tempfile.TemporaryDirectory(prefix=f"litex-release-{name}-") as work_path:
+        export_repo_tree(repo_path, work_path)
+        metadata = get_setup_metadata(work_path)
+        if metadata["error"] is not None:
+            raise setup.SetupError(f"{name}: {metadata['error']}.")
+
+        build_module = python_build_available()
+        if build_module:
+            cmd = [
+                sys.executable, "-m", "build",
+                "--sdist", "--wheel",
+                "--outdir", repo_dist,
+            ]
+        else:
+            cmd = [
+                sys.executable, "setup.py",
+                "sdist", "--dist-dir", repo_dist,
+                "bdist_wheel", "--dist-dir", repo_dist,
+            ]
+        setup.print_status(f"Building {name} PyPI artifacts...")
+        subprocess.check_call(cmd, cwd=work_path)
+
+    artifacts = sorted(
+        glob.glob(os.path.join(repo_dist, "*.tar.gz")) +
+        glob.glob(os.path.join(repo_dist, "*.whl"))
+    )
+    if not artifacts:
+        raise setup.SetupError(f"{name}: no PyPI artifacts were built.")
+    errors = []
+    for artifact in artifacts:
+        errors += check_artifact_contents(artifact, metadata["name"])
+    if errors:
+        setup.print_error(f"{name}: artifact checks failed:")
+        for error in errors:
+            print(f"  - {error}")
+        raise setup.SetupError
+    if python_twine_available():
+        subprocess.check_call([sys.executable, "-m", "twine", "check"] + artifacts)
+    else:
+        setup.print_warning("twine is not installed; skipping twine check.")
+    return artifacts
+
+def release_pypi_build(states, tag, dist_dir):
+    dist_root = os.path.abspath(dist_dir or os.path.join(".litex_release_dist", tag))
+    os.makedirs(dist_root, exist_ok=True)
+    setup.print_status(f"PyPI artifact directory: {dist_root}")
+    built = []
+    for state in states:
+        built += build_repo_artifacts(state, dist_root)
+    setup.print_status("Built PyPI artifacts:")
+    for artifact in built:
+        print(f"  - {artifact}")
+    return built
+
+def release_pypi_upload(states, tag, dist_dir, test_pypi=False, skip_existing=False):
+    dist_root = os.path.abspath(dist_dir or os.path.join(".litex_release_dist", tag))
+    artifacts = []
+    for state in states:
+        repo_dist = os.path.join(dist_root, repo_build_name(state["name"]))
+        artifacts += sorted(glob.glob(os.path.join(repo_dist, "*.tar.gz")))
+        artifacts += sorted(glob.glob(os.path.join(repo_dist, "*.whl")))
+    if not artifacts:
+        raise setup.SetupError(f"No PyPI artifacts found in {dist_root}. Run --pypi-build first.")
+    cmd = [sys.executable, "-m", "twine", "upload"]
+    if test_pypi:
+        cmd += ["--repository", "testpypi"]
+    if skip_existing:
+        cmd.append("--skip-existing")
+    cmd += artifacts
+    subprocess.check_call(cmd)
+
 # Release ------------------------------------------------------------------------------------------
 
 def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=None, no_push=False,
     allow_dirty=False, allow_branch_mismatch=False, allow_unpushed=False, allow_invalid_tag=False,
-    state_file=None):
+    state_file=None, pypi_dist_dir=None, test_pypi=False, allow_existing_pypi=False,
+    no_pypi_remote_check=False, pypi_skip_existing=False):
 
     check_release_tag(tag, allow_invalid_tag=allow_invalid_tag)
     phases = phases or ["bump", "tag", "push"]
@@ -338,9 +650,23 @@ def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=
         allow_branch_mismatch = allow_branch_mismatch,
         allow_unpushed         = allow_unpushed,
     )
+    if any(phase in phases for phase in PYPI_PHASES):
+        print_pypi_summary(states, tag=tag, phases=phases, test_pypi=test_pypi)
+        check_pypi_state(
+            states,
+            tag           = tag,
+            phases        = phases,
+            test_pypi     = test_pypi,
+            allow_existing = allow_existing_pypi,
+            check_remote   = not no_pypi_remote_check,
+        )
 
     if dry_run:
         setup.print_status("Dry-run complete, no repository was modified.")
+        return
+
+    if phases == ["pypi-check"]:
+        setup.print_status("PyPI checks complete.")
         return
 
     setup.print_status(f"Making release {tag}...", underline=True)
@@ -408,6 +734,10 @@ def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=
             )
         complete_release_phase(release_state, state_file, "tag")
 
+    if "pypi-build" in phases:
+        release_pypi_build(states, tag, pypi_dist_dir)
+        complete_release_phase(release_state, state_file, "pypi-build")
+
     if "push" in phases:
         for state in states:
             name      = state["name"]
@@ -425,22 +755,48 @@ def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=
             )
         complete_release_phase(release_state, state_file, "push")
 
+    if "pypi-upload" in phases:
+        release_pypi_upload(
+            states,
+            tag,
+            pypi_dist_dir,
+            test_pypi      = test_pypi,
+            skip_existing  = pypi_skip_existing,
+        )
+        complete_release_phase(release_state, state_file, "pypi-upload")
+
 def release_phases(args):
     phases = []
+    normal_phase_selected = args.bump or args.tag or args.push
+    pypi_phase_selected   = args.pypi or args.pypi_check or args.pypi_build or args.pypi_upload
+    if args.pypi and not normal_phase_selected:
+        phases += ["bump", "tag", "push"]
     if args.bump:
         phases.append("bump")
     if args.tag:
         phases.append("tag")
     if args.push:
         phases.append("push")
-    if not phases:
+    if args.pypi:
+        phases += PYPI_DEFAULT_PHASES
+    if args.pypi_check:
+        phases.append("pypi-check")
+    if args.pypi_build:
+        phases.append("pypi-build")
+    if args.pypi_upload:
+        phases.append("pypi-upload")
+    if not phases and not pypi_phase_selected:
         phases = ["bump", "tag", "push"]
     if args.no_push and "push" in phases:
         phases.remove("push")
     if args.no_push and args.push:
         setup.print_error("--no-push and --push cannot be used together.")
         raise setup.SetupError
-    return phases
+    deduped = []
+    for phase in phases:
+        if phase not in deduped:
+            deduped.append(phase)
+    return deduped
 
 
 # Run ----------------------------------------------------------------------------------------------
@@ -462,6 +818,17 @@ def main():
     parser.add_argument("--bump",          action="store_true", help="Run release version-bump phase.")
     parser.add_argument("--tag",           action="store_true", help="Run release tag phase.")
     parser.add_argument("--push",          action="store_true", help="Run release push phase.")
+
+    # PyPI flow.
+    parser.add_argument("--pypi",                 action="store_true", help="Run PyPI check and build phases.")
+    parser.add_argument("--pypi-check",           action="store_true", help="Check PyPI package metadata and version availability.")
+    parser.add_argument("--pypi-build",           action="store_true", help="Build PyPI sdist/wheel artifacts.")
+    parser.add_argument("--pypi-upload",          action="store_true", help="Upload previously built PyPI artifacts.")
+    parser.add_argument("--pypi-dist-dir",        default=None,        help="Directory for PyPI artifacts.")
+    parser.add_argument("--test-pypi",            action="store_true", help="Check/upload against TestPyPI.")
+    parser.add_argument("--allow-existing-pypi",  action="store_true", help="Allow package versions already present on PyPI.")
+    parser.add_argument("--no-pypi-remote-check", action="store_true", help="Skip PyPI remote version availability checks.")
+    parser.add_argument("--pypi-skip-existing",   action="store_true", help="Pass --skip-existing to twine upload.")
 
     # Release checks.
     parser.add_argument("--allow-invalid-tag",     action="store_true", help="Allow release tags outside YYYY.04/YYYY.08/YYYY.12.")
@@ -508,8 +875,16 @@ def main():
             allow_unpushed         = args.allow_unpushed,
             allow_invalid_tag      = args.allow_invalid_tag,
             state_file             = state_file,
+            pypi_dist_dir          = args.pypi_dist_dir,
+            test_pypi              = args.test_pypi,
+            allow_existing_pypi    = args.allow_existing_pypi,
+            no_pypi_remote_check   = args.no_pypi_remote_check,
+            pypi_skip_existing     = args.pypi_skip_existing,
         )
-    elif args.dry_run or args.bump or args.tag or args.push or args.no_push:
+    elif (
+        args.dry_run or args.bump or args.tag or args.push or args.no_push or
+        args.pypi or args.pypi_check or args.pypi_build or args.pypi_upload
+    ):
         setup.print_error("--release is required with release action options.")
         raise setup.SetupError
 

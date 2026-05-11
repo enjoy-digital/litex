@@ -51,6 +51,7 @@ coverage.xml
 
 # LiteX release state
 .litex_release_*.json
+.litex_release_dist/
 
 # Translations
 *.mo
