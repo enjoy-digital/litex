@@ -40,7 +40,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          python3 -m pip install setuptools requests pexpect meson pytest pytest-xdist pytest-split
+          python3 -m pip install setuptools wheel requests pexpect meson pytest pytest-xdist pytest-split
 
       # Install (n)Migen / LiteX / Cores
       - name: Install LiteX
