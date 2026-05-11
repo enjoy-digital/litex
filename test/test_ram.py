@@ -12,7 +12,7 @@ from migen.fhdl.specials import Instance
 
 from litex.build.altera import AlteraPlatform
 from litex.build.efinix import EfinixPlatform
-from litex.soc.cores.ram.common import get_cpu_ram_filename
+from litex.soc.cores.ram.common import RAM_CAPABILITIES, get_cpu_ram_filename
 from litex.soc.cores.ram.efinix_hyperram import EfinixHyperRAM
 from litex.soc.cores.ram.lattice_ice40 import Up5kSPRAM
 from litex.soc.cores.ram.lattice_nx import NXLRAM, initval_parameters
@@ -223,6 +223,26 @@ class TestLatticeRAM(unittest.TestCase):
     def test_nxlram_rejects_init_longer_than_memory(self):
         with self.assertRaisesRegex(ValueError, "init length"):
             NXLRAM(width=32, size=64*kB, init=[0]*(64*kB//4 + 1))
+
+    def test_nxlram_rejects_init_word_outside_width(self):
+        with self.assertRaisesRegex(ValueError, "does not fit"):
+            NXLRAM(width=32, size=64*kB, init=[1 << 32])
+        with self.assertRaisesRegex(ValueError, "does not fit"):
+            NXLRAM(width=64, size=128*kB, init=[-1])
+
+
+class TestRAMCommon(unittest.TestCase):
+    def test_ram_capabilities_describe_vendor_wrappers(self):
+        self.assertEqual(RAM_CAPABILITIES["up5k_spram"].primitive, "SB_SPRAM256KA")
+        self.assertIn(32, RAM_CAPABILITIES["up5k_spram"].data_widths)
+        self.assertFalse(RAM_CAPABILITIES["up5k_spram"].init)
+
+        self.assertEqual(RAM_CAPABILITIES["nx_lram"].primitive, "SP512K")
+        self.assertIn(64, RAM_CAPABILITIES["nx_lram"].data_widths)
+        self.assertTrue(RAM_CAPABILITIES["nx_lram"].byte_enable)
+
+        self.assertEqual(RAM_CAPABILITIES["fifo_sync_macro"].ports, "fifo")
+        self.assertIn("36Kb", RAM_CAPABILITIES["fifo_sync_macro"].sizes)
 
 
 class TestCPURAM(unittest.TestCase):
