@@ -9,7 +9,13 @@ import unittest
 
 from migen import *
 
-from litex.soc.cores.hyperbus import HyperRAM
+from litex.soc.cores.hyperbus import (
+    HyperRAM,
+    HyperRAMClkGen,
+    hyperam_ios_layout,
+    hyperram_ios_layout,
+    hyperram_phy_tx_layout,
+)
 
 def c2bool(c):
     return {"-": 1, "_": 0}[c]
@@ -25,13 +31,75 @@ class HyperRamPads:
         self.dq    = Record([("oe", 1), ("o", dw),     ("i", dw)])
         self.rwds  = Record([("oe", 1), ("o", dw//8),  ("i", dw//8)])
 
+class HyperRamSplitPads:
+    def __init__(self, dw=8):
+        self.clk     = Signal()
+        self.rst_n   = Signal()
+        self.cs_n    = Signal()
+        self.dq_o    = Signal(dw)
+        self.dq_oe   = Signal()
+        self.dq_i    = Signal(dw)
+        self.rwds_o  = Signal(dw//8)
+        self.rwds_oe = Signal()
+        self.rwds_i  = Signal(dw//8)
+
 class TestHyperRAM(unittest.TestCase):
+    def test_hyperram_clkgen_phase_pattern(self):
+        def generator(dut):
+            expected = [
+                (0, 0, 0, 0),
+                (1, 0, 1, 1),
+                (2, 0, 1, 0),
+                (3, 1, 0, 0),
+                (0, 0, 0, 0),
+            ]
+            for phase, rise, clk, fall in expected:
+                self.assertEqual((yield dut.phase), phase)
+                self.assertEqual((yield dut.rise), rise)
+                self.assertEqual((yield dut.cd_hyperram.clk), clk)
+                self.assertEqual((yield dut.fall), fall)
+                yield
+
+        dut = HyperRAMClkGen()
+        run_simulation(dut, generator(dut))
+
+    def test_hyperram_layout_helpers_validate_data_width(self):
+        self.assertEqual(hyperram_ios_layout(8), hyperam_ios_layout(8))
+        self.assertEqual(hyperram_phy_tx_layout(16)[3], ("dq", 16))
+        with self.assertRaisesRegex(ValueError, "data buses"):
+            hyperram_ios_layout(12)
+
     def test_hyperram_syntax(self):
         pads = Record([("clk", 1), ("rst_n", 1), ("cs_n", 1), ("dq", 8), ("rwds", 1)])
         hyperram = HyperRAM(pads)
 
         pads = Record([("clk_p", 1), ("clk_n", 1), ("rst_n", 1), ("cs_n", 1), ("dq", 8), ("rwds", 1)])
         hyperram = HyperRAM(pads)
+
+        pads = HyperRamSplitPads(dw=16)
+        hyperram = HyperRAM(pads)
+
+    def test_hyperram_rejects_invalid_pads(self):
+        pads = HyperRamPads(dw=16)
+        pads.rwds = Signal(1)
+        with self.assertRaisesRegex(ValueError, "RWDS width"):
+            HyperRAM(pads)
+
+        pads = HyperRamSplitPads(dw=8)
+        del pads.rwds_oe
+        with self.assertRaisesRegex(ValueError, "rwds"):
+            HyperRAM(pads)
+
+        pads = HyperRamSplitPads(dw=8)
+        del pads.clk
+        with self.assertRaisesRegex(ValueError, "clk"):
+            HyperRAM(pads)
+
+        pads = HyperRamSplitPads(dw=8)
+        del pads.clk
+        pads.clk_p = Signal()
+        with self.assertRaisesRegex(ValueError, "clk_p and clk_n"):
+            HyperRAM(pads)
 
     def test_hyperram_rejects_invalid_parameters(self):
         with self.assertRaisesRegex(ValueError, "latency"):
@@ -103,6 +171,34 @@ class TestHyperRAM(unittest.TestCase):
             "sys2x" : 2,
         }
         run_simulation(dut, generators, clocks, vcd_name="sim.vcd")
+
+    def test_hyperram_write_latches_cti(self):
+        def fpga_gen(dut):
+            yield from dut.bus.write(0x1234, 0xdeadbeef, sel=0b1001, cti=0b010)
+            yield
+            self.assertEqual((yield dut.core.bus_cti), 0b010)
+            yield
+
+        def hyperram_gen(dut):
+            clk     = "_______--__--__--__--__--__--__--__--__--__--__--__--__--__--__--__--_______"
+            cs_n    = "----__________________________________________________________________------"
+            dq_oe   = "______------------____________________________________________--------______"
+            dq_o    = "0000002000048d000000000000000000000000000000000000000000000000deadbeef000000"
+            rwds_oe = "______________________________________________________________--------______"
+            rwds_o  = "________________________________________________________________----________"
+            yield
+            for i in range(len(clk)):
+                self.assertEqual(c2bool(clk[i]), (yield dut.pads.clk))
+                self.assertEqual(c2bool(cs_n[i]), (yield dut.pads.cs_n))
+                self.assertEqual(c2bool(dq_oe[i]), (yield dut.pads.dq.oe))
+                if (yield dut.pads.dq.oe):
+                    self.assertEqual(int(dq_o[2*(i//2):2*(i//2)+2], 16), (yield dut.pads.dq.o))
+                self.assertEqual(c2bool(rwds_oe[i]), (yield dut.pads.rwds.oe))
+                self.assertEqual(c2bool(rwds_o[i]), (yield dut.pads.rwds.o))
+                yield
+
+        dut = HyperRAM(HyperRamPads(), latency=6, latency_mode="fixed")
+        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut)], vcd_name="sim.vcd")
 
     def test_hyperram_write_latency_6_2x(self):
         def fpga_gen(dut):
