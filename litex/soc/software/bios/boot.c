@@ -374,47 +374,46 @@ const char *filename, char *buffer)
 
 #ifdef ETH_DYNAMIC_IP
 
-uint8_t parse_ip(const char * ip_address, unsigned int * ip_to_change)
+int parse_ip(const char *ip_address, unsigned int *ip_to_change)
 {
-	uint8_t n = 0;
-	uint8_t k = 0;
-	uint8_t i;
-	uint8_t size = strlen(ip_address);
 	unsigned int ip_to_set[4];
-	char buf[4] = {0};
+	const char *p = ip_address;
+	char *end;
 
-	if (size < 7 || size > 15) {
-		printf("Error: invalid IP address length\n");
-		return -1;
-	}
+	for (int i = 0; i < 4; i++) {
+		unsigned long octet;
 
-	/* Extract numbers from input, check for potential errors */
-	for (i = 0; i < size; i++) {
-		if ((ip_address[i] == '.' && k != 0) || (ip_address[i] == '\n' && i == size - 1)) {
-			ip_to_set[n] = atoi(buf);
-			n++;
-			k = 0;
-			memset(buf, '\0', sizeof(buf));
-		} else if (ip_address[i] >= '0' && ip_address[i] <= '9' && k < 3) {
-			buf[k] = ip_address[i];
-			k++;
-		} else {
+		if ((*p < '0') || (*p > '9')) {
 			printf("Error: invalid IP address format; expected X.X.X.X\n");
 			return -1;
 		}
-	}
-	ip_to_set[n] = atoi(buf);
 
-	/* Check if a correct number of numbers was extracted from the input*/
-	if (n != 3) {
-		printf("Error: invalid IP address format; expected X.X.X.X\n");
-		return -1;
+		octet = strtoul(p, &end, 10);
+		if ((end == p) || (octet > 255)) {
+			printf("Error: invalid IP address octet\n");
+			return -1;
+		}
+		ip_to_set[i] = octet;
+
+		if (i == 3) {
+			while ((*end == '\r') || (*end == '\n'))
+				end++;
+			if (*end != 0) {
+				printf("Error: invalid IP address format; expected X.X.X.X\n");
+				return -1;
+			}
+		} else {
+			if (*end != '.') {
+				printf("Error: invalid IP address format; expected X.X.X.X\n");
+				return -1;
+			}
+			p = end + 1;
+		}
 	}
 
-	/* Set the extracted IP address as local or remote ip */
-	for (i = 0; i <= n; i++) {
+	for (int i = 0; i < 4; i++)
 		ip_to_change[i] = ip_to_set[i];
-	}
+
 	return 0;
 }
 
@@ -434,49 +433,43 @@ void set_remote_ip(const char * ip_address)
 	}
 }
 
-static uint8_t parse_mac_addr(const char * mac_address)
+static int parse_mac_addr(const char *mac_address)
 {
-	uint8_t n = 0;
-	uint8_t k = 0;
-	uint8_t i;
-	uint8_t size = strlen(mac_address);
-	unsigned int mac_to_set[6];
+	unsigned char mac_to_set[6];
+	size_t size = strlen(mac_address);
 	char buf[3] = {0};
+
+	while ((size > 0) && ((mac_address[size - 1] == '\r') || (mac_address[size - 1] == '\n')))
+		size--;
 
 	if (size != 17) {
 		printf("Error: invalid MAC address length\n");
 		return -1;
 	}
 
-	/* Extract numbers from input, check for potential errors */
-	for (i = 0; i < size; i++) {
-		if ((mac_address[i] == ':' && k != 0) || (mac_address[i] == '\n' && i == size - 1)) {
-			mac_to_set[n] = strtol(buf, NULL, 16);
-			n++;
-			k = 0;
-			memset(buf, '\0', sizeof(buf));
-		} else if (((mac_address[i] >= '0' && mac_address[i] <= '9') ||
-			(mac_address[i] >= 'a' && mac_address[i] <= 'f') ||
-			(mac_address[i] >= 'A' && mac_address[i] <= 'F')) && k < 2) {
-			buf[k] = mac_address[i];
-			k++;
-		} else {
+	for (int i = 0; i < 6; i++) {
+		const char *group = &mac_address[3*i];
+
+		if (!(((group[0] >= '0') && (group[0] <= '9')) ||
+		      ((group[0] >= 'a') && (group[0] <= 'f')) ||
+		      ((group[0] >= 'A') && (group[0] <= 'F'))) ||
+		    !(((group[1] >= '0') && (group[1] <= '9')) ||
+		      ((group[1] >= 'a') && (group[1] <= 'f')) ||
+		      ((group[1] >= 'A') && (group[1] <= 'F'))) ||
+		    ((i < 5) && (group[2] != ':'))) {
 			printf("Error: invalid MAC address format; expected XX:XX:XX:XX:XX:XX\n");
 			return -1;
 		}
-	}
-	mac_to_set[n] = strtol(buf, NULL, 16);
 
-	/* Check if correct number of numbers was extracted from input */
-	if (n != 5) {
-		printf("Error: invalid MAC address format; expected XX:XX:XX:XX:XX:XX\n");
-		return -1;
+		buf[0] = group[0];
+		buf[1] = group[1];
+		mac_to_set[i] = strtoul(buf, NULL, 16);
 	}
 
 	/* Set the extracted MAC address as macadr */
-	for (i = 0; i <= n; i++) {
+	for (int i = 0; i < 6; i++)
 		macadr[i] = mac_to_set[i];
-	}
+
 	return 0;
 }
 
