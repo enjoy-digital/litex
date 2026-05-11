@@ -152,6 +152,9 @@ class XilinxClocking(LiteXModule):
         self.logger.info("Exposing Dynamic Reconfiguration Port (DRP) interface.")
 
     def expose_dps(self, clk_domain="sys", with_csr=True):
+        if with_csr and clk_domain != "sys":
+            raise ValueError("CSR-backed DPS must use the sys clock domain.")
+
         self.psen     = Signal() # i.
         self.psincdec = Signal() # i.
         self.psdone   = Signal() # o.
@@ -164,7 +167,6 @@ class XilinxClocking(LiteXModule):
         )
 
         if with_csr:
-            assert clk_domain == "sys"
             self.dps_psen     = CSRStorage(description="DPS phase-shift enable.")
             self.dps_psincdec = CSRStorage(description="DPS phase-shift direction.")
             self.dps_psdone   = CSRStatus(description="DPS phase-shift done.")

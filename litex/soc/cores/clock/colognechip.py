@@ -37,9 +37,12 @@ class GateMatePLL(LiteXModule):
         lock_req   = 1,
         name       = None):
 
-        assert perf_mode.lower() in ["undefined", "lowpower", "economy", "speed"]
-        assert low_jitter in [0, 1]
-        assert lock_req in [0, 1]
+        if not isinstance(perf_mode, str) or perf_mode.lower() not in ["undefined", "lowpower", "economy", "speed"]:
+            raise ValueError("Unsupported PLL performance mode: {}.".format(perf_mode))
+        if low_jitter not in [0, 1]:
+            raise ValueError("PLL low_jitter must be 0 or 1.")
+        if lock_req not in [0, 1]:
+            raise ValueError("PLL lock_req must be 0 or 1.")
 
         self.logger      = logging.getLogger("CC_PLL")
         self.reset       = Signal()

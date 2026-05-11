@@ -235,6 +235,28 @@ class TestClock(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Output clock phase"):
             pll.create_clkout(ClockDomain("clkout"), 100e6, phase=45)
 
+    def test_ice40_pll_rejects_invalid_primitive(self):
+        with self.assertRaisesRegex(ValueError, "Unsupported iCE40 PLL primitive"):
+            iCE40PLL(primitive="SB_PLL40_BAD")
+
+    def test_xilinx_dps_csr_requires_sys_domain(self):
+        pll = S7PLL()
+        with self.assertRaisesRegex(ValueError, "sys clock domain"):
+            pll.expose_dps(clk_domain="idelay", with_csr=True)
+
+        pll.expose_dps(clk_domain="idelay", with_csr=False)
+
+    def test_gatemate_pll_rejects_invalid_constructor_args(self):
+        test_cases = [
+            ("perf_mode",  lambda: GateMatePLL(perf_mode="turbo"), "performance mode"),
+            ("low_jitter", lambda: GateMatePLL(low_jitter=2),      "low_jitter"),
+            ("lock_req",   lambda: GateMatePLL(lock_req=2),        "lock_req"),
+        ]
+        for name, pll_factory, message in test_cases:
+            with self.subTest(argument=name):
+                with self.assertRaisesRegex(ValueError, message):
+                    pll_factory()
+
     def test_plls_reject_non_positive_frequencies(self):
         test_cases = [
             ("S7PLL",       lambda: S7PLL(),                              100e6),

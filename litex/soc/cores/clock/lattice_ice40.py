@@ -26,7 +26,8 @@ class iCE40PLL(LiteXModule):
     vco_freq_range  = (533e6, 1066e6)
 
     def __init__(self, primitive="SB_PLL40_CORE", name=None):
-        assert primitive in ["SB_PLL40_CORE", "SB_PLL40_PAD"]
+        if primitive not in ["SB_PLL40_CORE", "SB_PLL40_PAD"]:
+            raise ValueError("Unsupported iCE40 PLL primitive: {}.".format(primitive))
         self.logger = logging.getLogger("iCE40PLL")
         self.logger.info("Creating iCE40PLL, {} primitive.".format(colorer(primitive)))
         self.primitive  = primitive
