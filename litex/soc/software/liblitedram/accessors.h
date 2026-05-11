@@ -7,7 +7,11 @@ extern "C" {
 
 #include <generated/csr.h>
 #if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+#ifdef LITEDRAM_PHY_HEADER
+#include LITEDRAM_PHY_HEADER
+#else
 #include <generated/sdram_phy.h>
+#endif
 
 typedef void (*action_callback)(int module);
 

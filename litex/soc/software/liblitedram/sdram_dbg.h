@@ -9,7 +9,11 @@ extern "C" {
 
 #ifdef CSR_SDRAM_BASE
 
+#ifdef LITEDRAM_PHY_HEADER
+#include LITEDRAM_PHY_HEADER
+#else
 #include <generated/sdram_phy.h>
+#endif
 
 struct memory_error {
 	unsigned int addr;

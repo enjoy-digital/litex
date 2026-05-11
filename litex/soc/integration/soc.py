@@ -1893,6 +1893,8 @@ class LiteXSoC(SoC):
         region_name             = None,
         main_ram                = True,
         channel                 = None,
+        phy_name                = None,
+        ddrctrl_name            = None,
         cached                  = True,
         l2_cache_size           = 8192,
         l2_cache_min_data_width = 128,
@@ -1963,9 +1965,12 @@ class LiteXSoC(SoC):
             sdram_size = min(sdram_size, size)
 
         sdram.size        = sdram_size
+        sdram.name        = name
         sdram.main_ram    = main_ram
         sdram.region_name = "main_ram" if main_ram else (region_name or name)
         sdram.origin      = self.mem_map.get(sdram.region_name, origin)
+        sdram.phy_name    = phy_name or ("ddrphy" if name == "sdram" else f"{name}_phy")
+        sdram.ddrctrl_name = ddrctrl_name or ("ddrctrl" if name == "sdram" else f"{name}_ddrctrl")
 
         if not with_soc_interconnect: return
 

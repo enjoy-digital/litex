@@ -197,6 +197,7 @@ define_command(sdram_force_cmd_delay, sdram_force_cmd_delay_handler, "Force writ
  *
  */
 define_command(sdram_init, sdram_init, "Initialize SDRAM (Init + Calibration)", LITEDRAM_CMDS);
+define_command(sdram_init_all, sdram_init_all, "Initialize all SDRAM controllers", LITEDRAM_CMDS);
 
 /**
  * Command "sdram_test"

@@ -15,11 +15,16 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include <libbase/memtest.h>
 #include <libbase/lfsr.h>
 
+#ifdef LITEDRAM_PHY_HEADER
+#include LITEDRAM_PHY_HEADER
+#else
 #include <generated/sdram_phy.h>
+#endif
 #include <generated/mem.h>
 #include <system.h>
 
@@ -55,6 +60,16 @@
 /*-----------------------------------------------------------------------*/
 
 #define DFII_PIX_DATA_BYTES SDRAM_PHY_DFI_DATABITS/8
+
+#ifndef SDRAM_NAME
+#define SDRAM_NAME "sdram"
+#endif
+#ifndef SDRAM_BASE
+#define SDRAM_BASE MAIN_RAM_BASE
+#endif
+#ifndef SDRAM_SIZE
+#define SDRAM_SIZE MAIN_RAM_SIZE
+#endif
 
 int sdram_get_databits(void) {
 	return SDRAM_PHY_DATABITS;
@@ -1174,7 +1189,7 @@ int sdram_init(void) {
 	_sdram_write_leveling_cmd_scan  = 0;
 	_sdram_write_leveling_cmd_delay = SDRAM_PHY_CMD_DELAY;
 #endif // SDRAM_PHY_CMD_DELAY
-	printf("Initializing SDRAM @0x%08lx...\n", MAIN_RAM_BASE);
+	printf("Initializing %s @0x%llx...\n", SDRAM_NAME, (unsigned long long)SDRAM_BASE);
 	sdram_software_control_on();
 #if CSR_DDRPHY_RST_ADDR
 	ddrphy_rst_write(1);
@@ -1193,14 +1208,21 @@ int sdram_init(void) {
 #endif // defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
 	sdram_software_control_off();
 #ifndef SDRAM_TEST_DISABLE
-	if(!memtest((unsigned int *) MAIN_RAM_BASE, MEMTEST_DATA_SIZE)) {
+	if ((uint64_t)SDRAM_BASE > (uint64_t)UINTPTR_MAX) {
+		printf("Skipping %s memory test above CPU pointer range.\n", SDRAM_NAME);
+	} else {
+		unsigned long test_size = MEMTEST_DATA_SIZE;
+		if ((uint64_t)SDRAM_SIZE < (uint64_t)test_size)
+			test_size = SDRAM_SIZE;
+		if(!memtest((unsigned int *)(uintptr_t)SDRAM_BASE, test_size)) {
 #ifdef CSR_DDRCTRL_BASE
-		ddrctrl_init_error_write(1);
-		ddrctrl_init_done_write(1);
+			ddrctrl_init_error_write(1);
+			ddrctrl_init_done_write(1);
 #endif // CSR_DDRCTRL_BASE
-		return 0;
+			return 0;
+		}
+		memspeed((unsigned int *)(uintptr_t)SDRAM_BASE, test_size, false, 0);
 	}
-	memspeed((unsigned int *) MAIN_RAM_BASE, MEMTEST_DATA_SIZE, false, 0);
 #endif // SDRAM_TEST_DISABLE
 #ifdef CSR_DDRCTRL_BASE
 	ddrctrl_init_done_write(1);

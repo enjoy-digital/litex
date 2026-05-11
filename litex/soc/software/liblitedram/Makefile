@@ -1,7 +1,7 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-OBJECTS = sdram.o bist.o sdram_dbg.o sdram_spd.o utils.o accessors.o
+OBJECTS = sdram.o sdram1.o sdram2.o sdram3.o sdram_multichannel.o bist.o sdram_dbg.o sdram_spd.o utils.o accessors.o accessors1.o accessors2.o accessors3.o
 
 all: liblitedram.a
 

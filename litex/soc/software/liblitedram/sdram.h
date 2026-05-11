@@ -47,6 +47,17 @@ int sdram_leveling(void);
 /* Initialization                                                        */
 /*-----------------------------------------------------------------------*/
 int sdram_init(void);
+int sdram_init_all(void);
+
+#ifdef CSR_SDRAM1_BASE
+int sdram1_init(void);
+#endif
+#ifdef CSR_SDRAM2_BASE
+int sdram2_init(void);
+#endif
+#ifdef CSR_SDRAM3_BASE
+int sdram3_init(void);
+#endif
 
 /*-----------------------------------------------------------------------*/
 /* Debugging                                                             */
