@@ -27,7 +27,7 @@ from migen.fhdl.structure   import _Operator, _Slice, _Assign, _Fragment, _Clock
 from migen.fhdl.tools       import *
 from migen.fhdl.tools       import _apply_lowerer, _Lowerer
 from migen.fhdl.conv_output import ConvOutput
-from migen.fhdl.specials    import Instance, Memory
+from migen.fhdl.specials    import Instance, Memory, _MemoryPort
 
 from litex.gen import LiteXContext
 from litex.gen.fhdl.expression import _generate_expression, _generate_signal
@@ -360,6 +360,10 @@ def _generate_module(f, ios, name, ns, attr_translate):
     inouts       = list_special_ios(f, ins=False, outs=False, inouts=True)
     targets      = list_targets(f) | special_outs
     wires        = _list_comb_wires(f) | special_outs
+    mem_signals, mem_targets, mem_wires = _collect_memory_port_signals(f.specials, f.clock_domains)
+    sigs    |= mem_signals
+    targets |= mem_targets
+    wires   |= mem_wires
 
     r = f"module {name} (\n"
     firstp = True
@@ -448,6 +452,11 @@ def _generate_signals(f, ios, name, ns, attr_translate, regs_init, signals_overr
     targets      = list_targets(f) | special_outs
     wires        = _list_comb_wires(f) | special_outs
     force_wires  = set() if force_wires is None else set(force_wires)
+    mem_signals, mem_targets, mem_wires = _collect_memory_port_signals(f.specials, f.clock_domains)
+    if signals_override is None:
+        sigs |= mem_signals
+    targets |= mem_targets
+    wires   |= mem_wires
 
     r = ""
     for sig in sorted(sigs - ios, key=lambda x: ns.get_name(x)):
@@ -714,7 +723,7 @@ def _collect_memory_port_signals(specials, clock_domains=None):
         if not isinstance(special, Memory):
             continue
         for port in special.ports:
-            for attr in ["adr", "dat_r", "dat_w", "we", "re", "clk", "rst"]:
+            for attr in ["adr", "dat_r", "dat_w", "we", "re", "clk", "clock", "rst"]:
                 sig = getattr(port, attr, None)
                 if isinstance(sig, ClockSignal) and (clock_domains is not None):
                     sig = clock_domains[sig.cd].clk
@@ -728,6 +737,13 @@ def _collect_memory_port_signals(specials, clock_domains=None):
                 targets.add(sig)
                 wires.add(sig)
     return signals, targets, wires
+
+
+def _list_special_ios_from_specials(specials, ins, outs, inouts):
+    ios = set()
+    for special in specials:
+        ios |= special.list_ios(ins, outs, inouts)
+    return ios
 
 
 @dataclass
@@ -800,16 +816,17 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             return True
         for start in range(len(trace_names)):
             pos = start
+            matched_class = False
             for step in steps:
                 if pos >= len(trace_names) or not _trace_step_matches(step, trace_names[pos]):
                     break
+                matched_class |= trace_names[pos] == step[1]
                 pos += 1
                 while pos < len(trace_names) and _trace_step_matches(step, trace_names[pos]):
+                    matched_class |= trace_names[pos] == step[1]
                     pos += 1
             else:
-                if any(not _trace_step_matches(steps[-1], name) for name in trace_names[pos:]):
-                    continue
-                return True
+                return matched_class
         return False
 
     def _owner_candidates(node, hierarchical_only=False, steps=None):
@@ -873,16 +890,42 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
 
     _collect_raw_specials(ctx.root)
 
+    special_owner_node = {}
+
+    def _assign_raw_special_owners(node):
+        for special in sorted(node.raw_local_specials, key=lambda x: x.duid):
+            if isinstance(special, _MemoryPort):
+                continue
+            if special not in special_owner_node:
+                special_owner_node[special] = node
+        for child in node.children:
+            _assign_raw_special_owners(child)
+
+    _assign_raw_special_owners(ctx.root)
+
+    def _collect_owned_raw_specials(node):
+        node.raw_owned_local_specials = {
+            special for special in node.raw_local_specials
+            if special_owner_node.get(special) is node
+        }
+        node.raw_owned_subtree_specials = set(node.raw_owned_local_specials)
+        for child in node.children:
+            _collect_owned_raw_specials(child)
+            node.raw_owned_subtree_specials |= child.raw_owned_subtree_specials
+
+    _collect_owned_raw_specials(ctx.root)
+
     def _collect_owner_overrides(node):
+        for child in node.children:
+            _collect_owner_overrides(child)
         node_path = _normalize_hier_path(node.path)
-        raw_signals = list_signals(node.source_fragment) | list_special_ios(node.source_fragment, ins=True, outs=True, inouts=True)
-        mem_signals, _, _ = _collect_memory_port_signals(node.source_fragment.specials)
+        raw_specials = {s for s in node.source_fragment.specials if not isinstance(s, _MemoryPort)}
+        raw_signals = list_signals(node.source_fragment) | _list_special_ios_from_specials(raw_specials, ins=True, outs=True, inouts=True)
+        mem_signals, _, _ = _collect_memory_port_signals(node.raw_owned_local_specials)
         raw_signals |= {s for s in mem_signals if not getattr(s, "backtrace", None)}
         for sig in raw_signals:
             if not getattr(sig, "backtrace", None) and sig not in ctx.signal_owner_override:
                 ctx.signal_owner_override[sig] = node_path
-        for child in node.children:
-            _collect_owner_overrides(child)
 
     _collect_owner_overrides(ctx.root)
 
@@ -919,7 +962,7 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             for stmt in stmts:
                 node.raw_targets |= set(list_targets(stmt))
         node.raw_special_targets = set()
-        for special in node.source_fragment.specials:
+        for special in node.raw_owned_local_specials:
             node.raw_special_targets |= special.list_ios(False, True, True)
         node.raw_targets |= node.raw_special_targets
         node.raw_desc_comb_ids = {id(stmt) for stmt in node.raw_comb}
@@ -947,8 +990,8 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
         for stmts in raw_self_sync.values():
             for stmt in stmts:
                 node.raw_self_targets |= set(list_targets(stmt))
-        if hasattr(node, "raw_local_specials"):
-            for special in node.raw_local_specials:
+        if hasattr(node, "raw_owned_local_specials"):
+            for special in node.raw_owned_local_specials:
                 node.raw_self_targets |= special.list_ios(False, True, True)
 
     _collect_raw_statements(ctx.root)
@@ -1013,15 +1056,31 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
     ctx.owner_node_candidates = list(_owner_candidates(ctx.root, hierarchical_only=True))
 
     def _gather_inline_statements(node):
-        comb = list(node.raw_comb)
+        child_desc_comb_ids = set()
+        child_desc_sync_ids = set()
+        for child in node.children:
+            child_desc_comb_ids |= child.raw_desc_comb_ids
+            for ids in child.raw_desc_sync_ids.values():
+                child_desc_sync_ids |= ids
+
+        comb = [stmt for stmt in node.raw_comb if id(stmt) not in child_desc_comb_ids]
         sync = collections.defaultdict(list)
+        raw_sync_domains_by_stmt = collections.defaultdict(list)
         for cd_name, stmts in node.raw_sync.items():
-            sync[cd_name] = list(stmts)
+            sync[cd_name] = [stmt for stmt in stmts if id(stmt) not in child_desc_sync_ids]
+            for stmt in stmts:
+                raw_sync_domains_by_stmt[id(stmt)].append(cd_name)
         for child in node.inline_children:
             _gather_inline_statements(child)
             comb += child.inline_raw_comb
             for cd_name, stmts in child.inline_raw_sync.items():
-                sync[cd_name] += list(stmts)
+                for stmt in stmts:
+                    remapped_cd_names = raw_sync_domains_by_stmt.get(id(stmt))
+                    if remapped_cd_names:
+                        for remapped_cd_name in remapped_cd_names:
+                            sync[remapped_cd_name].append(stmt)
+                    else:
+                        sync[cd_name].append(stmt)
         node.inline_raw_comb = comb
         node.inline_raw_sync = sync
         for child in node.hier_children:
@@ -1047,8 +1106,8 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             local_sync[cd_name] = list(stmts)
         child_specials = set()
         for child in node.filter_children:
-            child_specials |= child.raw_subtree_specials
-        local_specials = node.raw_specials - child_specials
+            child_specials |= child.raw_owned_subtree_specials
+        local_specials = node.raw_owned_subtree_specials - child_specials
         local_fragment = _Fragment(
             comb=list(filtered_comb),
             sync=local_sync,
@@ -1066,6 +1125,8 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             if isinstance(special, Memory):
                 for port in special.ports:
                     if isinstance(port.clock, ClockSignal):
+                        if port.clock.cd not in node.fragment.clock_domains:
+                            node.fragment.clock_domains.append(ClockDomain(port.clock.cd))
                         port.clock = node.fragment.clock_domains[port.clock.cd].clk
         node.local_signals = list_signals(node.fragment) | list_special_ios(node.fragment, ins=True, outs=True, inouts=True)
         special_outs = list_special_ios(node.fragment, ins=False, outs=True, inouts=True)
@@ -1076,7 +1137,8 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
         node.local_signals |= mem_signals
         node.local_targets |= mem_targets
         node.local_wires   |= mem_wires
-        for cd in node.fragment.clock_domains:
+        for cd_name in node.fragment.sync.keys():
+            cd = node.fragment.clock_domains[cd_name]
             node.local_signals.add(cd.clk)
             if cd.rst is not None:
                 node.local_signals.add(cd.rst)
@@ -1108,6 +1170,11 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
     )
     ctx.ns.clock_domains = ctx.global_clock_domains
 
+    signal_local_nodes = collections.defaultdict(set)
+    for node in ctx.root.subtree_nodes:
+        for sig in node.local_signals:
+            signal_local_nodes[sig].add(node)
+
     def _compute_external(node):
         for child in node.hier_children:
             _compute_external(child)
@@ -1117,15 +1184,12 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
         else:
             node.external_signals = set()
             node_path = _normalize_hier_path(node.path)
-            for sig in node.local_signals:
+            for sig in node.subtree_signals:
                 owner_path = _normalize_hier_path(_signal_owner_path(sig, default_path=node_path))
-                if owner_path != node_path:
+                owner_in_subtree = owner_path[:len(node_path)] == node_path
+                used_outside = any(n not in node.subtree_nodes for n in signal_local_nodes[sig])
+                if (not owner_in_subtree) or used_outside:
                     node.external_signals.add(sig)
-            for child in node.hier_children:
-                for sig in child.external_signals:
-                    owner_path = _normalize_hier_path(_signal_owner_path(sig, default_path=node_path))
-                    if owner_path != node_path:
-                        node.external_signals.add(sig)
             node.module_name = _sanitize_identifier("__".join([ctx.name] + node.path))
 
     _compute_external(ctx.root)
