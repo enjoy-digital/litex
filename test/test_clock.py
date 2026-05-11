@@ -579,13 +579,20 @@ class TestClock(unittest.TestCase):
             (USMMCM,       100e6, 200e6),
             (USPPLL,       100e6, 200e6),
             (USPMMCM,      100e6, 200e6),
+            (CycloneIVPLL,  50e6, 100e6),
             (CycloneVPLL,   50e6, 100e6),
+            (Cyclone10LPPLL, 50e6, 100e6),
+            (Max10PLL,      50e6, 100e6),
             (ECP5PLL,      100e6, 200e6),
             (iCE40PLL,      12e6,  48e6),
+            (NXPLL,        100e6, 200e6),
+            (GateMatePLL,   50e6, 100e6),
+            (lambda: GW1NPLL("GW1N-9", "GW1N-9C"), 50e6, 100e6),
+            (lambda: GW5APLL("GW5A-25", "GW5A-25"), 50e6, 100e6),
         ]
         for pll_cls, clkin_freq, clkout_freq in test_cases:
-            with self.subTest(pll=pll_cls.__name__):
-                pll = pll_cls()
+            pll = pll_cls()
+            with self.subTest(pll=pll.__class__.__name__):
                 pll.register_clkin(Signal(), clkin_freq)
                 pll.create_clkout(ClockDomain("clkout"), clkout_freq)
                 pll.get_fragment()
