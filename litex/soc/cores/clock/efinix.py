@@ -63,11 +63,11 @@ class EFINIXPLL(LiteXModule):
 
         block = self.platform.toolchain.ifacewriter.get_block(self.name)
 
-        block["input_clock_name"] = self.platform.get_pin_name(clkin)
-
         # If clkin has a pin number, PLL clock input is EXTERNAL
-        if self.platform.get_pin_location(clkin):
-            pad_name = self.platform.get_pin_location(clkin)[0]
+        pin_location = self.platform.get_pin_location(clkin) if clkin is not None else None
+        if pin_location:
+            block["input_clock_name"] = self.platform.get_pin_name(clkin)
+            pad_name = pin_location[0]
             # PLL v1 needs pin name
             pin_name = self.platform.parser.get_pad_name_from_pin(pad_name)
             if pin_name.count("_") == 2:
@@ -98,6 +98,7 @@ class EFINIXPLL(LiteXModule):
                 input_signal = clkin.name_override
             else:
                 raise ValueError("No clkin name nor clkin provided.")
+            block["input_clock_name"] = name if name != "" else self.platform.get_pin_name(clkin)
             block["input_clock"]  = "INTERNAL" if self.type == "TITANIUMPLL" else "CORE"
             block["resource"]     = self.platform.get_free_pll_resource()
             block["input_signal"] = input_signal

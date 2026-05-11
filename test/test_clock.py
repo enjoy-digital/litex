@@ -27,6 +27,7 @@ class _FakeEfinixIfaceWriter:
 class _FakeEfinixToolchain:
     def __init__(self):
         self.ifacewriter = _FakeEfinixIfaceWriter()
+        self.excluded_ios = []
 
 
 class _FakeEfinixPlatform:
@@ -35,9 +36,24 @@ class _FakeEfinixPlatform:
         self.device    = "T20"
         self.toolchain = _FakeEfinixToolchain()
         self.clks      = {}
+        self.pll_used      = 0
+        self.pll_available = 4
 
     def add_iface_io(self, name):
         return Signal(name=name)
+
+    def get_pin_name(self, clkin):
+        if clkin is None:
+            raise ValueError("No pin signal provided.")
+        return clkin.name_override or "clk"
+
+    def get_pin_location(self, clkin):
+        return []
+
+    def get_free_pll_resource(self):
+        resource = "PLL{}".format(self.pll_used)
+        self.pll_used += 1
+        return resource
 
 
 class TestClock(unittest.TestCase):
@@ -362,6 +378,20 @@ class TestClock(unittest.TestCase):
         pll.create_clkout(None, 100e6, is_feedback=True, nclkout=0)
         with self.assertRaisesRegex(ValueError, "Feedback clock output"):
             pll.create_clkout(None, 100e6, is_feedback=True, nclkout=1)
+
+    def test_efinix_pll_registers_name_only_internal_clkin(self):
+        pll = TITANIUMPLL(_FakeEfinixPlatform())
+        pll.register_clkin(None, 50e6, name="core_clk")
+        block = self.get_efinix_pll_block(pll)
+
+        self.assertEqual(block["input_clock_name"], "core_clk")
+        self.assertEqual(block["input_signal"], "core_clk")
+        self.assertEqual(block["input_clock"], "INTERNAL")
+
+    def test_efinix_pll_rejects_missing_internal_clkin_name(self):
+        pll = TITANIUMPLL(_FakeEfinixPlatform())
+        with self.assertRaisesRegex(ValueError, "No clkin name"):
+            pll.register_clkin(None, 50e6)
 
     def test_efinix_pll_remaps_sparse_feedback_clkout(self):
         pll   = TRIONPLL(_FakeEfinixPlatform())
