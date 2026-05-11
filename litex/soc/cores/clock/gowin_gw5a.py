@@ -67,7 +67,7 @@ class GW5APLL(LiteXModule):
         register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
-        assert self.nclkouts < self.nclkouts_max
+        check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
         if with_reset:
@@ -77,6 +77,8 @@ class GW5APLL(LiteXModule):
         self.nclkouts += 1
 
     def compute_config(self):
+        check_clkin_registered(hasattr(self, "clkin"))
+        check_clkouts(self.nclkouts)
         configs = [] # corresponding VCO/FBDIV/IDIV/ODIV params + diff
 
         for idiv in range(1, 64):
@@ -94,6 +96,9 @@ class GW5APLL(LiteXModule):
                             config = {}
                             for n, (clk, f, p, m) in self.clkouts.items():
                                 odiv = round(vco_freq/f)
+                                if not (1 <= odiv <= 128):
+                                    okay = False
+                                    continue
                                 out_freq = vco_freq/odiv
                                 diff = abs(out_freq - f) / f
                                 pe = round(p * odiv / 360)
@@ -130,8 +135,8 @@ class GW5APLL(LiteXModule):
         return best_config
 
     def do_finalize(self):
-        assert hasattr(self, "clkin")
-        assert len(self.clkouts) > 0 and len(self.clkouts) <= self.nclkouts_max
+        check_clkin_registered(hasattr(self, "clkin"))
+        check_clkouts(self.nclkouts)
         config = self.compute_config()
         # Based on UG306-1.0 Note.
         self.params.update(

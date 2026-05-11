@@ -9,6 +9,8 @@ import unittest
 from migen import *
 
 from litex.soc.cores.clock import *
+from litex.soc.cores.clock.gowin_gw1n import GW1NPLL
+from litex.soc.cores.clock.gowin_gw5a import GW5APLL
 
 
 class TestClock(unittest.TestCase):
@@ -232,6 +234,52 @@ class TestClock(unittest.TestCase):
             pll.create_clkout(ClockDomain("clkout"), 300e6)
         with self.assertRaisesRegex(ValueError, "Output clock phase"):
             pll.create_clkout(ClockDomain("clkout"), 100e6, phase=45)
+
+    def test_plls_reject_missing_clkout(self):
+        test_cases = [
+            ("S7PLL",       lambda: S7PLL(),                              100e6),
+            ("CycloneVPLL", lambda: CycloneVPLL(),                         50e6),
+            ("Agilex5PLL",  lambda: Agilex5PLL(platform=None),            100e6),
+            ("ECP5PLL",     lambda: ECP5PLL(),                            100e6),
+            ("iCE40PLL",    lambda: iCE40PLL(),                            12e6),
+            ("NXPLL",       lambda: NXPLL(),                              100e6),
+            ("GW1NPLL",     lambda: GW1NPLL("GW1N-9", "GW1N-9C"),          50e6),
+            ("GW5APLL",     lambda: GW5APLL("GW5A-25", "GW5A-25"),         50e6),
+        ]
+        for name, pll_factory, clkin_freq in test_cases:
+            with self.subTest(pll=name):
+                pll = pll_factory()
+                pll.register_clkin(Signal(name="clk"), clkin_freq)
+                with self.assertRaisesRegex(ValueError, "At least one output clock"):
+                    pll.compute_config()
+
+    def test_pll_rejects_missing_clkin(self):
+        pll = S7PLL()
+        pll.create_clkout(ClockDomain("clkout"), 100e6)
+        with self.assertRaisesRegex(ValueError, "Input clock"):
+            pll.compute_config()
+
+    def test_pll_rejects_too_many_clkouts(self):
+        pll = S7PLL()
+        for i in range(pll.nclkouts_max):
+            pll.create_clkout(ClockDomain("clkout{}".format(i)), 100e6)
+        with self.assertRaisesRegex(ValueError, "Cannot add more"):
+            pll.create_clkout(ClockDomain("clkout_extra"), 100e6)
+
+    def test_gw5a_pll_rejects_unreachable_high_clkout(self):
+        pll = GW5APLL("GW5A-25", "GW5A-25")
+        pll.register_clkin(Signal(), 50e6)
+        pll.create_clkout(ClockDomain("clkout"), 10e9)
+        with self.assertRaisesRegex(ValueError, "No PLL config found"):
+            pll.compute_config()
+
+    def test_gw1n_pll_rejects_multiple_nonzero_phases(self):
+        pll = GW1NPLL("GW1N-9", "GW1N-9C")
+        pll.register_clkin(Signal(), 50e6)
+        pll.create_clkout(ClockDomain("clkout0"), 100e6, phase=90)
+        pll.create_clkout(ClockDomain("clkout1"), 100e6, phase=180)
+        with self.assertRaisesRegex(ValueError, "only one non-zero phase"):
+            pll.compute_config()
 
     def test_pll_configs_match_requested_frequencies(self):
         test_cases = [

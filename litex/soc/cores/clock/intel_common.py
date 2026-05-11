@@ -52,7 +52,7 @@ class IntelClocking(LiteXModule):
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
         check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
-        assert self.nclkouts < self.nclkouts_max
+        check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
         if with_reset:
@@ -62,6 +62,8 @@ class IntelClocking(LiteXModule):
         self.nclkouts += 1
 
     def compute_config(self):
+        check_clkin_registered(hasattr(self, "clkin"))
+        check_clkouts(self.nclkouts)
         valid_configs = {}
         clkdiv_range_list = list(clkdiv_range(*self.c_div_range)) # for speed
         # Only test values of N (input clock divisor) which result in a PFD
@@ -114,7 +116,7 @@ class IntelClocking(LiteXModule):
             self.reset = reset
 
     def do_finalize(self):
-        assert hasattr(self, "clkin")
+        check_clkin_registered(hasattr(self, "clkin"))
         self.add_reset_delay(cycles=8) # Prevents interlock when reset driven from sys_clk.
         config = self.compute_config()
         clks = Signal(self.nclkouts)

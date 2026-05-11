@@ -52,7 +52,7 @@ class ECP5PLL(LiteXModule):
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True, uses_dpa=True):
         check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
-        assert self.nclkouts < self.nclkouts_max
+        check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin, uses_dpa)
         if with_reset:
@@ -62,6 +62,8 @@ class ECP5PLL(LiteXModule):
         self.nclkouts += 1
 
     def compute_config(self):
+        check_clkin_registered(hasattr(self, "clkin"))
+        check_clkouts(self.nclkouts)
         config = {}
         # Iterate on CLKI dividers...
         for clki_div in range(*self.clki_div_range):

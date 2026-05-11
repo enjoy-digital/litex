@@ -110,7 +110,7 @@ class GW1NPLL(LiteXModule):
         register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
-        assert self.nclkouts < self.nclkouts_max
+        check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
         if with_reset:
@@ -121,6 +121,8 @@ class GW1NPLL(LiteXModule):
         self.nclkouts += 1
 
     def compute_config(self):
+        check_clkin_registered(hasattr(self, "clkin"))
+        check_clkouts(self.nclkouts)
         # extract the highest frequency and associated margin
         freq_max, m = max([(f, n) for (_, f, _, n) in self.clkouts.values()], key=lambda p: p[1])
 
@@ -158,7 +160,8 @@ class GW1NPLL(LiteXModule):
 
         # Phase
         phases = list({p for (_, _, p, _) in self.clkouts.values() if p != 0})
-        assert len(phases) < 2 # only zero or one phase possible
+        if len(phases) >= 2:
+            raise ValueError("Gowin PLL supports only one non-zero phase.")
         # configure phase param
         config["PSDA_SEL"] = f"{int(phases[0] // 22.5):04b}" if len(phases) == 1 else "0000"
 
@@ -207,8 +210,8 @@ class GW1NPLL(LiteXModule):
         return config
 
     def do_finalize(self):
-        assert hasattr(self, "clkin")
-        assert len(self.clkouts) > 0 and len(self.clkouts) <= 4
+        check_clkin_registered(hasattr(self, "clkin"))
+        check_clkouts(self.nclkouts)
         config = self.compute_config()
         # Based on UG286-1.3E Note.
         self.params.update(

@@ -53,7 +53,7 @@ class iCE40PLL(LiteXModule):
 
     def create_clkout(self, cd, freq, margin=1e-2, with_reset=True):
         check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
-        assert self.nclkouts < self.nclkouts_max
+        check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, 0, margin)
         if with_reset:
@@ -63,6 +63,8 @@ class iCE40PLL(LiteXModule):
         self.nclkouts += 1
 
     def compute_config(self):
+        check_clkin_registered(hasattr(self, "clkin"))
+        check_clkouts(self.nclkouts)
         config = {}
         for divr in range(*self.divr_range):
             for divf in range(*self.divf_range):

@@ -158,12 +158,14 @@ class NXPLL(LiteXModule):
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2):
         check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
-        assert self.nclkouts < self.nclkouts_max
+        check_clkout_count(self.nclkouts, self.nclkouts_max)
         self.clkouts[self.nclkouts] = (cd.clk, freq, phase, margin)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
 
     def compute_config(self):
+        check_clkin_registered(hasattr(self, "clkin"))
+        check_clkouts(self.nclkouts)
         config = {}
         for clki_div in range(*self.clki_div_range):
             config["clki_div"] = clki_div

@@ -47,11 +47,12 @@ class XilinxClocking(LiteXModule):
         register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, reset_buf=None, ce=None):
-        assert self.nclkouts < self.nclkouts_max
+        check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
         if with_reset:
-            assert reset_buf in [None, "bufg"]
+            if reset_buf not in [None, "bufg"]:
+                raise ValueError("Unsupported reset clock buffer: {}".format(reset_buf))
             cd.rst_buf = reset_buf # FIXME: Improve.
             self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         if buf is None:
@@ -78,6 +79,8 @@ class XilinxClocking(LiteXModule):
         self.nclkouts += 1
 
     def compute_config(self):
+        check_clkin_registered(hasattr(self, "clkin"))
+        check_clkouts(self.nclkouts)
         config = {}
         for divclk_divide in range(*self.divclk_divide_range):
             config["divclk_divide"] = divclk_divide
@@ -194,5 +197,5 @@ class XilinxClocking(LiteXModule):
             self.reset = reset
 
     def do_finalize(self):
-        assert hasattr(self, "clkin")
+        check_clkin_registered(hasattr(self, "clkin"))
         self.add_reset_delay(cycles=8) # Prevents interlock when reset driven from sys_clk.

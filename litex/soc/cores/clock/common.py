@@ -58,6 +58,18 @@ def check_freq_range(freq, freq_range, name="frequency"):
             )
         )
 
+def check_clkin_registered(clkin_registered):
+    if not clkin_registered:
+        raise ValueError("Input clock has not been registered.")
+
+def check_clkout_count(nclkouts, nclkouts_max):
+    if nclkouts >= nclkouts_max:
+        raise ValueError("Cannot add more than {} output clocks.".format(nclkouts_max))
+
+def check_clkouts(nclkouts):
+    if nclkouts == 0:
+        raise ValueError("At least one output clock must be registered.")
+
 def clkdiv_range(start, stop, step=1):
     start   = float(start)
     stop    = float(stop)
