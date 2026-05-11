@@ -7,7 +7,7 @@
 import unittest
 from types import SimpleNamespace
 
-from migen import Module, Signal, run_simulation
+from migen import Array, If, Module, Signal, run_simulation
 from migen.fhdl.specials import Instance
 
 from litex.build.altera import AlteraPlatform
@@ -96,6 +96,62 @@ class _IgnoreInstance:
         return Module()
 
 
+class _SBSPRAM256KAModel(Module):
+    @staticmethod
+    def lower(instance):
+        return _SBSPRAM256KAModel(instance)
+
+    def __init__(self, instance):
+        items = {
+            item.name: item.expr
+            for item in instance.items
+            if hasattr(item, "expr")
+        }
+        mem = Array(Signal(16, reset=0) for _ in range(16))
+        adr = Signal(4)
+
+        self.comb += [
+            adr.eq(items["ADDRESS"][:4]),
+            items["DATAOUT"].eq(mem[adr]),
+        ]
+        for i in range(4):
+            self.sync += If(items["WREN"] & items["CHIPSELECT"] & items["MASKWREN"][i],
+                mem[adr][4*i:4*(i + 1)].eq(items["DATAIN"][4*i:4*(i + 1)]))
+
+
+class _SP512KModel(Module):
+    @staticmethod
+    def lower(instance):
+        return _SP512KModel(instance)
+
+    def __init__(self, instance):
+        items = {
+            item.name: item.expr
+            for item in instance.items
+            if hasattr(item, "expr")
+        }
+        mem = Array(Signal(32, reset=0) for _ in range(16))
+        adr = Signal(4)
+
+        self.comb += [
+            adr.eq(items["AD"][:4]),
+            items["DO"].eq(mem[adr]),
+        ]
+        for i in range(4):
+            self.sync += If(items["WE"] & items["CS"] & ~items["BYTEEN_N"][i],
+                mem[adr][8*i:8*(i + 1)].eq(items["DI"][8*i:8*(i + 1)]))
+
+
+class _LatticeRAMPrimitiveModel:
+    @staticmethod
+    def lower(instance):
+        if instance.of == "SB_SPRAM256KA":
+            return _SBSPRAM256KAModel(instance)
+        if instance.of == "SP512K":
+            return _SP512KModel(instance)
+        return Module()
+
+
 def instance_names(module):
     return [special.of for special in module.get_fragment().specials]
 
@@ -157,6 +213,19 @@ class TestLatticeRAM(unittest.TestCase):
     def test_up5k_spram_wishbone_ack_pulses(self):
         self.assert_wishbone_ack_pulses(Up5kSPRAM(width=32, size=64*kB))
 
+    def test_up5k_spram_writes_selected_byte_lanes(self):
+        dut = Up5kSPRAM(width=32, size=64*kB)
+
+        def generator():
+            yield from dut.bus.write(0, 0x11223344)
+            yield
+            self.assertEqual((yield from dut.bus.read(0)), 0x11223344)
+            yield from dut.bus.write(0, 0xaaaabbbb, sel=0b0101)
+            yield
+            self.assertEqual((yield from dut.bus.read(0)), 0x11aa33bb)
+
+        run_simulation(dut, generator(), special_overrides={Instance: _LatticeRAMPrimitiveModel})
+
     def test_nxlram_primitive_count_matches_width_and_size(self):
         test_cases = [
             (32,  64*kB, 1),
@@ -177,6 +246,19 @@ class TestLatticeRAM(unittest.TestCase):
 
     def test_nxlram_wishbone_ack_pulses(self):
         self.assert_wishbone_ack_pulses(NXLRAM(width=32, size=64*kB))
+
+    def test_nxlram_writes_selected_byte_lanes(self):
+        dut = NXLRAM(width=64, size=128*kB)
+
+        def generator():
+            yield from dut.bus.write(0, 0x1122334455667788)
+            yield
+            self.assertEqual((yield from dut.bus.read(0)), 0x1122334455667788)
+            yield from dut.bus.write(0, 0xaaaabbbbccccdddd, sel=0b01010101)
+            yield
+            self.assertEqual((yield from dut.bus.read(0)), 0x11aa33bb55cc77dd)
+
+        run_simulation(dut, generator(), special_overrides={Instance: _LatticeRAMPrimitiveModel})
 
     def test_nxlram_initval_parameters_pack_32bit_words(self):
         contents = [0]*(524288//32)
