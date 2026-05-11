@@ -16,7 +16,11 @@ extern "C" {
 
 #if defined(CSR_SDRAM_BASE) && defined(CONFIG_HAS_I2C)
 
+#ifdef LITEDRAM_PHY_HEADER
+#include LITEDRAM_PHY_HEADER
+#else
 #include <generated/sdram_phy.h>
+#endif
 
 #define SPD_RW_PREAMBLE    0b1010
 #define SPD_RW_ADDR(a210)  ((SPD_RW_PREAMBLE << 3) | ((a210) & 0b111))

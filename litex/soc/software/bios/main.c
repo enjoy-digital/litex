@@ -203,7 +203,7 @@ __attribute__((__used__)) int main(int i, char **c)
 
 	/* Initialize and test DRAM */
 #ifdef CSR_SDRAM_BASE
-	sdr_ok = sdram_init();
+	sdr_ok = sdram_init_all();
 #else
 	/* Test Main RAM when present and not pre-initialized */
 #ifdef MAIN_RAM_BASE

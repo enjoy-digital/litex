@@ -290,14 +290,23 @@ class Builder:
         git_contents = export.get_git_header()
         write_to_file(os.path.join(self.generated_dir, "git.h"), git_contents)
 
-        # Generate LiteDRAM C header to sdram_phy.h when the SoC use it
-        if hasattr(self.soc, "sdram"):
+        # Generate LiteDRAM C headers when the SoC uses SDRAM.
+        sdram_controllers = getattr(self.soc, "sdram_controllers", None)
+        if sdram_controllers is None and hasattr(self.soc, "sdram"):
+            sdram_controllers = {"sdram": self.soc.sdram}
+        if sdram_controllers:
             from litedram.init import get_sdram_phy_c_header
-            sdram_contents = get_sdram_phy_c_header(
-                self.soc.sdram.controller.settings.phy,
-                self.soc.sdram.controller.settings.timing,
-                self.soc.sdram.controller.settings.geom)
-            write_to_file(os.path.join(self.generated_dir, "sdram_phy.h"), sdram_contents)
+            for name, sdram in sdram_controllers.items():
+                sdram_contents = get_sdram_phy_c_header(
+                    sdram.controller.settings.phy,
+                    sdram.controller.settings.timing,
+                    sdram.controller.settings.geom,
+                    sdram_name         = name,
+                    ddrphy_name        = getattr(sdram, "phy_name", "ddrphy"),
+                    ddrctrl_name       = getattr(sdram, "ddrctrl_name", "ddrctrl"),
+                    memory_region_name = getattr(sdram, "region_name", "main_ram"))
+                header_name = "sdram_phy.h" if name == "sdram" else f"{name}_phy.h"
+                write_to_file(os.path.join(self.generated_dir, header_name), sdram_contents)
 
     def _generate_csr_map(self):
         # JSON Export.
