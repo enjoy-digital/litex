@@ -22,8 +22,8 @@ class iCE40PLL(LiteXModule):
     divr_range = (0,  16)
     divf_range = (0, 128)
     divq_range = (0,   7)
-    clki_freq_range = ( 10e6,  133e9)
-    clko_freq_range = ( 16e6,  275e9)
+    clki_freq_range = ( 10e6,  133e6)
+    clko_freq_range = ( 16e6,  275e6)
     vco_freq_range  = (533e6, 1066e6)
 
     def __init__(self, primitive="SB_PLL40_CORE", name=None):

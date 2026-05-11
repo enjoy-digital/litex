@@ -12,6 +12,9 @@ from litex.soc.cores.clock import *
 
 
 class TestClock(unittest.TestCase):
+    def assert_frequency_close(self, actual, expected, margin=1e-2):
+        self.assertAlmostEqual(actual, expected, delta=expected*margin)
+
     # Xilinx / Spartan 6
     def test_s6_pll(self):
         pll = S6PLL()
@@ -106,11 +109,20 @@ class TestClock(unittest.TestCase):
 
     # Lattice / iCE40
     def test_ice40_pll(self):
-        pll = USMMCM()
+        pll = iCE40PLL()
         pll.register_clkin(Signal(), 100e6)
         for i in range(pll.nclkouts_max):
             pll.create_clkout(ClockDomain("clkout{}".format(i)), 200e6)
         pll.compute_config()
+
+    def test_ice40_pll_rejects_out_of_range_frequencies(self):
+        pll = iCE40PLL()
+        with self.assertRaises(AssertionError):
+            pll.register_clkin(Signal(), 1e9)
+
+        pll.register_clkin(Signal(), 100e6)
+        with self.assertRaises(AssertionError):
+            pll.create_clkout(ClockDomain("clkout"), 1e9)
 
     # Lattice / ECP5
     def test_ecp5_pll(self):
@@ -141,3 +153,47 @@ class TestClock(unittest.TestCase):
         for i in range(pll.nclkouts_max):
             pll.create_clkout(ClockDomain("clkout{}".format(i)), 200e6)
         pll.compute_config()
+
+    def test_nxosca_hfsdc_clk_can_be_used_without_hf_clk(self):
+        osc = NXOSCA()
+        osc.create_hfsdc_clk(ClockDomain("hfsdc"), 45e6)
+        osc.do_finalize()
+
+        self.assertEqual(osc.params["p_HF_SED_SEC_DIV"], "9")
+        self.assertIn("o_HFSDCOUT", osc.params)
+
+    def test_nxosca_hf_and_hfsdc_clks_use_independent_divisors(self):
+        osc = NXOSCA()
+        osc.create_hf_clk(ClockDomain("hf"), 90e6)
+        osc.create_hfsdc_clk(ClockDomain("hfsdc"), 45e6)
+        osc.do_finalize()
+
+        self.assertEqual(osc.params["p_HF_CLK_DIV"],     "4")
+        self.assertEqual(osc.params["p_HF_SED_SEC_DIV"], "9")
+
+    def test_nxosca_rejects_out_of_range_hf_clk(self):
+        osc = NXOSCA()
+        with self.assertRaises(AssertionError):
+            osc.create_hf_clk(ClockDomain("hf"), 1e6)
+
+    def test_pll_configs_match_requested_frequencies(self):
+        test_cases = [
+            (S7PLL,        100e6, 200e6, "clkout0_freq", 0),
+            (S7MMCM,       100e6, 125e6, "clkout0_freq", 90),
+            (CycloneVPLL,   50e6, 100e6, "clk0_freq",    45),
+            (ECP5PLL,      100e6, 200e6, "clko0_freq",   90),
+            (iCE40PLL,      12e6,  48e6, "clkout_freq",   0),
+        ]
+        for pll_cls, clkin_freq, clkout_freq, freq_key, phase in test_cases:
+            with self.subTest(pll=pll_cls.__name__):
+                pll = pll_cls()
+                pll.register_clkin(Signal(), clkin_freq)
+                if phase:
+                    pll.create_clkout(ClockDomain("clkout"), clkout_freq, phase=phase)
+                else:
+                    pll.create_clkout(ClockDomain("clkout"), clkout_freq)
+                config = pll.compute_config()
+
+                self.assert_frequency_close(config[freq_key], clkout_freq)
+                if phase:
+                    self.assertEqual(config[freq_key.replace("freq", "phase")], phase)

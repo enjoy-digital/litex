@@ -30,7 +30,7 @@ nx_pll_param_permutation = namedtuple("nx_pll_param_permutation",[
 class NXOSCA(LiteXModule):
     nclkouts_max = 2
     clk_hf_div_range = (0, 255)
-    clk_hf_freq_range = (1.76, 450e6)
+    clk_hf_freq_range = (1.76e6, 450e6)
     clk_hf_freq = 450e6
 
     def __init__(self, platform=None):
@@ -98,7 +98,7 @@ class NXOSCA(LiteXModule):
                 self.platform.add_platform_command("create_clock -period {} -name OSCA_HFCLKOUT [get_pins OSCA.OSCA_inst/HFCLKOUT]".format(str(1e9/clk_freq)))
 
         if self.hfsdc_clk_out:
-            clk_freq = self.hf_clk_out[1]
+            clk_freq = self.hfsdc_clk_out[1]
             divisor = self.compute_divisor(clk_freq, self.hfsdc_clk_out[2])
             self.params["i_HFSDSCEN"]        = 0b1
             self.params["p_HF_SED_SEC_DIV"]  = divisor
