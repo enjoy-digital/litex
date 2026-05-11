@@ -5,8 +5,9 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
+from types import SimpleNamespace
 
-from migen import Module, run_simulation
+from migen import Module, Signal, run_simulation
 from migen.fhdl.specials import Instance
 
 from litex.build.altera import AlteraPlatform
@@ -18,6 +19,75 @@ from litex.soc.cores.ram.lattice_nx import NXLRAM, initval_parameters
 from litex.soc.cores.ram.xilinx_fifo_sync_macro import FIFOSyncMacro
 
 kB = 1024
+
+
+class _FakeEfinixIfaceWriter:
+    def __init__(self):
+        self.blocks = []
+
+    def get_block(self, name):
+        for block in self.blocks:
+            if block["name"] == name:
+                return block
+        raise ValueError("Unknown block: {}.".format(name))
+
+
+class _FakeEfinixHyperRAMPlatform:
+    family = "Titanium"
+    device = "Ti60"
+
+    def __init__(self):
+        self.toolchain = SimpleNamespace(
+            ifacewriter  = _FakeEfinixIfaceWriter(),
+            excluded_ios = [],
+        )
+        self.clks = {}
+        self.extensions = []
+        self._requests = {}
+        self.pll_used = 0
+        self.pll_available = 4
+
+    def add_extension(self, extension):
+        self.extensions += extension
+
+    def request(self, name):
+        if name not in self._requests:
+            if name == "hyperram":
+                self._requests[name] = SimpleNamespace(
+                    clkp_h   = Signal(name="hyperram_clkp_h"),
+                    clkp_l   = Signal(name="hyperram_clkp_l"),
+                    clkn_h   = Signal(name="hyperram_clkn_h"),
+                    clkn_l   = Signal(name="hyperram_clkn_l"),
+                    dq_o_h   = Signal(16, name="hyperram_dq_o_h"),
+                    dq_o_l   = Signal(16, name="hyperram_dq_o_l"),
+                    dq_i_h   = Signal(16, name="hyperram_dq_i_h"),
+                    dq_i_l   = Signal(16, name="hyperram_dq_i_l"),
+                    dq_oe    = Signal(16, name="hyperram_dq_oe"),
+                    rwds_o_h = Signal(2,  name="hyperram_rwds_o_h"),
+                    rwds_o_l = Signal(2,  name="hyperram_rwds_o_l"),
+                    rwds_i_h = Signal(2,  name="hyperram_rwds_i_h"),
+                    rwds_i_l = Signal(2,  name="hyperram_rwds_i_l"),
+                    rwds_oe  = Signal(2,  name="hyperram_rwds_oe"),
+                    csn      = Signal(name="hyperram_csn"),
+                    rstn     = Signal(name="hyperram_rstn"),
+                )
+            else:
+                self._requests[name] = Signal(name=name)
+        return self._requests[name]
+
+    def add_iface_io(self, name):
+        return Signal(name=name)
+
+    def get_pin_name(self, clkin):
+        return clkin.name_override
+
+    def get_pin_location(self, clkin):
+        return []
+
+    def get_free_pll_resource(self):
+        resource = "PLL{}".format(self.pll_used)
+        self.pll_used += 1
+        return resource
 
 
 class _IgnoreInstance:
@@ -225,6 +295,26 @@ class TestEfinixRAM(unittest.TestCase):
     def test_efinix_hyperram_rejects_too_fast_4x_clock(self):
         with self.assertRaisesRegex(ValueError, "4x clock"):
             EfinixHyperRAM(platform=None, sys_clk_freq=62.5e6)
+
+    def test_efinix_hyperram_registers_interface_blocks(self):
+        platform = _FakeEfinixHyperRAMPlatform()
+
+        hyperram = EfinixHyperRAM(platform=platform, sys_clk_freq=50e6, with_csr=False)
+
+        pll_block = platform.toolchain.ifacewriter.get_block(hyperram.pll.name)
+        self.assertEqual(pll_block["type"], "PLL")
+        self.assertIs(pll_block["shift_ena"], platform.request("shift_ena"))
+        self.assertIs(pll_block["shift"],     platform.request("shift"))
+        self.assertIs(pll_block["shift_sel"], platform.request("shift_sel"))
+
+        hyperram_blocks = [
+            block for block in platform.toolchain.ifacewriter.blocks
+            if block["type"] == "HYPERRAM"
+        ]
+        self.assertEqual(len(hyperram_blocks), 1)
+        self.assertIs(hyperram_blocks[0]["pads"], hyperram.io_pads)
+        self.assertIn(platform.request("shift_ena"), platform.toolchain.excluded_ios)
+        self.assertIn(hyperram.io_pads.csn, platform.toolchain.excluded_ios)
 
 
 if __name__ == "__main__":
