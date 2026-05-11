@@ -162,9 +162,17 @@ class TestXilinxRAM(unittest.TestCase):
 
     def test_fifo_sync_macro_rejects_invalid_parameters(self):
         with self.assertRaisesRegex(ValueError, "data-width"):
+            FIFOSyncMacro(data_width=0)
+        with self.assertRaisesRegex(ValueError, "data-width"):
             FIFOSyncMacro(data_width=73)
         with self.assertRaisesRegex(ValueError, "Unsupported"):
             FIFOSyncMacro(fifo_size="72Kb")
+        with self.assertRaisesRegex(ValueError, "DO_REG"):
+            FIFOSyncMacro(do_reg=2)
+        with self.assertRaisesRegex(ValueError, "almost-empty"):
+            FIFOSyncMacro("18Kb", data_width=32, almost_empty_offset=-1)
+        with self.assertRaisesRegex(ValueError, "almost-full"):
+            FIFOSyncMacro("18Kb", data_width=32, almost_full_offset=513)
         with self.assertRaisesRegex(ValueError, "up to 72 bits only for 36Kb"):
             FIFOSyncMacro("18Kb", data_width=64, toolchain="f4pga")
         with self.assertRaisesRegex(NotImplementedError, "DO_REG"):
