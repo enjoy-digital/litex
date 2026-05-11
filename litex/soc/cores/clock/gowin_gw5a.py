@@ -17,6 +17,7 @@ class GW5APLL(LiteXModule):
     nclkouts_max = 7
 
     def __init__(self, devicename, device, vco_margin=0, name=None):
+        check_margin(vco_margin, "VCO margin")
         self.logger = logging.getLogger("GW5APLL")
         self.logger.info("Creating GW5APLL.".format())
         self.device     = device
@@ -64,6 +65,7 @@ class GW5APLL(LiteXModule):
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
         check_freq_positive(freq, "Output clock frequency")
+        check_margin(margin)
         check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
         self.clkouts[self.nclkouts] = ClkOut(clkout, freq, phase, margin)

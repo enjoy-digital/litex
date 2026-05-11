@@ -19,6 +19,7 @@ from litex.soc.cores.clock.common import *
 class XilinxClocking(LiteXModule):
 
     def __init__(self, vco_margin=0):
+        check_margin(vco_margin, "VCO margin")
         self.clkfbout_mult_frange = (2,  64+1)
         self.clkout_divide_range  = (1, 128+1)
         self.vco_margin = vco_margin
@@ -40,6 +41,7 @@ class XilinxClocking(LiteXModule):
 
     def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, reset_buf=None, ce=None):
         check_freq_positive(freq, "Output clock frequency")
+        check_margin(margin)
         check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
         self.clkouts[self.nclkouts] = ClkOut(clkout, freq, phase, margin)

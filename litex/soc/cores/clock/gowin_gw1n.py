@@ -16,6 +16,7 @@ class GW1NOSC(LiteXModule):
     osc_div_range = (2,  128)
     def __init__(self, device, freq, margin=1e-2):
         check_freq_positive(freq, "Oscillator frequency")
+        check_margin(margin)
         self.logger = logging.getLogger("GW1NOSC")
         self.logger.info("Creating GW1NOSC.".format())
         self.clk    = Signal()
@@ -54,6 +55,7 @@ class GW1NPLL(LiteXModule):
     nclkouts_max = 4
 
     def __init__(self, devicename, device, vco_margin=0, name=None):
+        check_margin(vco_margin, "VCO margin")
         self.logger = logging.getLogger("GW1NPLL")
         self.logger.info("Creating GW1NPLL.".format())
         self.device     = device
@@ -111,6 +113,7 @@ class GW1NPLL(LiteXModule):
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
         check_freq_positive(freq, "Output clock frequency")
+        check_margin(margin)
         check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
         self.clkouts[self.nclkouts] = ClkOut(clkout, freq, phase, margin)

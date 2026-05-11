@@ -19,6 +19,7 @@ from litex.soc.cores.clock.common import *
 
 class IntelClocking(LiteXModule):
     def __init__(self, vco_margin=0):
+        check_margin(vco_margin, "VCO margin")
         self.vco_margin = vco_margin
         self.reset      = Signal()
         self.locked     = Signal()
@@ -37,6 +38,7 @@ class IntelClocking(LiteXModule):
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
         check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
+        check_margin(margin)
         check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
         self.clkouts[self.nclkouts] = ClkOut(clkout, freq, phase, margin)

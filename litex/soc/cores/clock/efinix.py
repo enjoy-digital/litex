@@ -113,6 +113,7 @@ class EFINIXPLL(LiteXModule):
 
     def create_clkout(self, cd, freq, phase=0, margin=0, name="", with_reset=True, dyn_phase=False, is_feedback=False, nclkout=None):
         check_freq_positive(freq, "Output clock frequency")
+        check_margin(margin)
 
         block = self.platform.toolchain.ifacewriter.get_block(self.name)
 
@@ -379,10 +380,13 @@ class TRIONPLL(EFINIXPLL):
         if phase == 0:
             return [i for i in range(1, 257)]
 
-        return {
+        c_ranges = {
              45: [4],
              90: [2, 4, 6],
             135: [4],
             180: [2],
             270: [2]
-        }[phase]
+        }
+        if phase not in c_ranges:
+            raise ValueError("Unsupported PLL clock phase: {} degrees.".format(phase))
+        return c_ranges[phase]

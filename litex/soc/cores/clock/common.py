@@ -71,6 +71,10 @@ def check_freq_range(freq, freq_range, name="frequency"):
             )
         )
 
+def check_margin(margin, name="clock margin"):
+    if margin < 0:
+        raise ValueError("{} must be non-negative.".format(name))
+
 def check_clkin_registered(clkin_registered):
     if not clkin_registered:
         raise ValueError("Input clock has not been registered.")
@@ -112,6 +116,7 @@ def update_best_config(best_config, best_score, config, errors, vco_freq=0):
     return best_config, best_score
 
 def clkout_best_divider(freq, margin, dividers, clk_freq):
+    check_margin(margin)
     best = None
     for divider in dividers:
         clkout_freq = clk_freq(divider)

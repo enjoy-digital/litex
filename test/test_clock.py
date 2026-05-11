@@ -350,6 +350,19 @@ class TestClock(unittest.TestCase):
         self.assertEqual(osc.config["div"], 2)
         self.assert_frequency_close(osc.config["freq"], 125e6, margin=1e-9)
 
+    def test_clocking_rejects_negative_margins(self):
+        test_cases = [
+            ("S7PLL clkout", lambda: S7PLL().create_clkout(ClockDomain("clkout"), 100e6, margin=-1e-2)),
+            ("GW1NOSC",      lambda: GW1NOSC("GW1N-9", 100e6, margin=-1e-2)),
+            ("GW1NPLL VCO",  lambda: GW1NPLL("GW1N-9", "GW1N-9C", vco_margin=-1e-2)),
+            ("NXOSCA HF",    lambda: NXOSCA().create_hf_clk(ClockDomain("hf"), 45e6, margin=-1e-2)),
+            ("Efinix",       lambda: TITANIUMPLL(_FakeEfinixPlatform()).create_clkout(None, 100e6, margin=-1e-2)),
+        ]
+        for name, clocking_factory in test_cases:
+            with self.subTest(clocking=name):
+                with self.assertRaisesRegex(ValueError, "margin"):
+                    clocking_factory()
+
     def test_efinix_pll_accepts_dyn_phase_pads(self):
         pads = {
             "shift_ena": Signal(),
@@ -432,6 +445,15 @@ class TestClock(unittest.TestCase):
 
         pll.create_clkout(None, 100e6, nclkout=0)
         with self.assertRaisesRegex(ValueError, "Feedback clock output"):
+            pll.compute_config()
+
+    def test_efinix_pll_rejects_unsupported_phase(self):
+        pll   = TRIONPLL(_FakeEfinixPlatform())
+        block = self.get_efinix_pll_block(pll)
+        block["input_freq"] = 50e6
+
+        pll.create_clkout(None, 100e6, phase=30, is_feedback=True)
+        with self.assertRaisesRegex(ValueError, "Unsupported PLL clock phase"):
             pll.compute_config()
 
     def test_plls_reject_missing_clkout(self):

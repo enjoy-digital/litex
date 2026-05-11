@@ -45,6 +45,7 @@ class NXOSCA(LiteXModule):
     def create_hf_clk(self, cd, freq, margin=.05):
         """450 - 1.7 Mhz Clk"""
         check_freq_range(freq, self.clk_hf_freq_range, "HF clock frequency")
+        check_margin(margin)
         clkout = Signal()
         self.hf_clk_out = (clkout, freq, margin)
         self.comb += cd.clk.eq(clkout)
@@ -53,6 +54,7 @@ class NXOSCA(LiteXModule):
     def create_hfsdc_clk(self, cd, freq, margin=.05):
         """450 - 1.7 Mhz Clk. Can only be connected to the SEDC_CLK port of CONFIG_CLKRST_CORE"""
         check_freq_range(freq, self.clk_hf_freq_range, "HFSDSC clock frequency")
+        check_margin(margin)
         clkout = Signal()
         self.hfsdc_clk_out = (clkout, freq, margin)
         self.comb += cd.clk.eq(clkout)
@@ -66,6 +68,7 @@ class NXOSCA(LiteXModule):
         create_clkout_log(self.logger, cd.name, 128e3, 19e3, -1)
 
     def compute_divisor(self, freq, margin):
+        check_margin(margin)
         config = {}
 
         for divisor in range(*self.clk_hf_div_range):
@@ -153,6 +156,7 @@ class NXPLL(LiteXModule):
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2):
         check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
+        check_margin(margin)
         check_clkout_count(self.nclkouts, self.nclkouts_max)
         self.clkouts[self.nclkouts] = ClkOut(cd.clk, freq, phase, margin)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)

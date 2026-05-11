@@ -45,6 +45,7 @@ class AgilexPLL(IntelClocking):
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
         check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
+        check_margin(margin)
         check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
         self.clkouts[self.nclkouts] = ClkOutNamed(clkout, freq, phase, margin, cd.clk.name_override)
@@ -97,9 +98,6 @@ class AgilexPLL(IntelClocking):
                 }
 
                 # Try to find valid C dividers for all outputs.
-                c_dividers        = {}
-                c_phase_ps        = {}
-                c_phase_shifts    = {}
                 config_valid      = True
                 total_error       = 0.0
                 max_error         = 0.0
@@ -113,7 +111,6 @@ class AgilexPLL(IntelClocking):
                     # Find the best integer C divider within constraints.
                     best_c           = None
                     best_error       = float('inf')
-                    best_actual_freq = 0
 
                     # Check nearby integer values
                     ideal_c_i = int(ideal_c)
@@ -136,7 +133,6 @@ class AgilexPLL(IntelClocking):
                         if error < best_error:
                             best_error       = error
                             best_c           = test_c
-                            best_actual_freq = actual_freq
 
                     # Check if we found a valid C divider within margin.
                     if best_c is None or best_error > target_freq*clkout.margin:
