@@ -31,17 +31,21 @@ class Up5kSPRAM(LiteXModule):
 
         # # #
 
-        assert width in [16, 32, 64]
+        if width not in [16, 32, 64]:
+            raise ValueError("Unsupported UP5K SPRAM width: {}.".format(width))
         if width == 16:
-            assert size in [32*kB, 64*kB, 128*kB]
+            if size not in [32*kB, 64*kB, 128*kB]:
+                raise ValueError("Unsupported UP5K SPRAM size for 16-bit width: {}.".format(size))
             depth_cascading = size//(32*kB)
             width_cascading = 1
         if width == 32:
-            assert size in [64*kB, 128*kB]
+            if size not in [64*kB, 128*kB]:
+                raise ValueError("Unsupported UP5K SPRAM size for 32-bit width: {}.".format(size))
             depth_cascading = size//(64*kB)
             width_cascading = 2
         if width == 64:
-            assert size in [128*kB]
+            if size not in [128*kB]:
+                raise ValueError("Unsupported UP5K SPRAM size for 64-bit width: {}.".format(size))
             depth_cascading = size//(128*kB)
             width_cascading = 4
 

@@ -28,7 +28,10 @@ class EfinixHyperRAM(HyperRAM):
 
         # # #
 
-        assert sys_clk_freq is not None and sys_clk_freq * 4 < 250e6
+        if sys_clk_freq is None:
+            raise ValueError("Efinix HyperRAM requires sys_clk_freq.")
+        if sys_clk_freq * 4 >= 250e6:
+            raise ValueError("Efinix HyperRAM 4x clock must be below 250MHz.")
 
         _io = [
             ("hyperram", 0,

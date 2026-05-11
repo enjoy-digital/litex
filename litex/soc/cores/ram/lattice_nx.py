@@ -33,37 +33,45 @@ def initval_parameters(contents, width):
     alternating sequences of 8 bits of padding and 32 bits of real data,
     making up 64KiB altogether.
     """
-    assert width in [32, 64]
+    if width not in [32, 64]:
+        raise ValueError("Unsupported NX LRAM init width: {}.".format(width))
     # Each LRAM is 64KiB == 524288 bits
-    assert len(contents) == 524288 // width
+    if len(contents) != 524288 // width:
+        raise ValueError(
+            "Invalid NX LRAM init length for {}-bit width: {}.".format(width, len(contents)))
     chunk_size = 4096 // width
     parameters = []
     for i in range(0x80):
         name = 'INITVAL_{:02X}'.format(i)
         offset = chunk_size * i
         if width == 32:
-            value = '0x' + ''.join('00{:08X}'.format(contents[offset + j])
+            value = '0x' + ''.join('00{:08X}'.format(contents[offset + j] & 0xffffffff)
                                    for j in range(chunk_size - 1, -1, -1))
         elif width == 64:
-            value = '0x' + ''.join('00{:08X}00{:08X}'.format(contents[offset + j] >> 32, contents[offset + j] | 0xFFFFFF)
+            value = '0x' + ''.join('00{:08X}00{:08X}'.format(
+                                    (contents[offset + j] >> 32) & 0xffffffff,
+                                    contents[offset + j] & 0xffffffff)
                                    for j in range(chunk_size - 1, -1, -1))
         parameters.append(Instance.Parameter(name, value))
     return parameters
 
 
 class NXLRAM(LiteXModule):
-    def __init__(self, width=32, size=128*kB, init=[]):
+    def __init__(self, width=32, size=128*kB, init=None):
         self.bus = wishbone.Interface(data_width=width, address_width=32, addressing="word")
-        assert width in [32, 64]
+        if width not in [32, 64]:
+            raise ValueError("Unsupported NX LRAM width: {}.".format(width))
         self.width = width
         self.size = size
 
         if width == 32:
-            assert size in [64*kB, 128*kB, 192*kB, 256*kB, 320*kB]
+            if size not in [64*kB, 128*kB, 192*kB, 256*kB, 320*kB]:
+                raise ValueError("Unsupported NX LRAM size for 32-bit width: {}.".format(size))
             self.depth_cascading = size//(64*kB)
             self.width_cascading = 1
         if width == 64:
-            assert size in [128*kB, 256*kB]
+            if size not in [128*kB, 256*kB]:
+                raise ValueError("Unsupported NX LRAM size for 64-bit width: {}.".format(size))
             self.depth_cascading = size//(128*kB)
             self.width_cascading = 2
 
@@ -103,14 +111,24 @@ class NXLRAM(LiteXModule):
 
         self.sync += self.bus.ack.eq(self.bus.stb & self.bus.cyc & ~self.bus.ack)
 
-        if init != []:
+        if init is not None:
             self.add_init(init)
 
     def add_init(self, data):
+        data = list(data)
+        total_words = self.size//(self.width//8)
+        if len(data) > total_words:
+            raise ValueError(
+                "NX LRAM init length exceeds RAM size: {} > {}.".format(len(data), total_words))
         # Pad it out to make slicing easier below.
-        data += [0] * (self.size // self.width * 8 - len(data))
+        data += [0] * (total_words - len(data))
+        words_per_block = 64*kB//(32//8)
         for d in range(self.depth_cascading):
             for w in range(self.width_cascading):
-                offset = d * self.width_cascading * 64*kB + w * 64*kB
-                chunk = data[offset:offset + 64*kB]
-                self.lram_blocks[d][w].items += initval_parameters(chunk, self.width)
+                offset = d * words_per_block
+                data_shift = 32*w
+                chunk = [
+                    (word >> data_shift) & 0xffffffff
+                    for word in data[offset:offset + words_per_block]
+                ]
+                self.lram_blocks[d][w].items += initval_parameters(chunk, 32)
