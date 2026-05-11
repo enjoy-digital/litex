@@ -25,6 +25,9 @@ int readline(char *s, int size)
 	char c[2];
 	int ptr;
 
+	if (size <= 0)
+		return -1;
+
 	c[1] = 0;
 	ptr = 0;
 	while(1) {
@@ -39,33 +42,36 @@ int readline(char *s, int size)
 			continue;
 		skip = 0;
 		switch(c[0]) {
-			case 0x7f:
-			case 0x08:
-				if(ptr > 0) {
-					ptr--;
-					fputs("\x08 \x08", stdout);
-				}
-				break;
-			case 0x07:
-				break;
-			case '\r':
-				skip = '\n';
-				s[ptr] = 0x00;
-				fputs("\n", stdout);
-				return 0;
-			case '\n':
-				skip = '\r';
-				s[ptr] = 0x00;
-				fputs("\n", stdout);
-				return 0;
-			default:
+		case 0x7f:
+		case 0x08:
+			if(ptr > 0) {
+				ptr--;
+				fputs("\x08 \x08", stdout);
+			}
+			break;
+		case 0x07:
+			break;
+		case '\r':
+			skip = '\n';
+			s[ptr] = 0x00;
+			fputs("\n", stdout);
+			return 0;
+		case '\n':
+			skip = '\r';
+			s[ptr] = 0x00;
+			fputs("\n", stdout);
+			return 0;
+		default:
+			if (ptr < (size - 1)) {
 				fputs(c, stdout);
 				s[ptr] = c[0];
 				ptr++;
-				break;
+			} else {
+				putchar('\a');
+			}
+			break;
 		}
 	}
 
 	return 0;
 }
-

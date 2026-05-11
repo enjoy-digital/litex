@@ -33,7 +33,8 @@ static int string_list_add(const char *string)
 	int i;
 	for (i = 0; i < HIST_DEPTH; i++) {
 		if (sl[i][0] == 0) {
-			strncpy(&sl[i][0], string, CMD_LINE_BUFFER_SIZE);
+			strncpy(&sl[i][0], string, CMD_LINE_BUFFER_SIZE - 1);
+			sl[i][CMD_LINE_BUFFER_SIZE - 1] = 0;
 			return 0;
 		}
 	}
@@ -69,7 +70,7 @@ static char *list_first_entry(void)
 
 static void string_list_print_by_column(void)
 {
-	int len = 0, num, i, j;
+	int len = 0, num, i = 0, j;
 
 	for (i = 0; i < HIST_DEPTH; i++) {
 		if (sl[i][0] != 0) {
@@ -83,6 +84,8 @@ static void string_list_print_by_column(void)
 		return;
 
 	num = 80 / (len + 1);
+	if (num == 0)
+		num = 1;
 
 	for (j = 0; j < HIST_DEPTH; j++) {
 		if (sl[j][0] != 0) {
@@ -130,7 +133,7 @@ int complete(char *instr, char **outstr)
 
 		first_entry = list_first_entry();
 
-		while (1) {
+		while (outpos < CMD_LINE_BUFFER_SIZE - 1) {
 			entry = first_entry;
 			ch = entry[pos];
 			if (!ch)

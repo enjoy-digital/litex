@@ -118,6 +118,9 @@ int get_param(char *buf, char **cmd, char **params)
 	for (i = 0; i < MAX_PARAM; i++)
 		params[i] = NULL;
 
+	while ((*buf == ' ') && (*buf != 0))
+		buf++;
+
 	*cmd = buf;
 
 	while ((*buf != ' ') && (*buf !=0))
@@ -134,6 +137,9 @@ int get_param(char *buf, char **cmd, char **params)
 
 
 		if (*buf == 0)
+			return nb_param;
+
+		if (nb_param >= MAX_PARAM)
 			return nb_param;
 
 		params[nb_param++] = buf;

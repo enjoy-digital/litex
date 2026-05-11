@@ -94,7 +94,8 @@ static int read_key(void)
 #ifndef BIOS_CONSOLE_NO_HISTORY
 static void cread_add_to_hist(char *line)
 {
-	strcpy(&hist_lines[hist_add_idx][0], line);
+	strncpy(&hist_lines[hist_add_idx][0], line, CMD_LINE_BUFFER_SIZE - 1);
+	hist_lines[hist_add_idx][CMD_LINE_BUFFER_SIZE - 1] = 0;
 
 	if (++hist_add_idx >= HIST_MAX)
 		hist_add_idx = 0;
@@ -168,7 +169,7 @@ static void cread_add_char(char ichar, int insert, unsigned int *num,
 	unsigned int wlen;
 
 	if (insert || *num == *eol_num) {
-		if (*eol_num > len - 1) {
+		if (*eol_num >= len - 1) {
 			getcmd_cbeep();
 			return;
 		}
@@ -209,6 +210,9 @@ int readline(char *buf, int len)
 	int reprint, i;
 	char *completestr;
 #endif
+
+	if (len <= 0)
+		return -1;
 
 	while (1) {
 
@@ -341,7 +345,8 @@ int readline(char *buf, int len)
 			ERASE_TO_EOL();
 
 			/* copy new line into place and display */
-			strcpy(buf, hline);
+			strncpy(buf, hline, len - 1);
+			buf[len - 1] = 0;
 			eol_num = strlen(buf);
 			REFRESH_TO_EOL();
 #endif
