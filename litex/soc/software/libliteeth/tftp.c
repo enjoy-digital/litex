@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stddef.h>
 #include <string.h>
 
 #include <libbase/progress.h>
@@ -87,6 +88,7 @@ static uint8_t *packet_data;
 static int total_length;
 static int transfer_finished;
 static uint8_t *dst_buffer;
+static size_t dst_buffer_size;
 static int last_ack; /* signed, so we can use -1 */
 static uint16_t data_port;
 
@@ -96,8 +98,8 @@ static void rx_callback(uint32_t src_ip, uint16_t src_port,
 	uint8_t *data = _data;
 	uint16_t opcode;
 	uint16_t block;
-	int i;
-	int offset;
+	size_t i;
+	size_t offset;
 
 	if(length < 4) return;
 	if(dst_port != PORT_IN) return;
@@ -118,8 +120,17 @@ static void rx_callback(uint32_t src_ip, uint16_t src_port,
 	}
 	if(block < 1) return;
 	if(opcode == TFTP_DATA) { /* Data */
+		size_t write_offset;
+
 		length -= 4;
-		offset = (block-1)*BLOCK_SIZE;
+		write_offset = ((size_t)block - 1)*BLOCK_SIZE;
+		if ((length > dst_buffer_size) || (write_offset > (dst_buffer_size - length))) {
+			total_length = -1;
+			transfer_finished = 1;
+			return;
+		}
+
+		offset = write_offset;
 		for(i=0;i<length;i++)
 			dst_buffer[offset+i] = data[i+4];
 		total_length += length;
@@ -137,7 +148,7 @@ static void rx_callback(uint32_t src_ip, uint16_t src_port,
 }
 
 int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
-    void *buffer)
+    void *buffer, size_t max_size)
 {
 	int len;
 	int tries;
@@ -152,6 +163,7 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 	udp_set_callback((udp_callback) rx_callback);
 
 	dst_buffer = buffer;
+	dst_buffer_size = max_size;
 
 	total_length = 0;
 	transfer_finished = 0;

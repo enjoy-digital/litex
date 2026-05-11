@@ -361,11 +361,11 @@ static unsigned int remote_ip[4] = {192, 168, 1, 100};
 #endif
 
 static int copy_file_from_tftp_to_ram(unsigned int ip, unsigned short server_port,
-const char *filename, char *buffer)
+const char *filename, char *buffer, size_t max_size)
 {
 	int size;
 	printf("Copying %s to %p... ", filename, buffer);
-	size = tftp_get(ip, server_port, filename, buffer);
+	size = tftp_get(ip, server_port, filename, buffer, max_size);
 	if(size > 0)
 		printf("(%d bytes)", size);
 	printf("\n");
@@ -505,11 +505,9 @@ static void netboot_from_json(const char * filename, unsigned int ip, unsigned s
 	uint8_t boot_addr_found = 0;
 
 	/* Read JSON file */
-	size = tftp_get(ip, tftp_port, filename, json_buffer);
+	size = tftp_get(ip, tftp_port, filename, json_buffer, sizeof(json_buffer) - 1);
 	if (size <= 0)
 		return;
-	if (size >= (int)sizeof(json_buffer))
-		size = sizeof(json_buffer) - 1;
 	json_buffer[size] = 0;
 
 	/* Parse JSON file */
@@ -552,7 +550,8 @@ static void netboot_from_json(const char * filename, unsigned int ip, unsigned s
 				boot_r3 = strtoul(json_value, NULL, 0);
 			/* Copy Image from Network to address */
 			} else {
-				size = copy_file_from_tftp_to_ram(ip, tftp_port, json_name, (void *)strtoul(json_value, NULL, 0));
+				size = copy_file_from_tftp_to_ram(ip, tftp_port, json_name,
+					(void *)strtoul(json_value, NULL, 0), TFTP_MAX_SIZE_UNBOUNDED);
 				if (size <= 0)
 					return;
 				image_found = 1;
@@ -571,7 +570,7 @@ static void netboot_from_json(const char * filename, unsigned int ip, unsigned s
 static void netboot_from_bin(const char * filename, unsigned int ip, unsigned short tftp_port)
 {
 	int size;
-	size = copy_file_from_tftp_to_ram(ip, tftp_port, filename, (void *)MAIN_RAM_BASE);
+	size = copy_file_from_tftp_to_ram(ip, tftp_port, filename, (void *)MAIN_RAM_BASE, MAIN_RAM_SIZE);
 	if (size <= 0)
 		return;
 	boot(0, 0, 0, MAIN_RAM_BASE);
