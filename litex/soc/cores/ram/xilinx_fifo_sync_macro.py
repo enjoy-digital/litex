@@ -112,7 +112,7 @@ class FIFOSyncMacro(LiteXModule, Record):
                 fifo.source.ready.eq(self.rden),
 
                 self.wrerr.eq(~fifo.sink.ready & self.wren),
-                self.rderr.eq(fifo.source.ready & self.rden),
+                self.rderr.eq(~fifo.source.valid & self.rden),
 
                 If(level == 0,
                     self.empty.eq(1)

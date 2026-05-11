@@ -43,6 +43,7 @@ class TestFIFOSyncMacro(unittest.TestCase):
             for i in range(100):
                 yield dut.rden.eq(1)
                 yield
+                self.assertEqual((yield dut.rderr), 0)
                 self.assertEqual((yield dut.rd_d), i)
                 yield dut.rden.eq(0)
                 yield
@@ -131,6 +132,7 @@ class TestFIFOSyncMacro(unittest.TestCase):
                 yield
                 while (yield dut.fifo.source.valid) == 0:
                     yield
+                self.assertEqual((yield dut.rderr), 0)
                 self.assertEqual((yield dut.rd_d), i)
                 yield dut.rden.eq(0)
                 yield
