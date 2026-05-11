@@ -125,10 +125,7 @@ class GW5APLL(LiteXModule):
         best_score  = None
         for config in configs:
             errors = [config["diff%d" % n] for n in self.clkouts.keys()]
-            score  = clkout_config_score(errors, config["vco"])
-            if best_score is None or score < best_score:
-                best_score  = score
-                best_config = config
+            best_config, best_score = update_best_config(best_config, best_score, config, errors, config["vco"])
 
         return best_config
 

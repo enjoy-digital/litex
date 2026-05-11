@@ -177,12 +177,12 @@ class NXPLL(LiteXModule):
                 (vco_freq_min, vco_freq_max) = self.vco_out_freq_range
                 if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
                     for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-                        best_clkout = None
-                        for d in range(*self.clko_div_range):
-                            clk_freq = vco_freq/d
-                            error    = clkout_freq_error(clk_freq, f)
-                            if error <= m and (best_clkout is None or error < best_clkout[0]):
-                                best_clkout = (error, clk_freq, d)
+                        best_clkout = clkout_best_divider(
+                            f,
+                            m,
+                            clkdiv_candidates([self.clko_div_range], ideal=vco_freq/f),
+                            lambda d: vco_freq/d
+                        )
                         if best_clkout is None:
                             all_valid = False
                             break
@@ -196,10 +196,7 @@ class NXPLL(LiteXModule):
                 if all_valid:
                     config["vco"] = vco_freq
                     config["clkfb_div"] = clkfb_div
-                    score = clkout_config_score(errors, vco_freq)
-                    if best_score is None or score < best_score:
-                        best_score  = score
-                        best_config = config
+                    best_config, best_score = update_best_config(best_config, best_score, config, errors, vco_freq)
         if best_config is not None:
             compute_config_log(self.logger, best_config)
             return best_config

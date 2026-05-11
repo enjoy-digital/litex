@@ -213,10 +213,7 @@ class GW1NPLL(LiteXModule):
                 })
 
             if all_valid:
-                score = clkout_config_score(errors, config["vco"])
-                if best_score is None or score < best_score:
-                    best_score  = score
-                    best_config = config
+                best_config, best_score = update_best_config(best_config, best_score, config, errors, config["vco"])
 
         if best_config is not None:
             return best_config

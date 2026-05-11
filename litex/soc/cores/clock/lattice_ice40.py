@@ -76,12 +76,12 @@ class iCE40PLL(LiteXModule):
                 (vco_freq_min, vco_freq_max) = self.vco_freq_range
                 if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
                     for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-                        best_clkout = None
-                        for divq in range(*self.divq_range):
-                            clk_freq = vco_freq/(2**divq)
-                            error    = clkout_freq_error(clk_freq, f)
-                            if error <= m and (best_clkout is None or error < best_clkout[0]):
-                                best_clkout = (error, clk_freq, divq)
+                        best_clkout = clkout_best_divider(
+                            f,
+                            m,
+                            range(*self.divq_range),
+                            lambda divq: vco_freq/(2**divq)
+                        )
                         if best_clkout is None:
                             all_valid = False
                             break
@@ -95,10 +95,7 @@ class iCE40PLL(LiteXModule):
                     config["vco"] = vco_freq
                     config["divr"] = divr
                     config["divf"] = divf
-                    score = clkout_config_score(errors, vco_freq)
-                    if best_score is None or score < best_score:
-                        best_score  = score
-                        best_config = config
+                    best_config, best_score = update_best_config(best_config, best_score, config, errors, vco_freq)
         if best_config is not None:
             compute_config_log(self.logger, best_config)
             return best_config

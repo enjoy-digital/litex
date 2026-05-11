@@ -58,7 +58,8 @@ class IntelClocking(LiteXModule):
     def compute_config(self):
         check_clkin_registered(hasattr(self, "clkin"))
         check_clkouts(self.nclkouts)
-        valid_configs = []
+        best_config = None
+        best_score  = None
         clkdiv_range_list = list(clkdiv_range(*self.c_div_range)) # for speed
         # Only test values of N (input clock divisor) which result in a PFD
         # input frequency within the allowable range.
@@ -96,9 +97,8 @@ class IntelClocking(LiteXModule):
                 else:
                     all_valid = False
                 if all_valid:
-                    valid_configs.append((clkout_config_score(diff_ratios, vco_freq), config))
-        if len(valid_configs):
-            best_config = min(valid_configs, key=lambda v: v[0])[1]
+                    best_config, best_score = update_best_config(best_config, best_score, config, diff_ratios, vco_freq)
+        if best_config is not None:
             compute_config_log(self.logger, best_config)
             return best_config
         raise ValueError("No PLL config found")

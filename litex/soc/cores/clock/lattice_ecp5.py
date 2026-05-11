@@ -90,22 +90,25 @@ class ECP5PLL(LiteXModule):
                         clkout_configs   = {}
                         feedback_configs = {}
                         for n, (clk, f, p, m, dpa) in sorted(active_clkouts.items()):
-                            best_clkout = None
                             for d in range(*self.clko_div_range):
                                 clk_freq = vco_freq/d
                                 error    = clkout_freq_error(clk_freq, f)
-                                # If output is valid, save config.
-                                if error <= m and (best_clkout is None or error < best_clkout[0]):
-                                    best_clkout = (error, clk_freq, d, p)
                                 # Check if output can be used as feedback, if so save it.
                                 # (We cannot use clocks with dynamic phase adjustment enabled)
                                 if error <= m and (d == clkofb_div) and (not (dpa and self.dpa_en)):
                                     if n not in feedback_configs or error < feedback_configs[n][0]:
                                         feedback_configs[n] = (error, clk_freq, d, p)
+                            best_clkout = clkout_best_divider(
+                                f,
+                                m,
+                                clkdiv_candidates([self.clko_div_range], ideal=vco_freq/f),
+                                lambda d: vco_freq/d
+                            )
                             if best_clkout is None:
                                 all_valid = False
                                 break
-                            clkout_configs[n] = best_clkout
+                            error, clk_freq, d = best_clkout
+                            clkout_configs[n]  = (error, clk_freq, d, p)
                         if all_valid:
                             for n, (error, clk_freq, d, p) in sorted(clkout_configs.items()):
                                 if n in feedback_configs and d == feedback_configs[n][2]:
@@ -152,10 +155,9 @@ class ECP5PLL(LiteXModule):
                             feedback_clkout = None
                         config["vco"]       = vco_freq
                         config["clkfb_div"] = clkfb_div
-                        score = clkout_config_score(errors, vco_freq)
-                        if best_score is None or score < best_score:
-                            best_score           = score
-                            best_config          = dict(config)
+                        best_config, new_score = update_best_config(best_config, best_score, dict(config), errors, vco_freq)
+                        if new_score != best_score:
+                            best_score           = new_score
                             best_feedback_clkout = feedback_clkout
         if best_config is not None:
             if best_feedback_clkout is not None and best_feedback_clkout not in self.clkouts:

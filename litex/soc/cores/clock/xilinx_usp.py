@@ -145,8 +145,6 @@ class USPMMCM(XilinxClocking):
                 errors = []
                 all_valid = True
                 for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-                    best_clkout = None
-
                     div_ranges = [self.clkout_divide_range]
                     # Add specific range dividers if they exist
                     specific_div_range = getattr(self, f"clkout{n}_divide_range", None)
@@ -157,12 +155,12 @@ class USPMMCM(XilinxClocking):
                     if n == 0:
                         div_ranges = [(2, 128 + 1/8, 1/8)]
 
-                    for div_range in div_ranges:
-                        for d in clkdiv_nearest(*div_range, ideal=vco_freq/f):
-                            clk_freq = vco_freq / d
-                            error    = clkout_freq_error(clk_freq, f)
-                            if error <= m and (best_clkout is None or error < best_clkout[0]):
-                                best_clkout = (error, clk_freq, d)
+                    best_clkout = clkout_best_divider(
+                        f,
+                        m,
+                        clkdiv_candidates(div_ranges, ideal=vco_freq/f),
+                        lambda d: vco_freq/d
+                    )
 
                     if best_clkout is None:
                         all_valid = False
@@ -175,10 +173,7 @@ class USPMMCM(XilinxClocking):
                     config[f"clkout{n}_phase"] = p
 
                 if all_valid:
-                    score = clkout_config_score(errors, vco_freq)
-                    if best_score is None or score < best_score:
-                        best_score  = score
-                        best_config = config
+                    best_config, best_score = update_best_config(best_config, best_score, config, errors, vco_freq)
 
         if best_config is not None:
             compute_config_log(self.logger, best_config)

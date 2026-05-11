@@ -76,6 +76,21 @@ def clkout_freq_error(clk_freq, freq):
 def clkout_config_score(errors, vco_freq=0):
     return (max(errors), sum(errors), -vco_freq)
 
+def update_best_config(best_config, best_score, config, errors, vco_freq=0):
+    score = clkout_config_score(errors, vco_freq)
+    if best_score is None or score < best_score:
+        return config, score
+    return best_config, best_score
+
+def clkout_best_divider(freq, margin, dividers, clk_freq):
+    best = None
+    for divider in dividers:
+        clkout_freq = clk_freq(divider)
+        error       = clkout_freq_error(clkout_freq, freq)
+        if error <= margin and (best is None or error < best[0]):
+            best = (error, clkout_freq, divider)
+    return best
+
 def clkdiv_range(start, stop, step=1):
     start   = float(start)
     stop    = float(stop)
@@ -106,3 +121,7 @@ def clkdiv_nearest(start, stop, step=1, ideal=None):
         seen.add(index)
         current = start + index*step
         yield int(current) if math.floor(current) == current else current
+
+def clkdiv_candidates(div_ranges, ideal=None):
+    for div_range in div_ranges:
+        yield from clkdiv_nearest(*div_range, ideal=ideal)
