@@ -330,7 +330,50 @@ static int json_token_to_string(char *dst, size_t dst_size, const char *json, js
 	dst[len] = 0;
 	return 1;
 }
+
+static int boot_parse_address(const char *value, unsigned long *address)
+{
+	char *end;
+
+	*address = strtoul(value, &end, 0);
+	if ((end == value) || (*end != 0)) {
+		printf("Error: invalid boot address \"%s\"\n", value);
+		return 0;
+	}
+	return 1;
+}
 #endif
+
+#if defined(MAIN_RAM_BASE) || defined(SRAM_BASE)
+static int boot_region_max_size(unsigned long addr, unsigned long base, unsigned long size, size_t *max_size)
+{
+	unsigned long end = base + size;
+
+	if (end < base)
+		return 0;
+	if ((addr < base) || (addr >= end))
+		return 0;
+
+	*max_size = end - addr;
+	return 1;
+}
+#endif
+
+static int boot_load_max_size(unsigned long addr, size_t *max_size)
+{
+	(void)max_size;
+#ifdef MAIN_RAM_BASE
+	if (boot_region_max_size(addr, MAIN_RAM_BASE, MAIN_RAM_SIZE, max_size))
+		return 1;
+#endif
+#ifdef SRAM_BASE
+	if (boot_region_max_size(addr, SRAM_BASE, SRAM_SIZE, max_size))
+		return 1;
+#endif
+
+	printf("Error: boot load address 0x%08lx is outside writable memory\n", addr);
+	return 0;
+}
 
 /*-----------------------------------------------------------------------*/
 /* Ethernet Boot                                                         */
@@ -529,34 +572,45 @@ static void netboot_from_json(const char * filename, unsigned int ip, unsigned s
 			if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1]))
 				continue;
 			/* Skip bootargs (optional) */
-			if (strncmp(json_name, "bootargs", 8) == 0) {
+			if (strcmp(json_name, "bootargs") == 0) {
 				continue;
 			}
 			/* Get boot addr (optional) */
-			else if (strncmp(json_name, "addr", 4) == 0) {
-				boot_addr = strtoul(json_value, NULL, 0);
+			else if (strcmp(json_name, "addr") == 0) {
+				if (!boot_parse_address(json_value, &boot_addr))
+					return;
 				boot_addr_found = 1;
 			}
 			/* Get boot r1 (optional) */
-			else if (strncmp(json_name, "r1", 2) == 0) {
-				boot_r1 = strtoul(json_value, NULL, 0);
+			else if (strcmp(json_name, "r1") == 0) {
+				if (!boot_parse_address(json_value, &boot_r1))
+					return;
 			}
 			/* Get boot r2 (optional) */
-			else if (strncmp(json_name, "r2", 2) == 0) {
-				boot_r2 = strtoul(json_value, NULL, 0);
+			else if (strcmp(json_name, "r2") == 0) {
+				if (!boot_parse_address(json_value, &boot_r2))
+					return;
 			}
 			/* Get boot r3 (optional) */
-			else if (strncmp(json_name, "r3", 2) == 0) {
-				boot_r3 = strtoul(json_value, NULL, 0);
+			else if (strcmp(json_name, "r3") == 0) {
+				if (!boot_parse_address(json_value, &boot_r3))
+					return;
 			/* Copy Image from Network to address */
 			} else {
+				unsigned long load_addr;
+				size_t max_size;
+
+				if (!boot_parse_address(json_value, &load_addr))
+					return;
+				if (!boot_load_max_size(load_addr, &max_size))
+					return;
 				size = copy_file_from_tftp_to_ram(ip, tftp_port, json_name,
-					(void *)strtoul(json_value, NULL, 0), TFTP_MAX_SIZE_UNBOUNDED);
+					(void *)load_addr, max_size);
 				if (size <= 0)
 					return;
 				image_found = 1;
 				if (boot_addr_found == 0) /* Boot to last Image address if no bootargs.addr specified */
-					boot_addr = strtoul(json_value, NULL, 0);
+					boot_addr = load_addr;
 			}
 		}
 	}
@@ -656,6 +710,15 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned lon
 
 	length = check_image_in_flash(flash_address);
 	if(length > 0) {
+		size_t max_size;
+
+		if (!boot_load_max_size(ram_address, &max_size))
+			return 0;
+		if (length > max_size) {
+			printf("Error: image is too large for destination (0x%08lx > 0x%08lx bytes)\n",
+				(unsigned long)length, (unsigned long)max_size);
+			return 0;
+		}
 		printf("Copying 0x%08x to 0x%08lx (%ld bytes)...\n", flash_address, ram_address, length);
 		offset = 0;
 		init_progression_bar(length);
@@ -708,7 +771,7 @@ void flashboot(void)
 
 #if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCARD_BASE)
 
-static int copy_file_from_sdcard_to_ram(const char * filename, unsigned long ram_address)
+static int copy_file_from_sdcard_to_ram(const char * filename, unsigned long ram_address, size_t max_size)
 {
 	FRESULT fr;
 	FATFS fs;
@@ -728,6 +791,13 @@ static int copy_file_from_sdcard_to_ram(const char * filename, unsigned long ram
 	}
 
 	length = f_size(&file);
+	if (length > max_size) {
+		printf("Error: %s is too large for destination (0x%08lx > 0x%08lx bytes)\n",
+			filename, length, (unsigned long)max_size);
+		f_close(&file);
+		f_mount(0, "", 0);
+		return 0;
+	}
 	printf("Copying %s to 0x%08lx (%ld bytes)...\n", filename, ram_address, length);
 	init_progression_bar(length);
 	offset = 0;
@@ -788,6 +858,13 @@ static void sdcardboot_from_json(const char * filename)
 		return;
 	}
 
+	length = f_size(&file);
+	if (length >= sizeof(json_buffer)) {
+		printf("Error: %s is too large for boot JSON buffer\n", filename);
+		f_close(&file);
+		f_mount(0, "", 0);
+		return;
+	}
 	fr = f_read(&file, json_buffer, sizeof(json_buffer) - 1, (UINT *) &length);
 
 	/* Close JSON file */
@@ -816,33 +893,44 @@ static void sdcardboot_from_json(const char * filename)
 			if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1]))
 				continue;
 			/* Skip bootargs (optional) */
-			if (strncmp(json_name, "bootargs", 8) == 0) {
+			if (strcmp(json_name, "bootargs") == 0) {
 				continue;
 			}
 			/* Get boot addr (optional) */
-			else if (strncmp(json_name, "addr", 4) == 0) {
-				boot_addr = strtoul(json_value, NULL, 0);
+			else if (strcmp(json_name, "addr") == 0) {
+				if (!boot_parse_address(json_value, &boot_addr))
+					return;
 				boot_addr_found = 1;
 			}
 			/* Get boot r1 (optional) */
-			else if (strncmp(json_name, "r1", 2) == 0) {
-				boot_r1 = strtoul(json_value, NULL, 0);
+			else if (strcmp(json_name, "r1") == 0) {
+				if (!boot_parse_address(json_value, &boot_r1))
+					return;
 			}
 			/* Get boot r2 (optional) */
-			else if (strncmp(json_name, "r2", 2) == 0) {
-				boot_r2 = strtoul(json_value, NULL, 0);
+			else if (strcmp(json_name, "r2") == 0) {
+				if (!boot_parse_address(json_value, &boot_r2))
+					return;
 			}
 			/* Get boot r3 (optional) */
-			else if (strncmp(json_name, "r3", 2) == 0) {
-				boot_r3 = strtoul(json_value, NULL, 0);
+			else if (strcmp(json_name, "r3") == 0) {
+				if (!boot_parse_address(json_value, &boot_r3))
+					return;
 			/* Copy Image from SDCard to address */
 			} else {
-				result = copy_file_from_sdcard_to_ram(json_name, strtoul(json_value, NULL, 0));
+				unsigned long load_addr;
+				size_t max_size;
+
+				if (!boot_parse_address(json_value, &load_addr))
+					return;
+				if (!boot_load_max_size(load_addr, &max_size))
+					return;
+				result = copy_file_from_sdcard_to_ram(json_name, load_addr, max_size);
 				if (result == 0)
 					return;
 				image_found = 1;
 				if (boot_addr_found == 0) /* Boot to last Image address if no bootargs.addr specified */
-					boot_addr = strtoul(json_value, NULL, 0);
+					boot_addr = load_addr;
 			}
 		}
 	}
@@ -856,7 +944,7 @@ static void sdcardboot_from_json(const char * filename)
 static void sdcardboot_from_bin(const char * filename)
 {
 	uint32_t result;
-	result = copy_file_from_sdcard_to_ram(filename, MAIN_RAM_BASE);
+	result = copy_file_from_sdcard_to_ram(filename, MAIN_RAM_BASE, MAIN_RAM_SIZE);
 	if (result == 0)
 		return;
 	boot(0, 0, 0, MAIN_RAM_BASE);
@@ -895,7 +983,7 @@ void sdcardboot(void)
 
 #if defined(CSR_SATA_SECTOR2MEM_BASE)
 
-static int copy_file_from_sata_to_ram(const char * filename, unsigned long ram_address)
+static int copy_file_from_sata_to_ram(const char * filename, unsigned long ram_address, size_t max_size)
 {
 	FRESULT fr;
 	FATFS fs;
@@ -915,6 +1003,13 @@ static int copy_file_from_sata_to_ram(const char * filename, unsigned long ram_a
 	}
 
 	length = f_size(&file);
+	if (length > max_size) {
+		printf("Error: %s is too large for destination (0x%08lx > 0x%08lx bytes)\n",
+			filename, length, (unsigned long)max_size);
+		f_close(&file);
+		f_mount(0, "", 0);
+		return 0;
+	}
 	printf("Copying %s to 0x%08lx (%ld bytes)...\n", filename, ram_address, length);
 	init_progression_bar(length);
 	offset = 0;
@@ -975,6 +1070,13 @@ static void sataboot_from_json(const char * filename)
 		return;
 	}
 
+	length = f_size(&file);
+	if (length >= sizeof(json_buffer)) {
+		printf("Error: %s is too large for boot JSON buffer\n", filename);
+		f_close(&file);
+		f_mount(0, "", 0);
+		return;
+	}
 	fr = f_read(&file, json_buffer, sizeof(json_buffer) - 1, (UINT *) &length);
 
 	/* Close JSON file */
@@ -1003,33 +1105,44 @@ static void sataboot_from_json(const char * filename)
 			if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1]))
 				continue;
 			/* Skip bootargs (optional) */
-			if (strncmp(json_name, "bootargs", 8) == 0) {
+			if (strcmp(json_name, "bootargs") == 0) {
 				continue;
 			}
 			/* Get boot addr (optional) */
-			else if (strncmp(json_name, "addr", 4) == 0) {
-				boot_addr = strtoul(json_value, NULL, 0);
+			else if (strcmp(json_name, "addr") == 0) {
+				if (!boot_parse_address(json_value, &boot_addr))
+					return;
 				boot_addr_found = 1;
 			}
 			/* Get boot r1 (optional) */
-			else if (strncmp(json_name, "r1", 2) == 0) {
-				boot_r1 = strtoul(json_value, NULL, 0);
+			else if (strcmp(json_name, "r1") == 0) {
+				if (!boot_parse_address(json_value, &boot_r1))
+					return;
 			}
 			/* Get boot r2 (optional) */
-			else if (strncmp(json_name, "r2", 2) == 0) {
-				boot_r2 = strtoul(json_value, NULL, 0);
+			else if (strcmp(json_name, "r2") == 0) {
+				if (!boot_parse_address(json_value, &boot_r2))
+					return;
 			}
 			/* Get boot r3 (optional) */
-			else if (strncmp(json_name, "r3", 2) == 0) {
-				boot_r3 = strtoul(json_value, NULL, 0);
+			else if (strcmp(json_name, "r3") == 0) {
+				if (!boot_parse_address(json_value, &boot_r3))
+					return;
 			/* Copy Image from SATA to address */
 			} else {
-				result = copy_file_from_sata_to_ram(json_name, strtoul(json_value, NULL, 0));
+				unsigned long load_addr;
+				size_t max_size;
+
+				if (!boot_parse_address(json_value, &load_addr))
+					return;
+				if (!boot_load_max_size(load_addr, &max_size))
+					return;
+				result = copy_file_from_sata_to_ram(json_name, load_addr, max_size);
 				if (result == 0)
 					return;
 				image_found = 1;
 				if (boot_addr_found == 0) /* Boot to last Image address if no bootargs.addr specified */
-					boot_addr = strtoul(json_value, NULL, 0);
+					boot_addr = load_addr;
 			}
 		}
 	}
@@ -1042,7 +1155,7 @@ static void sataboot_from_json(const char * filename)
 static void sataboot_from_bin(const char * filename)
 {
 	uint32_t result;
-	result = copy_file_from_sata_to_ram(filename, MAIN_RAM_BASE);
+	result = copy_file_from_sata_to_ram(filename, MAIN_RAM_BASE, MAIN_RAM_SIZE);
 	if (result == 0)
 		return;
 	boot(0, 0, 0, MAIN_RAM_BASE);
