@@ -42,9 +42,7 @@ class iCE40PLL(LiteXModule):
         self.params     = {}
 
     def register_clkin(self, clkin, freq):
-        (clki_freq_min, clki_freq_max) = self.clki_freq_range
-        assert freq >= clki_freq_min
-        assert freq <= clki_freq_max
+        check_freq_range(freq, self.clki_freq_range, "Input clock frequency")
         self.clkin = Signal()
         if isinstance(clkin, (Signal, ClockSignal)):
             self.comb += self.clkin.eq(clkin)
@@ -54,9 +52,7 @@ class iCE40PLL(LiteXModule):
         register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, margin=1e-2, with_reset=True):
-        (clko_freq_min, clko_freq_max) = self.clko_freq_range
-        assert freq >= clko_freq_min
-        assert freq <= clko_freq_max
+        check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, 0, margin)
@@ -100,7 +96,7 @@ class iCE40PLL(LiteXModule):
         clkfb = Signal()
         for f, v in [(17e6, 1), (26e6, 2), (44e6, 3), (66e6, 4), (101e6, 5), (133e6, 6)]:
             pfd_freq = self.clkin_freq/(config["divr"] + 1)
-            if pfd_freq < f:
+            if pfd_freq <= f:
                 filter_range = v
                 break
         self.params.update(

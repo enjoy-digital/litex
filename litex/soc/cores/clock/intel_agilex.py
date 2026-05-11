@@ -44,6 +44,7 @@ class AgilexPLL(IntelClocking):
         super().register_clkin(clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
+        check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin, cd.clk.name_override)
@@ -137,7 +138,7 @@ class AgilexPLL(IntelClocking):
                             best_actual_freq = actual_freq
 
                     # Check if we found a valid C divider within margin.
-                    if best_c is None or best_error > margin: # FIXME: check margin compare.
+                    if best_c is None or best_error > target_freq*margin:
                         config_valid = False
                         break
 

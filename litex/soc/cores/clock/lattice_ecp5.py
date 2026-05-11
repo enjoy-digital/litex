@@ -41,9 +41,7 @@ class ECP5PLL(LiteXModule):
         self.name       = name
 
     def register_clkin(self, clkin, freq):
-        (clki_freq_min, clki_freq_max) = self.clki_freq_range
-        assert freq >= clki_freq_min
-        assert freq <= clki_freq_max
+        check_freq_range(freq, self.clki_freq_range, "Input clock frequency")
         self.clkin = Signal()
         if isinstance(clkin, (Signal, ClockSignal)):
             self.comb += self.clkin.eq(clkin)
@@ -53,9 +51,7 @@ class ECP5PLL(LiteXModule):
         register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True, uses_dpa=True):
-        (clko_freq_min, clko_freq_max) = self.clko_freq_range
-        assert freq >= clko_freq_min
-        assert freq <= clko_freq_max
+        check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin, uses_dpa)

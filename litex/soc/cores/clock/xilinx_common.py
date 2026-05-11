@@ -35,6 +35,7 @@ class XilinxClocking(LiteXModule):
         self.params     = {}
 
     def register_clkin(self, clkin, freq):
+        check_freq_range(freq, self.clkin_freq_range, "Input clock frequency")
         self.clkin = Signal()
         if isinstance(clkin, (Signal, ClockSignal)):
             self.comb += self.clkin.eq(clkin)

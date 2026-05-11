@@ -94,9 +94,11 @@ class GateMatePLL(LiteXModule):
         with_reset: bool
             drive cd reset
         """
-        assert phase in [0, 90, 180, 270]
-        assert phase not in self._clkouts
-        assert freq <= self._max_freq
+        if phase not in [0, 90, 180, 270]:
+            raise ValueError("Output clock phase must be 0, 90, 180 or 270 degrees.")
+        if phase in self._clkouts:
+            raise ValueError("Output clock phase {} is already used.".format(phase))
+        check_freq_range(freq, (0, self._max_freq), "Output clock frequency")
 
         clkout = Signal()
         self._clkouts[phase] = (clkout, freq)
@@ -106,8 +108,10 @@ class GateMatePLL(LiteXModule):
         create_clkout_log(self.logger, cd.name, freq, 0, phase)
 
     def do_finalize(self):
-        assert hasattr(self, "_clkin")
-        assert len(self._clkouts) > 0
+        if not hasattr(self, "_clkin"):
+            raise ValueError("Input clock frequency has not been registered.")
+        if len(self._clkouts) == 0:
+            raise ValueError("At least one output clock must be registered.")
 
         # set/unset frequency doubler for CLK180/CLK270
         clk_doub    = {180:0, 270:0}
@@ -120,15 +124,19 @@ class GateMatePLL(LiteXModule):
             if freq != 0:
                 # clk0 and clk90 frequency must be equal to clkout freq
                 if phase in [0, 90]:
-                    assert freq == clkout_freq
+                    if freq != clkout_freq:
+                        raise ValueError(
+                            "CLK{} frequency must be equal to base output frequency.".format(phase)
+                        )
                 else:
                     # clk180 and clk270 must be x1 or x2 clkout frequency
-                    assert freq in [clkout_freq, 2 * clkout_freq]
+                    if freq not in [clkout_freq, 2 * clkout_freq]:
+                        raise ValueError(
+                            "CLK{} frequency must be equal to or twice base output frequency.".format(phase)
+                        )
                     # when clk180 or clk270 == x2 clkout: CLKxx_DOUB must be set
                     if freq == 2 * clkout_freq:
                         clk_doub[phase] = 1
-
-        assert clkout_freq is not None
 
         freqInMHz  = self._clkin_freq/1e6
         freqOutMHz = clkout_freq/1e6

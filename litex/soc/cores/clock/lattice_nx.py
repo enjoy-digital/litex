@@ -45,9 +45,7 @@ class NXOSCA(LiteXModule):
 
     def create_hf_clk(self, cd, freq, margin=.05):
         """450 - 1.7 Mhz Clk"""
-        (clko_freq_min, clko_freq_max) = self.clk_hf_freq_range
-        assert freq >= clko_freq_min
-        assert freq <= clko_freq_max
+        check_freq_range(freq, self.clk_hf_freq_range, "HF clock frequency")
         clkout = Signal()
         self.hf_clk_out = (clkout, freq, margin)
         self.comb += cd.clk.eq(clkout)
@@ -55,9 +53,7 @@ class NXOSCA(LiteXModule):
 
     def create_hfsdc_clk(self, cd, freq, margin=.05):
         """450 - 1.7 Mhz Clk. Can only be connected to the SEDC_CLK port of CONFIG_CLKRST_CORE"""
-        (clko_freq_min, clko_freq_max) = self.clk_hf_freq_range
-        assert freq >= clko_freq_min
-        assert freq <= clko_freq_max
+        check_freq_range(freq, self.clk_hf_freq_range, "HFSDSC clock frequency")
         clkout = Signal()
         self.hfsdc_clk_out = (clkout, freq, margin)
         self.comb += cd.clk.eq(clkout)
@@ -151,9 +147,7 @@ class NXPLL(LiteXModule):
         self.calc_tf_coefficients()
 
     def register_clkin(self, clkin, freq):
-        (clki_freq_min, clki_freq_max) = self.clki_freq_range
-        assert freq >= clki_freq_min
-        assert freq <= clki_freq_max
+        check_freq_range(freq, self.clki_freq_range, "Input clock frequency")
         self.clkin = Signal()
         if isinstance(clkin, (Signal, ClockSignal)):
             self.comb += self.clkin.eq(clkin)
@@ -163,9 +157,7 @@ class NXPLL(LiteXModule):
         register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2):
-        (clko_freq_min, clko_freq_max) = self.clko_freq_range
-        assert freq >= clko_freq_min
-        assert freq <= clko_freq_max
+        check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
         assert self.nclkouts < self.nclkouts_max
         self.clkouts[self.nclkouts] = (cd.clk, freq, phase, margin)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)

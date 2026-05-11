@@ -46,6 +46,18 @@ def compute_config_log(logger, config):
 def period_ns(freq):
     return 1e9/freq
 
+def check_freq_range(freq, freq_range, name="frequency"):
+    freq_min, freq_max = freq_range
+    if freq < freq_min or freq > freq_max:
+        raise ValueError(
+            "{} ({:3.2f}MHz) is outside supported range [{:3.2f}MHz, {:3.2f}MHz].".format(
+                name,
+                freq/1e6,
+                freq_min/1e6,
+                freq_max/1e6,
+            )
+        )
+
 def clkdiv_range(start, stop, step=1):
     start   = float(start)
     stop    = float(stop)

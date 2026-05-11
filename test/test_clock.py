@@ -117,12 +117,61 @@ class TestClock(unittest.TestCase):
 
     def test_ice40_pll_rejects_out_of_range_frequencies(self):
         pll = iCE40PLL()
-        with self.assertRaises(AssertionError):
+        with self.assertRaisesRegex(ValueError, "Input clock frequency"):
             pll.register_clkin(Signal(), 1e9)
 
         pll.register_clkin(Signal(), 100e6)
-        with self.assertRaises(AssertionError):
+        with self.assertRaisesRegex(ValueError, "Output clock frequency"):
             pll.create_clkout(ClockDomain("clkout"), 1e9)
+
+    def test_xilinx_plls_reject_out_of_range_clkin(self):
+        test_cases = [
+            (S6PLL,   600e6),
+            (S7PLL,     1e9),
+            (S7MMCM,  1.2e9),
+            (USPLL,    50e6),
+        ]
+        for pll_cls, clkin_freq in test_cases:
+            with self.subTest(pll=pll_cls.__name__):
+                pll = pll_cls()
+                with self.assertRaisesRegex(ValueError, "Input clock frequency"):
+                    pll.register_clkin(Signal(), clkin_freq)
+
+    def test_intel_plls_reject_out_of_range_frequencies(self):
+        pll = CycloneVPLL()
+        with self.assertRaisesRegex(ValueError, "Input clock frequency"):
+            pll.register_clkin(Signal(), 1e9)
+
+        pll.register_clkin(Signal(), 50e6)
+        with self.assertRaisesRegex(ValueError, "Output clock frequency"):
+            pll.create_clkout(ClockDomain("clkout"), 600e6)
+
+    def test_agilex_pll_rejects_out_of_range_clkout(self):
+        pll = Agilex5PLL(platform=None)
+        pll.register_clkin(Signal(), 100e6)
+        with self.assertRaisesRegex(ValueError, "Output clock frequency"):
+            pll.create_clkout(ClockDomain("clkout"), 1e9)
+
+    def test_lattice_plls_reject_out_of_range_frequencies(self):
+        test_cases = [
+            (ECP5PLL, 100e6, 1e9, 1e9),
+            (NXPLL,   100e6, 1e9, 1e9),
+        ]
+        for pll_cls, valid_clkin_freq, invalid_clkin_freq, invalid_clkout_freq in test_cases:
+            with self.subTest(pll=pll_cls.__name__):
+                pll = pll_cls()
+                with self.assertRaisesRegex(ValueError, "Input clock frequency"):
+                    pll.register_clkin(Signal(), invalid_clkin_freq)
+
+                pll.register_clkin(Signal(), valid_clkin_freq)
+                with self.assertRaisesRegex(ValueError, "Output clock frequency"):
+                    pll.create_clkout(ClockDomain("clkout"), invalid_clkout_freq)
+
+    def test_ice40_pll_finalize_accepts_max_input_frequency(self):
+        pll = iCE40PLL()
+        pll.register_clkin(Signal(), 133e6)
+        pll.create_clkout(ClockDomain("clkout"), 133e6)
+        pll.get_fragment()
 
     # Lattice / ECP5
     def test_ecp5_pll(self):
@@ -173,8 +222,16 @@ class TestClock(unittest.TestCase):
 
     def test_nxosca_rejects_out_of_range_hf_clk(self):
         osc = NXOSCA()
-        with self.assertRaises(AssertionError):
+        with self.assertRaisesRegex(ValueError, "HF clock frequency"):
             osc.create_hf_clk(ClockDomain("hf"), 1e6)
+
+    def test_gatemate_pll_rejects_invalid_output_config(self):
+        pll = GateMatePLL()
+        pll.register_clkin(Signal(), 50e6)
+        with self.assertRaisesRegex(ValueError, "Output clock frequency"):
+            pll.create_clkout(ClockDomain("clkout"), 300e6)
+        with self.assertRaisesRegex(ValueError, "Output clock phase"):
+            pll.create_clkout(ClockDomain("clkout"), 100e6, phase=45)
 
     def test_pll_configs_match_requested_frequencies(self):
         test_cases = [
@@ -197,3 +254,32 @@ class TestClock(unittest.TestCase):
                 self.assert_frequency_close(config[freq_key], clkout_freq)
                 if phase:
                     self.assertEqual(config[freq_key.replace("freq", "phase")], phase)
+
+    def test_agilex_pll_uses_relative_frequency_margin(self):
+        pll = Agilex5PLL(platform=None)
+        pll.register_clkin(Signal(), 100e6)
+        pll.create_clkout(ClockDomain("clkout"), 123.4e6, margin=1e-2)
+        config = pll.compute_config()
+
+        self.assert_frequency_close(config["clk0_freq"], 123.4e6)
+
+    def test_common_pll_finalize_smoke(self):
+        test_cases = [
+            (S6PLL,        100e6, 200e6),
+            (S6DCM,        100e6, 200e6),
+            (S7PLL,        100e6, 200e6),
+            (S7MMCM,       100e6, 200e6),
+            (USPLL,        100e6, 200e6),
+            (USMMCM,       100e6, 200e6),
+            (USPPLL,       100e6, 200e6),
+            (USPMMCM,      100e6, 200e6),
+            (CycloneVPLL,   50e6, 100e6),
+            (ECP5PLL,      100e6, 200e6),
+            (iCE40PLL,      12e6,  48e6),
+        ]
+        for pll_cls, clkin_freq, clkout_freq in test_cases:
+            with self.subTest(pll=pll_cls.__name__):
+                pll = pll_cls()
+                pll.register_clkin(Signal(), clkin_freq)
+                pll.create_clkout(ClockDomain("clkout"), clkout_freq)
+                pll.get_fragment()

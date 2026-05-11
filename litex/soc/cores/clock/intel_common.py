@@ -39,6 +39,7 @@ class IntelClocking(LiteXModule):
         self.params     = {}
 
     def register_clkin(self, clkin, freq):
+        check_freq_range(freq, self.clkin_freq_range, "Input clock frequency")
         self.clkin = Signal()
         if isinstance(clkin, (Signal, ClockSignal)):
             self.comb += self.clkin.eq(clkin)
@@ -50,6 +51,7 @@ class IntelClocking(LiteXModule):
         register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
+        check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
         assert self.nclkouts < self.nclkouts_max
         clkout = Signal()
         self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
