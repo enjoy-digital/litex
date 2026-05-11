@@ -260,7 +260,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         # Set a maximum delay for metastability resolution in AsyncResetSynchronizer.
         self.platform.add_platform_command(
             "set_max_delay 2 -quiet "
-            "-from [get_pins -filter {{REF_PIN_NAME == Q}} "
+            "-from [get_pins -filter {{REF_PIN_NAME == C}} "
             "-of_objects [get_cells -hierarchical -filter {{ars_ff1 == TRUE}}]] "
             "-to [get_pins -filter {{REF_PIN_NAME == D}} "
             "-of_objects [get_cells -hierarchical -filter {{ars_ff2 == TRUE}}]]"
@@ -273,16 +273,21 @@ class XilinxVivadoToolchain(GenericToolchain):
                 return "ports"
             return "nets"
 
+        emitted_false_paths = set()
         for _from, _to in sorted(self.false_paths, key=lambda x: (str(x[0]), str(x[1]))):
+            false_path_key = frozenset((_from, _to))
+            if false_path_key in emitted_false_paths:
+                continue
+            emitted_false_paths.add(false_path_key)
             if isinstance(_from, str):
                 _from_cmd = f"[get_clocks {_from}]"
             else:
-                _from_cmd = f"[get_clocks -include_generated_clocks -of [get_{get_clk_type(_from)} {{_from}}]]"
+                _from_cmd = f"[get_clocks -of [get_{get_clk_type(_from)} {{_from}}]]"
 
             if isinstance(_to, str):
                 _to_cmd = f"[get_clocks {_to}]"
             else:
-                _to_cmd = f"[get_clocks -include_generated_clocks -of [get_{get_clk_type(_to)} {{_to}}]]"
+                _to_cmd = f"[get_clocks -of [get_{get_clk_type(_to)} {{_to}}]]"
 
             self.platform.add_platform_command(
                 "set_clock_groups "
