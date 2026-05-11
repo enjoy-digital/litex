@@ -30,6 +30,12 @@
 #define HW_PREAMBLE_CRC
 #endif
 
+#ifndef HW_PREAMBLE_CRC
+#define ETH_TX_CRC_SIZE 4
+#else
+#define ETH_TX_CRC_SIZE 0
+#endif
+
 struct ethernet_header {
 #ifndef HW_PREAMBLE_CRC
 	uint8_t preamble[8];
@@ -357,9 +363,16 @@ int udp_send(uint16_t src_port, uint16_t dst_port, uint32_t length)
 {
 	struct pseudo_header h;
 	uint32_t r;
+	uint32_t max_payload;
 
 	if((cached_mac[0] == 0) && (cached_mac[1] == 0) && (cached_mac[2] == 0)
 		&& (cached_mac[3] == 0) && (cached_mac[4] == 0) && (cached_mac[5] == 0))
+		return 0;
+
+	if ((sizeof(struct ethernet_header) + sizeof(struct udp_frame) + ETH_TX_CRC_SIZE) > ETHMAC_SLOT_SIZE)
+		return 0;
+	max_payload = ETHMAC_SLOT_SIZE - sizeof(struct ethernet_header) - sizeof(struct udp_frame) - ETH_TX_CRC_SIZE;
+	if (length > max_payload)
 		return 0;
 
 	txlen = length + sizeof(struct ethernet_header) + sizeof(struct udp_frame);
@@ -408,6 +421,11 @@ static uint64_t ping_ts_send = 0;
 
 int send_ping(uint32_t ip, unsigned short payload_length)
 {
+	if ((sizeof(struct ethernet_header) + sizeof(struct icmp_frame) + ETH_TX_CRC_SIZE) > ETHMAC_SLOT_SIZE)
+		return -1;
+	if (payload_length > (ETHMAC_SLOT_SIZE - sizeof(struct ethernet_header) - sizeof(struct icmp_frame) - ETH_TX_CRC_SIZE))
+		return -1;
+
 	if(!udp_arp_resolve(ip)) {
 		printf("ARP failed\n");
 		return -1;
@@ -478,11 +496,15 @@ static void process_icmp(void)
 
 	const struct icmp_frame *rx_icmp = &rxbuffer->frame.contents.icmp;
 	struct icmp_frame *tx_icmp = &txbuffer->frame.contents.icmp;
+	unsigned int ip_total_length;
 
-	if(ntohs(rx_icmp->ip.total_length) < sizeof(struct icmp_frame))
+	ip_total_length = ntohs(rx_icmp->ip.total_length);
+	if(ip_total_length < sizeof(struct icmp_frame))
+		return;
+	if((sizeof(struct ethernet_header) + ip_total_length) > rxlen)
 		return;
 
-	unsigned short length = ntohs(rx_icmp->ip.total_length) - sizeof(struct icmp_frame);
+	unsigned short length = ip_total_length - sizeof(struct icmp_frame);
 
 	if(rx_icmp->icmp.type == ICMP_ECHO) {
 		fill_eth_header(
@@ -565,20 +587,27 @@ static void process_udp(void)
 {
 	if(rxlen < (sizeof(struct ethernet_header)+sizeof(struct udp_frame))) return;
 	struct udp_frame *udp_ip = &rxbuffer->frame.contents.udp;
+	unsigned int ip_total_length;
+	unsigned int udp_length;
+
 	/* We don't verify UDP and IP checksums and rely on the Ethernet checksum solely */
 	// check disabled for QEMU compatibility
 	//if(rxbuffer->frame.contents.udp.ip.diff_services != 0) return;
-	if(ntohs(udp_ip->ip.total_length) < sizeof(struct udp_frame)) return;
+	ip_total_length = ntohs(udp_ip->ip.total_length);
+	if(ip_total_length < sizeof(struct udp_frame)) return;
+	if((sizeof(struct ethernet_header) + ip_total_length) > rxlen) return;
 	// check disabled for QEMU compatibility
 	//if(ntohs(rxbuffer->frame.contents.udp.ip.fragment_offset) != IP_DONT_FRAGMENT) return;
 	if(udp_ip->ip.proto != IP_PROTO_UDP) return;
-	if(ntohs(udp_ip->udp.length) < sizeof(struct udp_header)) return;
+	udp_length = ntohs(udp_ip->udp.length);
+	if(udp_length < sizeof(struct udp_header)) return;
+	if(udp_length > (ip_total_length - sizeof(struct ip_header))) return;
 	if(ntohl(udp_ip->ip.dst_ip) != my_ip) {
 #ifdef ETH_UDP_BROADCAST
 		/* If the destination IP is not mine, check if it is a broadcast */
 		if(ntohl(udp_ip->ip.dst_ip) == IPTOINT(255, 255, 255, 255) && bx_callback) {
 			bx_callback(ntohl(udp_ip->ip.src_ip), ntohs(udp_ip->udp.src_port), ntohs(udp_ip->udp.dst_port),
-				    udp_ip->payload, ntohs(udp_ip->udp.length)-sizeof(struct udp_header));
+				    udp_ip->payload, udp_length-sizeof(struct udp_header));
 		}
 #endif /* ETH_UDP_BROADCAST */
 		return;
@@ -586,11 +615,11 @@ static void process_udp(void)
 
 	if(rx_callback) {
 		rx_callback(ntohl(udp_ip->ip.src_ip), ntohs(udp_ip->udp.src_port), ntohs(udp_ip->udp.dst_port),
-				udp_ip->payload, ntohs(udp_ip->udp.length)-sizeof(struct udp_header));
+				udp_ip->payload, udp_length-sizeof(struct udp_header));
 #ifdef ETH_UDP_BROADCAST
 	} else if(bx_callback) {
 		bx_callback(ntohl(udp_ip->ip.src_ip), ntohs(udp_ip->udp.src_port), ntohs(udp_ip->udp.dst_port),
-				udp_ip->payload, ntohs(udp_ip->udp.length)-sizeof(struct udp_header));
+				udp_ip->payload, udp_length-sizeof(struct udp_header));
 #endif /* ETH_UDP_BROADCAST */
 	}
 }
@@ -610,6 +639,9 @@ void udp_set_broadcast_callback(udp_callback callback)
 static void process_frame(void)
 {
 	flush_cpu_dcache();
+
+	if(rxlen < (sizeof(struct ethernet_header) + ETH_TX_CRC_SIZE)) return;
+	if(rxlen > ETHMAC_SLOT_SIZE) return;
 
 #ifdef ETH_UDP_RX_DEBUG
 	int j;
