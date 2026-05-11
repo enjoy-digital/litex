@@ -18,6 +18,7 @@ from litex.soc.cores.clock.common import *
 class EFINIXPLL(LiteXModule):
     n            = 0
     nclkouts_max = 3
+    freq_tolerance = 1e-6
     def __init__(self, platform, version="V1_V2", dyn_phase_shift_pads=None):
         self.logger = logging.getLogger("EFINIXPLL")
         dyn_phase_shift_pads = {} if dyn_phase_shift_pads is None else dyn_phase_shift_pads
@@ -271,7 +272,7 @@ class EFINIXPLL(LiteXModule):
                                     continue
                                 clk_out = fpll_tmp / cx
                                 # if a C is found: no need to search more
-                                if clk_out == clk_cfg["freq"]:
+                                if math.isclose(clk_out, clk_cfg["freq"], rel_tol=0, abs_tol=self.freq_tolerance):
                                     cx_list.append(cx)
                                     found = True
                                     break

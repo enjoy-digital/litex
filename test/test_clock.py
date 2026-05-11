@@ -456,6 +456,16 @@ class TestClock(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unsupported PLL clock phase"):
             pll.compute_config()
 
+    def test_efinix_pll_tolerates_subhz_float_noise(self):
+        pll   = TRIONPLL(_FakeEfinixPlatform())
+        block = self.get_efinix_pll_block(pll)
+        block["input_freq"] = 50e6
+
+        pll.create_clkout(None, 100e6 + 1e-7, is_feedback=True)
+        pll.compute_config()
+
+        self.assertIn("CLKOUT0_DIV", block)
+
     def test_plls_reject_missing_clkout(self):
         test_cases = [
             ("S7PLL",       lambda: S7PLL(),                              100e6),
