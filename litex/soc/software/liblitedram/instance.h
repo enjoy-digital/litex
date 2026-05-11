@@ -5,9 +5,6 @@
 #define LITEDRAM_CONCAT(a, b)  LITEDRAM_CONCAT2(a, b)
 
 #define LITEDRAM_SYMBOL(name)     LITEDRAM_CONCAT(LITEDRAM_INSTANCE, name)
-#define LITEDRAM_SDRAM_CSR(name)  LITEDRAM_CONCAT(LITEDRAM_SDRAM_CSR_PREFIX, name)
-#define LITEDRAM_DDRPHY_CSR(name) LITEDRAM_CONCAT(LITEDRAM_DDRPHY_CSR_PREFIX, name)
-#define LITEDRAM_DDRCTRL_CSR(name) LITEDRAM_CONCAT(LITEDRAM_DDRCTRL_CSR_PREFIX, name)
 
 /* Public SDRAM API. */
 #define sdram_get_databits                      LITEDRAM_SYMBOL(_get_databits)
@@ -61,77 +58,5 @@
 #define _sdram_write_leveling_bitslips          LITEDRAM_SYMBOL(_write_leveling_bitslips)
 #define sdram_write_leveling_rst_bitslip        LITEDRAM_SYMBOL(_write_leveling_rst_bitslip)
 #define sdram_write_leveling_force_bitslip      LITEDRAM_SYMBOL(_write_leveling_force_bitslip)
-
-/* SDRAM CSR accessors. */
-#define sdram_dfii_control_read                 LITEDRAM_SDRAM_CSR(_dfii_control_read)
-#define sdram_dfii_control_write                LITEDRAM_SDRAM_CSR(_dfii_control_write)
-
-#define sdram_dfii_pi0_address_write            LITEDRAM_SDRAM_CSR(_dfii_pi0_address_write)
-#define sdram_dfii_pi1_address_write            LITEDRAM_SDRAM_CSR(_dfii_pi1_address_write)
-#define sdram_dfii_pi2_address_write            LITEDRAM_SDRAM_CSR(_dfii_pi2_address_write)
-#define sdram_dfii_pi3_address_write            LITEDRAM_SDRAM_CSR(_dfii_pi3_address_write)
-#define sdram_dfii_pi4_address_write            LITEDRAM_SDRAM_CSR(_dfii_pi4_address_write)
-#define sdram_dfii_pi5_address_write            LITEDRAM_SDRAM_CSR(_dfii_pi5_address_write)
-#define sdram_dfii_pi6_address_write            LITEDRAM_SDRAM_CSR(_dfii_pi6_address_write)
-#define sdram_dfii_pi7_address_write            LITEDRAM_SDRAM_CSR(_dfii_pi7_address_write)
-
-#define sdram_dfii_pi0_baddress_write           LITEDRAM_SDRAM_CSR(_dfii_pi0_baddress_write)
-#define sdram_dfii_pi1_baddress_write           LITEDRAM_SDRAM_CSR(_dfii_pi1_baddress_write)
-#define sdram_dfii_pi2_baddress_write           LITEDRAM_SDRAM_CSR(_dfii_pi2_baddress_write)
-#define sdram_dfii_pi3_baddress_write           LITEDRAM_SDRAM_CSR(_dfii_pi3_baddress_write)
-#define sdram_dfii_pi4_baddress_write           LITEDRAM_SDRAM_CSR(_dfii_pi4_baddress_write)
-#define sdram_dfii_pi5_baddress_write           LITEDRAM_SDRAM_CSR(_dfii_pi5_baddress_write)
-#define sdram_dfii_pi6_baddress_write           LITEDRAM_SDRAM_CSR(_dfii_pi6_baddress_write)
-#define sdram_dfii_pi7_baddress_write           LITEDRAM_SDRAM_CSR(_dfii_pi7_baddress_write)
-
-#define sdram_dfii_pi0_command_write            LITEDRAM_SDRAM_CSR(_dfii_pi0_command_write)
-#define sdram_dfii_pi1_command_write            LITEDRAM_SDRAM_CSR(_dfii_pi1_command_write)
-#define sdram_dfii_pi2_command_write            LITEDRAM_SDRAM_CSR(_dfii_pi2_command_write)
-#define sdram_dfii_pi3_command_write            LITEDRAM_SDRAM_CSR(_dfii_pi3_command_write)
-#define sdram_dfii_pi4_command_write            LITEDRAM_SDRAM_CSR(_dfii_pi4_command_write)
-#define sdram_dfii_pi5_command_write            LITEDRAM_SDRAM_CSR(_dfii_pi5_command_write)
-#define sdram_dfii_pi6_command_write            LITEDRAM_SDRAM_CSR(_dfii_pi6_command_write)
-#define sdram_dfii_pi7_command_write            LITEDRAM_SDRAM_CSR(_dfii_pi7_command_write)
-
-#define sdram_dfii_pi0_command_issue_write      LITEDRAM_SDRAM_CSR(_dfii_pi0_command_issue_write)
-#define sdram_dfii_pi1_command_issue_write      LITEDRAM_SDRAM_CSR(_dfii_pi1_command_issue_write)
-#define sdram_dfii_pi2_command_issue_write      LITEDRAM_SDRAM_CSR(_dfii_pi2_command_issue_write)
-#define sdram_dfii_pi3_command_issue_write      LITEDRAM_SDRAM_CSR(_dfii_pi3_command_issue_write)
-#define sdram_dfii_pi4_command_issue_write      LITEDRAM_SDRAM_CSR(_dfii_pi4_command_issue_write)
-#define sdram_dfii_pi5_command_issue_write      LITEDRAM_SDRAM_CSR(_dfii_pi5_command_issue_write)
-#define sdram_dfii_pi6_command_issue_write      LITEDRAM_SDRAM_CSR(_dfii_pi6_command_issue_write)
-#define sdram_dfii_pi7_command_issue_write      LITEDRAM_SDRAM_CSR(_dfii_pi7_command_issue_write)
-
-/* DDR PHY CSR accessors. */
-#define ddrphy_rdphase_read                     LITEDRAM_DDRPHY_CSR(_rdphase_read)
-#define ddrphy_rdphase_write                    LITEDRAM_DDRPHY_CSR(_rdphase_write)
-#define ddrphy_wrphase_read                     LITEDRAM_DDRPHY_CSR(_wrphase_read)
-#define ddrphy_wrphase_write                    LITEDRAM_DDRPHY_CSR(_wrphase_write)
-#define ddrphy_rst_write                        LITEDRAM_DDRPHY_CSR(_rst_write)
-#define ddrphy_en_vtc_write                     LITEDRAM_DDRPHY_CSR(_en_vtc_write)
-#define ddrphy_half_sys8x_taps_read             LITEDRAM_DDRPHY_CSR(_half_sys8x_taps_read)
-#define ddrphy_wlevel_en_write                  LITEDRAM_DDRPHY_CSR(_wlevel_en_write)
-#define ddrphy_wlevel_strobe_write              LITEDRAM_DDRPHY_CSR(_wlevel_strobe_write)
-#define ddrphy_burstdet_clr_write               LITEDRAM_DDRPHY_CSR(_burstdet_clr_write)
-#define ddrphy_burstdet_seen_read               LITEDRAM_DDRPHY_CSR(_burstdet_seen_read)
-#define ddrphy_dly_sel_write                    LITEDRAM_DDRPHY_CSR(_dly_sel_write)
-#define ddrphy_dq_dly_sel_write                 LITEDRAM_DDRPHY_CSR(_dq_dly_sel_write)
-#define ddrphy_cdly_inc_write                   LITEDRAM_DDRPHY_CSR(_cdly_inc_write)
-#define ddrphy_cdly_rst_write                   LITEDRAM_DDRPHY_CSR(_cdly_rst_write)
-#define ddrphy_rdly_dq_inc_write                LITEDRAM_DDRPHY_CSR(_rdly_dq_inc_write)
-#define ddrphy_rdly_dq_rst_write                LITEDRAM_DDRPHY_CSR(_rdly_dq_rst_write)
-#define ddrphy_rdly_dq_bitslip_write            LITEDRAM_DDRPHY_CSR(_rdly_dq_bitslip_write)
-#define ddrphy_rdly_dq_bitslip_rst_write        LITEDRAM_DDRPHY_CSR(_rdly_dq_bitslip_rst_write)
-#define ddrphy_wdly_dq_inc_write                LITEDRAM_DDRPHY_CSR(_wdly_dq_inc_write)
-#define ddrphy_wdly_dq_rst_write                LITEDRAM_DDRPHY_CSR(_wdly_dq_rst_write)
-#define ddrphy_wdly_dqs_inc_write               LITEDRAM_DDRPHY_CSR(_wdly_dqs_inc_write)
-#define ddrphy_wdly_dqs_rst_write               LITEDRAM_DDRPHY_CSR(_wdly_dqs_rst_write)
-#define ddrphy_wdly_dqs_inc_count_read          LITEDRAM_DDRPHY_CSR(_wdly_dqs_inc_count_read)
-#define ddrphy_wdly_dq_bitslip_write            LITEDRAM_DDRPHY_CSR(_wdly_dq_bitslip_write)
-#define ddrphy_wdly_dq_bitslip_rst_write        LITEDRAM_DDRPHY_CSR(_wdly_dq_bitslip_rst_write)
-
-/* DDR controller CSR accessors. */
-#define ddrctrl_init_done_write                 LITEDRAM_DDRCTRL_CSR(_init_done_write)
-#define ddrctrl_init_error_write                LITEDRAM_DDRCTRL_CSR(_init_error_write)
 
 #endif /* __LITEDRAM_INSTANCE_H */
