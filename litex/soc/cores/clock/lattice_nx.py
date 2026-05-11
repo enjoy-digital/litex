@@ -155,7 +155,7 @@ class NXPLL(LiteXModule):
     def create_clkout(self, cd, freq, phase=0, margin=1e-2):
         check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
         check_clkout_count(self.nclkouts, self.nclkouts_max)
-        self.clkouts[self.nclkouts] = (cd.clk, freq, phase, margin)
+        self.clkouts[self.nclkouts] = ClkOut(cd.clk, freq, phase, margin)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
 

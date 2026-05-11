@@ -50,7 +50,7 @@ class ECP5PLL(LiteXModule):
         check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
         check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
-        self.clkouts[self.nclkouts] = (clkout, freq, phase, margin, uses_dpa)
+        self.clkouts[self.nclkouts] = ClkOutDPA(clkout, freq, phase, margin, uses_dpa)
         if with_reset:
             self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         self.comb += cd.clk.eq(clkout)
@@ -157,7 +157,7 @@ class ECP5PLL(LiteXModule):
                             best_feedback_clkout = feedback_clkout
         if best_config is not None:
             if best_feedback_clkout is not None and best_feedback_clkout not in self.clkouts:
-                self.clkouts[best_feedback_clkout] = (Signal(), 0, 0, 0, 0)
+                self.clkouts[best_feedback_clkout] = ClkOutDPA(Signal(), 0, 0, 0, 0)
             compute_config_log(self.logger, best_config)
             return best_config
         raise ValueError("No PLL config found")

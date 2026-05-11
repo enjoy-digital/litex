@@ -51,7 +51,7 @@ class iCE40PLL(LiteXModule):
         check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
         check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
-        self.clkouts[self.nclkouts] = (clkout, freq, 0, margin)
+        self.clkouts[self.nclkouts] = ClkOut(clkout, freq, 0, margin)
         if with_reset:
             self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         self.comb += cd.clk.eq(clkout)

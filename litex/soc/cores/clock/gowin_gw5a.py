@@ -65,7 +65,7 @@ class GW5APLL(LiteXModule):
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
         check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
-        self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
+        self.clkouts[self.nclkouts] = ClkOut(clkout, freq, phase, margin)
         if with_reset:
             self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         self.comb += cd.clk.eq(clkout)

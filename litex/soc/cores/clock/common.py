@@ -6,6 +6,7 @@
 
 import logging
 import math
+from collections import namedtuple
 
 from migen import ClockSignal, Record, Signal
 
@@ -43,6 +44,10 @@ def compute_config_log(logger, config):
     logger.info(log)
 
 # Helpers ------------------------------------------------------------------------------------------
+
+ClkOut      = namedtuple("ClkOut",      "clk freq phase margin")
+ClkOutDPA   = namedtuple("ClkOutDPA",   "clk freq phase margin uses_dpa")
+ClkOutNamed = namedtuple("ClkOutNamed", "clk freq phase margin name")
 
 def period_ns(freq):
     return 1e9/freq

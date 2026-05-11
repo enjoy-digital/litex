@@ -47,7 +47,7 @@ class AgilexPLL(IntelClocking):
         check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
         check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
-        self.clkouts[self.nclkouts] = (clkout, freq, phase, margin, cd.clk.name_override)
+        self.clkouts[self.nclkouts] = ClkOutNamed(clkout, freq, phase, margin, cd.clk.name_override)
         if with_reset:
             self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         if not hasattr(cd.clk, "keep"):
