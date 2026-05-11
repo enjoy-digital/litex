@@ -79,4 +79,6 @@ class Up5kSPRAM(LiteXModule):
                     o_DATAOUT    = dataout
                 )
 
+        # The SoC memory region is expected to bound accesses. Out-of-range
+        # wrapper accesses still acknowledge, but do not select a SPRAM block.
         self.sync += self.bus.ack.eq(self.bus.stb & self.bus.cyc & ~self.bus.ack)

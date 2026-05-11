@@ -111,6 +111,8 @@ class NXLRAM(LiteXModule):
                 self.lram_blocks[d].append(lram_block)
                 self.specials += lram_block
 
+        # The SoC memory region is expected to bound accesses. Out-of-range
+        # wrapper accesses still acknowledge, but do not select an LRAM block.
         self.sync += self.bus.ack.eq(self.bus.stb & self.bus.cyc & ~self.bus.ack)
 
         if init is not None:

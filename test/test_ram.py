@@ -230,6 +230,16 @@ class TestLatticeRAM(unittest.TestCase):
 
         run_simulation(dut, generator(), special_overrides={Instance: _LatticeRAMPrimitiveModel})
 
+    def test_up5k_spram_out_of_range_write_does_not_alias(self):
+        dut = Up5kSPRAM(width=32, size=64*kB)
+
+        def generator():
+            yield from dut.bus.write(0, 0x11223344)
+            yield from dut.bus.write(1 << 14, 0xaabbccdd)
+            self.assertEqual((yield from dut.bus.read(0)), 0x11223344)
+
+        run_simulation(dut, generator(), special_overrides={Instance: _LatticeRAMPrimitiveModel})
+
     def test_nxlram_primitive_count_matches_width_and_size(self):
         test_cases = [
             (32,  64*kB, 1),
@@ -261,6 +271,16 @@ class TestLatticeRAM(unittest.TestCase):
             yield from dut.bus.write(0, 0xaaaabbbbccccdddd, sel=0b01010101)
             yield
             self.assertEqual((yield from dut.bus.read(0)), 0x11aa33bb55cc77dd)
+
+        run_simulation(dut, generator(), special_overrides={Instance: _LatticeRAMPrimitiveModel})
+
+    def test_nxlram_out_of_range_write_does_not_alias(self):
+        dut = NXLRAM(width=32, size=64*kB)
+
+        def generator():
+            yield from dut.bus.write(0, 0x11223344)
+            yield from dut.bus.write(1 << 14, 0xaabbccdd)
+            self.assertEqual((yield from dut.bus.read(0)), 0x11223344)
 
         run_simulation(dut, generator(), special_overrides={Instance: _LatticeRAMPrimitiveModel})
 
