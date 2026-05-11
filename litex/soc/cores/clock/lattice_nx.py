@@ -172,11 +172,11 @@ class NXPLL(LiteXModule):
                 vco_freq  = self.clkin_freq/clki_div*clkfb_div
                 (vco_freq_min, vco_freq_max) = self.vco_out_freq_range
                 if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
-                    for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+                    for n, clkout in sorted(self.clkouts.items()):
                         best_clkout = clkout_best_divider(
-                            f,
-                            m,
-                            clkdiv_candidates([self.clko_div_range], ideal=vco_freq/f),
+                            clkout.freq,
+                            clkout.margin,
+                            clkdiv_candidates([self.clko_div_range], ideal=vco_freq/clkout.freq),
                             lambda d: vco_freq/d
                         )
                         if best_clkout is None:
@@ -186,7 +186,7 @@ class NXPLL(LiteXModule):
                         errors.append(error)
                         config["clko{}_freq".format(n)]  = clk_freq
                         config["clko{}_div".format(n)]   = d
-                        config["clko{}_phase".format(n)] = p
+                        config["clko{}_phase".format(n)] = clkout.phase
                 else:
                     all_valid = False
                 if all_valid:
@@ -252,22 +252,22 @@ class NXPLL(LiteXModule):
         self.params.update(analog_params)
         n_to_l = {0: "P", 1: "S", 2: "S2", 3:"S3", 4:"S4"}
 
-        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+        for n, clkout in sorted(self.clkouts.items()):
             div    = config["clko{}_div".format(n)]
-            phase = int((1+p/360) * div)
+            phase  = int((1 + clkout.phase/360) * div)
             letter = chr(n+65)
             self.params["p_ENCLK_CLKO{}".format(n_to_l[n])] = "ENABLED"
             self.params["p_DIV{}".format(letter)] = str(div-1)
             self.params["p_PHI{}".format(letter)] = "0"
             self.params["p_DEL{}".format(letter)] = str(phase - 1)
-            self.params["o_CLKO{}".format(n_to_l[n])] = clk
+            self.params["o_CLKO{}".format(n_to_l[n])] = clkout.clk
 
             # In theory this really shouldn't be necessary, in practice
             # the tooling seems to have suspicous clock latency values
             # on generated clocks that are causing timing problems and Lattice
             # hasn't responded to my support requests on the matter.
             if self.platform and self.create_output_port_clocks:
-                self.platform.add_platform_command("create_clock -period {} -name {} [get_pins {}.PLL_inst/CLKO{}]".format(str(1/f*1e9), self.name + "_" + n_to_l[n],self.name, n_to_l[n]))
+                self.platform.add_platform_command("create_clock -period {} -name {} [get_pins {}.PLL_inst/CLKO{}]".format(str(1/clkout.freq*1e9), self.name + "_" + n_to_l[n], self.name, n_to_l[n]))
 
         if self.platform and self.create_output_port_clocks:
             i = 0

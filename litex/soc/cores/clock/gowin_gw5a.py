@@ -89,23 +89,23 @@ class GW5APLL(LiteXModule):
                         vco_freq <= vco_freq_max*(1 - self.vco_margin)):
                             okay = True
                             config = {}
-                            for n, (clk, f, p, m) in self.clkouts.items():
-                                odiv = round(vco_freq/f)
+                            for n, clkout in self.clkouts.items():
+                                odiv = round(vco_freq/clkout.freq)
                                 if not (1 <= odiv <= 128):
                                     okay = False
                                     continue
                                 out_freq = vco_freq/odiv
-                                diff = abs(out_freq - f) / f
-                                pe = round(p * odiv / 360)
-                                if abs((360.0 * pe / odiv) - p) / 360 > m:
+                                diff = abs(out_freq - clkout.freq) / clkout.freq
+                                pe = round(clkout.phase * odiv / 360)
+                                if abs((360.0 * pe / odiv) - clkout.phase) / 360 > clkout.margin:
                                     okay = False
-                                if diff > m:
+                                if diff > clkout.margin:
                                     okay = False
                                 else:
                                     config["odiv%d" % n] = odiv
                                     config["diff%d" % n] = diff
-                                    config["pe%d" % n] = int(p * odiv / 360)
-                                    config["pe%d_fine" % n] = round(p * odiv * 8 / 360) % 8
+                                    config["pe%d" % n] = int(clkout.phase * odiv / 360)
+                                    config["pe%d_fine" % n] = round(clkout.phase * odiv * 8 / 360) % 8
                             if okay:
                                 config["idiv"] = idiv
                                 config["vco"] = vco_freq
@@ -289,8 +289,8 @@ class GW5APLL(LiteXModule):
             )
 
         for i in range(0, len(self.clkouts)):
-            clk, f, p, m = self.clkouts[i]
-            self.params["o_CLKOUT%d" % i] = clk
+            clkout = self.clkouts[i]
+            self.params["o_CLKOUT%d" % i] = clkout.clk
             self.params["p_CLKOUT%d_EN" % i] = "TRUE"
             self.params["p_ODIV%d_SEL" % i] = config["odiv%d" % i]
             self.params["p_CLKOUT%d_PE_COARSE" % i] = config["pe%d" % i]

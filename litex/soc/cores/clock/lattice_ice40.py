@@ -69,10 +69,10 @@ class iCE40PLL(LiteXModule):
                 vco_freq = self.clkin_freq/(divr + 1)*(divf +  1)
                 (vco_freq_min, vco_freq_max) = self.vco_freq_range
                 if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
-                    for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+                    for n, clkout in sorted(self.clkouts.items()):
                         best_clkout = clkout_best_divider(
-                            f,
-                            m,
+                            clkout.freq,
+                            clkout.margin,
                             range(*self.divq_range),
                             lambda divq: vco_freq/(2**divq)
                         )
@@ -113,9 +113,9 @@ class iCE40PLL(LiteXModule):
             self.params.update(i_REFERENCECLK=self.clkin)
         if self.primitive == "SB_PLL40_PAD":
             self.params.update(i_PACKAGEPIN=self.clkin)
-        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+        for n, clkout in sorted(self.clkouts.items()):
             self.params["p_DIVR"]         = config["divr"]
             self.params["p_DIVF"]         = config["divf"]
             self.params["p_DIVQ"]         = config["divq"]
-            self.params["o_PLLOUTGLOBAL"] = clk
+            self.params["o_PLLOUTGLOBAL"] = clkout.clk
         self.specials += Instance(self.primitive, name=self.name or "", **self.params)

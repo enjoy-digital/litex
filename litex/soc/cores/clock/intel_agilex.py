@@ -105,7 +105,8 @@ class AgilexPLL(IntelClocking):
                 max_error         = 0.0
 
                 for i in range(len(self.clkouts)):
-                    (_, target_freq, phase, margin, name) = self.clkouts[i]
+                    clkout      = self.clkouts[i]
+                    target_freq = clkout.freq
                     # Calculate ideal C divider.
                     ideal_c = vco_freq / target_freq
 
@@ -138,7 +139,7 @@ class AgilexPLL(IntelClocking):
                             best_actual_freq = actual_freq
 
                     # Check if we found a valid C divider within margin.
-                    if best_c is None or best_error > target_freq*margin:
+                    if best_c is None or best_error > target_freq*clkout.margin:
                         config_valid = False
                         break
 
@@ -149,7 +150,7 @@ class AgilexPLL(IntelClocking):
                     # Phase shift
                     clk_freq                            = vco_freq / best_c
                     clk_phase_step_ps                   = (1e12 / clk_freq) / 360
-                    clk_phase_ps                        = clk_phase_step_ps * phase
+                    clk_phase_ps                        = clk_phase_step_ps * clkout.phase
                     clk_phase_shifts                    = clk_phase_ps / vco_phase_step_ps
                     # Update config
                     config[f"clk{i}_freq"]              = clk_freq
@@ -282,7 +283,7 @@ class AgilexPLL(IntelClocking):
         )
 
         for c in range(self.nclkouts):
-            self.comb += self.clkouts[c][0].eq(self.clko[c])
+            self.comb += self.clkouts[c].clk.eq(self.clko[c])
 
         inst = self.clkin_name+"_pll"
         self.specials += Instance("tennm_ph2_iopll", name=inst, **self.params)
@@ -326,7 +327,8 @@ class AgilexPLL(IntelClocking):
         sdc.append("# -                       - #")
         sdc.append("# ------------------------- #")
         for i in range(len(self.clkouts)):
-            (_, target_freq, phase, margin, name) = self.clkouts[i]
+            clkout = self.clkouts[i]
+            name   = clkout.name
             if not name:
                 name = f"{inst}_outclk{i}"
             master = nname if ndiv > 1 else refname
@@ -335,7 +337,7 @@ class AgilexPLL(IntelClocking):
             div    = config[f"clk{i}_divide"]
             mult   = config["m"]
             sdc.append(f"create_generated_clock -add -name {name} \\")
-            sdc.append(f"    -duty_cycle 50 -divide_by {div} -multiply_by {mult} -phase {phase} \\")
+            sdc.append(f"    -duty_cycle 50 -divide_by {div} -multiply_by {mult} -phase {clkout.phase} \\")
             sdc.append(f"    -master {master} -source {source} [get_nodes {{{target}}}]")
 
 # Altera Agilex3 -----------------------------------------------------------------------------------

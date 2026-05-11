@@ -52,11 +52,11 @@ class S6PLL(XilinxClocking):
             i_CLKFBIN        = pll_fb,
             o_CLKFBOUT       = pll_fb,
         )
-        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+        for n, clkout in sorted(self.clkouts.items()):
             self.params["p_CLKOUT{}_DIVIDE".format(n)]     = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)]      = float(config["clkout{}_phase".format(n)])
             self.params["p_CLKOUT{}_DUTY_CYCLE".format(n)] = 0.5
-            self.params["o_CLKOUT{}".format(n)]            = clk
+            self.params["o_CLKOUT{}".format(n)]            = clkout.clk
         self.specials += Instance("PLL_ADV", name=self.name or "", **self.params)
 
 # Xilinx / Spartan6 DCM ----------------------------------------------------------------------------
@@ -88,7 +88,7 @@ class S6DCM(XilinxClocking):
     def do_finalize(self):
         XilinxClocking.do_finalize(self)
         config = self.compute_config()
-        clk, f, p, m = sorted(self.clkouts.items())[0][1]
+        clkout = sorted(self.clkouts.items())[0][1]
         self.params.update(
             p_CLKFX_MULTIPLY  = config["clkfbout_mult"],
             p_CLKFX_DIVIDE    = config["clkout0_divide"] * config["divclk_divide"],
@@ -97,7 +97,7 @@ class S6DCM(XilinxClocking):
             i_CLKIN           = self.clkin,
             i_RST             = self.reset,
             i_FREEZEDCM       = 0,
-            o_CLKFX           = clk,
+            o_CLKFX           = clkout.clk,
             o_LOCKED          = self.locked,
         )
         self.specials += Instance("DCM_CLKGEN", name=self.name or "", **self.params)

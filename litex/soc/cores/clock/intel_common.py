@@ -68,19 +68,19 @@ class IntelClocking(LiteXModule):
                 if (vco_freq >= vco_freq_min*(1 + self.vco_margin) and
                     vco_freq <= vco_freq_max*(1 - self.vco_margin)):
                     clk_valid = [False] * len(self.clkouts)
-                    for _n, (clk, f, p, _m) in sorted(self.clkouts.items()):
+                    for _n, clkout in sorted(self.clkouts.items()):
                         # For each C, see if the output frequency is within margin
                         # and the difference is better than the previous valid, best C.
                         best_diff = float("inf")
                         for c in clkdiv_range_list:
                             clk_freq = vco_freq/c
-                            diff = abs(clk_freq - f)
-                            if diff <= f*_m and diff < best_diff:
+                            diff = abs(clk_freq - clkout.freq)
+                            if diff <= clkout.freq*clkout.margin and diff < best_diff:
                                 config[f"clk{_n}_freq"]   = clk_freq
                                 config[f"clk{_n}_divide"] = c * n
-                                config[f"clk{_n}_phase"]  = p
+                                config[f"clk{_n}_phase"]  = clkout.phase
                                 clk_valid[_n] = True
-                                diff_ratios[_n] = diff / f
+                                diff_ratios[_n] = diff / clkout.freq
                                 best_diff = diff
                     all_valid = all(clk_valid)
                 else:
@@ -118,11 +118,11 @@ class IntelClocking(LiteXModule):
             i_PLLENA                 = 1,
             o_LOCKED                 = self.locked,
         )
-        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+        for n, clkout in sorted(self.clkouts.items()):
             clk_phase_ps = int((1e12/config[f"clk{n}_freq"])*config[f"clk{n}_phase"]/360)
             self.params[f"p_CLK{n}_DIVIDE_BY"]   = config[f"clk{n}_divide"]
             self.params[f"p_CLK{n}_DUTY_CYCLE"]  = 50
             self.params[f"p_CLK{n}_MULTIPLY_BY"] = config["m"]
             self.params[f"p_CLK{n}_PHASE_SHIFT"] = clk_phase_ps
-            self.comb += clk.eq(clks[n])
+            self.comb += clkout.clk.eq(clks[n])
         self.specials += Instance("ALTPLL", **self.params)

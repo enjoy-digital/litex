@@ -120,7 +120,7 @@ class GW1NPLL(LiteXModule):
         check_clkin_registered(hasattr(self, "clkin"))
         check_clkouts(self.nclkouts)
         # extract the highest frequency and associated margin
-        freq_max, m = max([(f, n) for (_, f, _, n) in self.clkouts.values()], key=lambda p: p[0])
+        freq_max, margin = max([(clkout.freq, clkout.margin) for clkout in self.clkouts.values()], key=lambda p: p[0])
 
         configs = [] # corresponding VCO/FBDIV/IDIV/ODIV params + diff
 
@@ -137,7 +137,7 @@ class GW1NPLL(LiteXModule):
                     if (vco_freq >= vco_freq_min*(1 + self.vco_margin) and
                         vco_freq <= vco_freq_max*(1 - self.vco_margin)):
                             diff = abs(out_freq - freq_max)
-                            if diff <= freq_max*m:
+                            if diff <= freq_max*margin:
                                 configs.append({
                                     "diff" : diff,
                                     "idiv" : idiv,
@@ -149,7 +149,7 @@ class GW1NPLL(LiteXModule):
             raise ValueError("No PLL config found")
 
         # Phase
-        phases = list({p for (_, _, p, _) in self.clkouts.values() if p != 0})
+        phases = list({clkout.phase for clkout in self.clkouts.values() if clkout.phase != 0})
         if len(phases) >= 2:
             raise ValueError("Gowin PLL supports only one non-zero phase.")
 
@@ -158,7 +158,7 @@ class GW1NPLL(LiteXModule):
         # CLKOUTD3         : VCODIV / 3
         # CLKOUTD          : VCODIV / an even value [2-128]
         # FIXME: bypass may used to directly connect output clock to the input
-        freqs_div = [freq_max // f for (_, f, _, _) in self.clkouts.values() if freq_max // f != 1]
+        freqs_div = [freq_max // clkout.freq for clkout in self.clkouts.values() if freq_max // clkout.freq != 1]
 
         if len(freqs_div) > 2:
             raise ValueError("Gowin PLL can't have more than two divisor")
@@ -182,17 +182,17 @@ class GW1NPLL(LiteXModule):
             config["SDIV_SEL"] = sdiv
 
             all_valid = True
-            for c, (clock, freq, phase, margin) in self.clkouts.items():
-                th_div = int(freq_max // freq) # divisor to apply
+            for c, clkout in self.clkouts.items():
+                th_div = int(freq_max // clkout.freq) # divisor to apply
                 r_freq = out_freq / th_div     # real frequency
-                error  = clkout_freq_error(r_freq, freq)
+                error  = clkout_freq_error(r_freq, clkout.freq)
                 # check if value fit criterion
-                if error > margin:
+                if error > clkout.margin:
                     all_valid = False
                     break
                 errors.append(error)
                 if th_div == 1: # no divisor: may be CLKOUT or CLKOUTP
-                    if phase == 0:
+                    if clkout.phase == 0:
                         out = "" # CLKOUT
                     else:
                         if "CLKOUTP" in config.keys():
@@ -204,8 +204,8 @@ class GW1NPLL(LiteXModule):
                     out = "D"
 
                 config.update({
-                    f"CLKOUT{out}"     : clock,
-                    f"CLKOUT{out}_SRC" : "CLKOUT" if phase == 0 else "CLKOUTP",
+                    f"CLKOUT{out}"     : clkout.clk,
+                    f"CLKOUT{out}_SRC" : "CLKOUT" if clkout.phase == 0 else "CLKOUTP",
                 })
 
             if all_valid:

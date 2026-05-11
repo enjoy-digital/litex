@@ -52,10 +52,10 @@ class S7PLL(XilinxClocking):
             i_CLKFBIN       = pll_fb,
             o_CLKFBOUT      = pll_fb,
         )
-        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+        for n, clkout in sorted(self.clkouts.items()):
             self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
-            self.params["o_CLKOUT{}".format(n)] = clk
+            self.params["o_CLKOUT{}".format(n)] = clkout.clk
         self.specials += Instance("PLLE2_ADV", name=self.name or "", **self.params)
 
 # Xilinx / 7-Series MMCM ---------------------------------------------------------------------------
@@ -109,13 +109,13 @@ class S7MMCM(XilinxClocking):
             i_CLKFBIN         = mmcm_fb,
             o_CLKFBOUT        = mmcm_fb,
         )
-        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+        for n, clkout in sorted(self.clkouts.items()):
             if n == 0:
                 self.params["p_CLKOUT{}_DIVIDE_F".format(n)] = config["clkout{}_divide".format(n)]
             else:
                 self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
-            self.params["o_CLKOUT{}".format(n)]       = clk
+            self.params["o_CLKOUT{}".format(n)]       = clkout.clk
         self.specials += Instance("MMCME2_ADV", name=self.name or "", **self.params)
 
 # Xilinx / 7-Series IDELAY CTRL --------------------------------------------------------------------

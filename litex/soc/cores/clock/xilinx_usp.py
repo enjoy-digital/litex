@@ -55,10 +55,10 @@ class USPPLL(XilinxClocking):
             i_CLKFBIN       = pll_fb,
             o_CLKFBOUT      = pll_fb,
         )
-        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+        for n, clkout in sorted(self.clkouts.items()):
             self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)]  = config["clkout{}_phase".format(n)]
-            self.params["o_CLKOUT{}".format(n)]        = clk
+            self.params["o_CLKOUT{}".format(n)]        = clkout.clk
         self.specials += Instance("PLLE2_ADV", name=self.name or "", **self.params)
 
 # Xilinx / Ultrascale Plus MMCM --------------------------------------------------------------------
@@ -103,13 +103,13 @@ class USPMMCM(XilinxClocking):
             i_CLKFBIN         = mmcm_fb,
             o_CLKFBOUT        = mmcm_fb,
         )
-        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+        for n, clkout in sorted(self.clkouts.items()):
             if n == 0:
                 self.params["p_CLKOUT{}_DIVIDE_F".format(n)] = config["clkout{}_divide".format(n)]
             else:
                 self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
-            self.params["o_CLKOUT{}".format(n)]       = clk
+            self.params["o_CLKOUT{}".format(n)]       = clkout.clk
         self.specials += Instance("MMCME4_ADV", name=self.name or "", **self.params)
 
     def compute_config(self) -> Dict[str, Any]:
@@ -144,7 +144,7 @@ class USPMMCM(XilinxClocking):
                 }
                 errors = []
                 all_valid = True
-                for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+                for n, clkout in sorted(self.clkouts.items()):
                     div_ranges = [self.clkout_divide_range]
                     # Add specific range dividers if they exist
                     specific_div_range = getattr(self, f"clkout{n}_divide_range", None)
@@ -156,9 +156,9 @@ class USPMMCM(XilinxClocking):
                         div_ranges = [(2, 128 + 1/8, 1/8)]
 
                     best_clkout = clkout_best_divider(
-                        f,
-                        m,
-                        clkdiv_candidates(div_ranges, ideal=vco_freq/f),
+                        clkout.freq,
+                        clkout.margin,
+                        clkdiv_candidates(div_ranges, ideal=vco_freq/clkout.freq),
                         lambda d: vco_freq/d
                     )
 
@@ -170,7 +170,7 @@ class USPMMCM(XilinxClocking):
                     errors.append(error)
                     config[f"clkout{n}_freq"] = clk_freq
                     config[f"clkout{n}_divide"] = d
-                    config[f"clkout{n}_phase"] = p
+                    config[f"clkout{n}_phase"] = clkout.phase
 
                 if all_valid:
                     best_config, best_score = update_best_config(best_config, best_score, config, errors, vco_freq)

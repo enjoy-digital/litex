@@ -85,14 +85,14 @@ class XilinxClocking(LiteXModule):
                 (vco_freq_min, vco_freq_max) = self.vco_freq_range
                 if (vco_freq >= vco_freq_min*(1 + self.vco_margin) and
                     vco_freq <= vco_freq_max*(1 - self.vco_margin)):
-                    for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+                    for n, clkout in sorted(self.clkouts.items()):
                         d_ranges = [self.clkout_divide_range]
                         if getattr(self, "clkout{}_divide_range".format(n), None) is not None:
                             d_ranges += [getattr(self, "clkout{}_divide_range".format(n))]
                         best_clkout = clkout_best_divider(
-                            f,
-                            m,
-                            clkdiv_candidates(d_ranges, ideal=vco_freq/f),
+                            clkout.freq,
+                            clkout.margin,
+                            clkdiv_candidates(d_ranges, ideal=vco_freq/clkout.freq),
                             lambda d: vco_freq/d
                         )
                         if best_clkout is None:
@@ -102,7 +102,7 @@ class XilinxClocking(LiteXModule):
                         errors.append(error)
                         config["clkout{}_freq".format(n)]   = clk_freq
                         config["clkout{}_divide".format(n)] = d
-                        config["clkout{}_phase".format(n)]  = p
+                        config["clkout{}_phase".format(n)]  = clkout.phase
                 else:
                     all_valid = False
                 if all_valid:

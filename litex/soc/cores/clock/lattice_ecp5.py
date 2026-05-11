@@ -60,8 +60,8 @@ class ECP5PLL(LiteXModule):
         best_config            = None
         best_score             = None
         best_feedback_clkout   = None
-        active_clkouts         = {n: clkout for n, clkout in self.clkouts.items() if clkout[1] > 0}
-        feedback_only_clkouts  = [n for n, clkout in self.clkouts.items() if clkout[1] == 0]
+        active_clkouts         = {n: clkout for n, clkout in self.clkouts.items() if clkout.freq > 0}
+        feedback_only_clkouts  = [n for n, clkout in self.clkouts.items() if clkout.freq == 0]
         # Iterate on CLKI dividers...
         for clki_div in range(*self.clki_div_range):
             # Check if in PFD range.
@@ -82,26 +82,26 @@ class ECP5PLL(LiteXModule):
                         config["clkfb"]  = None
                         clkout_configs   = {}
                         feedback_configs = {}
-                        for n, (clk, f, p, m, dpa) in sorted(active_clkouts.items()):
+                        for n, clkout in sorted(active_clkouts.items()):
                             for d in range(*self.clko_div_range):
                                 clk_freq = vco_freq/d
-                                error    = clkout_freq_error(clk_freq, f)
+                                error    = clkout_freq_error(clk_freq, clkout.freq)
                                 # Check if output can be used as feedback, if so save it.
                                 # (We cannot use clocks with dynamic phase adjustment enabled)
-                                if error <= m and (d == clkofb_div) and (not (dpa and self.dpa_en)):
+                                if error <= clkout.margin and (d == clkofb_div) and (not (clkout.uses_dpa and self.dpa_en)):
                                     if n not in feedback_configs or error < feedback_configs[n][0]:
-                                        feedback_configs[n] = (error, clk_freq, d, p)
+                                        feedback_configs[n] = (error, clk_freq, d, clkout.phase)
                             best_clkout = clkout_best_divider(
-                                f,
-                                m,
-                                clkdiv_candidates([self.clko_div_range], ideal=vco_freq/f),
+                                clkout.freq,
+                                clkout.margin,
+                                clkdiv_candidates([self.clko_div_range], ideal=vco_freq/clkout.freq),
                                 lambda d: vco_freq/d
                             )
                             if best_clkout is None:
                                 all_valid = False
                                 break
                             error, clk_freq, d = best_clkout
-                            clkout_configs[n]  = (error, clk_freq, d, p)
+                            clkout_configs[n]  = (error, clk_freq, d, clkout.phase)
                         if all_valid:
                             for n, (error, clk_freq, d, p) in sorted(clkout_configs.items()):
                                 if n in feedback_configs and d == feedback_configs[n][2]:
@@ -197,16 +197,16 @@ class ECP5PLL(LiteXModule):
             p_CLKI_DIV      = config["clki_div"]
         )
         self.comb += self.locked.eq(locked & ~self.reset)
-        for n, (clk, f, p, m, dpa) in sorted(self.clkouts.items()):
+        for n, clkout in sorted(self.clkouts.items()):
             div    = config[f"clko{n}_div"]
-            phase = round(p*div/45)
+            phase  = round(clkout.phase*div/45)
             self.params[f"p_CLKO{n_to_l[n]}_ENABLE"] = "ENABLED"
             self.params[f"p_CLKO{n_to_l[n]}_DIV"]    = div
             self.params[f"p_CLKO{n_to_l[n]}_FPHASE"] = phase & 7
             self.params[f"p_CLKO{n_to_l[n]}_CPHASE"] = (phase >> 3) + (div - 1)
-            self.params[f"o_CLKO{n_to_l[n]}"]        = clk
-            if f > 0:  # i.e. not a feedback-only clock
-                self.params["attr"].append((f"FREQUENCY_PIN_CLKO{n_to_l[n]}", str(f/1e6)))
+            self.params[f"o_CLKO{n_to_l[n]}"]        = clkout.clk
+            if clkout.freq > 0:  # i.e. not a feedback-only clock
+                self.params["attr"].append((f"FREQUENCY_PIN_CLKO{n_to_l[n]}", str(clkout.freq/1e6)))
         if self.bel:
             self.params["attr"].append(("BEL", self.bel))
         self.specials += Instance("EHXPLLL", name=self.name or "", **self.params)
