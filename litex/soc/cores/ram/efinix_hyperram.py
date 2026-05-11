@@ -19,6 +19,10 @@ from litex.soc.cores.clock.efinix import TITANIUMPLL
 
 from litex.soc.cores.hyperbus import HyperRAM
 
+EFINIX_HYPERRAM_CLK_RATIO           = 4
+EFINIX_HYPERRAM_MAX_PHY_CLK_FREQ    = 250e6
+EFINIX_HYPERRAM_DYN_PHASE_SEL_WIDTH = 1
+
 # HyperRAM (efinix F100) ---------------------------------------------------------------------------
 
 class EfinixHyperRAM(HyperRAM):
@@ -30,7 +34,9 @@ class EfinixHyperRAM(HyperRAM):
 
         if sys_clk_freq is None:
             raise ValueError("Efinix HyperRAM requires sys_clk_freq.")
-        if sys_clk_freq * 4 >= 250e6:
+        if sys_clk_freq <= 0:
+            raise ValueError("Efinix HyperRAM sys_clk_freq must be positive.")
+        if sys_clk_freq * EFINIX_HYPERRAM_CLK_RATIO >= EFINIX_HYPERRAM_MAX_PHY_CLK_FREQ:
             raise ValueError("Efinix HyperRAM 4x clock must be below 250MHz.")
 
         _io = [
@@ -57,7 +63,7 @@ class EfinixHyperRAM(HyperRAM):
 
         platform.add_extension([
             ("shift_ena", 0, Pins(1)),
-            ("shift_sel", 0, Pins(1)),
+            ("shift_sel", 0, Pins(EFINIX_HYPERRAM_DYN_PHASE_SEL_WIDTH)),
             ("shift",     0, Pins(1)),
         ])
 
@@ -76,10 +82,11 @@ class EfinixHyperRAM(HyperRAM):
         self.cd_hpcal = ClockDomain()
         self.pll = pll = TITANIUMPLL(platform, dyn_phase_shift_pads=_dps_pads)
         pll.register_clkin(None, sys_clk_freq, name=f"{clock_domain}_pll0_clk") # FIXME: fix clkin name
+        hyperram_clk_freq = EFINIX_HYPERRAM_CLK_RATIO*sys_clk_freq
         pll.create_clkout(None,              sys_clk_freq)
-        pll.create_clkout(self.cd_hp,    4 * sys_clk_freq,           with_reset=True)
-        pll.create_clkout(self.cd_hp90,  4 * sys_clk_freq, phase=90, with_reset=True)
-        pll.create_clkout(self.cd_hpcal, 4 * sys_clk_freq,           with_reset=True, dyn_phase=True)
+        pll.create_clkout(self.cd_hp,    hyperram_clk_freq,           with_reset=True)
+        pll.create_clkout(self.cd_hp90,  hyperram_clk_freq, phase=90, with_reset=True)
+        pll.create_clkout(self.cd_hpcal, hyperram_clk_freq,           with_reset=True, dyn_phase=True)
 
 
         # connect HyperRAM to interface designer block
@@ -148,7 +155,7 @@ class EfinixHyperRAM(HyperRAM):
             latency       = latency,
             latency_mode  = latency_mode,
             sys_clk_freq  = sys_clk_freq,
-            clk_ratio     = "4:1",
+            clk_ratio     = "{}:1".format(EFINIX_HYPERRAM_CLK_RATIO),
             with_bursting = with_bursting,
             with_csr      = with_csr,
             dq_i_cd       = None,

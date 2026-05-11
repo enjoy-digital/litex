@@ -13,7 +13,11 @@ from migen.fhdl.specials import Instance
 from litex.build.altera import AlteraPlatform
 from litex.build.efinix import EfinixPlatform
 from litex.soc.cores.ram.common import RAM_CAPABILITIES, get_cpu_ram_filename
-from litex.soc.cores.ram.efinix_hyperram import EfinixHyperRAM
+from litex.soc.cores.ram.efinix_hyperram import (
+    EFINIX_HYPERRAM_DYN_PHASE_SEL_WIDTH,
+    EFINIX_HYPERRAM_MAX_PHY_CLK_FREQ,
+    EfinixHyperRAM,
+)
 from litex.soc.cores.ram.lattice_ice40 import Up5kSPRAM
 from litex.soc.cores.ram.lattice_nx import NXLRAM, initval_parameters
 from litex.soc.cores.ram.xilinx_fifo_sync_macro import FIFOSyncMacro
@@ -394,9 +398,13 @@ class TestEfinixRAM(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "sys_clk_freq"):
             EfinixHyperRAM(platform=None, sys_clk_freq=None)
 
+    def test_efinix_hyperram_rejects_non_positive_sys_clk_freq(self):
+        with self.assertRaisesRegex(ValueError, "positive"):
+            EfinixHyperRAM(platform=None, sys_clk_freq=0)
+
     def test_efinix_hyperram_rejects_too_fast_4x_clock(self):
         with self.assertRaisesRegex(ValueError, "4x clock"):
-            EfinixHyperRAM(platform=None, sys_clk_freq=62.5e6)
+            EfinixHyperRAM(platform=None, sys_clk_freq=EFINIX_HYPERRAM_MAX_PHY_CLK_FREQ/4)
 
     def test_efinix_hyperram_registers_interface_blocks(self):
         platform = _FakeEfinixHyperRAMPlatform()
@@ -408,6 +416,7 @@ class TestEfinixRAM(unittest.TestCase):
         self.assertIs(pll_block["shift_ena"], platform.request("shift_ena"))
         self.assertIs(pll_block["shift"],     platform.request("shift"))
         self.assertIs(pll_block["shift_sel"], platform.request("shift_sel"))
+        self.assertEqual(len(platform.request("shift_sel")), EFINIX_HYPERRAM_DYN_PHASE_SEL_WIDTH)
 
         hyperram_blocks = [
             block for block in platform.toolchain.ifacewriter.blocks
