@@ -13,9 +13,38 @@ from litex.soc.cores.clock.gowin_gw1n import GW1NOSC, GW1NPLL
 from litex.soc.cores.clock.gowin_gw5a import GW5APLL
 
 
+class _FakeEfinixIfaceWriter:
+    def __init__(self):
+        self.blocks = []
+
+    def get_block(self, name):
+        for block in self.blocks:
+            if block["name"] == name:
+                return block
+        raise ValueError("Unknown block: {}.".format(name))
+
+
+class _FakeEfinixToolchain:
+    def __init__(self):
+        self.ifacewriter = _FakeEfinixIfaceWriter()
+
+
+class _FakeEfinixPlatform:
+    def __init__(self, family="Titanium"):
+        self.family    = family
+        self.toolchain = _FakeEfinixToolchain()
+        self.clks      = {}
+
+    def add_iface_io(self, name):
+        return Signal(name=name)
+
+
 class TestClock(unittest.TestCase):
     def assert_frequency_close(self, actual, expected, margin=1e-2):
         self.assertAlmostEqual(actual, expected, delta=expected*margin)
+
+    def get_efinix_pll_block(self, pll):
+        return pll.platform.toolchain.ifacewriter.get_block(pll.name)
 
     # Xilinx / Spartan 6
     def test_s6_pll(self):
@@ -284,6 +313,54 @@ class TestClock(unittest.TestCase):
     def test_gw1n_osc_rejects_non_positive_frequency(self):
         with self.assertRaisesRegex(ValueError, "Oscillator frequency"):
             GW1NOSC("GW1N-4", 0)
+
+    def test_efinix_pll_accepts_dyn_phase_pads(self):
+        pads = {
+            "shift_ena": Signal(),
+            "shift":     Signal(),
+            "shift_sel": Signal(2),
+        }
+        pll   = TITANIUMPLL(_FakeEfinixPlatform(), dyn_phase_shift_pads=pads)
+        block = self.get_efinix_pll_block(pll)
+
+        self.assertIs(block["shift_ena"], pads["shift_ena"])
+        self.assertIs(block["shift"],     pads["shift"])
+        self.assertIs(block["shift_sel"], pads["shift_sel"])
+
+    def test_efinix_pll_rejects_incomplete_dyn_phase_pads(self):
+        with self.assertRaisesRegex(ValueError, "dyn_phase_shift_pads"):
+            TITANIUMPLL(_FakeEfinixPlatform(), dyn_phase_shift_pads={"shift_ena": Signal()})
+
+    def test_efinix_pll_rejects_explicit_clkout_on_trion(self):
+        pll = TRIONPLL(_FakeEfinixPlatform(family="Trion"))
+        with self.assertRaisesRegex(ValueError, "not supported for Trion"):
+            pll.create_clkout(None, 100e6, nclkout=0)
+
+    def test_efinix_pll_rejects_invalid_clkout_index(self):
+        pll = TITANIUMPLL(_FakeEfinixPlatform())
+        with self.assertRaisesRegex(ValueError, "nclkout must be >= 0"):
+            pll.create_clkout(None, 100e6, nclkout=-1)
+        with self.assertRaisesRegex(ValueError, "nclkout must be less than"):
+            pll.create_clkout(None, 100e6, nclkout=pll.nclkouts_max)
+
+    def test_efinix_pll_rejects_used_clkout(self):
+        pll = TITANIUMPLL(_FakeEfinixPlatform())
+        pll.create_clkout(None, 100e6, nclkout=0)
+        with self.assertRaisesRegex(ValueError, "already used"):
+            pll.create_clkout(None, 100e6, nclkout=0)
+
+    def test_efinix_pll_rejects_missing_free_clkout(self):
+        pll = TITANIUMPLL(_FakeEfinixPlatform())
+        for _ in range(pll.nclkouts_max):
+            pll.create_clkout(None, 100e6)
+        with self.assertRaisesRegex(ValueError, "No free clock output"):
+            pll.create_clkout(None, 100e6)
+
+    def test_efinix_pll_rejects_duplicate_feedback_clkout(self):
+        pll = TITANIUMPLL(_FakeEfinixPlatform())
+        pll.create_clkout(None, 100e6, is_feedback=True, nclkout=0)
+        with self.assertRaisesRegex(ValueError, "Feedback clock output"):
+            pll.create_clkout(None, 100e6, is_feedback=True, nclkout=1)
 
     def test_plls_reject_missing_clkout(self):
         test_cases = [

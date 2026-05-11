@@ -18,8 +18,9 @@ from litex.soc.cores.clock.common import *
 class EFINIXPLL(LiteXModule):
     n            = 0
     nclkouts_max = 3
-    def __init__(self, platform,version="V1_V2", dyn_phase_shift_pads=[]):
+    def __init__(self, platform, version="V1_V2", dyn_phase_shift_pads=None):
         self.logger = logging.getLogger("EFINIXPLL")
+        dyn_phase_shift_pads = {} if dyn_phase_shift_pads is None else dyn_phase_shift_pads
 
         if version == "V1_V2":
             self.type = "TRIONPLL"
@@ -45,6 +46,9 @@ class EFINIXPLL(LiteXModule):
         block["version"] = version
         block["feedback"] = -1
         if len(dyn_phase_shift_pads) > 0:
+            for pad in ["shift_ena", "shift", "shift_sel"]:
+                if pad not in dyn_phase_shift_pads:
+                    raise ValueError("dyn_phase_shift_pads must provide {}.".format(pad))
             block["shift_ena"] = dyn_phase_shift_pads["shift_ena"]
             block["shift"]     = dyn_phase_shift_pads["shift"]
             block["shift_sel"] = dyn_phase_shift_pads["shift_sel"]
@@ -112,16 +116,21 @@ class EFINIXPLL(LiteXModule):
         block = self.platform.toolchain.ifacewriter.get_block(self.name)
 
         if nclkout is not None:
-            assert not self.platform.family == "Trion", "nclkout for now not supported for Trion PLLs"
-            assert nclkout >= 0, "nclkout must be >= 0"
-            assert nclkout < self.nclkouts_max
-            assert block["clk_out"][nclkout] is None, "Clock output {} already used".format(nclkout)
+            if self.platform.family == "Trion":
+                raise ValueError("Explicit nclkout selection is not supported for Trion PLLs.")
+            if nclkout < 0:
+                raise ValueError("nclkout must be >= 0.")
+            if nclkout >= self.nclkouts_max:
+                raise ValueError("nclkout must be less than {}.".format(self.nclkouts_max))
+            if block["clk_out"][nclkout] is not None:
+                raise ValueError("Clock output {} already used.".format(nclkout))
         else:
             for i, clock in enumerate(block["clk_out"]):
                 if clock is None:
                     nclkout = i
                     break
-            assert nclkout is not None, "No free clock output found"
+            if nclkout is None:
+                raise ValueError("No free clock output found.")
 
         clk_out_name = f"{self.name}_clkout{nclkout}" if name == "" else name
 
@@ -141,7 +150,8 @@ class EFINIXPLL(LiteXModule):
         create_clkout_log(self.logger, clk_out_name, freq, margin, nclkout)
 
         if is_feedback:
-            assert block["feedback"] == -1
+            if block["feedback"] != -1:
+                raise ValueError("Feedback clock output already configured.")
             block["feedback"] = nclkout
 
         block["clk_out"][nclkout] = [clk_out_name, freq, phase, margin, dyn_phase]
@@ -328,7 +338,7 @@ class EFINIXPLL(LiteXModule):
 
 class TITANIUMPLL(EFINIXPLL):
     nclkouts_max = 5
-    def __init__(self, platform, dyn_phase_shift_pads=[]):
+    def __init__(self, platform, dyn_phase_shift_pads=None):
         EFINIXPLL.__init__(self, platform, version="V3", dyn_phase_shift_pads=dyn_phase_shift_pads)
 
 # Efinix / TRION ----------------------------------------------------------------------------------
