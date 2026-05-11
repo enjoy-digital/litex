@@ -92,7 +92,7 @@ class IntelClocking(LiteXModule):
         if best_config is not None:
             compute_config_log(self.logger, best_config)
             return best_config
-        raise ValueError("No PLL config found")
+        raise pll_config_error(self.clkin_freq, self.clkouts)
 
     def add_reset_delay(self, cycles):
         for _ in range(cycles):

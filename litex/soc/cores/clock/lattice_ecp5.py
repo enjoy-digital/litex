@@ -158,7 +158,7 @@ class ECP5PLL(LiteXModule):
                 self.clkouts[best_feedback_clkout] = ClkOutDPA(Signal(), 0, 0, 0, 0)
             compute_config_log(self.logger, best_config)
             return best_config
-        raise ValueError("No PLL config found")
+        raise pll_config_error(self.clkin_freq, self.clkouts)
 
     def expose_dpa(self):
         self.dpa_en     = True

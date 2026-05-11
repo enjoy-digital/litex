@@ -152,7 +152,7 @@ class GW1NPLL(LiteXModule):
                                     "fdiv" : fdiv
                                 })
         if len(configs) == 0:
-            raise ValueError("No PLL config found")
+            raise pll_config_error(self.clkin_freq, self.clkouts)
 
         # Phase
         phases = list({clkout.phase for clkout in self.clkouts.values() if clkout.phase != 0})
@@ -219,7 +219,7 @@ class GW1NPLL(LiteXModule):
 
         if best_config is not None:
             return best_config
-        raise ValueError("No PLL config found")
+        raise pll_config_error(self.clkin_freq, self.clkouts)
 
     def do_finalize(self):
         check_clkin_registered(hasattr(self, "clkin"))

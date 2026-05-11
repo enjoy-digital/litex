@@ -87,6 +87,30 @@ def check_clkouts(nclkouts):
     if nclkouts == 0:
         raise ValueError("At least one output clock must be registered.")
 
+def format_freq(freq):
+    return "{:3.2f}MHz".format(freq/1e6)
+
+def format_clkout_freqs(clkouts):
+    if clkouts is None:
+        return []
+    clkout_items = clkouts.items() if hasattr(clkouts, "items") else enumerate(clkouts)
+    freqs = []
+    for n, clkout in clkout_items:
+        if clkout is None:
+            continue
+        freq = clkout.freq if hasattr(clkout, "freq") else clkout[1]
+        freqs.append("ClkOut{}={}".format(n, format_freq(freq)))
+    return freqs
+
+def pll_config_error(clkin_freq=None, clkouts=None, msg="No PLL config found"):
+    details = []
+    if clkin_freq is not None:
+        details.append("ClkIn={}".format(format_freq(clkin_freq)))
+    details += format_clkout_freqs(clkouts)
+    if details:
+        return ValueError("{} ({}).".format(msg, ", ".join(details)))
+    return ValueError(msg)
+
 def connect_clkin(module, clkin, differential=False):
     clkin_signal = Signal()
     if isinstance(clkin, (Signal, ClockSignal)):

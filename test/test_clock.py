@@ -501,7 +501,7 @@ class TestClock(unittest.TestCase):
         pll = GW5APLL("GW5A-25", "GW5A-25")
         pll.register_clkin(Signal(), 50e6)
         pll.create_clkout(ClockDomain("clkout"), 10e9)
-        with self.assertRaisesRegex(ValueError, "No PLL config found"):
+        with self.assertRaisesRegex(ValueError, r"No PLL config found.*ClkIn=50.00MHz.*ClkOut0=10000.00MHz"):
             pll.compute_config()
 
     def test_gw1n_pll_rejects_multiple_nonzero_phases(self):

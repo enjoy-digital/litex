@@ -199,7 +199,7 @@ class NXPLL(LiteXModule):
         if best_config is not None:
             compute_config_log(self.logger, best_config)
             return best_config
-        raise ValueError("No PLL config found")
+        raise pll_config_error(self.clkin_freq, self.clkouts)
 
     def calculate_analog_parameters(self, clki_freq, fb_div, bw_factor = 5):
         config = {}

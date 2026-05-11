@@ -316,7 +316,7 @@ class EFINIXPLL(LiteXModule):
                 final_list.append(p)
 
         if len(final_list) == 0:
-            raise ValueError("No PLL config found")
+            raise pll_config_error(clk_in_freq, block["clk_out"])
 
         # Select first parameters set.
         # ----------------------------

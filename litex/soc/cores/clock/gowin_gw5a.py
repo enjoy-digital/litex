@@ -116,7 +116,7 @@ class GW5APLL(LiteXModule):
                                 configs += [config]
 
         if len(configs) == 0:
-            raise ValueError("No PLL config found")
+            raise pll_config_error(self.clkin_freq, self.clkouts)
 
         best_config = None
         best_score  = None
