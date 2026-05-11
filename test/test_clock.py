@@ -32,6 +32,7 @@ class _FakeEfinixToolchain:
 class _FakeEfinixPlatform:
     def __init__(self, family="Titanium"):
         self.family    = family
+        self.device    = "T20"
         self.toolchain = _FakeEfinixToolchain()
         self.clks      = {}
 
@@ -361,6 +362,28 @@ class TestClock(unittest.TestCase):
         pll.create_clkout(None, 100e6, is_feedback=True, nclkout=0)
         with self.assertRaisesRegex(ValueError, "Feedback clock output"):
             pll.create_clkout(None, 100e6, is_feedback=True, nclkout=1)
+
+    def test_efinix_pll_remaps_sparse_feedback_clkout(self):
+        pll   = TRIONPLL(_FakeEfinixPlatform())
+        block = self.get_efinix_pll_block(pll)
+        block["input_freq"] = 50e6
+
+        pll.create_clkout(None, 100e6, nclkout=2, is_feedback=True)
+        pll.compute_config()
+
+        self.assertEqual(block["feedback"], 0)
+        self.assertEqual(len(block["clk_out"]), 1)
+        self.assertIn("CLKOUT0_DIV", block)
+
+    def test_efinix_pll_rejects_unconfigured_feedback_clkout(self):
+        pll   = TRIONPLL(_FakeEfinixPlatform())
+        block = self.get_efinix_pll_block(pll)
+        block["input_freq"] = 50e6
+        block["feedback"]   = 2
+
+        pll.create_clkout(None, 100e6, nclkout=0)
+        with self.assertRaisesRegex(ValueError, "Feedback clock output"):
+            pll.compute_config()
 
     def test_plls_reject_missing_clkout(self):
         test_cases = [

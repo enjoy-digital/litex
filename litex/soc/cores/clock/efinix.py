@@ -166,14 +166,20 @@ class EFINIXPLL(LiteXModule):
         block = self.platform.toolchain.ifacewriter.get_block(self.name)
         if block["feedback"] == -1:
             return
-        block["clk_out"] = [c for c in block["clk_out"] if c is not None]
+        clkouts = [(n, clkout) for n, clkout in enumerate(block["clk_out"]) if clkout is not None]
+        feedback = block["feedback"]
+        feedback_ids = [i for i, (n, _) in enumerate(clkouts) if n == feedback]
+        if len(feedback_ids) == 0:
+            raise ValueError("Feedback clock output is not configured.")
+        block["clk_out"] = [clkout for _, clkout in clkouts]
+        block["feedback"] = feedback_ids[0]
         clks_out = {}
         for clk_id, clk in enumerate(block["clk_out"]):
             clks_out[clk_id] = {"freq": clk[1], "phase": clk[2]}
 
         n_out       = len(block["clk_out"])
         clk_in_freq = block["input_freq"]
-        clk_fb_id   = block["feedback"]
+        clk_fb_id   = feedback_ids[0]
         device      = self.platform.device
 
         vco_range   = self.get_vco_freq_range(device)
