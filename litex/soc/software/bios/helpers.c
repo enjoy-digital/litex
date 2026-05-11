@@ -45,19 +45,18 @@ void bios_print_status(const char *label, int success)
 
 void dump_bytes(unsigned int *ptr, int count, unsigned long addr)
 {
-	uint32_t *dptr = (uint32_t *)ptr;
-	char data[NUMBER_OF_BYTES_ON_A_LINE];
+	unsigned char *dptr = (unsigned char *)ptr;
+	unsigned char data[NUMBER_OF_BYTES_ON_A_LINE];
 	int line_bytes = 0, i = 0;
 
 
 	fputs("Memory dump:", stdout);
 	while (count > 0) {
-		line_bytes =
-			(count > NUMBER_OF_BYTES_ON_A_LINE)?
-				NUMBER_OF_BYTES_ON_A_LINE : count;
-		for (i = 0; i < line_bytes; i+=4){
-			*((uint32_t*)&data[i]) = *(dptr++);
-		}
+			line_bytes =
+				(count > NUMBER_OF_BYTES_ON_A_LINE)?
+					NUMBER_OF_BYTES_ON_A_LINE : count;
+		for (i = 0; i < line_bytes; i++)
+			data[i] = *dptr++;
 
 
 		printf("\n0x%08lx  ", addr);
