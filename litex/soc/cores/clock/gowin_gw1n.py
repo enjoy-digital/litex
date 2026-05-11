@@ -101,11 +101,7 @@ class GW1NPLL(LiteXModule):
         return pfd_freq_range
 
     def register_clkin(self, clkin, freq):
-        self.clkin = Signal()
-        if isinstance(clkin, (Signal, ClockSignal)):
-            self.comb += self.clkin.eq(clkin)
-        else:
-            raise ValueError
+        self.clkin = connect_clkin(self, clkin)
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 

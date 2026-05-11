@@ -72,11 +72,7 @@ class GateMatePLL(LiteXModule):
             select if clkin is connected to CLK_REF or USR_CLK_REF
         """
         self._usr_clk_ref = usr_clk_ref
-        self._clkin = Signal()
-        if isinstance(clkin, (Signal, ClockSignal)):
-            self.comb += self._clkin.eq(clkin)
-        else:
-            raise ValueError
+        self._clkin = connect_clkin(self, clkin)
         self._clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 

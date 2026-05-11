@@ -7,8 +7,9 @@
 import logging
 import math
 
-from migen import Record
+from migen import ClockSignal, Record, Signal
 
+from litex.build.io import DifferentialInput
 from litex.gen import colorer
 
 # Logging ------------------------------------------------------------------------------------------
@@ -69,6 +70,16 @@ def check_clkout_count(nclkouts, nclkouts_max):
 def check_clkouts(nclkouts):
     if nclkouts == 0:
         raise ValueError("At least one output clock must be registered.")
+
+def connect_clkin(module, clkin, differential=False):
+    clkin_signal = Signal()
+    if isinstance(clkin, (Signal, ClockSignal)):
+        module.comb += clkin_signal.eq(clkin)
+    elif differential and isinstance(clkin, Record):
+        module.specials += DifferentialInput(clkin.p, clkin.n, clkin_signal)
+    else:
+        raise ValueError("Unsupported input clock.")
+    return clkin_signal
 
 def clkout_freq_error(clk_freq, freq):
     return abs(clk_freq - freq)/freq

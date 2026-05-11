@@ -12,8 +12,6 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen import *
 
-from litex.build.io import DifferentialInput
-
 from litex.soc.interconnect.csr import *
 
 from litex.soc.cores.clock.common import *
@@ -34,13 +32,7 @@ class IntelClocking(LiteXModule):
 
     def register_clkin(self, clkin, freq):
         check_freq_range(freq, self.clkin_freq_range, "Input clock frequency")
-        self.clkin = Signal()
-        if isinstance(clkin, (Signal, ClockSignal)):
-            self.comb += self.clkin.eq(clkin)
-        elif isinstance(clkin, Record):
-            self.specials += DifferentialInput(clkin.p, clkin.n, self.clkin)
-        else:
-            raise ValueError
+        self.clkin = connect_clkin(self, clkin, differential=True)
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 

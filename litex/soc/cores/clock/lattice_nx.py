@@ -148,11 +148,7 @@ class NXPLL(LiteXModule):
 
     def register_clkin(self, clkin, freq):
         check_freq_range(freq, self.clki_freq_range, "Input clock frequency")
-        self.clkin = Signal()
-        if isinstance(clkin, (Signal, ClockSignal)):
-            self.comb += self.clkin.eq(clkin)
-        else:
-            raise ValueError
+        self.clkin = connect_clkin(self, clkin)
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 
