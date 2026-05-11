@@ -749,6 +749,7 @@ class _HierarchicalBuildContext:
     global_clock_domains: object = None
     all_signals: set = field(default_factory=set)
     signal_owner_override: dict = field(default_factory=dict)
+    owner_node_candidates: list = field(default_factory=list)
     ns: object = None
 
 
@@ -778,6 +779,64 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
     # Prepare global clock domains from the full fragment and build hierarchy.
     ctx.global_clock_domains = f.clock_domains
     ctx.root = _build_module_tree(ctx.top)
+
+    def _path_component_matches(path_name, trace_name):
+        if path_name == trace_name:
+            return True
+        # Unnamed submodules get generated names (foo_0) while Migen
+        # backtraces usually keep the class-derived name (foo).
+        match = re.match(r"^(.*)_\d+$", path_name)
+        return match is not None and match.group(1) == trace_name
+
+    def _class_trace_name(module):
+        return re.sub(r"[^a-zA-Z0-9]", "", module.__class__.__name__).lower()
+
+    def _trace_step_matches(step, trace_name):
+        path_name, class_name = step
+        return _path_component_matches(path_name, trace_name) or class_name == trace_name
+
+    def _trace_matches_steps(trace_names, steps):
+        if not steps:
+            return True
+        for start in range(len(trace_names)):
+            pos = start
+            for step in steps:
+                if pos >= len(trace_names) or not _trace_step_matches(step, trace_names[pos]):
+                    break
+                pos += 1
+                while pos < len(trace_names) and _trace_step_matches(step, trace_names[pos]):
+                    pos += 1
+            else:
+                if any(not _trace_step_matches(steps[-1], name) for name in trace_names[pos:]):
+                    continue
+                return True
+        return False
+
+    def _owner_candidates(node, hierarchical_only=False, steps=None):
+        if steps is None:
+            steps = []
+        yield _normalize_hier_path(node.path), steps
+        children = node.hier_children if hierarchical_only else node.children
+        for child in children:
+            child_path = _normalize_hier_path([child.inst_name])
+            child_steps = steps + [(child_path[0], _class_trace_name(child.module))]
+            yield from _owner_candidates(child, hierarchical_only=hierarchical_only, steps=child_steps)
+
+    def _owner_path_from_backtrace(sig):
+        trace_names = [name for name, _ in sig.backtrace[:-1] if name is not None]
+        best_path  = []
+        best_score = (-1, -1)
+        for candidate, steps in ctx.owner_node_candidates:
+            if not _trace_matches_steps(trace_names, steps):
+                continue
+            exact_matches = sum(1 for name in candidate if name in trace_names)
+            score = (len(candidate), exact_matches)
+            if score > best_score:
+                best_path  = candidate
+                best_score = score
+        return list(best_path)
+
+    ctx.owner_node_candidates = list(_owner_candidates(ctx.root))
 
     def _get_node_fragment(node):
         frag = node.module._fragment
@@ -828,11 +887,13 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
     _collect_owner_overrides(ctx.root)
 
     def _signal_owner_path(sig, default_path=None):
-        if not getattr(sig, "backtrace", None):
-            if sig in ctx.signal_owner_override:
-                return list(ctx.signal_owner_override[sig])
-            return list(default_path or [])
-        return [n for n, _ in sig.backtrace[:-1] if n is not None]
+        if sig in ctx.ios:
+            return []
+        if getattr(sig, "backtrace", None):
+            return _owner_path_from_backtrace(sig)
+        if sig in ctx.signal_owner_override:
+            return list(ctx.signal_owner_override[sig])
+        return list(default_path or [])
 
     def _collect_raw_statements(node):
         if getattr(node, "shared_alias", False):
@@ -949,6 +1010,7 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
 
     _set_hier_children(ctx.root)
     _set_inline_children(ctx.root)
+    ctx.owner_node_candidates = list(_owner_candidates(ctx.root, hierarchical_only=True))
 
     def _gather_inline_statements(node):
         comb = list(node.raw_comb)
