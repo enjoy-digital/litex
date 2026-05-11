@@ -11,9 +11,14 @@ from migen import *
 
 from litex.gen import *
 
+from litex.soc.cores.ram.common import check_value, split_init_data
 from litex.soc.interconnect import wishbone
 
 kB = 1024
+NX_LRAM_SIZE       = 64*kB
+NX_LRAM_DATA_WIDTH = 32
+NX_INITVAL_BITS    = 4096
+NX_INITVAL_COUNT   = 0x80
 
 """
 NX family-specific Wishbone interface to the LRAM primitive.
@@ -33,15 +38,14 @@ def initval_parameters(contents, width):
     alternating sequences of 8 bits of padding and 32 bits of real data,
     making up 64KiB altogether.
     """
-    if width not in [32, 64]:
-        raise ValueError("Unsupported NX LRAM init width: {}.".format(width))
+    check_value("NX LRAM init width", width, [32, 64])
     # Each LRAM is 64KiB == 524288 bits
-    if len(contents) != 524288 // width:
+    if len(contents) != NX_LRAM_SIZE*8//width:
         raise ValueError(
             "Invalid NX LRAM init length for {}-bit width: {}.".format(width, len(contents)))
-    chunk_size = 4096 // width
+    chunk_size = NX_INITVAL_BITS//width
     parameters = []
-    for i in range(0x80):
+    for i in range(NX_INITVAL_COUNT):
         name = 'INITVAL_{:02X}'.format(i)
         offset = chunk_size * i
         if width == 32:
@@ -59,20 +63,18 @@ def initval_parameters(contents, width):
 class NXLRAM(LiteXModule):
     def __init__(self, width=32, size=128*kB, init=None):
         self.bus = wishbone.Interface(data_width=width, address_width=32, addressing="word")
-        if width not in [32, 64]:
-            raise ValueError("Unsupported NX LRAM width: {}.".format(width))
+        check_value("NX LRAM width", width, [32, 64])
         self.width = width
         self.size = size
 
         if width == 32:
-            if size not in [64*kB, 128*kB, 192*kB, 256*kB, 320*kB]:
-                raise ValueError("Unsupported NX LRAM size for 32-bit width: {}.".format(size))
-            self.depth_cascading = size//(64*kB)
+            check_value("NX LRAM size for 32-bit width", size,
+                [64*kB, 128*kB, 192*kB, 256*kB, 320*kB])
+            self.depth_cascading = size//NX_LRAM_SIZE
             self.width_cascading = 1
         if width == 64:
-            if size not in [128*kB, 256*kB]:
-                raise ValueError("Unsupported NX LRAM size for 64-bit width: {}.".format(size))
-            self.depth_cascading = size//(128*kB)
+            check_value("NX LRAM size for 64-bit width", size, [128*kB, 256*kB])
+            self.depth_cascading = size//(2*NX_LRAM_SIZE)
             self.width_cascading = 2
 
         self.lram_blocks = []
@@ -115,20 +117,16 @@ class NXLRAM(LiteXModule):
             self.add_init(init)
 
     def add_init(self, data):
-        data = list(data)
-        total_words = self.size//(self.width//8)
-        if len(data) > total_words:
-            raise ValueError(
-                "NX LRAM init length exceeds RAM size: {} > {}.".format(len(data), total_words))
-        # Pad it out to make slicing easier below.
-        data += [0] * (total_words - len(data))
-        words_per_block = 64*kB//(32//8)
-        for d in range(self.depth_cascading):
-            for w in range(self.width_cascading):
-                offset = d * words_per_block
-                data_shift = 32*w
-                chunk = [
-                    (word >> data_shift) & 0xffffffff
-                    for word in data[offset:offset + words_per_block]
-                ]
+        # Split user words into physical 32-bit LRAM blocks. Depth cascading
+        # advances to the next 64KiB block, width cascading selects word lanes.
+        chunks = split_init_data(
+            data             = data,
+            data_width       = self.width,
+            block_data_width = NX_LRAM_DATA_WIDTH,
+            block_words      = NX_LRAM_SIZE//(NX_LRAM_DATA_WIDTH//8),
+            depth_cascading  = self.depth_cascading,
+            width_cascading  = self.width_cascading,
+        )
+        for d, depth_chunks in enumerate(chunks):
+            for w, chunk in enumerate(depth_chunks):
                 self.lram_blocks[d][w].items += initval_parameters(chunk, 32)

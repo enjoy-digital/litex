@@ -25,6 +25,7 @@ from litex.soc.interconnect.csr import *
 from litex.soc.integration.soc import SoCRegion
 
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32, CPU_GCC_TRIPLE_RISCV64
+from litex.soc.cores.ram.common import get_cpu_ram_filename
 
 # Variants -----------------------------------------------------------------------------------------
 
@@ -473,17 +474,8 @@ class VexiiRiscv(CPU):
             self.generate_netlist()
 
         # Add RAM.
-        # By default, use Generic RAM implementation.
-        ram_filename = "Ram_1w_1rs_Generic.v"
-        lutram_filename = "Ram_1w_1ra_Generic.v"
-        # On Altera/Intel platforms, use specific implementation.
-        from litex.build.altera import AlteraPlatform
-        if isinstance(platform, AlteraPlatform):
-            ram_filename = "Ram_1w_1rs_Intel.v"
-        # On Efinix platforms, use specific implementation.
-        from litex.build.efinix import EfinixPlatform
-        if isinstance(platform, EfinixPlatform):
-            ram_filename = "Ram_1w_1rs_Efinix.v"
+        ram_filename    = get_cpu_ram_filename(platform, "1w_1rs")
+        lutram_filename = get_cpu_ram_filename(platform, "1w_1ra")
         platform.add_source(os.path.join(vdir, ram_filename), "verilog")
         platform.add_source(os.path.join(vdir, lutram_filename), "verilog")
 

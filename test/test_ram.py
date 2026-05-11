@@ -6,6 +6,9 @@
 
 import unittest
 
+from litex.build.altera import AlteraPlatform
+from litex.build.efinix import EfinixPlatform
+from litex.soc.cores.ram.common import get_cpu_ram_filename
 from litex.soc.cores.ram.efinix_hyperram import EfinixHyperRAM
 from litex.soc.cores.ram.lattice_ice40 import Up5kSPRAM
 from litex.soc.cores.ram.lattice_nx import NXLRAM, initval_parameters
@@ -112,6 +115,27 @@ class TestLatticeRAM(unittest.TestCase):
     def test_nxlram_rejects_init_longer_than_memory(self):
         with self.assertRaisesRegex(ValueError, "init length"):
             NXLRAM(width=32, size=64*kB, init=[0]*(64*kB//4 + 1))
+
+
+class TestCPURAM(unittest.TestCase):
+    def test_cpu_ram_filename_selects_vendor_specific_1w_1rs(self):
+        test_cases = [
+            (object(),                         "Ram_1w_1rs_Generic.v"),
+            (object.__new__(AlteraPlatform),   "Ram_1w_1rs_Intel.v"),
+            (object.__new__(EfinixPlatform),   "Ram_1w_1rs_Efinix.v"),
+        ]
+        for platform, filename in test_cases:
+            with self.subTest(filename=filename):
+                self.assertEqual(get_cpu_ram_filename(platform, "1w_1rs"), filename)
+
+    def test_cpu_ram_filename_falls_back_to_generic_lutram(self):
+        self.assertEqual(
+            get_cpu_ram_filename(object.__new__(EfinixPlatform), "1w_1ra"),
+            "Ram_1w_1ra_Generic.v")
+
+    def test_cpu_ram_filename_rejects_unknown_kind(self):
+        with self.assertRaisesRegex(ValueError, "CPU RAM kind"):
+            get_cpu_ram_filename(object(), "2w_2r")
 
 
 class TestXilinxRAM(unittest.TestCase):

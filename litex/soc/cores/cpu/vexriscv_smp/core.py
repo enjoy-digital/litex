@@ -19,6 +19,7 @@ from litex.soc.interconnect.csr import *
 from litex.soc.integration.soc import SoCRegion
 
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
+from litex.soc.cores.ram.common import get_cpu_ram_filename
 
 # VexRiscv SMP -------------------------------------------------------------------------------------
 
@@ -438,17 +439,7 @@ class VexRiscvSMP(CPU):
 
 
         # Add RAM.
-
-        # By default, use Generic RAM implementation.
-        ram_filename = "Ram_1w_1rs_Generic.v"
-        # On Altera/Intel platforms, use specific implementation.
-        from litex.build.altera import AlteraPlatform
-        if isinstance(platform, AlteraPlatform):
-            ram_filename = "Ram_1w_1rs_Intel.v"
-        # On Efinix platforms, use specific implementation.
-        from litex.build.efinix import EfinixPlatform
-        if isinstance(platform, EfinixPlatform):
-            ram_filename = "Ram_1w_1rs_Efinix.v"
+        ram_filename = get_cpu_ram_filename(platform, "1w_1rs")
         platform.add_source(os.path.join(vdir, ram_filename), "verilog")
 
         # Add Cluster.
@@ -589,4 +580,3 @@ class VexRiscvSMP(CPU):
 
         # Add verilog sources
         self.add_sources(self.platform)
-
