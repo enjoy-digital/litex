@@ -15,6 +15,7 @@ from litex.soc.cores.clock.common import *
 class GW1NOSC(LiteXModule):
     osc_div_range = (2,  128)
     def __init__(self, device, freq, margin=1e-2):
+        check_freq_positive(freq, "Oscillator frequency")
         self.logger = logging.getLogger("GW1NOSC")
         self.logger.info("Creating GW1NOSC.".format())
         self.clk    = Signal()
@@ -100,11 +101,13 @@ class GW1NPLL(LiteXModule):
         return pfd_freq_range
 
     def register_clkin(self, clkin, freq):
+        check_freq_positive(freq, "Input clock frequency")
         self.clkin = connect_clkin(self, clkin)
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
+        check_freq_positive(freq, "Output clock frequency")
         check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
         self.clkouts[self.nclkouts] = ClkOut(clkout, freq, phase, margin)

@@ -70,6 +70,7 @@ class GateMatePLL(LiteXModule):
         usr_clk_ref: bool
             select if clkin is connected to CLK_REF or USR_CLK_REF
         """
+        check_freq_positive(freq, "Input clock frequency")
         self._usr_clk_ref = usr_clk_ref
         self._clkin = connect_clkin(self, clkin)
         self._clkin_freq = freq

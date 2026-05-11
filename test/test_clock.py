@@ -9,7 +9,7 @@ import unittest
 from migen import *
 
 from litex.soc.cores.clock import *
-from litex.soc.cores.clock.gowin_gw1n import GW1NPLL
+from litex.soc.cores.clock.gowin_gw1n import GW1NOSC, GW1NPLL
 from litex.soc.cores.clock.gowin_gw5a import GW5APLL
 
 
@@ -234,6 +234,34 @@ class TestClock(unittest.TestCase):
             pll.create_clkout(ClockDomain("clkout"), 300e6)
         with self.assertRaisesRegex(ValueError, "Output clock phase"):
             pll.create_clkout(ClockDomain("clkout"), 100e6, phase=45)
+
+    def test_plls_reject_non_positive_frequencies(self):
+        test_cases = [
+            ("S7PLL",       lambda: S7PLL(),                              100e6),
+            ("CycloneVPLL", lambda: CycloneVPLL(),                         50e6),
+            ("Agilex5PLL",  lambda: Agilex5PLL(platform=None),            100e6),
+            ("ECP5PLL",     lambda: ECP5PLL(),                            100e6),
+            ("iCE40PLL",    lambda: iCE40PLL(),                            12e6),
+            ("NXPLL",       lambda: NXPLL(),                              100e6),
+            ("GateMatePLL", lambda: GateMatePLL(),                         50e6),
+            ("GW1NPLL",     lambda: GW1NPLL("GW1N-9", "GW1N-9C"),          50e6),
+            ("GW5APLL",     lambda: GW5APLL("GW5A-25", "GW5A-25"),         50e6),
+        ]
+        for name, pll_factory, clkin_freq in test_cases:
+            with self.subTest(pll=name, clock="clkin"):
+                pll = pll_factory()
+                with self.assertRaisesRegex(ValueError, "Input clock frequency"):
+                    pll.register_clkin(Signal(name="clk"), 0)
+
+            with self.subTest(pll=name, clock="clkout"):
+                pll = pll_factory()
+                pll.register_clkin(Signal(name="clk"), clkin_freq)
+                with self.assertRaisesRegex(ValueError, "Output clock frequency"):
+                    pll.create_clkout(ClockDomain("clkout"), 0)
+
+    def test_gw1n_osc_rejects_non_positive_frequency(self):
+        with self.assertRaisesRegex(ValueError, "Oscillator frequency"):
+            GW1NOSC("GW1N-4", 0)
 
     def test_plls_reject_missing_clkout(self):
         test_cases = [

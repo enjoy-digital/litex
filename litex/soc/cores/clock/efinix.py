@@ -55,6 +55,8 @@ class EFINIXPLL(LiteXModule):
         self.comb += self.locked.eq(self.platform.add_iface_io(self.name + "_locked"))
 
     def register_clkin(self, clkin, freq, name="", refclk_name="", lvds_input=False):
+        check_freq_positive(freq, "Input clock frequency")
+
         block = self.platform.toolchain.ifacewriter.get_block(self.name)
 
         block["input_clock_name"] = self.platform.get_pin_name(clkin)
@@ -105,6 +107,8 @@ class EFINIXPLL(LiteXModule):
         self.logger.info("Use {}".format(colorer(block["resource"], "green")))
 
     def create_clkout(self, cd, freq, phase=0, margin=0, name="", with_reset=True, dyn_phase=False, is_feedback=False, nclkout=None):
+        check_freq_positive(freq, "Output clock frequency")
+
         block = self.platform.toolchain.ifacewriter.get_block(self.name)
 
         if nclkout is not None:

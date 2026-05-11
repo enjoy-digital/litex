@@ -39,6 +39,7 @@ class XilinxClocking(LiteXModule):
         register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, reset_buf=None, ce=None):
+        check_freq_positive(freq, "Output clock frequency")
         check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
         self.clkouts[self.nclkouts] = ClkOut(clkout, freq, phase, margin)

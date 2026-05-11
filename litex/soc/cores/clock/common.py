@@ -51,9 +51,15 @@ ClkOutDPA   = namedtuple("ClkOutDPA",   "clk freq phase margin uses_dpa")
 ClkOutNamed = namedtuple("ClkOutNamed", "clk freq phase margin name")
 
 def period_ns(freq):
+    check_freq_positive(freq)
     return 1e9/freq
 
+def check_freq_positive(freq, name="frequency"):
+    if freq <= 0:
+        raise ValueError("{} must be positive.".format(name))
+
 def check_freq_range(freq, freq_range, name="frequency"):
+    check_freq_positive(freq, name)
     freq_min, freq_max = freq_range
     if freq < freq_min or freq > freq_max:
         raise ValueError(
@@ -93,6 +99,7 @@ def connect_clkout(module, cd, clkout, reset=None, with_reset=True):
     module.comb += cd.clk.eq(clkout)
 
 def clkout_freq_error(clk_freq, freq):
+    check_freq_positive(freq, "Output clock frequency")
     return abs(clk_freq - freq)/freq
 
 def clkout_config_score(errors, vco_freq=0):
