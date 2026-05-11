@@ -31,6 +31,16 @@ Features:
 - Optional CSR interface for configuration.
 """
 
+HYPERRAM_LATENCIES     = list(range(3, 8))
+HYPERRAM_LATENCY_MODES = ["fixed", "variable"]
+HYPERRAM_CLK_RATIOS    = ["4:1", "2:1"]
+
+
+def check_hyperram_latency(latency):
+    if latency not in HYPERRAM_LATENCIES:
+        raise ValueError("Unsupported HyperRAM latency: {}.".format(latency))
+
+
 # HyperRAM Layout ----------------------------------------------------------------------------------
 
 # IOs.
@@ -301,6 +311,12 @@ class HyperRAMCore(LiteXModule):
 
         # # #
 
+        check_hyperram_latency(latency)
+        if latency_mode not in HYPERRAM_LATENCY_MODES:
+            raise ValueError("Unsupported HyperRAM latency mode: {}.".format(latency_mode))
+        if clk_ratio not in HYPERRAM_CLK_RATIOS:
+            raise ValueError("Unsupported HyperRAM clock ratio: {}.".format(clk_ratio))
+
         # Config/Reg Interface.
         # ---------------------
         self.rst          = Signal(reset=0)
@@ -564,11 +580,12 @@ class HyperRAM(LiteXModule):
 
         # Parameters.
         # -----------
+        check_hyperram_latency(latency)
         self.pads      = pads
         self.clk_ratio = clk_ratio
-        if latency_mode not in ["fixed", "variable"]:
+        if latency_mode not in HYPERRAM_LATENCY_MODES:
             raise ValueError("Unsupported HyperRAM latency mode: {}.".format(latency_mode))
-        if clk_ratio not in ["4:1", "2:1"]:
+        if clk_ratio not in HYPERRAM_CLK_RATIOS:
             raise ValueError("Unsupported HyperRAM clock ratio: {}.".format(clk_ratio))
 
         # PHY.

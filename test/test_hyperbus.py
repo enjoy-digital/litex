@@ -33,6 +33,16 @@ class TestHyperRAM(unittest.TestCase):
         pads = Record([("clk_p", 1), ("clk_n", 1), ("rst_n", 1), ("cs_n", 1), ("dq", 8), ("rwds", 1)])
         hyperram = HyperRAM(pads)
 
+    def test_hyperram_rejects_invalid_parameters(self):
+        with self.assertRaisesRegex(ValueError, "latency"):
+            HyperRAM(HyperRamPads(), latency=2)
+        with self.assertRaisesRegex(ValueError, "latency"):
+            HyperRAM(HyperRamPads(), latency=8)
+        with self.assertRaisesRegex(ValueError, "latency mode"):
+            HyperRAM(HyperRamPads(), latency_mode="invalid")
+        with self.assertRaisesRegex(ValueError, "clock ratio"):
+            HyperRAM(HyperRamPads(), clk_ratio="1:1")
+
     def test_hyperram_write_latency_5_2x(self):
         def fpga_gen(dut):
             yield from dut.bus.write(0x1234, 0xdeadbeef, sel=0b1001)
