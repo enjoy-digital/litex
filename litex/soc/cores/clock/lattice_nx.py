@@ -8,7 +8,6 @@
 from collections import namedtuple
 import logging
 import math
-import pprint
 from math import log, log10, exp, pi
 from cmath import phase
 
@@ -282,9 +281,9 @@ class NXPLL(LiteXModule):
 
     # Later revs of the Lattice calculator BW_FACTOR is set to 10, may need to change it
     def calc_optimal_params(self, fref, fbkdiv, M = 1, BW_FACTOR = 5):
-        print("Calculating Analog Paramters for a reference freqeuncy of " + str(fref*1e-6) +
-              " Mhz, feedback div " + str(fbkdiv) + ", and input div " + str(M) + "."
-        )
+        self.logger.debug(
+            "Calculating analog parameters for reference frequency %sMHz, feedback div %s and input div %s.",
+            fref*1e-6, fbkdiv, M)
 
         best_params = None
         best_3db = 0
@@ -308,9 +307,8 @@ class NXPLL(LiteXModule):
                 best_3db = closed_loop_3db["f"]
                 best_params = params
 
-        print("Done calculating analog parameters:")
         HDL_params = self.numerical_params_to_HDL_params(best_params)
-        pprint.pprint(HDL_params)
+        self.logger.debug("Done calculating analog parameters: %s", HDL_params)
 
         return HDL_params
 

@@ -4,7 +4,9 @@
 # Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import io
 import unittest
+from contextlib import redirect_stdout
 
 from migen import *
 
@@ -272,6 +274,17 @@ class TestClock(unittest.TestCase):
         osc = NXOSCA()
         with self.assertRaisesRegex(ValueError, "HF clock frequency"):
             osc.create_hf_clk(ClockDomain("hf"), 1e6)
+
+    def test_nxpll_finalize_is_quiet(self):
+        pll = NXPLL()
+        pll.register_clkin(Signal(), 100e6)
+        pll.create_clkout(ClockDomain("clkout"), 200e6)
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout):
+            pll.get_fragment()
+
+        self.assertEqual(stdout.getvalue(), "")
 
     def test_gatemate_pll_rejects_invalid_output_config(self):
         pll = GateMatePLL()
