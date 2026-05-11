@@ -197,8 +197,20 @@ class TestLiteXSetup(unittest.TestCase):
             )
 
         self.assertIn("litex Git repository could not be installed.", output)
-        self.assertIn("-m pip install --editable . --user", output)
+        self.assertIn("PYTHONPATH=", output)
+        self.assertIn("-m pip install --no-build-isolation --editable . --user", output)
         self.assertNotIn("Traceback", output + stderr)
+
+    def test_local_install_exposes_repo_to_pep517_backend(self):
+        self.create_repo()
+
+        with mock.patch("subprocess.check_call") as check_call:
+            litex_setup.litex_setup_install_repos(config="minimal")
+
+        _cmd, kwargs = check_call.call_args
+        env = kwargs["env"]
+        pythonpath = env["PYTHONPATH"].split(os.pathsep)
+        self.assertEqual(pythonpath[0], os.path.join(self.workspace, "litex"))
 
     def test_toolchain_command_failure_has_actionable_error(self):
         with mock.patch("subprocess.check_call", side_effect=subprocess.CalledProcessError(1, ["apt"])), \

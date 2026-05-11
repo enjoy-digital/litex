@@ -9,6 +9,7 @@
 import os
 import sys
 import time
+import shlex
 import shutil
 import argparse
 import importlib
@@ -399,25 +400,68 @@ def pip_install_cmd(packages, user_mode=False, editable=False, no_build_isolatio
         pip_cmd.append("--user")
     return pip_cmd
 
-def _pip_install(packages, user_mode=False, editable=False, no_build_isolation=False):
+def pip_install_pythonpath(source_path=None):
+    if source_path is None:
+        return None
+    pythonpath = os.environ.get("PYTHONPATH")
+    if pythonpath:
+        return os.pathsep.join([source_path, pythonpath])
+    return source_path
+
+def pip_install_env(source_path=None):
+    pythonpath = pip_install_pythonpath(source_path)
+    if pythonpath is None:
+        return None
+    env = os.environ.copy()
+    env["PYTHONPATH"] = pythonpath
+    return env
+
+def pip_install_cmd_str(
+    packages,
+    user_mode=False,
+    editable=False,
+    no_build_isolation=False,
+    source_path=None,
+):
     pip_cmd = pip_install_cmd(
         packages,
         user_mode          = user_mode,
         editable           = editable,
         no_build_isolation = no_build_isolation,
     )
-    subprocess.check_call(pip_cmd)
+    cmd = " ".join(shlex.quote(str(arg)) for arg in pip_cmd)
+    pythonpath = pip_install_pythonpath(source_path)
+    if pythonpath is not None:
+        cmd = f"PYTHONPATH={shlex.quote(pythonpath)} {cmd}"
+    return cmd
 
-def pip_install_error(description, packages, user_mode=False, editable=False, no_build_isolation=False):
+def _pip_install(packages, user_mode=False, editable=False, no_build_isolation=False, source_path=None):
+    pip_cmd = pip_install_cmd(
+        packages,
+        user_mode          = user_mode,
+        editable           = editable,
+        no_build_isolation = no_build_isolation,
+    )
+    subprocess.check_call(pip_cmd, env=pip_install_env(source_path))
+
+def pip_install_error(
+    description,
+    packages,
+    user_mode=False,
+    editable=False,
+    no_build_isolation=False,
+    source_path=None,
+):
     print_error(f"{description} could not be installed.")
     print_status("Try:")
-    pip_cmd = pip_install_cmd(
+    pip_cmd = pip_install_cmd_str(
         packages,
         user_mode          = user_mode,
         editable           = editable,
         no_build_isolation = no_build_isolation,
+        source_path        = source_path,
     )
-    print_status(f"  {' '.join(pip_cmd)}")
+    print_status(f"  {pip_cmd}")
 
 def litex_setup_install_repos(config="standard", user_mode=False):
     print_status("Installing Git repositories...", underline=True)
@@ -438,6 +482,7 @@ def litex_setup_install_repos(config="standard", user_mode=False):
                     user_mode          = user_mode,
                     editable           = repo.editable,
                     no_build_isolation = True,
+                    source_path        = repo_path,
                 )
             except subprocess.CalledProcessError:
                 pip_install_error(
@@ -446,6 +491,7 @@ def litex_setup_install_repos(config="standard", user_mode=False):
                     user_mode          = user_mode,
                     editable           = repo.editable,
                     no_build_isolation = True,
+                    source_path        = repo_path,
                 )
                 raise SetupError
 
