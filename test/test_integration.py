@@ -20,6 +20,8 @@ from litex.tools.litex_term import (
     sfl_ack_error,
     sfl_ack_success,
     sfl_cmd_abort,
+    sfl_cmd_jump,
+    sfl_cmd_load,
     sfl_magic_ack,
     sfl_magic_req,
 )
@@ -105,7 +107,7 @@ def boot_test(cpu_type="vexriscv", cpu_variant="standard", args="", output_dir=N
 
     return is_success
 
-def test_serialboot_abort_recovers(tmp_path):
+def test_serialboot_abort_recovers_and_loads(tmp_path):
     port = _get_free_tcp_port()
     cmd = [
         "litex_sim",
@@ -152,6 +154,22 @@ def test_serialboot_abort_recovers(tmp_path):
             sock.sendall(abort.encode())
             _recv_until(sock, sfl_ack_success, timeout=10)
             _recv_until(sock, litex_prompt, timeout=10)
+
+            sock.sendall(b"serialboot\n")
+            _recv_until(sock, sfl_magic_req, timeout=10)
+            sock.sendall(sfl_magic_ack)
+
+            load = SFLFrame()
+            load.cmd = sfl_cmd_load
+            load.payload = (0x40000000).to_bytes(4, "big") + b"\x6f\x00\x00\x00"
+            sock.sendall(load.encode())
+            _recv_until(sock, sfl_ack_success, timeout=10)
+
+            jump = SFLFrame()
+            jump.cmd = sfl_cmd_jump
+            jump.payload = (0x40000000).to_bytes(4, "big")
+            sock.sendall(jump.encode())
+            _recv_until(sock, sfl_ack_success, timeout=10)
         except (OSError, subprocess.CalledProcessError, pexpect.EOF, pexpect.TIMEOUT, TimeoutError):
             is_success = False
             print("*** Serialboot abort recovery failure: {}".format(" ".join(cmd)))
