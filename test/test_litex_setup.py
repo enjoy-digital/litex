@@ -189,7 +189,7 @@ class TestLiteXSetup(unittest.TestCase):
         with mock.patch(
             "litex_setup._pip_install",
             side_effect=subprocess.CalledProcessError(1, [sys.executable, "-m", "pip"]),
-        ):
+        ), mock.patch("litex_setup.pip_install_externally_managed", return_value=False):
             output, stderr = self.assert_setup_error(
                 litex_setup.litex_setup_install_repos,
                 config="minimal",
@@ -201,10 +201,40 @@ class TestLiteXSetup(unittest.TestCase):
         self.assertIn("-m pip install --no-build-isolation --editable . --user", output)
         self.assertNotIn("Traceback", output + stderr)
 
+    def test_install_externally_managed_python_has_actionable_error(self):
+        self.create_repo()
+
+        with mock.patch("litex_setup.pip_install_externally_managed", return_value=True):
+            output, stderr = self.assert_setup_error(
+                litex_setup.litex_setup_install_repos,
+                config="minimal",
+                user_mode=True,
+            )
+
+        self.assertIn("externally managed", output)
+        self.assertIn("python3 -m venv ~/litex-venv", output)
+        self.assertIn("--break-system-packages", output)
+        self.assertIn("--user installs are also blocked", output)
+        self.assertNotIn("Traceback", output + stderr)
+
+    def test_install_break_system_packages_passes_pip_override(self):
+        self.create_repo()
+
+        with mock.patch("subprocess.check_call") as check_call, \
+             mock.patch("litex_setup.pip_install_externally_managed", return_value=True):
+            litex_setup.litex_setup_install_repos(
+                config="minimal",
+                break_system_packages=True,
+            )
+
+        cmd, _kwargs = check_call.call_args
+        self.assertIn("--break-system-packages", cmd[0])
+
     def test_local_install_exposes_repo_to_pep517_backend(self):
         self.create_repo()
 
-        with mock.patch("subprocess.check_call") as check_call:
+        with mock.patch("subprocess.check_call") as check_call, \
+             mock.patch("litex_setup.pip_install_externally_managed", return_value=False):
             litex_setup.litex_setup_install_repos(config="minimal")
 
         _cmd, kwargs = check_call.call_args
