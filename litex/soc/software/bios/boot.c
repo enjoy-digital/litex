@@ -411,19 +411,25 @@ static void boot_from_json_buffer(const char *json_buffer, int size,
 	jsmn_parser p;
 	jsmn_init(&p);
 	count = jsmn_parse(&p, json_buffer, size, t, sizeof(t)/sizeof(*t));
-	if (count < 0)
+	if (count < 0) {
+		printf("Error: failed to parse boot JSON (%d)\n", count);
 		return;
+	}
 	for (i=0; i<count-1; i++) {
 		memset(json_name,   0, sizeof(json_name));
 		memset(json_value,  0, sizeof(json_value));
 		/* Elements are JSON strings with 1 children */
 		if ((t[i].type == JSMN_STRING) && (t[i].size == 1)) {
 			/* Get Element's filename */
-			if (!json_token_to_string(json_name, sizeof(json_name), json_buffer, &t[i]))
+			if (!json_token_to_string(json_name, sizeof(json_name), json_buffer, &t[i])) {
+				printf("Error: boot JSON filename is too long\n");
 				continue;
+			}
 			/* Get Element's address */
-			if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1]))
+			if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1])) {
+				printf("Error: boot JSON value for \"%s\" is too long\n", json_name);
 				continue;
+			}
 			/* Skip bootargs (optional) */
 			if (strcmp(json_name, "bootargs") == 0) {
 				continue;
@@ -469,6 +475,8 @@ static void boot_from_json_buffer(const char *json_buffer, int size,
 	/* Boot */
 	if (image_found)
 		boot(boot_r1, boot_r2, boot_r3, boot_addr);
+	else
+		printf("Error: no boot image found in boot JSON\n");
 }
 #endif
 
