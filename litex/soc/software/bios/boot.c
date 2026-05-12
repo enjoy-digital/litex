@@ -384,6 +384,92 @@ static int boot_parse_address(const char *value, unsigned long *address)
 	}
 	return 1;
 }
+
+typedef int (*boot_json_load_cb)(void *opaque, const char *filename,
+	unsigned long load_addr, size_t max_size);
+
+static void boot_from_json_buffer(const char *json_buffer, int size,
+	boot_json_load_cb load_cb, void *opaque)
+{
+	int i;
+	int count;
+
+	/* FIXME: modify/increase if too limiting */
+	char json_name[32];
+	char json_value[32];
+
+	unsigned long boot_r1 = 0;
+	unsigned long boot_r2 = 0;
+	unsigned long boot_r3 = 0;
+	unsigned long boot_addr = 0;
+
+	uint8_t image_found = 0;
+	uint8_t boot_addr_found = 0;
+
+	/* Parse JSON file */
+	jsmntok_t t[32];
+	jsmn_parser p;
+	jsmn_init(&p);
+	count = jsmn_parse(&p, json_buffer, size, t, sizeof(t)/sizeof(*t));
+	if (count < 0)
+		return;
+	for (i=0; i<count-1; i++) {
+		memset(json_name,   0, sizeof(json_name));
+		memset(json_value,  0, sizeof(json_value));
+		/* Elements are JSON strings with 1 children */
+		if ((t[i].type == JSMN_STRING) && (t[i].size == 1)) {
+			/* Get Element's filename */
+			if (!json_token_to_string(json_name, sizeof(json_name), json_buffer, &t[i]))
+				continue;
+			/* Get Element's address */
+			if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1]))
+				continue;
+			/* Skip bootargs (optional) */
+			if (strcmp(json_name, "bootargs") == 0) {
+				continue;
+			}
+			/* Get boot addr (optional) */
+			else if (strcmp(json_name, "addr") == 0) {
+				if (!boot_parse_address(json_value, &boot_addr))
+					return;
+				boot_addr_found = 1;
+			}
+			/* Get boot r1 (optional) */
+			else if (strcmp(json_name, "r1") == 0) {
+				if (!boot_parse_address(json_value, &boot_r1))
+					return;
+			}
+			/* Get boot r2 (optional) */
+			else if (strcmp(json_name, "r2") == 0) {
+				if (!boot_parse_address(json_value, &boot_r2))
+					return;
+			}
+			/* Get boot r3 (optional) */
+			else if (strcmp(json_name, "r3") == 0) {
+				if (!boot_parse_address(json_value, &boot_r3))
+					return;
+			/* Copy Image to address */
+			} else {
+				unsigned long load_addr;
+				size_t max_size;
+
+				if (!boot_parse_address(json_value, &load_addr))
+					return;
+				if (!boot_load_max_size(load_addr, &max_size))
+					return;
+				if (!load_cb(opaque, json_name, load_addr, max_size))
+					return;
+				image_found = 1;
+				if (boot_addr_found == 0) /* Boot to last Image address if no bootargs.addr specified */
+					boot_addr = load_addr;
+			}
+		}
+	}
+
+	/* Boot */
+	if (image_found)
+		boot(boot_r1, boot_r2, boot_r3, boot_addr);
+}
 #endif
 
 /*-----------------------------------------------------------------------*/
@@ -424,6 +510,21 @@ const char *filename, char *buffer, size_t max_size)
 		printf("(%d bytes)", size);
 	printf("\n");
 	return size;
+}
+
+struct netboot_json_ctx {
+	unsigned int ip;
+	unsigned short tftp_port;
+};
+
+static int netboot_json_load(void *opaque, const char *filename,
+	unsigned long load_addr, size_t max_size)
+{
+	struct netboot_json_ctx *ctx = opaque;
+
+	/* Copy Image from Network to address */
+	return copy_file_from_tftp_to_ram(ctx->ip, ctx->tftp_port, filename,
+		(void *)load_addr, max_size) > 0;
 }
 
 #ifdef ETH_DYNAMIC_IP
@@ -545,21 +646,10 @@ void set_mac_addr(const char * mac_address)
 static void netboot_from_json(const char * filename, unsigned int ip, unsigned short tftp_port)
 {
 	int size;
-	int i;
-	int count;
+	struct netboot_json_ctx ctx;
 
 	/* FIXME: modify/increase if too limiting */
 	char json_buffer[1024];
-	char json_name[32];
-	char json_value[32];
-
-	unsigned long boot_r1 = 0;
-	unsigned long boot_r2 = 0;
-	unsigned long boot_r3 = 0;
-	unsigned long boot_addr = 0;
-
-	uint8_t image_found = 0;
-	uint8_t boot_addr_found = 0;
 
 	/* Read JSON file */
 	size = tftp_get(ip, tftp_port, filename, json_buffer, sizeof(json_buffer) - 1);
@@ -568,70 +658,9 @@ static void netboot_from_json(const char * filename, unsigned int ip, unsigned s
 	json_buffer[size] = 0;
 
 	/* Parse JSON file */
-	jsmntok_t t[32];
-	jsmn_parser p;
-	jsmn_init(&p);
-	count = jsmn_parse(&p, json_buffer, size, t, sizeof(t)/sizeof(*t));
-	if (count < 0)
-		return;
-	for (i=0; i<count-1; i++) {
-		memset(json_name,   0, sizeof(json_name));
-		memset(json_value,  0, sizeof(json_value));
-		/* Elements are JSON strings with 1 children */
-		if ((t[i].type == JSMN_STRING) && (t[i].size == 1)) {
-			/* Get Element's filename */
-			if (!json_token_to_string(json_name, sizeof(json_name), json_buffer, &t[i]))
-				continue;
-			/* Get Element's address */
-			if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1]))
-				continue;
-			/* Skip bootargs (optional) */
-			if (strcmp(json_name, "bootargs") == 0) {
-				continue;
-			}
-			/* Get boot addr (optional) */
-			else if (strcmp(json_name, "addr") == 0) {
-				if (!boot_parse_address(json_value, &boot_addr))
-					return;
-				boot_addr_found = 1;
-			}
-			/* Get boot r1 (optional) */
-			else if (strcmp(json_name, "r1") == 0) {
-				if (!boot_parse_address(json_value, &boot_r1))
-					return;
-			}
-			/* Get boot r2 (optional) */
-			else if (strcmp(json_name, "r2") == 0) {
-				if (!boot_parse_address(json_value, &boot_r2))
-					return;
-			}
-			/* Get boot r3 (optional) */
-			else if (strcmp(json_name, "r3") == 0) {
-				if (!boot_parse_address(json_value, &boot_r3))
-					return;
-			/* Copy Image from Network to address */
-			} else {
-				unsigned long load_addr;
-				size_t max_size;
-
-				if (!boot_parse_address(json_value, &load_addr))
-					return;
-				if (!boot_load_max_size(load_addr, &max_size))
-					return;
-				size = copy_file_from_tftp_to_ram(ip, tftp_port, json_name,
-					(void *)load_addr, max_size);
-				if (size <= 0)
-					return;
-				image_found = 1;
-				if (boot_addr_found == 0) /* Boot to last Image address if no bootargs.addr specified */
-					boot_addr = load_addr;
-			}
-		}
-	}
-
-	/* Boot */
-	if (image_found)
-		boot(boot_r1, boot_r2, boot_r3, boot_addr);
+	ctx.ip = ip;
+	ctx.tftp_port = tftp_port;
+	boot_from_json_buffer(json_buffer, size, netboot_json_load, &ctx);
 }
 
 #ifdef MAIN_RAM_BASE
@@ -837,29 +866,25 @@ static int copy_file_from_sdcard_to_ram(const char * filename, unsigned long ram
 	return 1;
 }
 
+static int sdcardboot_json_load(void *opaque, const char *filename,
+	unsigned long load_addr, size_t max_size)
+{
+	(void)opaque;
+
+	/* Copy Image from SDCard to address */
+	return copy_file_from_sdcard_to_ram(filename, load_addr, max_size) != 0;
+}
+
 static void sdcardboot_from_json(const char * filename)
 {
 	FRESULT fr;
 	FATFS fs;
 	FIL file;
 
-	int i;
-	int count;
 	uint32_t length;
-	uint32_t result;
 
 	/* FIXME: modify/increase if too limiting */
 	char json_buffer[1024];
-	char json_name[32];
-	char json_value[32];
-
-	unsigned long boot_r1 = 0;
-	unsigned long boot_r2 = 0;
-	unsigned long boot_r3 = 0;
-	unsigned long boot_addr = 0;
-
-	uint8_t image_found = 0;
-	uint8_t boot_addr_found = 0;
 
 	/* Read JSON file */
 	fr = f_mount(&fs, "", 1);
@@ -889,69 +914,7 @@ static void sdcardboot_from_json(const char * filename)
 	json_buffer[length] = 0;
 
 	/* Parse JSON file */
-	jsmntok_t t[32];
-	jsmn_parser p;
-	jsmn_init(&p);
-	count = jsmn_parse(&p, json_buffer, length, t, sizeof(t)/sizeof(*t));
-	if (count < 0)
-		return;
-	for (i=0; i<count-1; i++) {
-		memset(json_name,   0, sizeof(json_name));
-		memset(json_value,  0, sizeof(json_value));
-		/* Elements are JSON strings with 1 children */
-		if ((t[i].type == JSMN_STRING) && (t[i].size == 1)) {
-			/* Get Element's filename */
-			if (!json_token_to_string(json_name, sizeof(json_name), json_buffer, &t[i]))
-				continue;
-			/* Get Element's address */
-			if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1]))
-				continue;
-			/* Skip bootargs (optional) */
-			if (strcmp(json_name, "bootargs") == 0) {
-				continue;
-			}
-			/* Get boot addr (optional) */
-			else if (strcmp(json_name, "addr") == 0) {
-				if (!boot_parse_address(json_value, &boot_addr))
-					return;
-				boot_addr_found = 1;
-			}
-			/* Get boot r1 (optional) */
-			else if (strcmp(json_name, "r1") == 0) {
-				if (!boot_parse_address(json_value, &boot_r1))
-					return;
-			}
-			/* Get boot r2 (optional) */
-			else if (strcmp(json_name, "r2") == 0) {
-				if (!boot_parse_address(json_value, &boot_r2))
-					return;
-			}
-			/* Get boot r3 (optional) */
-			else if (strcmp(json_name, "r3") == 0) {
-				if (!boot_parse_address(json_value, &boot_r3))
-					return;
-			/* Copy Image from SDCard to address */
-			} else {
-				unsigned long load_addr;
-				size_t max_size;
-
-				if (!boot_parse_address(json_value, &load_addr))
-					return;
-				if (!boot_load_max_size(load_addr, &max_size))
-					return;
-				result = copy_file_from_sdcard_to_ram(json_name, load_addr, max_size);
-				if (result == 0)
-					return;
-				image_found = 1;
-				if (boot_addr_found == 0) /* Boot to last Image address if no bootargs.addr specified */
-					boot_addr = load_addr;
-			}
-		}
-	}
-
-	/* Boot */
-	if (image_found)
-		boot(boot_r1, boot_r2, boot_r3, boot_addr);
+	boot_from_json_buffer(json_buffer, length, sdcardboot_json_load, NULL);
 }
 
 #ifdef MAIN_RAM_BASE
@@ -1049,29 +1012,25 @@ static int copy_file_from_sata_to_ram(const char * filename, unsigned long ram_a
 	return 1;
 }
 
+static int sataboot_json_load(void *opaque, const char *filename,
+	unsigned long load_addr, size_t max_size)
+{
+	(void)opaque;
+
+	/* Copy Image from SATA to address */
+	return copy_file_from_sata_to_ram(filename, load_addr, max_size) != 0;
+}
+
 static void sataboot_from_json(const char * filename)
 {
 	FRESULT fr;
 	FATFS fs;
 	FIL file;
 
-	int i;
-	int count;
 	uint32_t length;
-	uint32_t result;
 
 	/* FIXME: modify/increase if too limiting */
 	char json_buffer[1024];
-	char json_name[32];
-	char json_value[32];
-
-	unsigned long boot_r1 = 0;
-	unsigned long boot_r2 = 0;
-	unsigned long boot_r3 = 0;
-	unsigned long boot_addr = 0;
-
-	uint8_t image_found = 0;
-	uint8_t boot_addr_found = 0;
 
 	/* Read JSON file */
 	fr = f_mount(&fs, "", 1);
@@ -1101,69 +1060,7 @@ static void sataboot_from_json(const char * filename)
 	json_buffer[length] = 0;
 
 	/* Parse JSON file */
-	jsmntok_t t[32];
-	jsmn_parser p;
-	jsmn_init(&p);
-	count = jsmn_parse(&p, json_buffer, length, t, sizeof(t)/sizeof(*t));
-	if (count < 0)
-		return;
-	for (i=0; i<count-1; i++) {
-		memset(json_name,   0, sizeof(json_name));
-		memset(json_value,  0, sizeof(json_value));
-		/* Elements are JSON strings with 1 children */
-		if ((t[i].type == JSMN_STRING) && (t[i].size == 1)) {
-			/* Get Element's filename */
-			if (!json_token_to_string(json_name, sizeof(json_name), json_buffer, &t[i]))
-				continue;
-			/* Get Element's address */
-			if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1]))
-				continue;
-			/* Skip bootargs (optional) */
-			if (strcmp(json_name, "bootargs") == 0) {
-				continue;
-			}
-			/* Get boot addr (optional) */
-			else if (strcmp(json_name, "addr") == 0) {
-				if (!boot_parse_address(json_value, &boot_addr))
-					return;
-				boot_addr_found = 1;
-			}
-			/* Get boot r1 (optional) */
-			else if (strcmp(json_name, "r1") == 0) {
-				if (!boot_parse_address(json_value, &boot_r1))
-					return;
-			}
-			/* Get boot r2 (optional) */
-			else if (strcmp(json_name, "r2") == 0) {
-				if (!boot_parse_address(json_value, &boot_r2))
-					return;
-			}
-			/* Get boot r3 (optional) */
-			else if (strcmp(json_name, "r3") == 0) {
-				if (!boot_parse_address(json_value, &boot_r3))
-					return;
-			/* Copy Image from SATA to address */
-			} else {
-				unsigned long load_addr;
-				size_t max_size;
-
-				if (!boot_parse_address(json_value, &load_addr))
-					return;
-				if (!boot_load_max_size(load_addr, &max_size))
-					return;
-				result = copy_file_from_sata_to_ram(json_name, load_addr, max_size);
-				if (result == 0)
-					return;
-				image_found = 1;
-				if (boot_addr_found == 0) /* Boot to last Image address if no bootargs.addr specified */
-					boot_addr = load_addr;
-			}
-		}
-	}
-
-	/* Boot */
-	if (image_found)
-		boot(boot_r1, boot_r2, boot_r3, boot_addr);
+	boot_from_json_buffer(json_buffer, length, sataboot_json_load, NULL);
 }
 
 static void sataboot_from_bin(const char * filename)
