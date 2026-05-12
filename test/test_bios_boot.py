@@ -183,10 +183,16 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
         static unsigned char uart_out[512];
         static int uart_out_len;
         static unsigned int timer_value;
+        static unsigned int timer_loads;
 
         void timer0_en_write(unsigned int value) {{ (void)value; }}
         void timer0_reload_write(unsigned int value) {{ (void)value; }}
-        void timer0_load_write(unsigned int value) {{ (void)value; timer_value = 1000; }}
+        void timer0_load_write(unsigned int value)
+        {{
+            (void)value;
+            timer_loads++;
+            timer_value = 1000;
+        }}
         void timer0_update_value_write(unsigned int value) {{ (void)value; }}
         unsigned int timer0_value_read(void)
         {{
@@ -272,6 +278,24 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
                 append_input(payload, payload_length);
         }}
 
+        static void append_bad_crc_frame(unsigned char cmd)
+        {{
+            uart_in[uart_in_len++] = 0;
+            uart_in[uart_in_len++] = 0xff;
+            uart_in[uart_in_len++] = 0xff;
+            uart_in[uart_in_len++] = cmd;
+        }}
+
+        static void reset_serial(const unsigned char *ack, int ack_length)
+        {{
+            uart_in_len = 0;
+            uart_in_pos = 0;
+            uart_out_len = 0;
+            timer_loads = 0;
+            if (ack != NULL)
+                append_input(ack, ack_length);
+        }}
+
         static int test_boot_load_max_size(void)
         {{
             size_t max_size;
@@ -280,6 +304,8 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             REQUIRE(max_size == MAIN_RAM_SIZE);
             REQUIRE(boot_load_max_size(MAIN_RAM_BASE + MAIN_RAM_SIZE - 1, &max_size) == 1);
             REQUIRE(max_size == 1);
+            REQUIRE(boot_load_max_size(MAIN_RAM_BASE + MAIN_RAM_SIZE - 16, &max_size) == 1);
+            REQUIRE(max_size == 16);
             REQUIRE(boot_load_max_size(SRAM_BASE + 0x20, &max_size) == 1);
             REQUIRE(max_size == SRAM_SIZE - 0x20);
             REQUIRE(boot_load_max_size(MAIN_RAM_BASE - 1, &max_size) == 0);
@@ -327,6 +353,41 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             return 0;
         }}
 
+        static int test_manifest_explicit_addr_ordering_and_boundaries(void)
+        {{
+            const char *addr_after =
+                "{{\\"image.bin\\": \\"0x1000\\", \\"addr\\": \\"0x1800\\"}}";
+            const char *addr_before =
+                "{{\\"addr\\": \\"0x1804\\", \\"image.bin\\": \\"0x1000\\"}}";
+            const char *last_byte =
+                "{{\\"last.bin\\": \\"0x1fff\\"}}";
+            struct load_ctx ctx = {{ .fail_after = -1 }};
+
+            boot_addr = 0;
+            if (setjmp(boot_jmp) == 0)
+                boot_from_json_buffer(addr_after, strlen(addr_after), record_load, &ctx);
+            REQUIRE(ctx.count == 1);
+            REQUIRE(boot_addr == 0x1800);
+
+            memset(&ctx, 0, sizeof(ctx));
+            ctx.fail_after = -1;
+            boot_addr = 0;
+            if (setjmp(boot_jmp) == 0)
+                boot_from_json_buffer(addr_before, strlen(addr_before), record_load, &ctx);
+            REQUIRE(ctx.count == 1);
+            REQUIRE(boot_addr == 0x1804);
+
+            memset(&ctx, 0, sizeof(ctx));
+            ctx.fail_after = -1;
+            boot_addr = 0;
+            if (setjmp(boot_jmp) == 0)
+                boot_from_json_buffer(last_byte, strlen(last_byte), record_load, &ctx);
+            REQUIRE(ctx.count == 1);
+            REQUIRE(ctx.events[0].max_size == 1);
+            REQUIRE(boot_addr == 0x1fff);
+            return 0;
+        }}
+
         static int test_manifest_rejects_bad_addresses_and_load_failures(void)
         {{
             const char *bad_addr = "{{\\"image.bin\\": \\"not-an-address\\"}}";
@@ -365,6 +426,41 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             return 0;
         }}
 
+        static int test_manifest_rejects_token_pressure_and_bad_registers(void)
+        {{
+            const char *too_many_tokens =
+                "{{\\"a\\":\\"0x1000\\",\\"b\\":\\"0x1000\\",\\"c\\":\\"0x1000\\","
+                "\\"d\\":\\"0x1000\\",\\"e\\":\\"0x1000\\",\\"f\\":\\"0x1000\\","
+                "\\"g\\":\\"0x1000\\",\\"h\\":\\"0x1000\\",\\"i\\":\\"0x1000\\","
+                "\\"j\\":\\"0x1000\\",\\"k\\":\\"0x1000\\",\\"l\\":\\"0x1000\\","
+                "\\"m\\":\\"0x1000\\",\\"n\\":\\"0x1000\\",\\"o\\":\\"0x1000\\","
+                "\\"p\\":\\"0x1000\\"}}";
+            const char *bad_r1 = "{{\\"r1\\": \\"bad\\", \\"image.bin\\": \\"0x1000\\"}}";
+            struct load_ctx ctx = {{ .fail_after = -1 }};
+
+            boot_from_json_buffer(too_many_tokens, strlen(too_many_tokens), record_load, &ctx);
+            REQUIRE(ctx.count == 0);
+
+            boot_from_json_buffer(bad_r1, strlen(bad_r1), record_load, &ctx);
+            REQUIRE(ctx.count == 0);
+            return 0;
+        }}
+
+        static int test_serialboot_ack_cancel_and_timeout(void)
+        {{
+            int result;
+
+            reset_serial((const unsigned char *)"Q", 1);
+            result = serialboot();
+            REQUIRE(result == 0);
+
+            reset_serial(NULL, 0);
+            result = serialboot();
+            REQUIRE(result == 1);
+            REQUIRE(timer_loads == 1);
+            return 0;
+        }}
+
         static int test_serialboot_rejects_out_of_range_load_and_recovers(void)
         {{
             static const unsigned char ack[] = SFL_MAGIC_ACK;
@@ -374,10 +470,7 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             int saw_success = 0;
             int i;
 
-            uart_in_len = 0;
-            uart_in_pos = 0;
-            uart_out_len = 0;
-            append_input(ack, SFL_MAGIC_LEN);
+            reset_serial(ack, SFL_MAGIC_LEN);
             append_frame(SFL_CMD_LOAD, bad_load_payload, sizeof(bad_load_payload));
             append_frame(SFL_CMD_ABORT, NULL, 0);
 
@@ -395,6 +488,71 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             return 0;
         }}
 
+        static int test_serialboot_protocol_errors_recover_with_abort(void)
+        {{
+            static const unsigned char ack[] = SFL_MAGIC_ACK;
+            unsigned char short_payload[3] = {{0x00, 0x00, 0x10}};
+            int result;
+            int saw_crc = 0;
+            int saw_unknown = 0;
+            int saw_error = 0;
+            int saw_success = 0;
+            int i;
+
+            reset_serial(ack, SFL_MAGIC_LEN);
+            append_bad_crc_frame(SFL_CMD_ABORT);
+            append_frame(0x7f, NULL, 0);
+            append_frame(SFL_CMD_LOAD, short_payload, sizeof(short_payload));
+            append_frame(SFL_CMD_JUMP, short_payload, sizeof(short_payload));
+            append_frame(SFL_CMD_ABORT, NULL, 0);
+
+            result = serialboot();
+            REQUIRE(result == 1);
+
+            for (i = SFL_MAGIC_LEN; i < uart_out_len; i++) {{
+                if (uart_out[i] == SFL_ACK_CRCERROR)
+                    saw_crc = 1;
+                if (uart_out[i] == SFL_ACK_UNKNOWN)
+                    saw_unknown = 1;
+                if (uart_out[i] == SFL_ACK_ERROR)
+                    saw_error++;
+                if (uart_out[i] == SFL_ACK_SUCCESS)
+                    saw_success = 1;
+            }}
+            REQUIRE(saw_crc);
+            REQUIRE(saw_unknown);
+            REQUIRE(saw_error == 2);
+            REQUIRE(saw_success);
+            return 0;
+        }}
+
+        static int test_serialboot_jump_boots_requested_address(void)
+        {{
+            static const unsigned char ack[] = SFL_MAGIC_ACK;
+            unsigned char jump_payload[4] = {{0x12, 0x34, 0x56, 0x78}};
+            int jumped;
+            int i;
+
+            reset_serial(ack, SFL_MAGIC_LEN);
+            append_frame(SFL_CMD_JUMP, jump_payload, sizeof(jump_payload));
+
+            jumped = setjmp(boot_jmp);
+            if (jumped == 0)
+                (void)serialboot();
+
+            REQUIRE(jumped == 1);
+            REQUIRE(boot_r1 == 0);
+            REQUIRE(boot_r2 == 0);
+            REQUIRE(boot_r3 == 0);
+            REQUIRE(boot_addr == 0x12345678);
+            for (i = SFL_MAGIC_LEN; i < uart_out_len; i++) {{
+                if (uart_out[i] == SFL_ACK_SUCCESS)
+                    return 0;
+            }}
+            REQUIRE(0);
+            return 0;
+        }}
+
         int main(void)
         {{
             if (test_boot_load_max_size())
@@ -403,11 +561,21 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
                 return 1;
             if (test_manifest_defaults_to_last_image())
                 return 1;
+            if (test_manifest_explicit_addr_ordering_and_boundaries())
+                return 1;
             if (test_manifest_rejects_bad_addresses_and_load_failures())
                 return 1;
             if (test_manifest_ignores_oversized_tokens_and_malformed_json())
                 return 1;
+            if (test_manifest_rejects_token_pressure_and_bad_registers())
+                return 1;
+            if (test_serialboot_ack_cancel_and_timeout())
+                return 1;
             if (test_serialboot_rejects_out_of_range_load_and_recovers())
+                return 1;
+            if (test_serialboot_protocol_errors_recover_with_abort())
+                return 1;
+            if (test_serialboot_jump_boots_requested_address())
                 return 1;
             return 0;
         }}
