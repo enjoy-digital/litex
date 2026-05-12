@@ -8,6 +8,8 @@ import os
 import subprocess
 import textwrap
 
+import pytest
+
 
 def _write(path, contents=""):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -602,3 +604,185 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
     ]
     subprocess.check_call(cmd)
     subprocess.check_call([str(binary)])
+
+
+def test_bios_flashboot_host_coverage(tmp_path):
+    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    include_dir = tmp_path / "include"
+    source = tmp_path / "bios_flashboot_harness.c"
+    binary = tmp_path / "bios_flashboot_harness"
+
+    _write_bios_stubs(include_dir)
+    _write(include_dir / "system.h", """
+        #ifndef __SYSTEM_H
+        #define __SYSTEM_H
+        #include <stdint.h>
+        #define MMPTR(a) (*((volatile uint32_t *)(uintptr_t)(a)))
+        #define min(a, b) ((a) < (b) ? (a) : (b))
+        static inline void flush_cpu_icache(void) {}
+        static inline void flush_cpu_dcache(void) {}
+        static inline void flush_l2_cache(void) {}
+        #endif
+    """)
+    _write(source, f"""
+        #include <setjmp.h>
+        #include <stdint.h>
+        #include <stdio.h>
+        #include <string.h>
+        #include <sys/mman.h>
+        #include <unistd.h>
+
+        #ifndef MAP_32BIT
+        #define MAP_32BIT 0
+        #endif
+
+        static unsigned long flash_base;
+        static unsigned long ram_base;
+        static const unsigned long ram_size = 0x1000;
+        static jmp_buf boot_jmp;
+        static unsigned long boot_addr;
+
+        #define FLASH_BOOT_ADDRESS ((unsigned int)flash_base)
+        #define MAIN_RAM_BASE ram_base
+        #define MAIN_RAM_SIZE ram_size
+
+        void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr);
+        void bios_print_section(const char *name);
+
+        void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr)
+        {{
+            (void)r1;
+            (void)r2;
+            (void)r3;
+            boot_addr = addr;
+            longjmp(boot_jmp, 1);
+        }}
+
+        void bios_print_section(const char *name)
+        {{
+            (void)name;
+        }}
+
+        #include "{repo}/litex/soc/software/bios/boot.c"
+
+        #define REQUIRE(cond) do {{ \\
+            if (!(cond)) {{ \\
+                fprintf(stderr, "requirement failed at %s:%d: %s\\n", __FILE__, __LINE__, #cond); \\
+                return 1; \\
+            }} \\
+        }} while (0)
+
+        static int map_low_memory(void)
+        {{
+            void *flash;
+            void *ram;
+
+            flash = mmap(NULL, 0x02000000, PROT_READ | PROT_WRITE,
+                MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
+            if (flash == MAP_FAILED)
+                return 77;
+            ram = mmap(NULL, ram_size, PROT_READ | PROT_WRITE,
+                MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
+            if (ram == MAP_FAILED)
+                return 77;
+
+            flash_base = (unsigned long)flash;
+            ram_base = (unsigned long)ram;
+            if ((flash_base > 0xffffffffUL) || (ram_base > 0xffffffffUL))
+                return 77;
+            return 0;
+        }}
+
+        static void write_image(uint32_t length, int valid_crc)
+        {{
+            uint32_t crc;
+            uint32_t *header = (uint32_t *)(uintptr_t)flash_base;
+            unsigned char *payload = (unsigned char *)(uintptr_t)(flash_base + 8);
+            uint32_t i;
+
+            for (i = 0; i < length; i++)
+                payload[i] = (unsigned char)(i ^ 0x5a);
+
+            crc = crc32(payload, length);
+            header[0] = length;
+            header[1] = valid_crc ? crc : (crc ^ 0xffffffff);
+        }}
+
+        static int test_flash_image_validation(void)
+        {{
+            write_image(31, 1);
+            REQUIRE(check_image_in_flash(FLASH_BOOT_ADDRESS) == 0);
+
+            write_image(16 * 1024 * 1024 + 1, 1);
+            REQUIRE(check_image_in_flash(FLASH_BOOT_ADDRESS) == 0);
+
+            write_image(64, 0);
+            REQUIRE(check_image_in_flash(FLASH_BOOT_ADDRESS) == 0);
+
+            write_image(64, 1);
+            REQUIRE(check_image_in_flash(FLASH_BOOT_ADDRESS) == 64);
+            return 0;
+        }}
+
+        static int test_flash_copy_and_boot(void)
+        {{
+            unsigned char *ram = (unsigned char *)(uintptr_t)ram_base;
+
+            memset(ram, 0, ram_size);
+            write_image(ram_size + 1, 1);
+            REQUIRE(copy_image_from_flash_to_ram(FLASH_BOOT_ADDRESS, ram_base) == 0);
+
+            memset(ram, 0, ram_size);
+            write_image(128, 1);
+            REQUIRE(copy_image_from_flash_to_ram(FLASH_BOOT_ADDRESS, ram_base) == 1);
+            REQUIRE(memcmp(ram, (void *)(uintptr_t)(flash_base + 8), 128) == 0);
+
+            boot_addr = 0;
+            if (setjmp(boot_jmp) == 0)
+                flashboot();
+            REQUIRE(boot_addr == ram_base);
+            return 0;
+        }}
+
+        int main(void)
+        {{
+            int r;
+
+            r = map_low_memory();
+            if (r != 0)
+                return r;
+            if (test_flash_image_validation())
+                return 1;
+            if (test_flash_copy_and_boot())
+                return 1;
+            return 0;
+        }}
+    """)
+
+    cmd = [
+        "gcc",
+        "-std=gnu99",
+        "-Wall",
+        "-Wextra",
+        "-Wstrict-prototypes",
+        "-Wold-style-definition",
+        "-Wmissing-prototypes",
+        "-Wno-format",
+        "-Wno-int-to-pointer-cast",
+        "-ffunction-sections",
+        "-fdata-sections",
+        f"-I{include_dir}",
+        f"-I{repo}/litex/soc/software",
+        f"-I{repo}/litex/soc/software/bios",
+        str(source),
+        f"{repo}/litex/soc/software/libbase/crc16.c",
+        f"{repo}/litex/soc/software/libbase/crc32.c",
+        "-Wl,--gc-sections",
+        "-o",
+        str(binary),
+    ]
+    subprocess.check_call(cmd)
+    result = subprocess.run([str(binary)], check=False)
+    if result.returncode == 77:
+        pytest.skip("host cannot provide low-address mmap for BIOS flashboot test")
+    assert result.returncode == 0
