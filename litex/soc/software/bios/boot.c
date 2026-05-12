@@ -77,6 +77,37 @@ enum {
 	ACK_OK
 };
 
+#if defined(MAIN_RAM_BASE) || defined(SRAM_BASE)
+static int boot_region_max_size(unsigned long addr, unsigned long base, unsigned long size, size_t *max_size)
+{
+	unsigned long end = base + size;
+
+	if (end < base)
+		return 0;
+	if ((addr < base) || (addr >= end))
+		return 0;
+
+	*max_size = end - addr;
+	return 1;
+}
+#endif
+
+static int boot_load_max_size(unsigned long addr, size_t *max_size)
+{
+	(void)max_size;
+#ifdef MAIN_RAM_BASE
+	if (boot_region_max_size(addr, MAIN_RAM_BASE, MAIN_RAM_SIZE, max_size))
+		return 1;
+#endif
+#ifdef SRAM_BASE
+	if (boot_region_max_size(addr, SRAM_BASE, SRAM_SIZE, max_size))
+		return 1;
+#endif
+
+	printf("Error: boot load address 0x%08lx is outside writable memory\n", addr);
+	return 0;
+}
+
 /*-----------------------------------------------------------------------*/
 /* ROM Boot                                                              */
 /*-----------------------------------------------------------------------*/
@@ -261,6 +292,8 @@ int serialboot(void)
 			/* On SFL_CMD_LOAD... */
 			case SFL_CMD_LOAD: {
 				char *load_addr;
+				uint32_t load_size;
+				size_t max_size;
 
 				if(frame.payload_length < 4) {
 					uart_write(SFL_ACK_ERROR);
@@ -274,7 +307,15 @@ int serialboot(void)
 
 				/* Copy payload */
 				load_addr = (char *)(uintptr_t) get_uint32(&frame.payload[0]);
-				memcpy(load_addr, &frame.payload[4], frame.payload_length - 4);
+				load_size = frame.payload_length - 4;
+				if (!boot_load_max_size((unsigned long)load_addr, &max_size) ||
+				    (load_size > max_size)) {
+					uart_write(SFL_ACK_ERROR);
+					if(serialboot_fail(&failures))
+						return 1;
+					break;
+				}
+				memcpy(load_addr, &frame.payload[4], load_size);
 
 				/* Acknowledge and continue */
 				uart_write(SFL_ACK_SUCCESS);
@@ -343,37 +384,6 @@ static int boot_parse_address(const char *value, unsigned long *address)
 	return 1;
 }
 #endif
-
-#if defined(MAIN_RAM_BASE) || defined(SRAM_BASE)
-static int boot_region_max_size(unsigned long addr, unsigned long base, unsigned long size, size_t *max_size)
-{
-	unsigned long end = base + size;
-
-	if (end < base)
-		return 0;
-	if ((addr < base) || (addr >= end))
-		return 0;
-
-	*max_size = end - addr;
-	return 1;
-}
-#endif
-
-static int boot_load_max_size(unsigned long addr, size_t *max_size)
-{
-	(void)max_size;
-#ifdef MAIN_RAM_BASE
-	if (boot_region_max_size(addr, MAIN_RAM_BASE, MAIN_RAM_SIZE, max_size))
-		return 1;
-#endif
-#ifdef SRAM_BASE
-	if (boot_region_max_size(addr, SRAM_BASE, SRAM_SIZE, max_size))
-		return 1;
-#endif
-
-	printf("Error: boot load address 0x%08lx is outside writable memory\n", addr);
-	return 0;
-}
 
 /*-----------------------------------------------------------------------*/
 /* Ethernet Boot                                                         */
