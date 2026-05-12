@@ -95,6 +95,7 @@ static int boot_region_max_size(unsigned long addr, unsigned long base, unsigned
 static int boot_load_max_size(unsigned long addr, size_t *max_size)
 {
 	(void)max_size;
+	/* Limit boot image loads to known writable memory regions. */
 #ifdef MAIN_RAM_BASE
 	if (boot_region_max_size(addr, MAIN_RAM_BASE, MAIN_RAM_SIZE, max_size))
 		return 1;
@@ -305,7 +306,7 @@ int serialboot(void)
 				/* Reset failures */
 				failures = 0;
 
-				/* Copy payload */
+				/* Copy payload when it fits in writable memory */
 				load_addr = (char *)(uintptr_t) get_uint32(&frame.payload[0]);
 				load_size = frame.payload_length - 4;
 				if (!boot_load_max_size((unsigned long)load_addr, &max_size) ||
@@ -433,6 +434,7 @@ int parse_ip(const char *ip_address, unsigned int *ip_to_change)
 	const char *p = ip_address;
 	char *end;
 
+	/* Extract numbers from input, check for potential errors */
 	for (int i = 0; i < 4; i++) {
 		unsigned long octet;
 
@@ -464,6 +466,7 @@ int parse_ip(const char *ip_address, unsigned int *ip_to_change)
 		}
 	}
 
+	/* Set the extracted IP address as local or remote ip */
 	for (int i = 0; i < 4; i++)
 		ip_to_change[i] = ip_to_set[i];
 
@@ -500,6 +503,7 @@ static int parse_mac_addr(const char *mac_address)
 		return -1;
 	}
 
+	/* Extract numbers from input, check for potential errors */
 	for (int i = 0; i < 6; i++) {
 		const char *group = &mac_address[3*i];
 
