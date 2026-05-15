@@ -1675,23 +1675,24 @@ class SoC(LiteXModule):
         # SoC CPU Reset Address Check --------------------------------------------------------------
 
         # Check if CPU Reset Address is in a defined Region.
-        cpu_reset_address_valid = False
-        for name, container in self.bus.regions.items():
-            if self.bus.check_region_is_in(
-                region    = SoCRegion(origin=self.cpu.reset_address, size=self.bus.data_width//8),
-                container = container):
-                cpu_reset_address_valid = True
-                # If we have a ROM, make the CPU use it.
-                if name == "rom":
-                    self.cpu.use_rom = True
+        if hasattr(self, "cpu") and hasattr(self.cpu, "reset_address"):
+            cpu_reset_address_valid = False
+            for name, container in self.bus.regions.items():
+                if self.bus.check_region_is_in(
+                    region    = SoCRegion(origin=self.cpu.reset_address, size=self.bus.data_width//8),
+                    container = container):
+                    cpu_reset_address_valid = True
+                    # If we have a ROM, make the CPU use it.
+                    if name == "rom":
+                        self.cpu.use_rom = True
 
-        # If CPU Reset Address Check is enabled and Reset Address is invalid, raise SoCError.
-        if self.cpu.reset_address_check and (not cpu_reset_address_valid):
-            self.logger.error("CPU needs {} to be in a {} Region.".format(
-                colorer("reset address 0x{:08x}".format(self.cpu.reset_address)),
-                colorer("defined", color="red")))
-            self.logger.error(self.bus)
-            raise SoCError()
+            # If CPU Reset Address Check is enabled and Reset Address is invalid, raise SoCError.
+            if self.cpu.reset_address_check and (not cpu_reset_address_valid):
+                self.logger.error("CPU needs {} to be in a {} Region.".format(
+                    colorer("reset address 0x{:08x}".format(self.cpu.reset_address)),
+                    colorer("defined", color="red")))
+                self.logger.error(self.bus)
+                raise SoCError()
 
         # SoC IRQ Interconnect ---------------------------------------------------------------------
         if hasattr(self, "cpu") and hasattr(self.cpu, "interrupt"):
