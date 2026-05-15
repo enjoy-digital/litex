@@ -1451,7 +1451,7 @@ class SoC(LiteXModule):
             # Override User's mapping with CPU constrainted mapping (and warn User).
             for n, origin in self.cpu.mem_map.items():
                 if n in self.mem_map.keys() and self.mem_map[n] != self.cpu.mem_map[n]:
-                    self.logger.info("CPU {} {} {} mapping from {} to {}.".format(
+                    self.logger.warning("CPU {} {} {} mapping from {} to {}.".format(
                         colorer(name, color="underline"),
                         colorer("overriding", color="cyan"),
                         colorer(n),
