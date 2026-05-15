@@ -1487,9 +1487,17 @@ class SoC(LiteXModule):
                     colorer(name, color="underline"),
                     colorer("adding", color="cyan")))
                 self.irq.enable()
-                self.cpu.interrupts = dict(self.cpu.interrupts)
-                if hasattr(self.cpu, "reserved_interrupts"):
-                    self.cpu.interrupts.update(self.cpu.reserved_interrupts)
+                cpu_interrupts          = dict(self.cpu.interrupts)
+                cpu_reserved_interrupts = dict(getattr(self.cpu, "reserved_interrupts", {}))
+                duplicate_interrupts    = set(cpu_interrupts).intersection(cpu_reserved_interrupts)
+                if duplicate_interrupts:
+                    self.logger.error("CPU {} interrupt(s) also marked as reserved: {}.".format(
+                        colorer(name, color="underline"),
+                        colorer(", ".join(sorted(duplicate_interrupts)), color="red")))
+                    raise SoCError()
+                self.cpu.interrupts = {**cpu_interrupts, **cpu_reserved_interrupts}
+                self.cpu._integrated_interrupts = cpu_interrupts
+                self.cpu._reserved_interrupts   = cpu_reserved_interrupts
                 for irq_name, loc in self.cpu.interrupts.items():
                     self.irq.add(irq_name, loc)
                 self.add_config("CPU_HAS_INTERRUPT")
