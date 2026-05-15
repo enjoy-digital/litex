@@ -36,9 +36,12 @@ from litex.soc.interconnect                  import ahb
 def auto_int(x):
     return int(x, 0)
 
-def build_time(with_time=True):
+def build_time(with_time=True, utc=False):
     fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
-    return datetime.datetime.fromtimestamp(time.time()).strftime(fmt)
+    timestamp = int(os.environ.get("SOURCE_DATE_EPOCH", time.time()))
+    if utc or "SOURCE_DATE_EPOCH" in os.environ:
+        return datetime.datetime.utcfromtimestamp(timestamp).strftime(fmt)
+    return datetime.datetime.fromtimestamp(timestamp).strftime(fmt)
 
 def add_ip_address_constants(soc, name, ip_address, check_duplicate=True):
     _ip_address = ip_address.split(".")
