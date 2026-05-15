@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2023-2025 Piotr Wegrzyn (Coreforge Foundation) <piotro@piotro.eu>
+# Copyright (c) 2023-2026 Aria Węgrzyn (Coreforge Foundation) <git@ariac.at>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
