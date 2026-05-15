@@ -1516,7 +1516,11 @@ class SoC(LiteXModule):
                 elif isinstance(self.cpu.dma_bus, axi.AXIInterface):
                     dma_bus_standard = "axi"
                 else:
-                    raise NotImplementedError
+                    self.logger.error("CPU {} DMA bus type {} is {}.".format(
+                        colorer(name, color="underline"),
+                        colorer(type(self.cpu.dma_bus).__name__),
+                        colorer("not supported", color="red")))
+                    raise SoCError()
                 self.logger.info("CPU {} {} DMA Bus.".format(
                     colorer(name, color="underline"),
                     colorer("adding", color="cyan"))
@@ -2055,7 +2059,12 @@ class LiteXSoC(SoC):
                         self.comb += port.rdata.connect(mem_bus.rdata)
                     # Else raise Error.
                     else:
-                        raise NotImplementedError
+                        self.logger.error("CPU memory bus type {} with data width {} is {} for LiteDRAM native port width {}.".format(
+                            colorer(type(mem_bus).__name__),
+                            colorer(mem_bus.data_width),
+                            colorer("not supported", color="red"),
+                            colorer(port.data_width)))
+                        raise SoCError()
 
         # Connect Main bus to LiteDRAM (with optional L2 Cache) ------------------------------------
         connect_main_bus_to_dram = (
