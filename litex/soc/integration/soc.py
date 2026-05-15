@@ -69,8 +69,7 @@ def add_mac_address_constants(soc, name, mac_address, check_duplicate=True):
 # SoCError -----------------------------------------------------------------------------------------
 
 class SoCError(Exception):
-    def __init__(self):
-        sys.stderr = None # Error already described, avoid traceback/exception.
+    pass
 
 # SoCConstant --------------------------------------------------------------------------------------
 
