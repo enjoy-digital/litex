@@ -1449,9 +1449,15 @@ class SoC(LiteXModule):
             self.bus.io_regions_check = False
         else:
             # Override User's mapping with CPU constrainted mapping (and warn User).
+            soc_core_mem_map = {
+                "rom"      : 0x00000000,
+                "sram"     : 0x01000000,
+                "main_ram" : 0x40000000,
+            }
             for n, origin in self.cpu.mem_map.items():
                 if n in self.mem_map.keys() and self.mem_map[n] != self.cpu.mem_map[n]:
-                    self.logger.warning("CPU {} {} {} mapping from {} to {}.".format(
+                    log = self.logger.info if self.mem_map[n] == soc_core_mem_map.get(n, None) else self.logger.warning
+                    log("CPU {} {} {} mapping from {} to {}.".format(
                         colorer(name, color="underline"),
                         colorer("overriding", color="cyan"),
                         colorer(n),
