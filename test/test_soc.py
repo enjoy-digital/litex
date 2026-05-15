@@ -4,6 +4,7 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
 import sys
 import unittest
 from contextlib import contextmanager
@@ -22,6 +23,7 @@ from litex.soc.integration.soc import (
     SoCRegion,
     add_ip_address_constants,
     add_mac_address_constants,
+    build_time,
 )
 
 
@@ -393,6 +395,18 @@ class TestSoCBusStandardIntegration(unittest.TestCase):
 
         self.assertIs(bus.masters["cpu"], master)
 
+    def test_duplicate_slave_does_not_add_new_region(self):
+        bus   = SoCBusHandler()
+        slave = wishbone.Interface()
+        bus.add_slave("ram", slave, SoCRegion(origin=0x00000000, size=0x1000))
+
+        with _assert_raises_soc_error(self):
+            bus.add_slave("ram", wishbone.Interface(), SoCRegion(origin=0x00001000, size=0x1000))
+
+        self.assertIs(bus.slaves["ram"], slave)
+        self.assertEqual(list(bus.regions.keys()), ["ram"])
+        self.assertEqual(bus.regions["ram"].origin, 0x00000000)
+
     def test_byte_addressed_master_warns_on_word_addressed_bus(self):
         bus    = SoCBusHandler(standard="wishbone", addressing="word")
         master = wishbone.Interface(addressing="byte")
@@ -507,6 +521,26 @@ class TestSoCIRQHandler(unittest.TestCase):
 
 
 class TestSoC(unittest.TestCase):
+    def test_build_time_honors_source_date_epoch(self):
+        source_date_epoch = os.environ.get("SOURCE_DATE_EPOCH")
+        os.environ["SOURCE_DATE_EPOCH"] = "0"
+        try:
+            self.assertEqual(build_time(),                "1970-01-01 00:00:00")
+            self.assertEqual(build_time(with_time=False), "1970-01-01")
+        finally:
+            if source_date_epoch is None:
+                os.environ.pop("SOURCE_DATE_EPOCH", None)
+            else:
+                os.environ["SOURCE_DATE_EPOCH"] = source_date_epoch
+
+    def test_soc_error_does_not_replace_stderr(self):
+        stderr = sys.stderr
+
+        with self.assertRaises(SoCError):
+            raise SoCError()
+
+        self.assertIs(sys.stderr, stderr)
+
     def test_soc_initializes_platform_and_clock_constants(self):
         platform = _FakePlatform()
         soc      = SoC(platform, sys_clk_freq=100e6)
@@ -558,6 +592,14 @@ class TestSoC(unittest.TestCase):
         soc.bus.add_region("rom",  SoCRegion(origin=0x00000000, size=0x1000, mode="rx"))
         soc.bus.add_region("sram", SoCRegion(origin=0x10000000, size=0x1000))
         soc.check_bios_requirements()
+
+    def test_finalize_skips_cpu_reset_check_without_reset_address(self):
+        soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.cpu = SimpleNamespace()
+
+        soc._finalize_cpu_reset_address()
+
+        self.assertFalse(hasattr(soc.cpu, "reset_address"))
 
     def test_build_uses_platform_name_and_sanitizes_numeric_build_name(self):
         platform = _FakePlatform()
