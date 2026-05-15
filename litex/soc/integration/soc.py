@@ -666,6 +666,12 @@ class SoCBusHandler(LiteXModule):
             raise SoCError()
         if no_name:
             name = "slave{:d}".format(len(self.slaves))
+        if name in self.slaves.keys():
+            self.logger.error("{} {} as Bus Slave:".format(
+                colorer(name),
+                colorer("already declared", color="red")))
+            self.logger.error(self)
+            raise SoCError()
         if no_region:
             region = self.regions.get(name, None)
             if region is None:
@@ -676,12 +682,6 @@ class SoCBusHandler(LiteXModule):
         else:
             self.add_region(name, region)
             region_added = True
-        if name in self.slaves.keys():
-            self.logger.error("{} {} as Bus Slave:".format(
-                colorer(name),
-                colorer("already declared", color="red")))
-            self.logger.error(self)
-            raise SoCError()
         try:
             if strip_origin:
                 slave = self.add_offset(name, slave, self.regions[name].origin)
