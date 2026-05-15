@@ -1591,24 +1591,20 @@ class SoC(LiteXModule):
             self.irq.add(name, use_loc_if_exists=True)
 
     # SoC finalization -----------------------------------------------------------------------------
-    def finalize(self):
-        if self.finalized:
-            return
-        # SoC Reset --------------------------------------------------------------------------------
+    def _finalize_reset(self):
         # Connect soc_rst to CRG's rst if present.
         if hasattr(self, "ctrl") and hasattr(self, "crg"):
             crg_rst = getattr(self.crg, "rst", None)
             if isinstance(crg_rst, Signal):
                 self.comb += If(getattr(self.ctrl, "soc_rst", 0), crg_rst.eq(1))
 
-        # SoC CSR bridge ---------------------------------------------------------------------------
+    def _finalize_bus(self):
         self.add_csr_bridge(
             name          = "csr",
             origin        = self.mem_map["csr"],
             with_register = hasattr(self, "sdram"),
         )
 
-        # SoC Bus Interconnect ---------------------------------------------------------------------
         self.bus.finalize()
         if hasattr(self, "ctrl") and self.bus.timeout is not None:
             if hasattr(self.ctrl, "bus_error") and hasattr(self.bus._interconnect, "timeout"):
@@ -1618,13 +1614,12 @@ class SoC(LiteXModule):
         self.add_config("BUS_ADDRESS_WIDTH", self.bus.address_width)
         self.add_config("BUS_BURSTING",      int(self.bus.bursting))
 
-        # SoC DMA Bus Interconnect (Cache Coherence) -----------------------------------------------
+    def _finalize_dma_bus(self):
         if hasattr(self, "dma_bus"):
             self.dma_bus.finalize()
             self.add_config("CPU_HAS_DMA_BUS")
 
-        # SoC Main CSRs collection -----------------------------------------------------------------
-
+    def _finalize_csr(self):
         # Collect CSRs created on the Main Module.
         main_csrs = dict()
         for name, obj in self.__dict__.items():
@@ -1672,8 +1667,7 @@ class SoC(LiteXModule):
         for name, constant in self.csr_bankarray.constants:
             self.add_constant(name + "_" + constant.name, constant.value.value)
 
-        # SoC CPU Reset Address Check --------------------------------------------------------------
-
+    def _finalize_cpu_reset_address(self):
         # Check if CPU Reset Address is in a defined Region.
         if hasattr(self, "cpu") and hasattr(self.cpu, "reset_address"):
             cpu_reset_address_valid = False
@@ -1694,7 +1688,7 @@ class SoC(LiteXModule):
                 self.logger.error(self.bus)
                 raise SoCError()
 
-        # SoC IRQ Interconnect ---------------------------------------------------------------------
+    def _finalize_irq(self):
         if hasattr(self, "cpu") and hasattr(self.cpu, "interrupt"):
             self.add_config("CPU_INTERRUPTS", max(self.irq.locs.values(), default=-1) + 1)
             for name, loc in sorted(self.irq.locs.items()):
@@ -1719,7 +1713,7 @@ class SoC(LiteXModule):
                     self.comb += self.cpu.interrupt[loc].eq(ev.irq)
                 self.add_constant(name + "_INTERRUPT", loc)
 
-        # SoC Infos --------------------------------------------------------------------------------
+    def _log_finalized(self):
         self.logger.info(colorer("-"*80, color="bright"))
         self.logger.info(colorer("Finalized SoC:"))
         self.logger.info(colorer("-"*80, color="bright"))
@@ -1730,10 +1724,7 @@ class SoC(LiteXModule):
         self.logger.info(self.irq)
         self.logger.info(colorer("-"*80, color="bright"))
 
-        # Finalize submodules ----------------------------------------------------------------------
-        Module.finalize(self)
-
-        # Bus Region metadata for export ---------------------------------------------------------
+    def _finalize_exports(self):
         for region in self.bus.regions.values():
             region.length = region.size
             region.type   = "cached" if region.cached else "io"
@@ -1743,12 +1734,29 @@ class SoC(LiteXModule):
         for name, value in self.config.items():
             self.add_config(name, value)
 
-        # SoC Hierarchy ----------------------------------------------------------------------------
+    def _log_hierarchy(self):
         self.logger.info(colorer("-"*80, color="bright"))
         self.logger.info(colorer("SoC Hierarchy:"))
         self.logger.info(colorer("-"*80, color="bright"))
         self.logger.info(LiteXHierarchyExplorer(top=self, depth=None))
         self.logger.info(colorer("-"*80, color="bright"))
+
+    def finalize(self):
+        if self.finalized:
+            return
+        self._finalize_reset()
+        self._finalize_bus()
+        self._finalize_dma_bus()
+        self._finalize_csr()
+        self._finalize_cpu_reset_address()
+        self._finalize_irq()
+        self._log_finalized()
+
+        # Finalize submodules ----------------------------------------------------------------------
+        Module.finalize(self)
+
+        self._finalize_exports()
+        self._log_hierarchy()
 
     # SoC build ------------------------------------------------------------------------------------
     def get_build_name(self):
