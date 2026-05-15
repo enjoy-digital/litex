@@ -1414,6 +1414,17 @@ class SoC(LiteXModule):
             colorer(name, color="underline"),
             colorer("added", color="green")))
 
+        # Validate the CPU integration contract used below.
+        required_attrs = ["io_regions", "mem_map", "periph_buses", "memory_buses", "endianness"]
+        if not isinstance(self.cpu, cpu.CPUNone):
+            required_attrs += ["reset"]
+        for attr in required_attrs:
+            if not hasattr(self.cpu, attr):
+                self.logger.error("CPU {} missing required attribute {}.".format(
+                    colorer(name, color="underline"),
+                    colorer(attr, color="red")))
+                raise SoCError()
+
         # Add optional CFU plugin.
         if "cfu" in variant and hasattr(self.cpu, "add_cfu"):
             self.cpu.add_cfu(cfu_filename=cfu)
@@ -1458,6 +1469,10 @@ class SoC(LiteXModule):
                 colorer("setting", color="cyan"),
                 colorer(f"0x{reset_address:08x}")))
             self.cpu.set_reset_address(reset_address)
+            if not hasattr(self.cpu, "reset_address"):
+                self.logger.error("CPU {} did not expose a reset_address after set_reset_address().".format(
+                    colorer(name, color="underline")))
+                raise SoCError()
 
             # Bus Masters.
             self.logger.info("CPU {} {} Bus Master(s).".format(
