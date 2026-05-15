@@ -1417,6 +1417,8 @@ class SoC(LiteXModule):
         # Add optional CFU plugin.
         if "cfu" in variant and hasattr(self.cpu, "add_cfu"):
             self.cpu.add_cfu(cfu_filename=cfu)
+        elif cfu is not None:
+            self.logger.warning("CPU CFU ignored: CPU variant does not expose CFU support.")
 
         # Update SoC with CPU constraints.
         # IO regions.
