@@ -5,7 +5,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
-import shutil
 import subprocess
 import logging
 
@@ -13,7 +12,6 @@ from migen import *
 
 from litex import get_data_mod
 from litex.build.xilinx.vivado import XilinxVivadoToolchain
-from litex.soc.cores.cpu.amaranth import import_from_pythondata
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 from litex.soc.integration.soc import SoCRegion
 from litex.soc.interconnect import wishbone
@@ -150,28 +148,17 @@ class Coreblocks(CPU):
             cli_params.append("--enable-vivado-hacks")
 
         data_mod = get_data_mod("cpu", "coreblocks")
-        sdir = data_mod.data_location
 
-        if data_mod.RUN_NATIVE:
-            command = ["python3", os.path.join(sdir, "scripts", "gen_verilog.py")]
+        if os.getenv("LITEX_COREBLOCKS_RUN_NATIVE", "0") != "0":
+            # run generation from `coreblocks` (not `pythondata-cpu-coreblocks`) package
+            # requires manual installation in the enviroment, mainly for dev/hacking
+            command = ["python3", "-m", "coreblocks.gen_verilog"]
         else:
-            # Deterministic external helper path: use a configured Python interpreter
-            # (defaults to python3.<required>) to execute pythondata's wrapper script.
-            helper_python = os.getenv("LITEX_COREBLOCKS_HELPER_PYTHON", f"python3.{data_mod.PYTHON3_VERSION}")
-            helper_script = os.path.join(sdir, "..", "gen_verilog_wrapper.py")
-            if shutil.which(helper_python):
-                command = [helper_python, helper_script]
-            elif shutil.which("pipx"):
-                self.logger.warning(
-                    "Coreblocks helper interpreter '%s' was not found, falling back to pipx.",
-                    helper_python)
-                command = ["pipx", "run", f"--python=3.{data_mod.PYTHON3_VERSION}",
-                           "--fetch-missing-python", helper_script]
-            else:
-                raise OSError(
-                    f"Coreblocks external elaboration requires '{helper_python}' "
-                    "or pipx. Install one of them or set "
-                    "LITEX_COREBLOCKS_HELPER_PYTHON to a valid Python executable.")
+            # generation form `pythondata-cpu-coreblocks` wrapper script
+            # it runs coreblocks in isolated enviroment with correct python version and separate dependencies
+            # this is a recommended way of runnning coreblocks because of delicate package requirements
+            helper_script = os.path.join(*data_mod.__path__, "gen_verilog_wrapper.py")
+            command = ["python3", helper_script]
 
         command += cli_params
 
@@ -179,70 +166,11 @@ class Coreblocks(CPU):
         if subprocess.call(command):
             raise OSError("Unable to elaborate Coreblocks CPU, please check your coreblocks, Amaranth/Yosys, and requirements install")
 
-    def _do_finalize_with_converter(self):
-        try:
-            from litex.build.amaranth2v_converter import Amaranth2VConverter
-            coreblocks_gen = import_from_pythondata("cpu", "coreblocks", "scripts.gen_verilog")
-            with coreblocks_gen.DependencyContext(coreblocks_gen.DependencyManager()):
-                core_config = coreblocks_gen.str_to_coreconfig[CPU_VARIANTS[self.variant]]
-                core_config = core_config.replace(start_pc=self.reset_address)
-                core_genp   = coreblocks_gen.GenParams(core_config)
-                amaranth_cpu = coreblocks_gen.Core(gen_params=core_genp)
-
-                if self.variant in LINUX_CAPABLE_VARIANTS:
-                    # Adds CoreSoCks wrapper around the core that adds extra peripherals for full OS support.
-                    amaranth_cpu = coreblocks_gen.Socks(amaranth_cpu, core_gen_params=core_genp)
-
-                amaranth_cpu = coreblocks_gen.TransactronContextComponent(
-                    amaranth_cpu, dependency_manager=coreblocks_gen.DependencyContext.get())
-        except Exception as e:
-            self.logger.warning("Coreblocks native Amaranth conversion unavailable: %s", str(e))
-            return False
-
-        self.converter = Amaranth2VConverter(self.platform,
-            name        = "top",
-            module      = amaranth_cpu,
-            ports       = dict(
-                # Clk / Rst.
-                i_sync_clk = ClockSignal("sys"),
-                i_sync_rst = ResetSignal("sys") | self.reset,
-
-                # IRQ.
-                i_interrupts = self.interrupts_full,
-
-                # Ibus.
-                o_wb_instr_stb   = self.ibus.stb,
-                o_wb_instr_cyc   = self.ibus.cyc,
-                o_wb_instr_we    = self.ibus.we,
-                o_wb_instr_adr   = self.ibus.adr,
-                o_wb_instr_dat_w = self.ibus.dat_w,
-                o_wb_instr_sel   = self.ibus.sel,
-                i_wb_instr_ack   = self.ibus.ack,
-                i_wb_instr_err   = self.ibus.err,
-                i_wb_instr_dat_r = self.ibus.dat_r,
-
-                # Dbus.
-                o_wb_data_stb   = self.dbus.stb,
-                o_wb_data_cyc   = self.dbus.cyc,
-                o_wb_data_we    = self.dbus.we,
-                o_wb_data_adr   = self.dbus.adr,
-                o_wb_data_dat_w = self.dbus.dat_w,
-                o_wb_data_sel   = self.dbus.sel,
-                i_wb_data_ack   = self.dbus.ack,
-                i_wb_data_err   = self.dbus.err,
-                i_wb_data_dat_r = self.dbus.dat_r,
-            ),
-        )
-        self.logger.info("Using Coreblocks native Amaranth2VConverter integration.")
-        return True
-
     def do_finalize(self):
         assert hasattr(self, "reset_address")
 
-        # Prefer native Amaranth conversion when dependencies are available.
-        # Fallback to external elaboration wrapper otherwise.
-        if self._do_finalize_with_converter():
-            return
+        # native LiteX Amaranth conversion is not recommended, Coreblocks depends on custom Verilog fix-ups
+        # and locked yosys version, both of them are handled by generation with coreblocks.gen_verilog script
 
         verilog_filename = os.path.join(self.platform.output_dir, "gateware", "core.v")
         self.elaborate(
