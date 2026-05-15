@@ -57,6 +57,8 @@ class Coreblocks(CPU):
     def gcc_flags(self):
         flags =  GCC_FLAGS[self.variant]
         flags += "-D__coreblocks__ "
+        if self.variant in LINUX_CAPABLE_VARIANTS:
+            flags += "-D__riscv_plic__"
         return flags
 
     def __init__(self, platform, variant="standard"):
@@ -65,7 +67,7 @@ class Coreblocks(CPU):
         self.human_name   = f"Coreblocks-{CPU_VARIANTS[variant]}"
         self.logger       = logging.getLogger("Coreblocks")
         self.reset        = Signal()
-        self.interrupt    = Signal(16) # hart-local 16 platform interrupts - ids 16+n
+        self.interrupt    = Signal(16)
 
         self.ibus         = ibus = wishbone.Interface()
         self.dbus         = dbus = wishbone.Interface()
@@ -74,9 +76,16 @@ class Coreblocks(CPU):
 
         # # #
 
-        self.interrupts_full = Signal(32)
-        # Shift interrupts to platform range
-        self.comb += self.interrupts_full.eq(self.interrupt << 16)
+        if variant in LINUX_CAPABLE_VARIANTS: 
+            # Using PLIC - interrupts are wired directly to PLIC controller
+            # Note that bit 0 will be ignored, as interrupt source 0 in PLIC is reserved
+            interrupts_signal = self.interrupt
+        else:
+            # Shift interrupts to platform range if using hart interrupt controller
+            # interrupts will have ids 16+n
+            interrupts_full = Signal(32)
+            self.comb += interrupts_full.eq(self.interrupt << 16)
+            interrupts_signal = interrupts_full
 
         self.cpu_params = dict(
             # Clk / Rst.
@@ -84,7 +93,7 @@ class Coreblocks(CPU):
             i_rst = ResetSignal("sys") | self.reset,
 
             ## IRQ.
-            i_interrupts = self.interrupts_full,
+            i_interrupts = interrupts_signal, 
 
             # Ibus.
             o_wb_instr__stb   = ibus.stb,
@@ -121,8 +130,9 @@ class Coreblocks(CPU):
         }
 
         if self.variant in LINUX_CAPABLE_VARIANTS:
-            mem_map |= {
-                "clint":    0xe100_0000, # fixed in CoreSoCks
+            mem_map |= { # fixed in CoreSoCks
+                "clint":    0xe100_0000,
+                "plic":     0xe200_0000,
             }
 
         return mem_map

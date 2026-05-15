@@ -9,7 +9,10 @@
 // mip
 #define CSR_IRQ_PENDING 0x344
 
+#ifndef __riscv_plic__
+// for hart local interrupt controller:
 // first platform irq - enables offset in internal software
 #define FIRQ_OFFSET     16
+#endif
 
 #endif	/* CSR_DEFS__H */
