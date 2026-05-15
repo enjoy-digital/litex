@@ -627,15 +627,19 @@ class SoCBusHandler(LiteXModule):
 
         return adapted_interface
 
+    def _check_name_available(self, collection, role, name):
+        if name in collection:
+            self.logger.error("{} {} as {}:".format(
+                colorer(name),
+                colorer("already declared", color="red"),
+                role))
+            self.logger.error(self)
+            raise SoCError()
+
     def add_master(self, name=None, master=None, region=None):
         if name is None:
             name = "master{:d}".format(len(self.masters))
-        if name in self.masters.keys():
-            self.logger.error("{} {} as Bus Master:".format(
-                colorer(name),
-                colorer("already declared", color="red")))
-            self.logger.error(self)
-            raise SoCError()
+        self._check_name_available(self.masters, "Bus Master", name)
         if region:
             master = self.add_remapper(name, master, region.origin, region.size)
         if isinstance(master, wishbone.Interface) and master.addressing == "byte" and self.addressing == "word":
@@ -669,12 +673,7 @@ class SoCBusHandler(LiteXModule):
             raise SoCError()
         if no_name:
             name = "slave{:d}".format(len(self.slaves))
-        if name in self.slaves.keys():
-            self.logger.error("{} {} as Bus Slave:".format(
-                colorer(name),
-                colorer("already declared", color="red")))
-            self.logger.error(self)
-            raise SoCError()
+        self._check_name_available(self.slaves, "Bus Slave", name)
         if no_region:
             region = self.regions.get(name, None)
             if region is None:
