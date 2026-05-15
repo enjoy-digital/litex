@@ -121,7 +121,6 @@ class NaxRiscv(CPU):
 
     @staticmethod
     def args_read(args):
-        print(args)
         NaxRiscv.jtag_tap         = args.with_jtag_tap
         NaxRiscv.jtag_instruction = args.with_jtag_instruction
         NaxRiscv.with_dma         = args.with_coherent_dma
@@ -133,7 +132,6 @@ class NaxRiscv(CPU):
             NaxRiscv.scala_files = args.scala_file
         if args.scala_args:
             NaxRiscv.scala_args  = args.scala_args
-            print(args.scala_args)
         if args.xlen:
             xlen = int(args.xlen)
             NaxRiscv.xlen                 = xlen

@@ -85,8 +85,6 @@ class NEORV32(CPU):
 
     @staticmethod
     def args_read(args):
-        print(args)
-
         NEORV32.cpu_count  = args.cpu_count
 
     def __init__(self, platform, variant="standard"):
