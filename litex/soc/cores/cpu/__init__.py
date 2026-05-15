@@ -105,7 +105,15 @@ def collect_cpus():
         os.getcwd()
     ]
 
-    exec_dir = os.getcwd()
+    def import_cpu_module(path, cpu):
+        sys.path.append(path)
+        try:
+            return importlib.import_module(cpu)
+        finally:
+            if sys.path and sys.path[-1] == path:
+                sys.path.pop()
+            else:
+                sys.path.remove(path)
 
     # Search for CPUs in paths.
     for path in paths:
@@ -123,14 +131,15 @@ def collect_cpus():
 
             # OK, it seems to be a CPU; now get the class and add it to dict.
             cpu = file
-            sys.path.append(path)
             try:
-                cpu_module = importlib.import_module(cpu)
+                cpu_module = import_cpu_module(path, cpu)
             except Exception as e:
                 logger.warning("Skipping CPU '%s' (import failed): %s", cpu, e)
                 continue
             for cpu_name, cpu_cls in inspect.getmembers(cpu_module, inspect.isclass):
                 if cpu_name.lower() in [cpu, cpu.replace("_", "")]:
+                    if cpu in cpus:
+                        logger.warning("CPU '%s' already registered, overriding with %s.", cpu, cpu_path)
                     cpus[cpu] = cpu_cls
 
     # Return collected CPUs.
