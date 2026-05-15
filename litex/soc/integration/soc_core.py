@@ -180,6 +180,8 @@ class SoCCore(LiteXSoC):
         # ROM.
         # Initialize ROM from binary file when supported and provided.
         if cpu_cls is None or not cpu_cls.integrated_rom_supported:
+            if integrated_rom_init != []:
+                self.logger.warning("Integrated ROM initialization ignored: CPU does not support integrated ROM.")
             integrated_rom_size = 0
             integrated_rom_init = []
         elif isinstance(integrated_rom_init, str):
