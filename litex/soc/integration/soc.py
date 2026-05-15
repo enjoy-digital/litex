@@ -40,7 +40,7 @@ def build_time(with_time=True, utc=False):
     fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
     timestamp = int(os.environ.get("SOURCE_DATE_EPOCH", time.time()))
     if utc or "SOURCE_DATE_EPOCH" in os.environ:
-        return datetime.datetime.utcfromtimestamp(timestamp).strftime(fmt)
+        return datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc).strftime(fmt)
     return datetime.datetime.fromtimestamp(timestamp).strftime(fmt)
 
 def add_ip_address_constants(soc, name, ip_address, check_duplicate=True):
