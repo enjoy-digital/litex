@@ -4,6 +4,7 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import inspect
 import os
 import sys
 import unittest
@@ -13,6 +14,7 @@ from types import SimpleNamespace
 from litex.soc.interconnect import axi, wishbone
 
 from litex.soc.integration.soc import (
+    LiteXSoC,
     SoC,
     SoCBusHandler,
     SoCCSRHandler,
@@ -631,6 +633,13 @@ class TestSoC(unittest.TestCase):
         _, _, kwargs = platform.build_calls[0]
         self.assertEqual(kwargs["build_name"], "_1top")
         self.assertFalse(kwargs["run"])
+
+    def test_pcie_uses_local_endpoint_for_renamed_instances(self):
+        source = inspect.getsource(LiteXSoC.add_pcie)
+
+        self.assertIn("LitePCIeWishboneMaster(endpoint,", source)
+        self.assertIn("LitePCIeMSIX(endpoint=endpoint,", source)
+        self.assertNotIn("self.pcie_endpoint", source)
 
 
 if __name__ == "__main__":

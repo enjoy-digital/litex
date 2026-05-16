@@ -2836,7 +2836,7 @@ class LiteXSoC(SoC):
 
         # MMAP.
         self.check_if_exists(f"{name}_mmap")
-        mmap = LitePCIeWishboneMaster(self.pcie_endpoint, base_address=self.mem_map["csr"])
+        mmap = LitePCIeWishboneMaster(endpoint, base_address=self.mem_map["csr"])
         self.add_module(name=f"{name}_mmap", module=mmap)
         self.bus.add_master(name=f"{name}_mmap", master=mmap.wishbone)
 
@@ -2852,7 +2852,7 @@ class LiteXSoC(SoC):
             if msi_type == "msi-multi-vector":
                 msi = LitePCIeMSIMultiVector(width=msi_width)
             if msi_type == "msi-x":
-                msi = LitePCIeMSIX(endpoint=self.pcie_endpoint, width=msi_width)
+                msi = LitePCIeMSIX(endpoint=endpoint, width=msi_width)
             self.add_module(name=msi_name, module=msi)
             if msi_type in ["msi", "msi-multi-vector"]:
                 self.comb += msi.source.connect(phy.msi)
