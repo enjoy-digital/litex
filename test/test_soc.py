@@ -665,6 +665,18 @@ class TestSoC(unittest.TestCase):
         with _assert_raises_soc_error(self):
             soc.add_spi_ram()
 
+    def test_video_terminal_requires_uart(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_video_terminal()
+
+    def test_video_framebuffer_requires_sdram(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_video_framebuffer()
+
 
 if __name__ == "__main__":
     unittest.main()

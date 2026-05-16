@@ -2967,6 +2967,11 @@ class LiteXSoC(SoC):
     # Add Video Terminal ---------------------------------------------------------------------------
     def add_video_terminal(self, name="video_terminal", phy=None, timings="800x600@60Hz", clock_domain="sys",
                            with_extended_csi=False, visible_cols=None):
+        if not hasattr(self, "uart"):
+            self.logger.error("Video terminal requires {} peripheral.".format(
+                colorer("uart", color="red")))
+            raise SoCError()
+
         # Imports.
         from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal
 
@@ -3004,6 +3009,11 @@ class LiteXSoC(SoC):
 
     # Add Video Framebuffer ------------------------------------------------------------------------
     def add_video_framebuffer(self, name="video_framebuffer", phy=None, timings="800x600@60Hz", clock_domain="sys", format="rgb888", fifo_depth=64*KILOBYTE):
+        if not hasattr(self, "sdram"):
+            self.logger.error("Video framebuffer requires {}.".format(
+                colorer("sdram", color="red")))
+            raise SoCError()
+
         # Imports.
         from litex.soc.cores.video import VideoTimingGenerator, VideoFrameBuffer
 
