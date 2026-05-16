@@ -79,6 +79,8 @@ class TestSoCAddressConstants(unittest.TestCase):
     def test_invalid_ip_address_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "four octets"):
             add_ip_address_constants(_ConstantCollector(), "IP", "192.168.1")
+        with self.assertRaisesRegex(ValueError, "decimal integers"):
+            add_ip_address_constants(_ConstantCollector(), "IP", "192.168.one.1")
         with self.assertRaisesRegex(ValueError, "between 0 and 255"):
             add_ip_address_constants(_ConstantCollector(), "IP", "192.168.1.256")
 
@@ -103,6 +105,8 @@ class TestSoCAddressConstants(unittest.TestCase):
     def test_invalid_mac_address_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "six octets"):
             add_mac_address_constants(_ConstantCollector(), "MAC", "10:e2:d5")
+        with self.assertRaisesRegex(ValueError, "hexadecimal integers"):
+            add_mac_address_constants(_ConstantCollector(), "MAC", "10:e2:d5:00:00:zz")
         with self.assertRaisesRegex(ValueError, "48 bits"):
             add_mac_address_constants(_ConstantCollector(), "MAC", 2**48)
 

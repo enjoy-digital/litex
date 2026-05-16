@@ -48,7 +48,10 @@ def add_ip_address_constants(soc, name, ip_address, check_duplicate=True):
     if len(_ip_address) != 4:
         raise ValueError("IP address must contain four octets.")
     for n in range(4):
-        octet = int(_ip_address[n])
+        try:
+            octet = int(_ip_address[n])
+        except ValueError as e:
+            raise ValueError("IP address octets must be decimal integers.") from e
         if not 0 <= octet < 256:
             raise ValueError("IP address octets must be between 0 and 255.")
         soc.add_constant(f"{name}{n+1}", octet, check_duplicate=check_duplicate)
@@ -59,7 +62,10 @@ def add_mac_address_constants(soc, name, mac_address, check_duplicate=True):
         if len(_mac_address) != 6:
             raise ValueError("MAC address must contain six octets.")
         for n in range(6):
-            octet = int(_mac_address[n], 16)
+            try:
+                octet = int(_mac_address[n], 16)
+            except ValueError as e:
+                raise ValueError("MAC address octets must be hexadecimal integers.") from e
             if not 0 <= octet < 256:
                 raise ValueError("MAC address octets must be between 0 and 255.")
             soc.add_constant(f"{name}{n+1}", octet, check_duplicate=check_duplicate)
