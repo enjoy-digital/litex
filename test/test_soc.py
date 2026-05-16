@@ -122,6 +122,8 @@ class TestSoCVideoTiming(unittest.TestCase):
             parse_video_timing_resolution("800@60Hz")
         with self.assertRaisesRegex(ValueError, "<hres>x<vres>@"):
             parse_video_timing_resolution("wide x high")
+        with self.assertRaisesRegex(ValueError, "<hres>x<vres>@"):
+            parse_video_timing_resolution(())
 
 
 class TestSoCRegion(unittest.TestCase):

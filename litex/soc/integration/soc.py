@@ -44,12 +44,12 @@ def build_time(with_time=True, utc=False):
     return datetime.datetime.fromtimestamp(timestamp).strftime(fmt)
 
 def parse_video_timing_resolution(timings):
-    timing = timings if isinstance(timings, str) else timings[0]
     try:
+        timing = timings if isinstance(timings, str) else timings[0]
         resolution = timing.split("@", 1)[0]
         hres, vres = resolution.split("x", 1)
         return timing, int(hres), int(vres)
-    except (AttributeError, ValueError) as e:
+    except (AttributeError, IndexError, ValueError) as e:
         raise ValueError("Video timings must use '<hres>x<vres>@...' format.") from e
 
 def add_ip_address_constants(soc, name, ip_address, check_duplicate=True):
