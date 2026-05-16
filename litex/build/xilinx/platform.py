@@ -78,15 +78,22 @@ class XilinxPlatform(GenericPlatform):
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.xilinx_special_overrides)
-        if self.device[:3] == "xc6":
+
+        device = self.device.lower()
+        family = self.device_family
+        if family is None:
+            if device.startswith(("xc6", "xa6", "xq6")):
+                family = "spartan6"
+            elif device.startswith(("xc7", "xa7", "xq7")):
+                family = "7series"
+            elif device.startswith(("xcau", "xcku", "xqku", "xcvu", "xqvu", "xczu", "xqzu")):
+                family = "ultrascale"
+
+        if family == "spartan6":
             so.update(common.xilinx_s6_special_overrides)
-        if self.device[:3] == "xc7":
+        elif family == "7series":
             so.update(common.xilinx_s7_special_overrides)
-        if self.device[:4] == "xcku":
-            so.update(common.xilinx_us_special_overrides)
-        if self.device[:4] == "xcau":
-            so.update(common.xilinx_us_special_overrides)
-        if self.device[:4] == "xczu":
+        elif family in ["ultrascale", "ultrascale+"]:
             so.update(common.xilinx_us_special_overrides)
         so.update(special_overrides)
         return GenericPlatform.get_verilog(self, *args,

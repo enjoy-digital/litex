@@ -9,6 +9,7 @@ from litex.build.io import (
     SDROutput,
     SDRTristate,
 )
+from litex.build.xilinx.platform import XilinxUSPlatform
 from litex.gen.fhdl import verilog
 
 
@@ -57,6 +58,19 @@ class TestBuildIO(unittest.TestCase):
                 oe1 = Signal(2),
                 i1  = Signal(2),
             )
+
+    def test_xilinx_ultrascale_xcvu_uses_us_overrides(self):
+        platform = XilinxUSPlatform("xcvu9p-flga2104-2-i", [], toolchain="vivado")
+        dut = Module()
+        i1  = Signal()
+        i2  = Signal()
+        o   = Signal()
+        clk = Signal()
+
+        dut.specials += DDROutput(i1, i2, o, clk)
+
+        v = str(platform.get_verilog(dut, ios={i1, i2, o, clk}))
+        self.assertIn("ODDRE1", v)
 
 
 if __name__ == "__main__":
