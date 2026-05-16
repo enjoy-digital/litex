@@ -60,6 +60,12 @@ class DifferentialOutput(Special):
 # Clk Input/Output ---------------------------------------------------------------------------------
 
 class ClkInput(Special):
+    """Clock input primitive.
+
+    This is currently lowered by the Efinix backend. Other platforms fail
+    explicitly unless they provide an override.
+    """
+
     def __init__(self, i, o):
         Special.__init__(self)
         self.i = wrap(i)
@@ -75,6 +81,12 @@ class ClkInput(Special):
 
 
 class ClkOutput(Special):
+    """Clock output primitive.
+
+    This is currently lowered by the Efinix backend. Other platforms fail
+    explicitly unless they provide an override.
+    """
+
     def __init__(self, i, o):
         Special.__init__(self)
         if isinstance(i, str):
@@ -92,17 +104,27 @@ class ClkOutput(Special):
 
 # SDR Input/Output ---------------------------------------------------------------------------------
 
-class InferedSDRIO(Module):
+class InferredSDRIO(Module):
+    """Generic SDR IO fallback.
+
+    The generic fallback is a fabric register clocked by ``clk``. Vendor
+    overrides should map SDRInput/SDROutput to IO register primitives when the
+    toolchain exposes them; otherwise timing/placement are toolchain-dependent.
+    """
+
     n = 0
 
     def __init__(self, i, o, clk):
-        cd_name = f"sdrio{InferedSDRIO.n}"
-        InferedSDRIO.n += 1
+        cd_name = f"sdrio{InferredSDRIO.n}"
+        InferredSDRIO.n += 1
         cd = ClockDomain(cd_name, reset_less=True)
         self.clock_domains += cd
         self.comb += cd.clk.eq(clk)
         sync = getattr(self.sync, cd_name)
         sync += o.eq(i)
+
+# Backward-compatible alias for the original misspelling.
+InferedSDRIO = InferredSDRIO
 
 class SDRIO(Special):
     def __init__(self, i, o, clk=None):
@@ -122,14 +144,14 @@ class SDRIO(Special):
 
     @staticmethod
     def lower(dr):
-        return InferedSDRIO(dr.i, dr.o, dr.clk)
+        return InferredSDRIO(dr.i, dr.o, dr.clk)
 
 class SDRInput(SDRIO):  pass
 class SDROutput(SDRIO): pass
 
 # SDR Tristate -------------------------------------------------------------------------------------
 
-class InferedSDRTristate(Module):
+class InferredSDRTristate(Module):
     def __init__(self, io, o, oe, i, clk):
         _o  = Signal().like(o)
         _oe = Signal().like(oe)
@@ -137,8 +159,11 @@ class InferedSDRTristate(Module):
         self.specials   += SDROutput(o, _o, clk)
         if _i is not None:
             self.specials   += SDRInput(_i, i, clk)
-        self.submodules += InferedSDRIO(oe, _oe, clk)
+        self.submodules += InferredSDRIO(oe, _oe, clk)
         self.specials   += Tristate(io, _o, _oe, _i)
+
+# Backward-compatible alias for the original misspelling.
+InferedSDRTristate = InferredSDRTristate
 
 class SDRTristate(Special):
     def __init__(self, io, o, oe, i=None, clk=None):
@@ -160,7 +185,7 @@ class SDRTristate(Special):
 
     @staticmethod
     def lower(dr):
-        return InferedSDRTristate(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+        return InferredSDRTristate(dr.io, dr.o, dr.oe, dr.i, dr.clk)
 
 # DDR Input/Output ---------------------------------------------------------------------------------
 
@@ -209,7 +234,7 @@ class DDROutput(Special):
 
 # DDR Tristate -------------------------------------------------------------------------------------
 
-class InferedDDRTristate(Module):
+class InferredDDRTristate(Module):
     def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, i_async):
         _o  = Signal().like(o1)
         _oe = Signal().like(oe1)
@@ -223,6 +248,9 @@ class InferedDDRTristate(Module):
         elif i_async is not None:
             _i = i_async
         self.specials += Tristate(io, _o, _oe, _i)
+
+# Backward-compatible alias for the original misspelling.
+InferedDDRTristate = InferredDDRTristate
 
 class DDRTristate(Special):
     def __init__(self, io, o1, o2, oe1, oe2=None, i1=None, i2=None, clk=None, i_async=None):
@@ -268,7 +296,7 @@ class DDRTristate(Special):
 
     @staticmethod
     def lower(dr):
-        return InferedDDRTristate(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.i_async)
+        return InferredDDRTristate(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.i_async)
 
 # Clock Reset Generator ----------------------------------------------------------------------------
 
