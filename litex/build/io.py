@@ -24,6 +24,9 @@ class DifferentialInput(Special):
         self.i_p = wrap(i_p)
         self.i_n = wrap(i_n)
         self.o   = wrap(o)
+        _check_widths(self.__class__.__name__, i_p=self.i_p, i_n=self.i_n, o=self.o)
+        if len(self.o) != 1:
+            raise ValueError(f"{self.__class__.__name__} only supports single-bit signals")
 
     def iter_expressions(self):
         yield self, "i_p", SPECIAL_INPUT
@@ -41,6 +44,9 @@ class DifferentialOutput(Special):
         self.i   = wrap(i)
         self.o_p = wrap(o_p)
         self.o_n = wrap(o_n)
+        _check_widths(self.__class__.__name__, i=self.i, o_p=self.o_p, o_n=self.o_n)
+        if len(self.i) != 1:
+            raise ValueError(f"{self.__class__.__name__} only supports single-bit signals")
 
     def iter_expressions(self):
         yield self, "i"  , SPECIAL_INPUT
@@ -71,7 +77,9 @@ class ClkInput(Special):
 class ClkOutput(Special):
     def __init__(self, i, o):
         Special.__init__(self)
-        self.i = i if isinstance(i, str) else wrap(i)
+        if isinstance(i, str):
+            raise ValueError("ClkOutput input must be a Signal or ClockSignal")
+        self.i = wrap(i)
         self.o = wrap(o)
 
     def iter_expressions(self):

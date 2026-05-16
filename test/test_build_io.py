@@ -5,9 +5,12 @@ from migen import *
 from litex.build.efinix.common import EfinixTrionDDRTristateImpl
 from litex.build.gowin.common import gowin_special_overrides
 from litex.build.io import (
+    ClkOutput,
     DDRInput,
     DDROutput,
     DDRTristate,
+    DifferentialInput,
+    DifferentialOutput,
     SDROutput,
     SDRTristate,
 )
@@ -130,6 +133,18 @@ class TestBuildIO(unittest.TestCase):
                 clk     = Signal(),
                 i_async = Signal(2),
             )
+
+    def test_differential_input_rejects_vector_signals(self):
+        with self.assertRaisesRegex(ValueError, "single-bit"):
+            DifferentialInput(Signal(2), Signal(2), Signal(2))
+
+    def test_differential_output_rejects_vector_signals(self):
+        with self.assertRaisesRegex(ValueError, "single-bit"):
+            DifferentialOutput(Signal(2), Signal(2), Signal(2))
+
+    def test_clk_output_rejects_string_input(self):
+        with self.assertRaisesRegex(ValueError, "ClkOutput input"):
+            ClkOutput("sys", Signal())
 
 
 if __name__ == "__main__":
