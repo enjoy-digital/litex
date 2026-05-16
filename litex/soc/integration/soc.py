@@ -2937,13 +2937,19 @@ class LiteXSoC(SoC):
             self.msis = dict(msis or {})
 
         # DMAs.
-        def _pcie_dma_depth(depth, index, default=None):
+        def _pcie_dma_depth(name, depth, index, default=None):
             if depth is None:
                 return default
-            if isinstance(depth, dict):
-                return depth[index]
-            if isinstance(depth, (list, tuple)):
-                return depth[index]
+            try:
+                if isinstance(depth, dict):
+                    return depth[index]
+                if isinstance(depth, (list, tuple)):
+                    return depth[index]
+            except (IndexError, KeyError) as e:
+                self.logger.error("PCIe {} missing entry for DMA {}.".format(
+                    colorer(name, color="red"),
+                    colorer(index)))
+                raise SoCError() from e
             return depth
 
         for i in range(ndmas):
@@ -2955,9 +2961,9 @@ class LiteXSoC(SoC):
             self.check_if_exists(dma_name)
             dma = LitePCIeDMA(phy, endpoint,
                 with_buffering         = with_dma_buffering,
-                buffering_depth        = _pcie_dma_depth(dma_buffering_depths,        i, dma_buffering_depth),
-                writer_buffering_depth = _pcie_dma_depth(dma_writer_buffering_depths, i, dma_writer_buffering_depth),
-                reader_buffering_depth = _pcie_dma_depth(dma_reader_buffering_depths, i, dma_reader_buffering_depth),
+                buffering_depth        = _pcie_dma_depth("dma_buffering_depths",        dma_buffering_depths,        i, dma_buffering_depth),
+                writer_buffering_depth = _pcie_dma_depth("dma_writer_buffering_depths", dma_writer_buffering_depths, i, dma_writer_buffering_depth),
+                reader_buffering_depth = _pcie_dma_depth("dma_reader_buffering_depths", dma_reader_buffering_depths, i, dma_reader_buffering_depth),
                 with_loopback          = with_dma_loopback,
                 with_synchronizer      = with_dma_synchronizer,
                 with_monitor           = with_dma_monitor,

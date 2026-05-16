@@ -651,6 +651,15 @@ class TestSoC(unittest.TestCase):
         with _assert_raises_soc_error(self):
             soc.add_pcie()
 
+    def test_pcie_dma_depth_helper_reports_missing_entries(self):
+        source = inspect.getsource(LiteXSoC.add_pcie)
+
+        self.assertIn("missing entry for DMA", source)
+        self.assertIn("raise SoCError() from e", source)
+        self.assertIn('_pcie_dma_depth("dma_buffering_depths"', source)
+        self.assertIn('_pcie_dma_depth("dma_writer_buffering_depths"', source)
+        self.assertIn('_pcie_dma_depth("dma_reader_buffering_depths"', source)
+
     def test_ethernet_timestamp_requires_timer0(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
 
