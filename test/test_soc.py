@@ -579,6 +579,16 @@ class TestSoC(unittest.TestCase):
         self.assertEqual(soc.csr.address_map("timer0", origin=True), 0)
         self.assertEqual(soc.get_csr_address("timer0"), soc.mem_map["csr"])
 
+    def test_csr_bridge_defaults_to_decoded_region_without_cpu(self):
+        soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.bus.add_region("io", SoCIORegion(origin=0x00000000, size=2**soc.bus.address_width))
+
+        soc.add_csr_bridge(origin=0x00000000)
+
+        self.assertTrue(soc.bus.regions["csr"].decode)
+        self.assertIn("csr", soc.bus.slaves)
+        self.assertIn("csr", soc.csr.masters)
+
     def test_mem_map_is_instance_local(self):
         soc0 = SoC(_FakePlatform(), sys_clk_freq=1e6)
         soc1 = SoC(_FakePlatform(), sys_clk_freq=1e6)

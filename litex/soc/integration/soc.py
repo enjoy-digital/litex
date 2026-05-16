@@ -1353,7 +1353,8 @@ class SoC(LiteXModule):
             colorer("added", color="green")))
         self.add_module(name=csr_bridge_name, module=csr_bridge)
         csr_size   = 2**(self.csr.address_width + 2)
-        csr_region = SoCRegion(origin=origin, size=csr_size, cached=False, decode=self.cpu.csr_decode)
+        csr_decode = getattr(getattr(self, "cpu", None), "csr_decode", True)
+        csr_region = SoCRegion(origin=origin, size=csr_size, cached=False, decode=csr_decode)
         bus_standard = {
             "wishbone": "wishbone",
             "axi-lite": "axi-lite",
