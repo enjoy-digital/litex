@@ -2837,6 +2837,13 @@ class LiteXSoC(SoC):
         map_dma_irqs                  = True,
         auto_map_msi_irqs             = True,
         with_ptm                      = False):
+        csr_origin = self.mem_map.get("csr", None)
+        if csr_origin is None and "csr" in self.bus.regions:
+            csr_origin = self.bus.regions["csr"].origin
+        if csr_origin is None:
+            self.logger.error("PCIe requires CSR main-bus origin to be defined.")
+            raise SoCError()
+
         # Imports
         from litepcie.phy.uspciephy import USPCIEPHY
         from litepcie.phy.usppciephy import USPPCIEPHY
@@ -2870,7 +2877,7 @@ class LiteXSoC(SoC):
 
         # MMAP.
         self.check_if_exists(f"{name}_mmap")
-        mmap = LitePCIeWishboneMaster(endpoint, base_address=self.mem_map["csr"])
+        mmap = LitePCIeWishboneMaster(endpoint, base_address=csr_origin)
         self.add_module(name=f"{name}_mmap", module=mmap)
         self.bus.add_master(name=f"{name}_mmap", master=mmap.wishbone)
 
