@@ -647,6 +647,24 @@ class TestSoC(unittest.TestCase):
         with _assert_raises_soc_error(self):
             soc.add_ethernet(with_timestamp=True)
 
+    def test_spi_flash_rejects_invalid_clock_before_imports(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_spi_flash(clk_freq=0)
+
+    def test_spi_flash_requires_module_without_custom_phy(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_spi_flash()
+
+    def test_spi_ram_requires_module(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_spi_ram()
+
 
 if __name__ == "__main__":
     unittest.main()

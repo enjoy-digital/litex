@@ -2428,16 +2428,26 @@ class LiteXSoC(SoC):
 
     # Add SPI Flash --------------------------------------------------------------------------------
     def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=20e6, module=None, phy=None, rate="1:1", software_debug=False, number=None, **kwargs):
-        # Imports.
-        from litespi import LiteSPI
-        from litespi.phy.generic import LiteSPIPHY
-        from litespi.opcodes import SpiNorFlashOpCodes
-
         # Checks/Parameters.
         if mode not in ["1x", "4x"]:
             self.logger.error("SPI {} {}: must be \"1x\" or \"4x\".".format(
                 colorer("mode"), colorer(mode, color="red")))
             raise SoCError()
+        if clk_freq <= 0:
+            self.logger.error("SPI {} {}: must be positive.".format(
+                colorer("clk_freq"), colorer(clk_freq, color="red")))
+            raise SoCError()
+        if phy is None and module is None:
+            self.logger.error("SPI flash requires {} when no PHY is provided.".format(
+                colorer("module", color="red")))
+            raise SoCError()
+
+        # Imports.
+        from litespi import LiteSPI
+        from litespi.phy.generic import LiteSPIPHY
+        from litespi.opcodes import SpiNorFlashOpCodes
+
+        # Parameters.
         default_divisor = math.ceil(self.sys_clk_freq/clk_freq)
         if rate == "1:1":
             default_divisor += default_divisor % 2 # Round up to nearest even number.
@@ -2460,6 +2470,10 @@ class LiteXSoC(SoC):
         self.add_module(name=name, module=spiflash)
 
         if hasattr(spiflash, "mmap"):
+            if module is None:
+                self.logger.error("SPI flash memory mapping requires {}.".format(
+                    colorer("module", color="red")))
+                raise SoCError()
             spiflash_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size, mode=spiflash.bus.mode + "x")
             self.bus.add_slave(name=name, slave=spiflash.bus, region=spiflash_region, strip_origin=True)
 
@@ -2488,16 +2502,26 @@ class LiteXSoC(SoC):
         l2_cache_reverse        = False,
         l2_cache_full_memory_we = True,
         **kwargs):
-        # Imports.
-        from litespi import LiteSPI
-        from litespi.phy.generic import LiteSPIPHY
-        from litespi.opcodes import SpiNorFlashOpCodes
-
         # Checks/Parameters.
         if mode not in ["1x", "4x"]:
             self.logger.error("SPI {} {}: must be \"1x\" or \"4x\".".format(
                 colorer("mode"), colorer(mode, color="red")))
             raise SoCError()
+        if clk_freq <= 0:
+            self.logger.error("SPI {} {}: must be positive.".format(
+                colorer("clk_freq"), colorer(clk_freq, color="red")))
+            raise SoCError()
+        if module is None:
+            self.logger.error("SPI RAM requires {}.".format(
+                colorer("module", color="red")))
+            raise SoCError()
+
+        # Imports.
+        from litespi import LiteSPI
+        from litespi.phy.generic import LiteSPIPHY
+        from litespi.opcodes import SpiNorFlashOpCodes
+
+        # Parameters.
         default_divisor = math.ceil(self.sys_clk_freq/clk_freq)
         if rate == "1:1":
             default_divisor += default_divisor % 2 # Round up to nearest even number.
