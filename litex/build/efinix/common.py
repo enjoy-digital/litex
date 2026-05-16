@@ -296,9 +296,11 @@ class EfinixDifferentialInput:
 # Efinix DDRTristate -------------------------------------------------------------------------------
 
 class EfinixTrionDDRTristateImpl(LiteXModule):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, i_async):
         assert oe2 is None
         assert_is_signal_or_clocksignal(clk)
+        if i_async is not None and (i1 is not None or i2 is not None):
+            raise ValueError("Efinix DDRTristate i_async cannot be combined with registered inputs")
         platform     = LiteXContext.platform
         if len(io) == 1:
             io_name      = platform.get_pin_name(io)
@@ -326,6 +328,9 @@ class EfinixTrionDDRTristateImpl(LiteXModule):
             self.comb += i2.eq(io_data_o_l)
         else:
             io_prop.append(("IN_LO_PIN", ""))
+        if i_async is not None:
+            io_data_o    = platform.add_iface_io(io_name + "_IN", len(io))
+            self.comb += i_async.eq(io_data_o)
         block = {
             "type"           : "GPIO",
             "mode"           : "INOUT",
@@ -348,9 +353,11 @@ class EfinixTrionDDRTristateImpl(LiteXModule):
         platform.toolchain.excluded_ios.append(platform.get_pin(io))
 
 class EfinixTitaniumDDRTristateImpl(LiteXModule):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, i_async):
         assert oe2 is None
         assert_is_signal_or_clocksignal(clk)
+        if i_async is not None and (i1 is not None or i2 is not None):
+            raise ValueError("Efinix DDRTristate i_async cannot be combined with registered inputs")
         platform     = LiteXContext.platform
         if len(io) == 1:
             io_name      = platform.get_pin_name(io)
@@ -377,6 +384,9 @@ class EfinixTitaniumDDRTristateImpl(LiteXModule):
             self.comb += i2.eq(io_data_o_l)
         else:
             io_prop.append(("IN_LO_PIN", ""))
+        if i_async is not None:
+            io_data_o    = platform.add_iface_io(io_name + "_IN", len(io))
+            self.comb += i_async.eq(io_data_o)
         block = {
             "type"           : "GPIO",
             "mode"           : "INOUT",
@@ -402,14 +412,16 @@ class EfinixDDRTristate:
     @staticmethod
     def lower(dr):
         if LiteXContext.platform.family == "Trion":
-            return EfinixTrionDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
+            return EfinixTrionDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.i_async)
         else:
-            return EfinixTitaniumDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
+            return EfinixTitaniumDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.i_async)
 
 class EfinixDDRResyncTristateImpl(LiteXModule):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, i_async):
         assert oe2 is None
         assert_is_signal_or_clocksignal(clk)
+        if i_async is not None and (i1 is not None or i2 is not None):
+            raise ValueError("Efinix DDRTristate i_async cannot be combined with registered inputs")
         platform     = LiteXContext.platform
         if len(io) == 1:
             io_name      = platform.get_pin_name(io)
@@ -436,6 +448,9 @@ class EfinixDDRResyncTristateImpl(LiteXModule):
             self.comb += i2.eq(io_data_o_l)
         else:
             io_prop.append(("IN_LO_PIN", ""))
+        if i_async is not None:
+            io_data_o    = platform.add_iface_io(io_name + "_IN", len(io))
+            self.comb += i_async.eq(io_data_o)
         block = {
             "type"           : "GPIO",
             "mode"           : "INOUT",
@@ -460,7 +475,7 @@ class EfinixDDRResyncTristateImpl(LiteXModule):
 class EfinixDDRResyncTristate(DDRTristate):
     @staticmethod
     def lower(dr):
-        return EfinixDDRResyncTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
+        return EfinixDDRResyncTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.i_async)
 
 # Efinix SDRTristate -------------------------------------------------------------------------------
 

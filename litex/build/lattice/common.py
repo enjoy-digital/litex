@@ -363,22 +363,25 @@ class LatticeNXDDROutput:
 # NX DDR Tristate ----------------------------------------------------------------------------------
 
 class LatticeNXDDRTristateImpl(Module):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, i_async):
         assert oe2 is None
         _o  = Signal().like(o1)
         _oe = Signal().like(oe1)
-        _i  = Signal().like(_o) if i1 is not None and i2 is not None else None
+        _i  = Signal().like(_o) if (i1 is not None and i2 is not None) or i_async is not None else None
         self.specials += DDROutput(o1, o2, _o, clk)
         self.specials += SDROutput(oe1, _oe, clk)
         if _i is not None:
-            self.specials += DDRInput(_i, i1, i2, clk)
+            if i1 is not None and i2 is not None:
+                self.specials += DDRInput(_i, i1, i2, clk)
+            if i_async is not None:
+                self.comb += i_async.eq(_i)
         self.specials += Tristate(io, _o, _oe, _i)
         _oe.attr.add("syn_useioff")
 
 class LatticeNXDDRTristate:
     @staticmethod
     def lower(dr):
-        return LatticeNXDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
+        return LatticeNXDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.i_async)
 
 # NX Special Overrides -----------------------------------------------------------------------------
 

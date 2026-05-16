@@ -2,6 +2,7 @@ import unittest
 
 from migen import *
 
+from litex.build.efinix.common import EfinixTrionDDRTristateImpl
 from litex.build.gowin.common import gowin_special_overrides
 from litex.build.io import (
     DDRInput,
@@ -10,6 +11,7 @@ from litex.build.io import (
     SDROutput,
     SDRTristate,
 )
+from litex.build.lattice.common import lattice_NX_special_overrides
 from litex.build.xilinx.platform import XilinxUSPlatform
 from litex.gen.fhdl import verilog
 
@@ -95,6 +97,39 @@ class TestBuildIO(unittest.TestCase):
         ))
         self.assertEqual(v.count("\nIDDR IDDR"), 4)
         self.assertEqual(v.count("\nODDR ODDR"), 4)
+
+    def test_lattice_nx_ddr_tristate_preserves_i_async(self):
+        dut = Module()
+        io      = Signal(2)
+        o1      = Signal(2)
+        o2      = Signal(2)
+        oe      = Signal(2)
+        i_async = Signal(2)
+        clk     = Signal()
+
+        dut.specials += DDRTristate(io, o1, o2, oe, clk=clk, i_async=i_async)
+
+        v = str(verilog.convert(
+            dut,
+            ios               = {io, o1, o2, oe, i_async, clk},
+            special_overrides = lattice_NX_special_overrides,
+        ))
+        self.assertIn("output wire    [1:0] i_async", v)
+        self.assertIn("assign i_async =", v)
+
+    def test_efinix_ddr_tristate_rejects_i_async_with_registered_inputs(self):
+        with self.assertRaisesRegex(ValueError, "i_async"):
+            EfinixTrionDDRTristateImpl(
+                io      = Signal(2),
+                o1      = Signal(2),
+                o2      = Signal(2),
+                oe1     = Signal(2),
+                oe2     = None,
+                i1      = Signal(2),
+                i2      = Signal(2),
+                clk     = Signal(),
+                i_async = Signal(2),
+            )
 
 
 if __name__ == "__main__":
