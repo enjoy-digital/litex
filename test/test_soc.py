@@ -579,6 +579,15 @@ class TestSoC(unittest.TestCase):
         self.assertEqual(soc.csr.address_map("timer0", origin=True), 0)
         self.assertEqual(soc.get_csr_address("timer0"), soc.mem_map["csr"])
 
+    def test_mem_map_is_instance_local(self):
+        soc0 = SoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc1 = SoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        soc0.mem_map["scratch"] = 0x20000000
+
+        self.assertNotIn("scratch", soc1.mem_map)
+        self.assertNotIn("scratch", SoC.mem_map)
+
     def test_bios_requirements_check_required_csr_and_regions(self):
         soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
 

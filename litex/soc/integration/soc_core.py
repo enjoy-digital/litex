@@ -135,6 +135,10 @@ class SoCCore(LiteXSoC):
         # Others.
         **kwargs):
 
+        self.csr_map       = dict(self.csr_map)
+        self.interrupt_map = dict(self.interrupt_map)
+        self.mem_map       = dict(self.mem_map)
+
         # New LiteXSoC class -----------------------------------------------------------------------
         LiteXSoC.__init__(self, platform, clk_freq,
             bus_standard         = bus_standard,
