@@ -641,6 +641,12 @@ class TestSoC(unittest.TestCase):
         self.assertIn("LitePCIeMSIX(endpoint=endpoint,", source)
         self.assertNotIn("self.pcie_endpoint", source)
 
+    def test_ethernet_timestamp_requires_timer0(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_ethernet(with_timestamp=True)
+
 
 if __name__ == "__main__":
     unittest.main()

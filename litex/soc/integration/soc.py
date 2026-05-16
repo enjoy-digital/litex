@@ -2133,6 +2133,16 @@ class LiteXSoC(SoC):
         local_ip                = None,
         remote_ip               = None,
         mac_address             = None):
+        if with_timestamp and not hasattr(self, "timer0"):
+            self.logger.error("Ethernet timestamping requires {}.".format(
+                colorer("timer0", color="red")))
+            raise SoCError()
+        if with_timestamp and not hasattr(self.timer0, "add_uptime"):
+            self.logger.error("Ethernet timestamping requires {} to expose {}.".format(
+                colorer("timer0", color="red"),
+                colorer("add_uptime", color="red")))
+            raise SoCError()
+
         # Imports
         from liteeth.mac import LiteEthMAC
         from liteeth.phy.model import LiteEthPHYModel
