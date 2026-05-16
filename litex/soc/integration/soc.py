@@ -43,6 +43,15 @@ def build_time(with_time=True, utc=False):
         return datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc).strftime(fmt)
     return datetime.datetime.fromtimestamp(timestamp).strftime(fmt)
 
+def parse_video_timing_resolution(timings):
+    timing = timings if isinstance(timings, str) else timings[0]
+    try:
+        resolution = timing.split("@", 1)[0]
+        hres, vres = resolution.split("x", 1)
+        return timing, int(hres), int(vres)
+    except (AttributeError, ValueError) as e:
+        raise ValueError("Video timings must use '<hres>x<vres>@...' format.") from e
+
 def add_ip_address_constants(soc, name, ip_address, check_duplicate=True):
     _ip_address = ip_address.split(".")
     if len(_ip_address) != 4:
@@ -3021,6 +3030,11 @@ class LiteXSoC(SoC):
             self.logger.error("Video terminal requires {} peripheral.".format(
                 colorer("uart", color="red")))
             raise SoCError()
+        try:
+            _, hres, vres = parse_video_timing_resolution(timings)
+        except ValueError as e:
+            self.logger.error(str(e))
+            raise SoCError() from e
 
         # Imports.
         from litex.soc.cores.video import VideoTimingGenerator, VideoTerminal
@@ -3032,10 +3046,9 @@ class LiteXSoC(SoC):
         self.add_module(name=f"{name}_vtg", module=vtg)
 
         # Video Terminal.
-        timings = timings if isinstance(timings, str) else timings[0]
         vt = VideoTerminal(
-            hres = int(timings.split("@")[0].split("x")[0]),
-            vres = int(timings.split("@")[0].split("x")[1]),
+            hres = hres,
+            vres = vres,
             with_extended_csi = with_extended_csi,
             visible_cols      = visible_cols,
         )
@@ -3063,6 +3076,11 @@ class LiteXSoC(SoC):
             self.logger.error("Video framebuffer requires {}.".format(
                 colorer("sdram", color="red")))
             raise SoCError()
+        try:
+            _, hres, vres = parse_video_timing_resolution(timings)
+        except ValueError as e:
+            self.logger.error(str(e))
+            raise SoCError() from e
 
         # Imports.
         from litex.soc.cores.video import VideoTimingGenerator, VideoFrameBuffer
@@ -3073,7 +3091,6 @@ class LiteXSoC(SoC):
         self.add_module(name=f"{name}_vtg", module=vtg)
 
         # Video FrameBuffer.
-        timings = timings if isinstance(timings, str) else timings[0]
         base = self.mem_map.get(name, None)
         if base is None:
             self.bus.add_region(name, SoCRegion(
@@ -3082,8 +3099,6 @@ class LiteXSoC(SoC):
                 linker = True)
             )
             base = self.bus.regions[name].origin
-        hres = int(timings.split("@")[0].split("x")[0])
-        vres = int(timings.split("@")[0].split("x")[1])
         vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
             hres                  = hres,
             vres                  = vres,

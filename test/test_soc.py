@@ -26,6 +26,7 @@ from litex.soc.integration.soc import (
     add_ip_address_constants,
     add_mac_address_constants,
     build_time,
+    parse_video_timing_resolution,
 )
 
 
@@ -109,6 +110,18 @@ class TestSoCAddressConstants(unittest.TestCase):
             add_mac_address_constants(_ConstantCollector(), "MAC", "10:e2:d5:00:00:zz")
         with self.assertRaisesRegex(ValueError, "48 bits"):
             add_mac_address_constants(_ConstantCollector(), "MAC", 2**48)
+
+
+class TestSoCVideoTiming(unittest.TestCase):
+    def test_video_timing_resolution_parses_string_and_tuple_forms(self):
+        self.assertEqual(parse_video_timing_resolution("800x600@60Hz"), ("800x600@60Hz", 800, 600))
+        self.assertEqual(parse_video_timing_resolution(("1024x768@75Hz", "ignored")), ("1024x768@75Hz", 1024, 768))
+
+    def test_invalid_video_timing_resolution_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "<hres>x<vres>@"):
+            parse_video_timing_resolution("800@60Hz")
+        with self.assertRaisesRegex(ValueError, "<hres>x<vres>@"):
+            parse_video_timing_resolution("wide x high")
 
 
 class TestSoCRegion(unittest.TestCase):
@@ -702,11 +715,25 @@ class TestSoC(unittest.TestCase):
         with _assert_raises_soc_error(self):
             soc.add_video_terminal()
 
+    def test_video_terminal_rejects_bad_timing_before_imports(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.uart = SimpleNamespace()
+
+        with _assert_raises_soc_error(self):
+            soc.add_video_terminal(timings="800@60Hz")
+
     def test_video_framebuffer_requires_sdram(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
 
         with _assert_raises_soc_error(self):
             soc.add_video_framebuffer()
+
+    def test_video_framebuffer_rejects_bad_timing_before_imports(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.sdram = SimpleNamespace()
+
+        with _assert_raises_soc_error(self):
+            soc.add_video_framebuffer(timings="800@60Hz")
 
     def test_sata_requires_phy_before_imports(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
