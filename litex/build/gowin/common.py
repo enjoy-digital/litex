@@ -40,12 +40,13 @@ class GowinAsyncResetSynchronizer:
 
 class GowinDDRInputImpl(Module):
     def __init__(self, i, o1, o2, clk):
-        self.specials += Instance("IDDR",
-            i_CLK = clk,
-            i_D   = i,
-            o_Q0  = o1,
-            o_Q1  = o2,
-        )
+        for j in range(len(i)):
+            self.specials += Instance("IDDR",
+                i_CLK = clk,
+                i_D   = i[j],
+                o_Q0  = o1[j],
+                o_Q1  = o2[j],
+            )
 
 class GowinDDRInput:
     @staticmethod
@@ -56,14 +57,15 @@ class GowinDDRInput:
 
 class GowinDDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
-        self.specials += Instance("ODDR",
-            i_CLK = clk,
-            i_D0  = i1,
-            i_D1  = i2,
-            i_TX  = 0,
-            o_Q0  = o,
-            o_Q1  = Open(),
-        )
+        for j in range(len(o)):
+            self.specials += Instance("ODDR",
+                i_CLK = clk,
+                i_D0  = i1[j],
+                i_D1  = i2[j],
+                i_TX  = 0,
+                o_Q0  = o[j],
+                o_Q1  = Open(),
+            )
 
 class GowinDDROutput:
     @staticmethod

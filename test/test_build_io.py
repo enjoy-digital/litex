@@ -2,6 +2,7 @@ import unittest
 
 from migen import *
 
+from litex.build.gowin.common import gowin_special_overrides
 from litex.build.io import (
     DDRInput,
     DDROutput,
@@ -71,6 +72,29 @@ class TestBuildIO(unittest.TestCase):
 
         v = str(platform.get_verilog(dut, ios={i1, i2, o, clk}))
         self.assertIn("ODDRE1", v)
+
+    def test_gowin_ddr_primitives_are_lowered_per_bit(self):
+        dut = Module()
+        i   = Signal(4)
+        o1  = Signal(4)
+        o2  = Signal(4)
+        i1  = Signal(4)
+        i2  = Signal(4)
+        o   = Signal(4)
+        clk = Signal()
+
+        dut.specials += [
+            DDRInput(i, o1, o2, clk),
+            DDROutput(i1, i2, o, clk),
+        ]
+
+        v = str(verilog.convert(
+            dut,
+            ios               = {i, o1, o2, i1, i2, o, clk},
+            special_overrides = gowin_special_overrides,
+        ))
+        self.assertEqual(v.count("\nIDDR IDDR"), 4)
+        self.assertEqual(v.count("\nODDR ODDR"), 4)
 
 
 if __name__ == "__main__":
