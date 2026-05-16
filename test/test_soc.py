@@ -683,6 +683,18 @@ class TestSoC(unittest.TestCase):
         with _assert_raises_soc_error(self):
             soc.add_video_framebuffer()
 
+    def test_sata_requires_phy_before_imports(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_sata()
+
+    def test_sata_rejects_unknown_phy_generation_before_imports(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_sata(phy=SimpleNamespace(gen="gen4"))
+
 
 if __name__ == "__main__":
     unittest.main()

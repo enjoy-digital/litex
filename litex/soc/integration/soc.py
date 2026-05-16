@@ -2705,6 +2705,21 @@ class LiteXSoC(SoC):
 
     # Add SATA -------------------------------------------------------------------------------------
     def add_sata(self, name="sata", phy=None, mode="read+write", with_identify=True, with_bist=False, with_irq=True):
+        # Checks.
+        if phy is None:
+            self.logger.error("SATA requires {}.".format(
+                colorer("phy", color="red")))
+            raise SoCError()
+        sata_clk_freqs = {
+            "gen1":  75e6,
+            "gen2": 150e6,
+            "gen3": 300e6,
+        }
+        if getattr(phy, "gen", None) not in sata_clk_freqs:
+            self.logger.error("SATA {} {}: must be \"gen1\", \"gen2\" or \"gen3\".".format(
+                colorer("phy.gen"), colorer(getattr(phy, "gen", None), color="red")))
+            raise SoCError()
+
         # Imports.
         from litesata.core                 import LiteSATACore
         from litesata.frontend.arbitration import LiteSATACrossbar
@@ -2712,7 +2727,6 @@ class LiteXSoC(SoC):
         from litesata.frontend.bist        import LiteSATABIST
         from litesata.frontend.dma         import LiteSATASector2MemDMA, LiteSATAMem2SectorDMA
 
-        # Checks.
         if mode not in ["read", "write", "read+write"]:
             self.logger.error("SATA {} {}: must be \"read\", \"write\" or \"read+write\".".format(
                 colorer("mode"), colorer(mode, color="red")))
@@ -2720,11 +2734,6 @@ class LiteXSoC(SoC):
         # required sys_clk = line_rate / bus.data_width; line_rate = sata_clk_freq * 16
         # (sata_clk_freqs entries are 16-bit phy clocks). At bus.data_width=32 this is
         # sata_clk_freq/2, matching the prior hardcoded check.
-        sata_clk_freqs = {
-            "gen1":  75e6,
-            "gen2": 150e6,
-            "gen3": 300e6,
-        }
         sata_clk_freq    = sata_clk_freqs[phy.gen]
         required_sys_clk = sata_clk_freq * 16 / self.bus.data_width
         if self.clk_freq < required_sys_clk:
