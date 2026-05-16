@@ -1299,8 +1299,13 @@ class SoC(LiteXModule):
         if contents is None:
             contents = []
         # RAM Parameters.
-        ram        = getattr(self, name)
-        ram_region = self.bus.regions[name]
+        ram        = getattr(self, name, None)
+        ram_region = self.bus.regions.get(name, None)
+        if ram is None or ram_region is None:
+            self.logger.error("RAM {} {}.".format(
+                colorer(name, color="red"),
+                colorer("not found", color="red")))
+            raise SoCError()
         ram_type   = "ROM" if ram_region.is_rom else "RAM"
         contents_size = (self.bus.data_width // 8) * len(contents)
 

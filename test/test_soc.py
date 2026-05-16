@@ -619,6 +619,12 @@ class TestSoC(unittest.TestCase):
         self.assertNotIn("scratch", soc1.mem_map)
         self.assertNotIn("scratch", SoC.mem_map)
 
+    def test_init_ram_rejects_unknown_name(self):
+        soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.init_ram("missing", contents=[0])
+
     def test_bios_requirements_check_required_csr_and_regions(self):
         soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
 
