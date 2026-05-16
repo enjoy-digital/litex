@@ -2649,6 +2649,12 @@ class LiteXSoC(SoC):
 
     # Add SDCard -----------------------------------------------------------------------------------
     def add_sdcard(self, name="sdcard", sdcard_name="sdcard", software_debug=False, **kwargs):
+        mode = kwargs.get("mode", "read+write")
+        if mode not in ["read", "write", "read+write"]:
+            self.logger.error("SDCard {} {}: must be \"read\", \"write\" or \"read+write\".".format(
+                colorer("mode"), colorer(mode, color="red")))
+            raise SoCError()
+
         # Imports.
         from litesdcard.emulator import SDEmulator
         from litesdcard.phy import SDPHY
@@ -2657,12 +2663,6 @@ class LiteXSoC(SoC):
 
         class LiteSDCard(LiteXModule):
             def __init__(self, soc, name="sdcard", mode="read+write", use_emulator=False):
-                # Checks.
-                if mode not in ["read", "write", "read+write"]:
-                    soc.logger.error("SDCard {} {}: must be \"read\", \"write\" or \"read+write\".".format(
-                        colorer("mode"), colorer(mode, color="red")))
-                    raise SoCError()
-
                 # Emulator / Pads.
                 if use_emulator:
                     self.sdemulator = SDEmulator(soc.platform)

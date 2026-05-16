@@ -729,6 +729,12 @@ class TestSoC(unittest.TestCase):
         with _assert_raises_soc_error(self):
             soc.add_spi_sdcard(spi_clk_freq=0)
 
+    def test_sdcard_rejects_invalid_mode_before_imports(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_sdcard(mode="erase")
+
 
 if __name__ == "__main__":
     unittest.main()
