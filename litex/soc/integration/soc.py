@@ -1891,12 +1891,21 @@ class LiteXSoC(SoC):
 
     # Add UARTBone ---------------------------------------------------------------------------------
     def add_uartbone(self, name="uartbone", uart_name="serial", clk_freq=None, baudrate=115200, cd="sys", with_dynamic_baudrate=False):
+        if clk_freq is None:
+            clk_freq = self.sys_clk_freq
+        if clk_freq <= 0:
+            self.logger.error("UARTBone {} {}: must be positive.".format(
+                colorer("clk_freq"), colorer(clk_freq, color="red")))
+            raise SoCError()
+        if baudrate <= 0:
+            self.logger.error("UARTBone {} {}: must be positive.".format(
+                colorer("baudrate"), colorer(baudrate, color="red")))
+            raise SoCError()
+
         # Imports.
         from litex.soc.cores import uart
 
         # Core.
-        if clk_freq is None:
-            clk_freq = self.sys_clk_freq
         self.check_if_exists(name)
         uartbone_phy = uart.UARTPHY(self.platform.request(uart_name), clk_freq, baudrate, with_dynamic_baudrate=with_dynamic_baudrate)
         uartbone     = uart.UARTBone(
@@ -2585,6 +2594,11 @@ class LiteXSoC(SoC):
 
     # Add SPI SDCard -------------------------------------------------------------------------------
     def add_spi_sdcard(self, name="spisdcard", spi_clk_freq=400e3, with_tristate=False, software_debug=False):
+        if spi_clk_freq <= 0:
+            self.logger.error("SPI SDCard {} {}: must be positive.".format(
+                colorer("spi_clk_freq"), colorer(spi_clk_freq, color="red")))
+            raise SoCError()
+
         # Imports.
         from migen.fhdl.specials import Tristate
         from litex.soc.cores.spi import SPIMaster

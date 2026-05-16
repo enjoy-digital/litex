@@ -695,6 +695,24 @@ class TestSoC(unittest.TestCase):
         with _assert_raises_soc_error(self):
             soc.add_sata(phy=SimpleNamespace(gen="gen4"))
 
+    def test_uartbone_rejects_invalid_clock_before_imports(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_uartbone(clk_freq=0)
+
+    def test_uartbone_rejects_invalid_baudrate_before_imports(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_uartbone(baudrate=0)
+
+    def test_spi_sdcard_rejects_invalid_clock_before_imports(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_spi_sdcard(spi_clk_freq=0)
+
 
 if __name__ == "__main__":
     unittest.main()
