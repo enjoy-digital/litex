@@ -653,6 +653,18 @@ class TestSoC(unittest.TestCase):
         with _assert_raises_soc_error(self):
             soc.add_ethernet(with_timestamp=True)
 
+    def test_ethernet_requires_phy_before_imports(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_ethernet()
+
+    def test_etherbone_requires_phy_before_imports(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_etherbone()
+
     def test_spi_flash_rejects_invalid_clock_before_imports(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
 

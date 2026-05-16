@@ -2142,6 +2142,10 @@ class LiteXSoC(SoC):
         local_ip                = None,
         remote_ip               = None,
         mac_address             = None):
+        if phy is None:
+            self.logger.error("Ethernet requires {}.".format(
+                colorer("phy", color="red")))
+            raise SoCError()
         if with_timestamp and not hasattr(self, "timer0"):
             self.logger.error("Ethernet timestamping requires {}.".format(
                 colorer("timer0", color="red")))
@@ -2270,6 +2274,10 @@ class LiteXSoC(SoC):
         with_igmp               = False,
         igmp_groups             = None,
         igmp_interval           = 10):
+        if phy is None:
+            self.logger.error("Etherbone requires {}.".format(
+                colorer("phy", color="red")))
+            raise SoCError()
 
         # Imports
         from liteeth.core import LiteEthUDPIPCore
