@@ -59,6 +59,14 @@ class SoCCore(LiteXSoC):
         "main_ram" : 0x40000000,
     }
 
+    def _get_mem_map_origin(self, name):
+        origin = self.mem_map.get(name, None)
+        if origin is None:
+            self.logger.error("Memory region {} origin is not defined in mem_map.".format(
+                colorer(name, color="red")))
+            raise SoCError()
+        return origin
+
     def __init__(self, platform, clk_freq,
         # Bus parameters.
         bus_standard               = "wishbone",
@@ -232,7 +240,7 @@ class SoCCore(LiteXSoC):
         # Add integrated SRAM.
         if integrated_sram_size:
             self.add_ram(name="sram",
-                origin   = self.mem_map["sram"],
+                origin   = self._get_mem_map_origin("sram"),
                 size     = integrated_sram_size,
                 contents = integrated_sram_init,
             )
@@ -240,7 +248,7 @@ class SoCCore(LiteXSoC):
         # Add integrated MAIN_RAM (only useful when no external SRAM/SDRAM is available).
         if integrated_main_ram_size:
             self.add_ram(name="main_ram",
-                origin   = self.mem_map["main_ram"],
+                origin   = self._get_mem_map_origin("main_ram"),
                 size     = integrated_main_ram_size,
                 contents = integrated_main_ram_init,
             )

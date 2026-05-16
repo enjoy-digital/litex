@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import inspect
+import logging
 import os
 import sys
 import unittest
@@ -28,6 +29,7 @@ from litex.soc.integration.soc import (
     build_time,
     parse_video_timing_resolution,
 )
+from litex.soc.integration.soc_core import SoCCore
 
 
 @contextmanager
@@ -624,6 +626,16 @@ class TestSoC(unittest.TestCase):
 
         self.assertNotIn("scratch", soc1.mem_map)
         self.assertNotIn("scratch", SoC.mem_map)
+
+    def test_soc_core_rejects_missing_integrated_memory_origin(self):
+        soc = SoCCore.__new__(SoCCore)
+        soc.logger = logging.getLogger("SoC")
+        soc.mem_map = {"main_ram": 0x40000000}
+
+        self.assertEqual(soc._get_mem_map_origin("main_ram"), 0x40000000)
+
+        with _assert_raises_soc_error(self):
+            soc._get_mem_map_origin("sram")
 
     def test_init_ram_rejects_unknown_name(self):
         soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
