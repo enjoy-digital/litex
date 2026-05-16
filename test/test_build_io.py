@@ -2,9 +2,12 @@ import unittest
 
 from migen import *
 
+from litex.build.altera.common import altera_special_overrides
+from litex.build.colognechip.common import colognechip_special_overrides
 from litex.build.efinix.common import EfinixTrionDDRTristateImpl
-from litex.build.gowin.common import gowin_special_overrides
+from litex.build.gowin.common import gowin_special_overrides, gw5a_special_overrides
 from litex.build.io import (
+    ClkInput,
     ClkOutput,
     DDRInput,
     DDROutput,
@@ -17,12 +20,97 @@ from litex.build.io import (
     InferredDDRTristate,
     InferredSDRIO,
     InferredSDRTristate,
+    SDRInput,
     SDROutput,
     SDRTristate,
 )
-from litex.build.lattice.common import lattice_NX_special_overrides
+from litex.build.lattice.common import (
+    lattice_NX_special_overrides,
+    lattice_ecp5_trellis_special_overrides,
+    lattice_ice40_special_overrides,
+)
+from litex.build.sim.common import sim_special_overrides
+from litex.build.xilinx.common import (
+    xilinx_s7_special_overrides,
+    xilinx_special_overrides,
+)
 from litex.build.xilinx.platform import XilinxUSPlatform
 from litex.gen.fhdl import verilog
+
+
+def _merge_overrides(*overrides):
+    merged = {}
+    for override in overrides:
+        merged.update(override)
+    return merged
+
+
+IO_OVERRIDE_MATRIX = {
+    "altera"        : altera_special_overrides,
+    "colognechip"  : colognechip_special_overrides,
+    "gowin"        : gowin_special_overrides,
+    "gw5a"         : _merge_overrides(gowin_special_overrides, gw5a_special_overrides),
+    "lattice-ecp5" : lattice_ecp5_trellis_special_overrides,
+    "lattice-ice40": lattice_ice40_special_overrides,
+    "lattice-nx"   : lattice_NX_special_overrides,
+    "sim"          : sim_special_overrides,
+    "xilinx-s7"    : _merge_overrides(xilinx_special_overrides, xilinx_s7_special_overrides),
+}
+
+
+def _convert_special(special, ios, overrides):
+    dut = Module()
+    dut.specials += special
+    return str(verilog.convert(dut, ios=ios, special_overrides=overrides))
+
+
+def _io_primitive_cases():
+    clk = Signal()
+
+    i_p = Signal()
+    i_n = Signal()
+    o   = Signal()
+    yield "diff-input", DifferentialInput(i_p, i_n, o), {i_p, i_n, o}
+
+    i   = Signal()
+    o_p = Signal()
+    o_n = Signal()
+    yield "diff-output", DifferentialOutput(i, o_p, o_n), {i, o_p, o_n}
+
+    i = Signal(2)
+    o = Signal(2)
+    yield "sdr-input", SDRInput(i, o, clk), {i, o, clk}
+
+    i = Signal(2)
+    o = Signal(2)
+    yield "sdr-output", SDROutput(i, o, clk), {i, o, clk}
+
+    i = Signal(2)
+    o1 = Signal(2)
+    o2 = Signal(2)
+    yield "ddr-input", DDRInput(i, o1, o2, clk), {i, o1, o2, clk}
+
+    i1 = Signal(2)
+    i2 = Signal(2)
+    o = Signal(2)
+    yield "ddr-output", DDROutput(i1, i2, o, clk), {i1, i2, o, clk}
+
+    io = Signal(2)
+    o = Signal(2)
+    oe = Signal(2)
+    i = Signal(2)
+    yield "sdr-tristate", SDRTristate(io, o, oe, i, clk), {io, o, oe, i, clk}
+
+    io = Signal(2)
+    o1 = Signal(2)
+    o2 = Signal(2)
+    oe1 = Signal(2)
+    i1 = Signal(2)
+    i2 = Signal(2)
+    i_async = Signal(2)
+    yield "ddr-tristate", DDRTristate(io, o1, o2, oe1, i1=i1, i2=i2, clk=clk, i_async=i_async), {
+        io, o1, o2, oe1, i1, i2, i_async, clk
+    }
 
 
 class TestBuildIO(unittest.TestCase):
@@ -156,6 +244,31 @@ class TestBuildIO(unittest.TestCase):
     def test_clk_output_rejects_string_input(self):
         with self.assertRaisesRegex(ValueError, "ClkOutput input"):
             ClkOutput("sys", Signal())
+
+    def test_io_primitive_override_matrix_converts(self):
+        unsupported = {
+            ("lattice-nx", "diff-input"),
+            ("lattice-nx", "diff-output"),
+            ("sim", "diff-input"),
+            ("sim", "diff-output"),
+        }
+        for vendor, overrides in IO_OVERRIDE_MATRIX.items():
+            for primitive, special, ios in _io_primitive_cases():
+                with self.subTest(vendor=vendor, primitive=primitive):
+                    if (vendor, primitive) in unsupported:
+                        with self.assertRaises(NotImplementedError):
+                            _convert_special(special, ios, overrides)
+                    else:
+                        v = _convert_special(special, ios, overrides)
+                        self.assertIn("module top", v)
+
+    def test_clock_io_is_explicitly_backend_specific(self):
+        clk_i = Signal()
+        clk_o = Signal()
+        with self.assertRaises(NotImplementedError):
+            _convert_special(ClkInput(clk_i, clk_o), {clk_i, clk_o}, {})
+        with self.assertRaises(NotImplementedError):
+            _convert_special(ClkOutput(clk_i, clk_o), {clk_i, clk_o}, {})
 
 
 if __name__ == "__main__":
