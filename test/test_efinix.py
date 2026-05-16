@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import migen
 
 from litex.build.efinix.efinity import EfinityToolchain, _get_design_file_library, build_argdict
+from litex.build.efinix.common import add_gpio_block, gpio_info
 from litex.build.efinix.ifacewriter import InterfaceWriter
 from litex.build.efinix.toolchain import find_efinity_path, load_efinity_env
 from litex.build.generic_toolchain import GenericToolchain
@@ -79,6 +80,52 @@ def test_design_file_library_uses_default_library_for_verilog_languages():
     assert _get_design_file_library("rtl/header.vh", "verilog", "mylib") == "default"
     assert _get_design_file_library("rtl/header.svh", "systemverilog", "mylib") == "default"
     assert _get_design_file_library("core.vhd", "vhdl", "worklib") == "worklib"
+
+
+def test_gpio_info_handles_scalar_and_vector_signals():
+    class Platform:
+        def get_pin_name(self, sig):
+            return "scalar"
+
+        def get_pin_location(self, sig):
+            return ["P1"]
+
+        def get_pins_name(self, sig):
+            return "vector"
+
+        def get_pins_location(self, sig):
+            return ["P1", "P2"]
+
+        def get_pin_properties(self, sig):
+            return [("IO_STANDARD", "3.3_V_LVCMOS")]
+
+    scalar = migen.Signal()
+    vector = migen.Signal(2)
+
+    assert gpio_info(Platform(), scalar) == (
+        "scalar",
+        ["P1"],
+        [("IO_STANDARD", "3.3_V_LVCMOS")],
+    )
+    assert gpio_info(Platform(), vector) == (
+        "vector",
+        ["P1", "P2"],
+        [("IO_STANDARD", "3.3_V_LVCMOS")],
+    )
+
+
+def test_add_gpio_block_tracks_block_and_excluded_io():
+    sig = migen.Signal()
+    block = {"type": "GPIO", "name": "gpio"}
+    platform = SimpleNamespace(
+        toolchain=SimpleNamespace(ifacewriter=SimpleNamespace(blocks=[]), excluded_ios=[]),
+        get_pin=lambda sig: "resolved-pin",
+    )
+
+    add_gpio_block(platform, block, sig)
+
+    assert platform.toolchain.ifacewriter.blocks == [block]
+    assert platform.toolchain.excluded_ios == ["resolved-pin"]
 
 
 def test_generate_seu_emits_wait_interval_for_auto_mode():
