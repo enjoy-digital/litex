@@ -29,8 +29,15 @@ class GowinEMCU(CPU):
     nop                  = "nop"
     io_regions           = {
         # Origin, Length.
-        0x4000_0000 : 0x2000_0000,
-        0xa000_0000 : 0x6000_0000,
+        #
+        # This is part of the APB master, only exposed on the APBTARGEXP2 pins
+        #
+        # NOTE: I guess that it's only 0x4000_2000 - 0x4000_3000, based on Table 3-2 IPUG517 + 4 integrated peripherals
+        #
+        # 0x4000_0000 : 0x0000_1000,
+
+        # This is only 64 kB deep, based on Figure 3-11 in IPUG517 + testing
+        0xa000_0000 : 0x0001_0000,
     }
 
     # Memory Mapping.
