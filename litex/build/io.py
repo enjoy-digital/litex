@@ -8,6 +8,14 @@
 from migen import *
 from migen.fhdl.specials import Special, Tristate
 
+# Helpers ------------------------------------------------------------------------------------------
+
+def _check_widths(name, **signals):
+    widths = {k: len(v) for k, v in signals.items() if v is not None}
+    if len(set(widths.values())) != 1:
+        widths = ", ".join(f"{k}={v}" for k, v in widths.items())
+        raise ValueError(f"{name} signal widths must match ({widths})")
+
 # Differential Input/Output ------------------------------------------------------------------------
 
 class DifferentialInput(Special):
@@ -77,10 +85,16 @@ class ClkOutput(Special):
 # SDR Input/Output ---------------------------------------------------------------------------------
 
 class InferedSDRIO(Module):
+    n = 0
+
     def __init__(self, i, o, clk):
-        self.clock_domains.cd_sdrio = ClockDomain(reset_less=True)
-        self.comb += self.cd_sdrio.clk.eq(clk)
-        self.sync.sdrio += o.eq(i)
+        cd_name = f"sdrio{InferedSDRIO.n}"
+        InferedSDRIO.n += 1
+        cd = ClockDomain(cd_name, reset_less=True)
+        self.clock_domains += cd
+        self.comb += cd.clk.eq(clk)
+        sync = getattr(self.sync, cd_name)
+        sync += o.eq(i)
 
 class SDRIO(Special):
     def __init__(self, i, o, clk=None):
@@ -91,7 +105,7 @@ class SDRIO(Special):
             clk = ClockSignal()
         self.clk          = wrap(clk)
         self.clk_domain   = None if not hasattr(clk, "cd") else clk.cd
-        assert len(self.i) == len(self.o)
+        _check_widths(self.__class__.__name__, i=self.i, o=self.o)
 
     def iter_expressions(self):
         yield self, "i"  , SPECIAL_INPUT
@@ -126,10 +140,7 @@ class SDRTristate(Special):
         self.oe  = wrap(oe)
         self.i   = wrap(i) if i is not None else None
         self.clk = wrap(clk) if clk is not None else ClockSignal()
-        if self.i is not None:
-            assert len(self.i) == len(self.o) == len(self.oe)
-        else:
-            assert len(self.o) == len(self.oe)
+        _check_widths(self.__class__.__name__, io=self.io, o=self.o, oe=self.oe, i=self.i)
 
     def iter_expressions(self):
         yield self, "io" , SPECIAL_INOUT
@@ -154,6 +165,7 @@ class DDRInput(Special):
         if clk is None:
             clk = ClockSignal()
         self.clk = clk if isinstance(clk, str) else wrap(clk)
+        _check_widths(self.__class__.__name__, i=self.i, o1=self.o1, o2=self.o2)
 
     def iter_expressions(self):
         yield self, "i"  , SPECIAL_INPUT
@@ -175,6 +187,7 @@ class DDROutput(Special):
         if clk is None:
             clk = ClockSignal()
         self.clk = clk if isinstance(clk, str) else wrap(clk)
+        _check_widths(self.__class__.__name__, i1=self.i1, i2=self.i2, o=self.o)
 
     def iter_expressions(self):
         yield self, "i1" , SPECIAL_INPUT
@@ -206,15 +219,28 @@ class InferedDDRTristate(Module):
 class DDRTristate(Special):
     def __init__(self, io, o1, o2, oe1, oe2=None, i1=None, i2=None, clk=None, i_async=None):
         Special.__init__(self)
-        self.io      = io
-        self.o1      = o1
-        self.o2      = o2
-        self.oe1     = oe1
-        self.oe2     = oe2
-        self.i1      = i1
-        self.i2      = i2
-        self.clk     = clk     if     clk is not None else ClockSignal()
-        self.i_async = i_async
+        self.io      = wrap(io)
+        self.o1      = wrap(o1)
+        self.o2      = wrap(o2)
+        self.oe1     = wrap(oe1)
+        self.oe2     = wrap(oe2) if oe2 is not None else None
+        self.i1      = wrap(i1) if i1 is not None else None
+        self.i2      = wrap(i2) if i2 is not None else None
+        self.clk     = clk if isinstance(clk, str) else wrap(clk) if clk is not None else ClockSignal()
+        self.i_async = wrap(i_async) if i_async is not None else None
+        if (self.i1 is None) != (self.i2 is None):
+            raise ValueError("DDRTristate i1 and i2 must both be provided or both be omitted")
+        _check_widths(
+            self.__class__.__name__,
+            io      = self.io,
+            o1      = self.o1,
+            o2      = self.o2,
+            oe1     = self.oe1,
+            oe2     = self.oe2,
+            i1      = self.i1,
+            i2      = self.i2,
+            i_async = self.i_async,
+        )
 
     def iter_expressions(self):
         attr_context = [
