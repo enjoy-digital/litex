@@ -610,6 +610,12 @@ class TestSoC(unittest.TestCase):
         self.assertIn("csr", soc.bus.slaves)
         self.assertIn("csr", soc.csr.masters)
 
+    def test_finalize_bus_requires_csr_origin(self):
+        soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc._finalize_bus()
+
     def test_mem_map_is_instance_local(self):
         soc0 = SoC(_FakePlatform(), sys_clk_freq=1e6)
         soc1 = SoC(_FakePlatform(), sys_clk_freq=1e6)

@@ -1623,9 +1623,13 @@ class SoC(LiteXModule):
                 self.comb += If(getattr(self.ctrl, "soc_rst", 0), crg_rst.eq(1))
 
     def _finalize_bus(self):
+        csr_origin = self.mem_map.get("csr", None)
+        if csr_origin is None:
+            self.logger.error("CSR main-bus origin is not defined.")
+            raise SoCError()
         self.add_csr_bridge(
             name          = "csr",
-            origin        = self.mem_map["csr"],
+            origin        = csr_origin,
             with_register = hasattr(self, "sdram"),
         )
 
