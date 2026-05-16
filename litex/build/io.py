@@ -114,12 +114,14 @@ class InferredSDRIO(Module):
 
     n = 0
 
-    def __init__(self, i, o, clk):
-        cd_name = f"sdrio{InferredSDRIO.n}"
-        InferredSDRIO.n += 1
-        cd = ClockDomain(cd_name, reset_less=True)
-        self.clock_domains += cd
-        self.comb += cd.clk.eq(clk)
+    def __init__(self, i, o, clk, clock_domain=None):
+        if clock_domain is None:
+            clock_domain = f"sdrio{InferredSDRIO.n}"
+            InferredSDRIO.n += 1
+            cd = ClockDomain(clock_domain, reset_less=True)
+            self.clock_domains += cd
+            self.comb += cd.clk.eq(clk)
+        cd_name = clock_domain
         sync = getattr(self.sync, cd_name)
         sync += o.eq(i)
 
@@ -144,7 +146,7 @@ class SDRIO(Special):
 
     @staticmethod
     def lower(dr):
-        return InferredSDRIO(dr.i, dr.o, dr.clk)
+        return InferredSDRIO(dr.i, dr.o, dr.clk, dr.clk_domain)
 
 class SDRInput(SDRIO):  pass
 class SDROutput(SDRIO): pass
