@@ -190,26 +190,52 @@ def test_serialboot_abort_recovers_and_loads(tmp_path):
 
     assert is_success
 
-def test_linux_on_litex_rocket_nexys_video_generation(tmp_path):
-    target = _litex_boards_target("digilent_nexys_video.py")
+def _run_linux_on_litex_rocket_generation(target_filename, output_dir, target_args):
+    target = _litex_boards_target(target_filename)
     cmd = [
         sys.executable,
         target,
         "--build",
         "--no-compile",
-        "--output-dir", str(tmp_path),
-        "--cpu-type", "rocket",
-        "--cpu-variant", "linux",
-        "--cpu-num-cores", "4",
-        "--cpu-mem-width", "2",
-        "--sys-clk-freq", "50e6",
-        "--with-ethernet",
-        "--with-sdcard",
-        "--with-sata",
-        "--sata-gen", "1",
+        "--output-dir", str(output_dir),
+        *target_args,
     ]
 
     subprocess.check_call(cmd)
+
+def test_linux_on_litex_rocket_ecpix5_generation(tmp_path):
+    _run_linux_on_litex_rocket_generation(
+        "lambdaconcept_ecpix5.py",
+        tmp_path,
+        [
+            "--cpu-type", "rocket",
+            "--cpu-variant", "linux",
+            "--cpu-num-cores", "1",
+            "--cpu-mem-width", "2",
+            "--sys-clk-freq", "50e6",
+            "--with-ethernet",
+            "--with-sdcard",
+            "--yosys-flow3",
+            "--nextpnr-seed", "1",
+        ],
+    )
+
+def test_linux_on_litex_rocket_nexys_video_generation(tmp_path):
+    _run_linux_on_litex_rocket_generation(
+        "digilent_nexys_video.py",
+        tmp_path,
+        [
+            "--cpu-type", "rocket",
+            "--cpu-variant", "linux",
+            "--cpu-num-cores", "4",
+            "--cpu-mem-width", "2",
+            "--sys-clk-freq", "50e6",
+            "--with-ethernet",
+            "--with-sdcard",
+            "--with-sata",
+            "--sata-gen", "1",
+        ],
+    )
 
 TESTED_CPUS = [
     #"cv32e40p",     # (riscv   / softcore)
