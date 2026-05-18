@@ -8,6 +8,7 @@
 #include <uart.h>
 #include <time.h>
 #include <console.h>
+#include <inttypes.h>
 
 #include <liblitedram/bist.h>
 #include <liblitedram/utils.h>
