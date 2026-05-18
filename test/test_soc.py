@@ -266,6 +266,36 @@ class TestSoCBusHandler(unittest.TestCase):
         self.assertTrue(bus.check_region_is_io(SoCRegion(origin=0x80000f00, size=0x100, cached=False)))
         self.assertFalse(bus.check_region_is_io(SoCRegion(origin=0x80001000, size=0x100, cached=False)))
 
+    def test_io_region_overlap_uses_exact_size(self):
+        bus = SoCBusHandler()
+
+        bus.add_region("io",       SoCIORegion(origin=0x1200_0000, size=0x6e00_0000))
+        bus.add_region("main_ram", SoCRegion(  origin=0x8000_0000, size=0x2000_0000))
+
+    def test_partial_io_region_overlap_is_rejected(self):
+        bus = SoCBusHandler()
+        bus.add_region("io", SoCIORegion(origin=0x1200_0000, size=0x7000_0000))
+
+        with _assert_raises_soc_error(self):
+            bus.add_region("main_ram", SoCRegion(origin=0x8000_0000, size=0x2000_0000))
+
+    def test_rocket_io_regions_do_not_overlap_main_ram(self):
+        from litex.soc.cores.cpu.rocket.core import Rocket
+
+        bus = SoCBusHandler()
+        for n, (origin, size) in enumerate(Rocket.io_regions.items()):
+            bus.add_region(f"io{n}", SoCIORegion(origin=origin, size=size))
+
+        bus.add_region("clint",   SoCRegion(origin=0x0200_0000, size= 0x1_0000, cached=True, linker=True))
+        bus.add_region("plic",    SoCRegion(origin=0x0c00_0000, size=0x40_0000, cached=True, linker=True))
+        bus.add_region("rom",     SoCRegion(origin=0x1000_0000, size=0x02_0000, mode="rx"))
+        bus.add_region("sram",    SoCRegion(origin=0x1100_0000, size=0x00_2000, mode="rwx"))
+        bus.add_region("csr",     SoCRegion(origin=0x1200_0000, size=0x00_1000, cached=False))
+        bus.add_region("ethmac",  SoCRegion(origin=0x3000_0000, size=0x00_2000, cached=False))
+        bus.add_region("mmio_top", SoCRegion(origin=0x7fff_f000, size=0x00_1000, cached=False))
+        bus.add_region("opensbi", SoCRegion(origin=0x8000_0000, size=0x20_0000, cached=True, linker=True))
+        bus.add_region("main_ram", SoCRegion(origin=0x8000_0000, size=0x2000_0000, mode="rwx"))
+
     def test_region_decoder_rejects_misaligned_origin(self):
         bus = SoCBusHandler()
 

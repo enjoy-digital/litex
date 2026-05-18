@@ -395,13 +395,17 @@ class SoCBusHandler(LiteXModule):
                 if r0.linker or r1.linker:
                     if not check_linker:
                         continue
-                if r0.origin >= (r1.origin + r1.size_pow2):
+                if r0.origin >= self._region_overlap_end(r1):
                     continue
-                if r1.origin >= (r0.origin + r0.size_pow2):
+                if r1.origin >= self._region_overlap_end(r0):
                     continue
                 return (n0, n1)
             i += 1
         return None
+
+    def _region_overlap_end(self, region):
+        size = region.size if isinstance(region, SoCIORegion) else region.size_pow2
+        return region.origin + size
 
     def check_region_overlap(self, region, regions, check_linker=False):
         for name, _region in regions.items():
