@@ -958,9 +958,13 @@ static unsigned int sdram_read_leveling_scan_module(int module, int bitslip, int
 	return score;
 }
 
-static int sdram_read_leveling_scan_has_window(
-	int module, int dq_line, int seed_count, int step, int min_window) {
+static int sdram_read_leveling_scan_window(
+	int module, int dq_line, int seed_count, int step, int min_window,
+	int *best_start, int *best_length) {
 	int good_delays = 0;
+	int good_start = 0;
+	int best_good_start = -1;
+	int best_good_length = 0;
 
 	if (step < 1)
 		step = 1;
@@ -972,9 +976,13 @@ static int sdram_read_leveling_scan_has_window(
 		if ((i % step) == 0) {
 			int errors = run_test_pattern_seeds(module, dq_line, seed_count);
 			if (errors == 0) {
+				if (good_delays == 0)
+					good_start = i;
 				good_delays++;
-				if (good_delays >= min_window)
-					return 1;
+				if (good_delays > best_good_length) {
+					best_good_start = good_start;
+					best_good_length = good_delays;
+				}
 			} else {
 				good_delays = 0;
 			}
@@ -984,7 +992,18 @@ static int sdram_read_leveling_scan_has_window(
 		sdram_leveling_action(module, dq_line, read_inc_dq_delay);
 	}
 
-	return 0;
+	if (best_start != NULL)
+		*best_start = best_good_start;
+	if (best_length != NULL)
+		*best_length = best_good_length;
+
+	return best_good_length >= min_window;
+}
+
+static int sdram_read_leveling_scan_has_window(
+	int module, int dq_line, int seed_count, int step, int min_window) {
+	return sdram_read_leveling_scan_window(
+		module, dq_line, seed_count, step, min_window, NULL, NULL);
 }
 
 #endif // defined(SDRAM_PHY_WRITE_DQ_DQS_TRAINING_CAPABLE) || defined(SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
@@ -992,38 +1011,70 @@ static int sdram_read_leveling_scan_has_window(
 #ifdef SDRAM_PHY_READ_LEVELING_CAPABLE
 
 #if SDRAM_READ_LEVELING_FAST
+static void sdram_read_leveling_set_bitslip(int module, int dq_line, int bitslip) {
+	sdram_leveling_action(module, dq_line, read_rst_dq_bitslip);
+	for(int i=0; i<bitslip; i++)
+		sdram_leveling_action(module, dq_line, read_inc_dq_bitslip);
+}
+
 static int sdram_read_leveling_fast_bitslip(int module, int dq_line) {
-	int candidates = 0;
-	int candidate_bitslip = -1;
+	int candidates[SDRAM_PHY_BITSLIPS];
+	int groups = 0;
+	int in_group = 0;
+	int best_bitslip = -1;
+	int best_window_length = 0;
+	int best_window_count = 0;
 
 	sdram_leveling_action(module, dq_line, read_rst_dq_bitslip);
 	for(int bitslip=0; bitslip<SDRAM_PHY_BITSLIPS; bitslip++) {
-		if (sdram_read_leveling_scan_has_window(
+		candidates[bitslip] = sdram_read_leveling_scan_has_window(
 			module, dq_line, 1,
 			SDRAM_READ_LEVELING_FAST_STEP,
-			SDRAM_READ_LEVELING_FAST_MIN_WINDOW)) {
-			candidates++;
-			candidate_bitslip = bitslip;
-		}
+			SDRAM_READ_LEVELING_FAST_MIN_WINDOW);
 
 		if (bitslip == SDRAM_PHY_BITSLIPS-1)
 			break;
 		sdram_leveling_action(module, dq_line, read_inc_dq_bitslip);
 	}
 
-	if (candidates != 1)
+	for(int bitslip=0; bitslip<SDRAM_PHY_BITSLIPS; bitslip++) {
+		if (candidates[bitslip] && !in_group) {
+			groups++;
+			in_group = 1;
+		} else if (!candidates[bitslip]) {
+			in_group = 0;
+		}
+	}
+
+	if (groups != 1)
 		return -1;
 
-	sdram_leveling_action(module, dq_line, read_rst_dq_bitslip);
-	for(int bitslip=0; bitslip<candidate_bitslip; bitslip++)
-		sdram_leveling_action(module, dq_line, read_inc_dq_bitslip);
+	for(int bitslip=0; bitslip<SDRAM_PHY_BITSLIPS; bitslip++) {
+		int window_length;
 
-	if (!sdram_read_leveling_scan_has_window(
-		module, dq_line, _seed_array_length, 1,
-		SDRAM_READ_LEVELING_FAST_VALIDATE_MIN_WINDOW))
+		if (!candidates[bitslip])
+			continue;
+
+		sdram_read_leveling_set_bitslip(module, dq_line, bitslip);
+		if (!sdram_read_leveling_scan_window(
+			module, dq_line, _seed_array_length, 1,
+			SDRAM_READ_LEVELING_FAST_VALIDATE_MIN_WINDOW,
+			NULL, &window_length))
+			continue;
+
+		if (window_length > best_window_length) {
+			best_bitslip = bitslip;
+			best_window_length = window_length;
+			best_window_count = 1;
+		} else if (window_length == best_window_length) {
+			best_window_count++;
+		}
+	}
+
+	if (best_window_count != 1)
 		return -1;
 
-	return candidate_bitslip;
+	return best_bitslip;
 }
 #endif // SDRAM_READ_LEVELING_FAST
 
@@ -1072,9 +1123,13 @@ void sdram_read_leveling(void) {
 #else
 			printf("  best: m%d, b%02d ", module, best_bitslip);
 #endif // SDRAM_DELAY_PER_DQ
+#if SDRAM_READ_LEVELING_FAST
+			sdram_read_leveling_set_bitslip(module, dq_line, best_bitslip);
+#else
 			sdram_leveling_action(module, dq_line, read_rst_dq_bitslip);
 			for (bitslip=0; bitslip<best_bitslip; bitslip++)
 				sdram_leveling_action(module, dq_line, read_inc_dq_bitslip);
+#endif // SDRAM_READ_LEVELING_FAST
 
 			/* Re-do leveling on best read window*/
 			sdram_leveling_center_module(module, 1, 0,
