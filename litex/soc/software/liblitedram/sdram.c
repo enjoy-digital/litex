@@ -32,6 +32,22 @@
 //#define SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
 //#define SDRAM_LEVELING_SCAN_DISPLAY_HEX_DIV 10
 
+/*
+ * SDRAM startup overview:
+ *
+ * sdram_init() is the BIOS entry point used before external RAM is trusted. It
+ * resets software-visible training state, gives the CPU direct access to the PHY
+ * through DFII, runs the generated JEDEC initialization sequence, performs the
+ * optional PHY training stages, and finally hands the DFI bus back to the memory
+ * controller. When enabled, a small memtest/memspeed pass then validates the
+ * result and updates the DDR controller init status CSRs when they are present.
+ *
+ * Training is done with direct DFII traffic to a scratch row/bank. The high-tap
+ * fast paths below reduce the number of exploratory samples on PHYs where a full
+ * tap sweep is expensive, but accepted candidates are still checked with the
+ * stage-specific full validation before hardware control is restored.
+ */
+
 #ifdef SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
 #define SDRAM_WLC_DEBUG 1
 #else
@@ -165,6 +181,14 @@ int sdram_get_cwl(void) {
 /* DFII                                                                  */
 /*-----------------------------------------------------------------------*/
 
+/*
+ * DFII is the software bridge to the DFI PHY interface. It exposes one set of
+ * address, bank, command, write-data and read-data CSRs per DFI phase. The PHY
+ * can choose different phases for reads and writes, so helpers ending in pird or
+ * piwr route commands/data to the configured read or write phase instead of
+ * assuming phase 0.
+ */
+
 #ifdef CSR_DDRPHY_BASE
 static unsigned char sdram_dfii_get_rdphase(void) {
 #ifdef CSR_DDRPHY_RDPHASE_ADDR
@@ -283,6 +307,16 @@ static void command_pwr(unsigned int value) {
 /* Software/Hardware Control                                             */
 /*-----------------------------------------------------------------------*/
 
+/*
+ * During initialization and calibration, the BIOS drives SDRAM commands itself
+ * through DFII with CKE/ODT/reset_n asserted. In hardware mode, DFII_CONTROL_SEL
+ * gives the DFI bus back to the memory controller for normal system accesses.
+ *
+ * PHY voltage/temperature compensation is disabled while measuring taps so delay
+ * lines do not move underneath the software scans, then re-enabled before normal
+ * controller traffic starts.
+ */
+
 #define DFII_CONTROL_SOFTWARE (DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N)
 #define DFII_CONTROL_HARDWARE (DFII_CONTROL_SEL)
 
@@ -319,6 +353,13 @@ void sdram_software_control_off(void) {
 /*  Mode Register                                                        */
 /*-----------------------------------------------------------------------*/
 
+/*
+ * Mode-register writes are issued as MRS commands on DFII phase 0. Clamshell
+ * layouts need separate top/bottom chip-select commands and mirrored address
+ * bits, so sdram_mode_register_write() hides that board-level wiring detail from
+ * the JEDEC init sequence and training code.
+ */
+
 __attribute__((unused)) static int swap_bit(int num, int a, int b) {
 	if (((num >> a) & 1) != ((num >> b) & 1)) {
 		num ^= (1 << a);
@@ -354,6 +395,13 @@ void sdram_mode_register_write(char reg, int value) {
 /*-----------------------------------------------------------------------*/
 /* Leveling Centering (Common for Read/Write Leveling)                   */
 /*-----------------------------------------------------------------------*/
+
+/*
+ * All software training traffic uses row 0, bank 0 as a scratch location while
+ * the controller is stopped. The row is activated, one burst is written/read via
+ * DFII, then the row is precharged so the next probe starts from a known DRAM
+ * command state.
+ */
 
 static void sdram_activate_test_row(void) {
 	sdram_dfii_pi0_address_write(0);
@@ -398,6 +446,13 @@ static void print_scan_errors(unsigned int errors) {
 #define READ_CHECK_TEST_PATTERN_MAX_ERRORS (8*SDRAM_PHY_PHASES*DFII_PIX_DATA_BYTES/SDRAM_PHY_MODULES)
 #define MODULE_BITMASK ((1<<SDRAM_PHY_DQ_DQS_RATIO)-1)
 
+/*
+ * Core calibration probe used by read leveling, write latency calibration and
+ * write DQ-DQS training. It generates deterministic LFSR data for every DFI
+ * phase, writes one burst through the configured write phase, reads it back
+ * through the configured read phase, and counts bit errors only on the module
+ * (or single DQ line) currently being trained.
+ */
 static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int seed, int dq_line) {
 	int p, i, bit;
 	unsigned int errors;
@@ -1557,6 +1612,19 @@ static void sdram_write_dq_dqs_training(void) {
 /* Leveling                                                              */
 /*-----------------------------------------------------------------------*/
 
+/*
+ * Full PHY calibration sequence:
+ *
+ * - Reset delay/bitslip controls to a known point.
+ * - Write leveling aligns CK/CMD and write DQS/DQ timing where supported.
+ * - Write latency calibration selects the write bitslip that makes written data
+ *   land in the readable burst position.
+ * - Optional write DQ-DQS training centers write data delays using the already
+ *   usable read path as the measurement reference.
+ * - Read leveling then selects read bitslip and centers read delay windows.
+ *
+ * Each stage leaves its programmed PHY state in place for the next stage.
+ */
 int sdram_leveling(void) {
 	int module;
 	int dq_line;
@@ -1612,8 +1680,16 @@ int sdram_leveling(void) {
 /* Initialization                                                        */
 /*-----------------------------------------------------------------------*/
 
+/*
+ * Bring SDRAM from reset to normal controller-owned operation. The generated
+ * init_sequence() contains the memory-type-specific JEDEC commands and waits
+ * (power-up, reset/CKE, mode registers, ZQ calibration, refresh setup, ...).
+ * This file surrounds that fixed sequence with PHY reset/training and LiteX
+ * controller status reporting.
+ */
 int sdram_init(void) {
-	/* Reset Cmd/Dat delays */
+	/* Clear user/BIOS overrides so every boot starts from discovered values
+	 * unless a build-time forced value is explicitly present. */
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 	int i;
 	sdram_write_leveling_rst_cmd_delay(0);
@@ -1635,6 +1711,9 @@ int sdram_init(void) {
 	_sdram_write_leveling_cmd_delay = SDRAM_PHY_CMD_DELAY;
 #endif // SDRAM_PHY_CMD_DELAY
 	printf("Initializing SDRAM @0x%08lx...\n", MAIN_RAM_BASE);
+
+	/* Stop normal controller ownership and put the PHY into a clean state before
+	 * the JEDEC sequence touches the DRAM. */
 	sdram_software_control_on();
 #if CSR_DDRPHY_RST_ADDR
 	ddrphy_rst_write(1);
@@ -1647,12 +1726,19 @@ int sdram_init(void) {
 	ddrctrl_init_done_write(0);
 	ddrctrl_init_error_write(0);
 #endif // CSR_DDRCTRL_BASE
+
+	/* Generated from the configured memory module/timings. After this returns,
+	 * the DRAM can respond to software DFII read/write probes. */
 	init_sequence();
 #if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
 	sdram_leveling();
 #endif // defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
+
+	/* Release the DFI bus to the hardware controller; subsequent accesses use
+	 * normal LiteX memory paths instead of direct DFII command CSRs. */
 	sdram_software_control_off();
 #ifndef SDRAM_TEST_DISABLE
+	/* Final software smoke test before marking DDRCTRL init_done. */
 	if(!memtest((unsigned int *) MAIN_RAM_BASE, MEMTEST_DATA_SIZE)) {
 #ifdef CSR_DDRCTRL_BASE
 		ddrctrl_init_error_write(1);
