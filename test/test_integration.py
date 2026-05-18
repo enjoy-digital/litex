@@ -74,6 +74,13 @@ def _recv_until(sock, needle, timeout=10):
             pass
     raise TimeoutError(f"did not receive {needle!r}; last data: {data[-200:]!r}")
 
+def _litex_boards_target(filename):
+    for root in [os.getcwd(), os.path.join(os.getcwd(), "..")]:
+        target = os.path.abspath(os.path.join(root, "litex-boards", "litex_boards", "targets", filename))
+        if os.path.exists(target):
+            return target
+    pytest.skip("litex-boards checkout is unavailable")
+
 def boot_test(cpu_type="vexriscv", cpu_variant="standard", args="", output_dir=None):
     output_arg = f' --output-dir={output_dir}' if output_dir else ''
     cmd = (
@@ -182,6 +189,27 @@ def test_serialboot_abort_recovers_and_loads(tmp_path):
                 p.terminate(force=True)
 
     assert is_success
+
+def test_linux_on_litex_rocket_nexys_video_generation(tmp_path):
+    target = _litex_boards_target("digilent_nexys_video.py")
+    cmd = [
+        sys.executable,
+        target,
+        "--build",
+        "--no-compile",
+        "--output-dir", str(tmp_path),
+        "--cpu-type", "rocket",
+        "--cpu-variant", "linux",
+        "--cpu-num-cores", "4",
+        "--cpu-mem-width", "2",
+        "--sys-clk-freq", "50e6",
+        "--with-ethernet",
+        "--with-sdcard",
+        "--with-sata",
+        "--sata-gen", "1",
+    ]
+
+    subprocess.check_call(cmd)
 
 TESTED_CPUS = [
     #"cv32e40p",     # (riscv   / softcore)
