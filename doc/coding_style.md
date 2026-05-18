@@ -111,6 +111,11 @@ parser.add_argument("--config",  default="standard",  help="Install config.")
 parser.add_argument("--tag",     default=None,        help="Use version from release tag.")
 ```
 
+Keep argparse help strings concise and value-focused. Reuse the vocabulary
+already used by nearby LiteX tools for recurring concepts such as host, port,
+bind address, CSR CSV and remote targets, and avoid filler such as "to use"
+when the option name already provides the action.
+
 ## LiteX/Migen Modules (HDL)
 
 LiteX hardware modules are Python code that describes hardware. They have

@@ -88,8 +88,8 @@ else:
 from litex import RemoteClient
 
 class CrossoverUART:
-    def __init__(self, name="uart_xover", host="localhost", port=1234, base_address=None, csr_csv=None):
-        self.bus = RemoteClient(host=host, base_address=base_address, csr_csv=csr_csv)
+    def __init__(self, name="uart_xover", host="localhost", base_address=None, csr_csv=None, port=1234):
+        self.bus = RemoteClient(host=host, port=port, base_address=base_address, csr_csv=csr_csv)
         present = False
         for k, v in self.bus.regs.d.items():
             if f"{name}_" in k:
@@ -803,8 +803,8 @@ def _get_args():
     parser.add_argument("--csr-csv",        default=None,                       help="SoC CSV file.")
     parser.add_argument("--base-address",   default=None,                       help="CSR base address.")
     parser.add_argument("--crossover-name", default="uart_xover",               help="Crossover UART name to use (present in design/csr.csv).")
-    parser.add_argument("--crossover-host", default="localhost",               help="IP of Crossover UART remote server to use.")
-    parser.add_argument("--crossover-port", default=1234,               help="Port of Crossover UART remote server to use.")
+    parser.add_argument("--crossover-host", default="localhost",                help="Crossover UART host address.")
+    parser.add_argument("--crossover-port", default=1234,                       help="Crossover UART host port.")
 
     parser.add_argument("--jtag-name",      default="jtag_uart",                help="JTAG UART type (jtag_uart).")
     parser.add_argument("--jtag-config",    default="openocd_xc7_ft2232.cfg",   help="OpenOCD JTAG configuration file for jtag_uart.")
@@ -819,8 +819,14 @@ def main():
         if args.port in ["crossover", "jtag"]:
             raise NotImplementedError
     if args.port in ["crossover"]:
-        base_address = None if args.base_address is None else int(args.base_address)
-        xover = CrossoverUART(host=args.crossover_host, port=args.crossover_port, base_address=base_address, csr_csv=args.csr_csv, name=args.crossover_name)
+        base_address = None if args.base_address is None else int(args.base_address, 0)
+        xover = CrossoverUART(
+            host         = args.crossover_host,
+            port         = int(args.crossover_port),
+            base_address = base_address,
+            csr_csv      = args.csr_csv,
+            name         = args.crossover_name,
+        )
         xover.open()
         port = os.ttyname(xover.name)
     elif args.port in ["jtag"]:

@@ -7,6 +7,7 @@ from unittest import mock
 
 from litex.tools import litex_term
 from litex.tools.litex_term import (
+    CrossoverUART,
     LiteXTerm,
     SFLFrame,
     SFLUploadError,
@@ -57,6 +58,36 @@ def make_term(port, port_url=None):
     term.length = 64
     term.outstanding = 1
     return term
+
+
+class TestCrossoverUART(unittest.TestCase):
+    def test_remote_client_parameters_are_forwarded(self):
+        rxtx = object()
+
+        class FakeRemoteClient:
+            instances = []
+
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+                self.regs = mock.Mock()
+                self.regs.d = {"uart_xover_rxtx": rxtx}
+                FakeRemoteClient.instances.append(self)
+
+        with mock.patch.object(litex_term, "RemoteClient", FakeRemoteClient):
+            xover = CrossoverUART(
+                host         = "192.0.2.10",
+                port         = 2345,
+                base_address = 0x1000,
+                csr_csv      = "csr.csv",
+            )
+
+        self.assertIs(xover.rxtx, rxtx)
+        self.assertEqual(FakeRemoteClient.instances[0].kwargs, {
+            "host"         : "192.0.2.10",
+            "port"         : 2345,
+            "base_address" : 0x1000,
+            "csr_csv"      : "csr.csv",
+        })
 
 
 class TestSFLFrame(unittest.TestCase):
