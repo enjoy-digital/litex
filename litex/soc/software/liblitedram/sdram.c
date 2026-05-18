@@ -38,6 +38,13 @@
 #define SDRAM_WLC_DEBUG 0
 #endif // SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
 
+/*
+ * High-tap PHYs (UltraScale/UltraScale+) make exhaustive software calibration
+ * expensive: each extra check is multiplied by modules, bitslips and delay taps.
+ * The fast paths below keep the old exhaustive algorithms as fallbacks, but use
+ * sparse scans to identify likely candidates first and then validate candidates
+ * with the same stronger checks used by the exhaustive paths.
+ */
 #ifndef SDRAM_WRITE_LEVELING_FINAL_FAST
 #if SDRAM_PHY_DELAYS > 128
 #define SDRAM_WRITE_LEVELING_FINAL_FAST 1
@@ -495,6 +502,9 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 static int _seed_array[] = {42, 84, 36};
 static int _seed_array_length = sizeof(_seed_array) / sizeof(_seed_array[0]);
 
+/* Run the software write/read test pattern on one byte lane (or one DQ line
+ * when SDRAM_DELAY_PER_DQ is enabled). Fast candidate scans can use a subset of
+ * seeds; final validation and centering always use all seeds. */
 static int run_test_pattern_seeds(int module, int dq_line, int seed_count) {
 	int errors = 0;
 	if (seed_count < 1)
@@ -511,6 +521,9 @@ static int run_test_pattern(int module, int dq_line) {
 	return run_test_pattern_seeds(module, dq_line, _seed_array_length);
 }
 
+/* Locate the largest passing delay window for the current bitslip and program
+ * the delay to its center. Two consecutive passing taps are required before a
+ * window is trusted, since single-edge taps can be unstable. */
 static void sdram_leveling_center_module(
 	int module, int show_short, int show_long, action_callback rst_delay,
 	action_callback inc_delay, int dq_line) {
@@ -705,6 +718,11 @@ static int sdram_write_leveling_sample(int module, int loops) {
 	return one_count > zero_count;
 }
 
+/* Decode a write-leveling tap scan into the delay to program. Write leveling
+ * looks for the start of the longest returned-1 window, which corresponds to
+ * the DQS transition relative to CK/CMD. A window already active at tap 0 is
+ * accepted only if it is wide enough to imply the transition happened before
+ * the scan range rather than being noise at the edge. */
 static int sdram_write_leveling_find_delay(
 	unsigned char *taps_scan, int scan_start, int scan_stop, int *delay) {
 	int j;
@@ -712,7 +730,7 @@ static int sdram_write_leveling_find_delay(
 	int one_window_start, one_window_best_start;
 	int one_window_count, one_window_best_count;
 
-	/* Find longer 1 window and set delay at the 0/1 transition */
+	/* Find longest 1 window and set delay at the 0/1 transition */
 	one_window_active = 0;
 	one_window_start = scan_start;
 	one_window_count = 0;
@@ -763,6 +781,9 @@ static void sdram_write_leveling_set_dat_delay(int module, int dq_line, int dela
 	}
 }
 
+/* Scan a contiguous range of write-delay taps. This is used by the fast final
+ * validation pass to rescan only the neighborhood around a candidate transition
+ * with the original high loop count. */
 static int sdram_write_leveling_scan_range(
 	int module, int dq_line, int loops, int scan_start, int scan_stop, int *delay) {
 	int j;
@@ -787,6 +808,10 @@ static int sdram_write_leveling_scan_range(
 	return sdram_write_leveling_find_delay(taps_scan, scan_start, scan_stop, delay);
 }
 
+/* Full write-leveling data scan over all write-delay taps. The loop count is
+ * intentionally caller-controlled: command-delay search uses a small loop count,
+ * the legacy final scan uses 128 loops, and the high-tap fast path combines a
+ * cheaper full-range scan with local 128-loop validation. */
 static int sdram_write_leveling_scan(int *delays, int loops, int show) {
 	int i, j, dq_line;
 
@@ -857,6 +882,10 @@ static int sdram_write_leveling_scan(int *delays, int loops, int show) {
 }
 
 #if SDRAM_WRITE_LEVELING_FINAL_FAST
+/* Validate the fast final write-leveling result. The first pass identifies a
+ * transition cheaply; this pass rescans a bounded range around that transition
+ * with the original 128-loop depth. If any lane cannot be validated, the caller
+ * falls back to the legacy full 128-loop scan over all taps. */
 static int sdram_write_leveling_validate_delays(int *delays) {
 	int i, dq_line;
 	int err_ddrphy_wdly;
@@ -911,6 +940,10 @@ static int sdram_write_leveling_validate_delays(int *delays) {
 }
 #endif // SDRAM_WRITE_LEVELING_FINAL_FAST
 
+/* Pick the CK/CMD delay used for write leveling. Rather than scanning every tap
+ * at full resolution, this performs coarse-to-fine searches around the current
+ * best point. Candidates are scored by how many modules can be leveled and how
+ * close the resulting data delays are to the desired centered position. */
 static void sdram_write_leveling_find_cmd_delay(
 	unsigned int *best_error, unsigned int *best_count, int *best_cdly,
 	int cdly_start, int cdly_stop, int cdly_step) {
@@ -979,9 +1012,11 @@ int sdram_write_leveling(void) {
 	_sdram_tck_taps = ddrphy_half_sys8x_taps_read()*4;
 	printf("  tCK equivalent taps: %d\n", _sdram_tck_taps);
 
+	/* First align CK/CMD against DQS. This makes the later per-module data
+	 * delay windows wide and centered enough to be robust. */
 	if (_sdram_write_leveling_cmd_scan) {
 		/* Center write leveling by varying cdly. Searching through all possible
-		 * values is slow, but we can use a simple optimization method of iterativly
+		 * values is slow, but we can use a simple optimization method of iteratively
 		 * scanning smaller ranges with decreasing step */
 		if (_sdram_write_leveling_cdly_range_start != -1)
 			cdly_range_start = _sdram_write_leveling_cdly_range_start;
@@ -1033,6 +1068,9 @@ int sdram_write_leveling(void) {
 
 	/* Re-run write leveling the final time */
 #if SDRAM_WRITE_LEVELING_FINAL_FAST
+	/* On high-tap PHYs, do a cheap all-tap pass first and validate each chosen
+	 * transition locally at the legacy 128-loop depth. Any uncertainty reruns
+	 * the original full 128-loop scan. */
 	if (!sdram_write_leveling_scan(delays, SDRAM_WRITE_LEVELING_FINAL_FAST_LOOPS, 1))
 		return 0;
 	if (!sdram_write_leveling_validate_delays(delays)) {
@@ -1055,6 +1093,9 @@ int sdram_write_leveling(void) {
 
 #if defined(SDRAM_PHY_WRITE_DQ_DQS_TRAINING_CAPABLE) || defined(SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
 
+/* Exhaustive read-window score for one bitslip. The score heavily rewards any
+ * zero-error tap and still records relative quality when all taps fail, allowing
+ * the legacy fallback to pick the least-bad bitslip instead of failing early. */
 static unsigned int sdram_read_leveling_scan_module(int module, int bitslip, int show, int dq_line) {
 	const unsigned int max_errors = _seed_array_length*READ_CHECK_TEST_PATTERN_MAX_ERRORS;
 	int i;
@@ -1084,9 +1125,12 @@ static unsigned int sdram_read_leveling_scan_module(int module, int bitslip, int
 	return score;
 }
 
+/* Window detector used by the fast read-related paths. It can scan sparsely
+ * with fewer seeds for candidate discovery, or scan every tap with all seeds
+ * for validation. The optional outputs report the longest passing run. */
 static int sdram_read_leveling_scan_window(
 	int module, int dq_line, int seed_count, int step, int min_window,
-	int *best_start, int *best_length) {
+	int *best_start, int *best_length, int bitslip, int show) {
 	int good_delays = 0;
 	int good_start = 0;
 	int best_good_start = -1;
@@ -1097,10 +1141,14 @@ static int sdram_read_leveling_scan_window(
 	if (min_window < 1)
 		min_window = 1;
 
+	if (show)
+		printf("  m%d, b%02d: |", module, bitslip);
+
 	sdram_leveling_action(module, dq_line, read_rst_dq_delay);
 	for(int i=0;i<SDRAM_PHY_DELAYS;i++) {
 		if ((i % step) == 0) {
 			int errors = run_test_pattern_seeds(module, dq_line, seed_count);
+			int _show = (i%MODULO == 0) & show;
 			if (errors == 0) {
 				if (good_delays == 0)
 					good_start = i;
@@ -1112,11 +1160,16 @@ static int sdram_read_leveling_scan_window(
 			} else {
 				good_delays = 0;
 			}
+			if (_show)
+				print_scan_errors(errors);
 		}
 		if (i == SDRAM_PHY_DELAYS-1)
 			break;
 		sdram_leveling_action(module, dq_line, read_inc_dq_delay);
 	}
+
+	if (show)
+		printf("| ");
 
 	if (best_start != NULL)
 		*best_start = best_good_start;
@@ -1129,7 +1182,7 @@ static int sdram_read_leveling_scan_window(
 static int sdram_read_leveling_scan_has_window(
 	int module, int dq_line, int seed_count, int step, int min_window) {
 	return sdram_read_leveling_scan_window(
-		module, dq_line, seed_count, step, min_window, NULL, NULL);
+		module, dq_line, seed_count, step, min_window, NULL, NULL, -1, 0);
 }
 
 #endif // defined(SDRAM_PHY_WRITE_DQ_DQS_TRAINING_CAPABLE) || defined(SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
@@ -1143,6 +1196,11 @@ static void sdram_read_leveling_set_bitslip(int module, int dq_line, int bitslip
 		sdram_leveling_action(module, dq_line, read_inc_dq_bitslip);
 }
 
+/* Fast read-leveling bitslip selection. Sparse scans are allowed to produce a
+ * contiguous group of adjacent candidates, since real valid windows can straddle
+ * a bitslip boundary. The fast path accepts only one candidate group and then
+ * chooses a unique widest all-seed validation window inside that group; separated
+ * groups or ties fall back to the exhaustive scorer. */
 static int sdram_read_leveling_fast_bitslip(int module, int dq_line) {
 	int candidates[SDRAM_PHY_BITSLIPS];
 	int groups = 0;
@@ -1185,8 +1243,11 @@ static int sdram_read_leveling_fast_bitslip(int module, int dq_line) {
 		if (!sdram_read_leveling_scan_window(
 			module, dq_line, _seed_array_length, 1,
 			SDRAM_READ_LEVELING_FAST_VALIDATE_MIN_WINDOW,
-			NULL, &window_length))
+			NULL, &window_length, bitslip, 1)) {
+			printf("\n");
 			continue;
+		}
+		printf("\n");
 
 		if (window_length > best_window_length) {
 			best_bitslip = bitslip;
@@ -1214,7 +1275,9 @@ void sdram_read_leveling(void) {
 
 	for(module=0; module<SDRAM_PHY_MODULES; module++) {
 		for (dq_line = 0; dq_line < DQ_COUNT; dq_line++) {
-			/* Scan possible read windows */
+			/* Find a bitslip with a usable read-delay window. Fast mode tries
+			 * sparse candidate selection first; fallback prints and scores all
+			 * bitslips exactly as the original algorithm did. */
 			best_score = 0;
 			best_bitslip = -1;
 #if SDRAM_READ_LEVELING_FAST
@@ -1308,8 +1371,9 @@ static unsigned int sdram_write_latency_score_bitslip(
 }
 
 #if SDRAM_WRITE_LATENCY_CALIBRATION_FAST
-/* Sparse one-seed scan used only to identify an unambiguous candidate; the
- * selected bitslip is accepted only after the full all-seed scan sees a window. */
+/* Sparse one-seed scan used only to identify an unambiguous write bitslip. The
+ * selected bitslip is accepted only after a full all-seed validation window is
+ * found, otherwise the exhaustive scorer is used. */
 static int sdram_write_latency_fast_bitslip(int module, int dq_line) {
 	int candidates = 0;
 	int candidate_bitslip = -1;
@@ -1374,6 +1438,9 @@ static void sdram_write_latency_calibration(void) {
 			best_bitslip = -1;
 
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
+			/* If write leveling already provided a forced/known bitslip, use it
+			 * directly. Otherwise calibrate write latency by checking which write
+			 * bitslip allows a readable window after read bitslip/delay sweeps. */
 			if (_sdram_write_leveling_bitslips[module] >= 0) {
 				best_bitslip = _sdram_write_leveling_bitslips[module];
 			} else
@@ -1437,6 +1504,8 @@ static void sdram_write_latency_calibration(void) {
 
 #ifdef SDRAM_PHY_WRITE_DQ_DQS_TRAINING_CAPABLE
 
+/* Write DQ-DQS training needs reads to be usable while it moves write delays, so
+ * first choose and center the best read bitslip for the current lane. */
 static void sdram_read_leveling_best_bitslip(int module, int dq_line) {
 	unsigned int score;
 	int bitslip;
@@ -1493,6 +1562,9 @@ int sdram_leveling(void) {
 	int dq_line;
 	sdram_software_control_on();
 
+	/* Start from a known PHY state. Individual calibration stages can then move
+	 * only the delays/bitslips they own, and forced values still start from the
+	 * same reset point as discovered values. */
 	for(module=0; module<SDRAM_PHY_MODULES; module++) {
 		for (dq_line = 0; dq_line < DQ_COUNT; dq_line++) {
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
