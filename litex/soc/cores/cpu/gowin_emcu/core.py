@@ -29,14 +29,9 @@ class GowinEMCU(CPU):
     nop                  = "nop"
     io_regions           = {
         # Origin, Length.
-        #
-        # This is part of the APB master, only exposed on the APBTARGEXP2 pins
-        #
-        # NOTE: I guess that it's only 0x4000_2000 - 0x4000_3000, based on Table 3-2 IPUG517 + 4 integrated peripherals
-        #
-        # 0x4000_0000 : 0x0000_1000,
-
-        # This is only 64 kB deep, based on Figure 3-11 in IPUG517 + testing
+        # LiteX is connected through the EMCU AHB2 Master extension (Gowin
+        # IPUG517E, section 3.2.5). APB2 extension windows use separate EMCU
+        # interfaces and are not exposed by this integration.
         0xa000_0000 : 0x0001_0000,
     }
 
