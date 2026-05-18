@@ -82,11 +82,14 @@ class TestGPIO(unittest.TestCase):
             yield
             self.assertEqual((yield pads.o),  0xCA)
             self.assertEqual((yield pads.oe), 0xF0)
+            self.assertEqual((yield dut.o),    0xCA)
+            self.assertEqual((yield dut.oe),   0xF0)
 
             # Input (goes through MultiReg).
             yield pads.i.eq(0x37)
             for _ in range(_MULTIREG_DELAY + 1):
                 yield
+            self.assertEqual((yield dut.i), 0x37)
             self.assertEqual((yield from dut._in.read()), 0x37)
         run_simulation(dut, gen())
 

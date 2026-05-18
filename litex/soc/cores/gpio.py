@@ -88,15 +88,16 @@ class GPIOTristate(_GPIOIRQ):
         self._in  = CSRStatus(nbits,  description="GPIO Input(s) Status.")
         self._out = CSRStorage(nbits, description="GPIO Output(s) Control.")
 
-        self.i = self._in.status
+        self.o  = Signal(nbits)
         self.oe = Signal(nbits)
-        self.out = Signal(nbits)
+        self.i  = Signal(nbits)
 
         # # #
 
         self.comb += [
+            self.o.eq( self._out.storage),
             self.oe.eq(self._oe.storage),
-            self.out.eq(self._out.storage),
+            self._in.status.eq(self.i),
         ]
 
         # Internal Tristate.
@@ -106,22 +107,22 @@ class GPIOTristate(_GPIOIRQ):
             if isinstance(pads, list):
                 start = 0
                 for pad in pads:
-                    _out = self.out[start:start+len(pad)]
+                    _out = self.o[start:start+len(pad)]
                     _oe  = self.oe[start:start+len(pad)]
-                    _in  = self._in.status[start:start+len(pad)]
+                    _in  = self.i[start:start+len(pad)]
 
                     self.specials += SDRTristate(pad, _out, _oe, _in)
                     start += len(pad)
             else:
-                self.specials += SDRTristate(pads, self.out, self.oe, self._in.status)
+                self.specials += SDRTristate(pads, self.o, self.oe, self.i)
 
         # External Tristate.
         else:
             # Tristate inout IOs (For external tristate IO chips or simulation).
             for i in range(nbits):
                 self.comb += pads.oe[i].eq(self.oe[i])
-                self.comb += pads.o[i].eq(self.out[i])
-                self.specials += MultiReg(pads.i[i], self._in.status[i])
+                self.comb += pads.o[i].eq(self.o[i])
+                self.specials += MultiReg(pads.i[i], self.i[i])
 
         if with_irq:
-            self.add_irq(self._in.status)
+            self.add_irq(self.i)
