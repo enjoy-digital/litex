@@ -211,6 +211,8 @@ class USPIDELAYCTRL(LiteXModule):
         ]
         self.specials += [
             Instance("IDELAYCTRL",
+                # UG571 Table 2-18 documents only "7SERIES" and "ULTRASCALE"
+                # for IDELAYCTRL.SIM_DEVICE; use "ULTRASCALE" for UltraScale+ too.
                 p_SIM_DEVICE = "ULTRASCALE",
                 i_REFCLK     = cd_ref.clk,
                 i_RST        = ic_reset,
