@@ -211,7 +211,7 @@ class USPIDELAYCTRL(LiteXModule):
         ]
         self.specials += [
             Instance("IDELAYCTRL",
-                p_SIM_DEVICE = "ULTRASCALE_PLUS",
+                p_SIM_DEVICE = "ULTRASCALE",
                 i_REFCLK     = cd_ref.clk,
                 i_RST        = ic_reset,
                 o_RDY        = ic_ready),
