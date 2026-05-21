@@ -13,7 +13,9 @@
 
 
 import os
+import sys
 import shutil
+import inspect
 import argparse
 import subprocess
 
@@ -22,6 +24,7 @@ from packaging.version import Version
 from litex import get_data_mod
 from litex.gen import colorer
 
+from litex.build.bundle import BuildBundle
 from litex.build.tools import write_to_file
 from litex.build.log import build_log_context
 
@@ -107,7 +110,13 @@ class Builder:
         generate_doc     = False,
 
         # Verilog.
-        hierarchical     = False):
+        hierarchical     = False,
+
+        # Build Bundle.
+        build_bundle     = True,
+        bundle_root      = None,
+        bundle_include   = None,
+        bundle_strict    = "warn"):
 
         # SoC/Builder Attach.
         self.soc         = soc   # Attach SoC to Builder.
@@ -146,6 +155,14 @@ class Builder:
 
         # Verilog.
         self.hierarchical = hierarchical
+
+        # Build Bundle.
+        self.build_bundle       = bool(build_bundle) and (os.getenv("LITEX_BUILD_BUNDLE_REPLAY", "0") != "1")
+        self.build_bundle_path  = build_bundle if isinstance(build_bundle, str) else None
+        self.bundle_root        = [] if bundle_root    is None else list(bundle_root)
+        self.bundle_include     = [] if bundle_include is None else list(bundle_include)
+        self.bundle_strict      = bundle_strict
+        self.last_build_bundle  = None
 
         # Software packages and libraries.
         self.software_packages  = []
@@ -426,6 +443,68 @@ class Builder:
             return os.path.abspath(self.build_log)
         return os.path.join(self.output_dir, "litex.log")
 
+    def _get_source_support_paths(self):
+        paths = []
+        try:
+            paths.append(get_data_mod("software", "picolibc").data_location)
+        except Exception:
+            pass
+        try:
+            paths.append(get_data_mod("software", "compiler_rt").data_location)
+        except Exception:
+            pass
+        try:
+            paths.append(os.path.dirname(inspect.getfile(self.soc.cpu.__class__)))
+        except Exception:
+            pass
+        return paths
+
+    def _create_build_bundle(self, with_bios, platform_sources):
+        if not self.build_bundle:
+            self.last_build_bundle = None
+            return
+
+        bundle = BuildBundle(
+            output_dir    = self.output_dir,
+            archive_path  = self.build_bundle_path,
+            command       = sys.argv,
+            strict        = self.bundle_strict,
+            exclude_dirs  = [self.output_dir],
+        )
+
+        # User-selected roots/includes.
+        for path in self.bundle_root:
+            bundle.add_root(path, role="bundle_root")
+        for path in self.bundle_include:
+            bundle.add_path(path, role="bundle_include")
+
+        # The target script is often the smallest useful handle for replay/debug.
+        if sys.argv and sys.argv[0] and os.path.exists(sys.argv[0]):
+            bundle.add_path(sys.argv[0], role="command")
+
+        # Gateware inputs resolved through the platform.
+        for source in platform_sources:
+            if not source:
+                continue
+            filename = source[0]
+            if os.path.isabs(filename) or os.path.exists(filename):
+                bundle.add_path(filename, role="gateware_source")
+        for path in getattr(self.soc.platform, "verilog_include_paths", []):
+            bundle.add_path(path, role="verilog_include_path")
+
+        # JSON imports.
+        for filename, *_ in self.jsons:
+            bundle.add_path(filename, role="csr_json")
+
+        # Software inputs are only used when a BIOS/ROM software build is in play.
+        if with_bios and getattr(self.soc.cpu, "use_rom", False):
+            for _, src_dir in self.software_packages:
+                bundle.add_path(src_dir, role="software_package")
+            for path in self._get_source_support_paths():
+                bundle.add_path(path, role="software_support")
+
+        self.last_build_bundle = bundle.create()
+
     def build(self, **kwargs):
         with build_log_context(self.get_build_log_filename()):
             return self._build(**kwargs)
@@ -443,6 +522,7 @@ class Builder:
         _create_dir(self.gateware_dir)
 
         # Copy Sources to Gateware directory (Optional).
+        bundle_platform_sources = list(self.soc.platform.sources)
         for i, (f, language, library, *copy) in enumerate(self.soc.platform.sources):
             if len(copy) and copy[0]:
                 shutil.copy(f, self.gateware_dir)
@@ -463,12 +543,22 @@ class Builder:
 
         # Finalize the SoC.
         self.soc.finalize()
+        bundle_platform_sources += [
+            source for source in self.soc.platform.sources
+            if source not in bundle_platform_sources
+        ]
 
         # Generate Software Includes/Files.
         self._generate_includes(with_bios=with_bios)
 
         # Export SoC Mapping.
         self._generate_csr_map()
+
+        # Archive resolved build inputs before invoking external tools.
+        self._create_build_bundle(
+            with_bios        = with_bios,
+            platform_sources = bundle_platform_sources,
+        )
 
         # Compile the BIOS when the SoC uses it.
         if self.soc.cpu_type is not None:
@@ -558,6 +648,17 @@ def builder_args(parser):
     builder_group.add_argument("--memory-x",              default=None,        help=f"Write SoC memory regions to the specified Memory-X file. {export_help}")
     builder_group.add_argument("--doc",                   action="store_true", help="Generate SoC documentation.")
     builder_group.add_argument("--hierarchical-verilog",  action="store_true", help="Enable hierarchical Verilog generation.")
+    bundle_group = parser.add_argument_group(title="Build bundle options")
+    bundle_group.add_argument("--build-bundle", default=True, nargs="?", const=True, metavar="PATH",
+        help="Generate a build input bundle/archive (optionally to PATH).")
+    bundle_group.add_argument("--no-build-bundle", dest="build_bundle", action="store_false",
+        help="Disable build input bundle generation.")
+    bundle_group.add_argument("--bundle-root", action="append", default=[],
+        help="Add a directory root to the build input bundle.")
+    bundle_group.add_argument("--bundle-include", action="append", default=[],
+        help="Add an extra file/directory to the build input bundle.")
+    bundle_group.add_argument("--bundle-strict", default="warn", choices=["warn", "error"],
+        help="Control missing build bundle input handling.")
     bios_group = parser.add_argument_group(title="BIOS options") # FIXME: Move?
     bios_group.add_argument("--bios-lto",     action="store_true", help="Enable BIOS LTO (Link Time Optimization) compilation.")
     bios_group.add_argument("--bios-format",  default="integer",   help="Select BIOS printf format.",  choices=["integer", "float", "double"])
@@ -591,4 +692,8 @@ def builder_argdict(args):
         "libc_mode"                : args.libc_mode,
         "integrated_rom_auto_size" : not args.no_integrated_rom_auto_size,
         "hierarchical"             : args.hierarchical_verilog,
+        "build_bundle"             : args.build_bundle,
+        "bundle_root"              : args.bundle_root,
+        "bundle_include"           : args.bundle_include,
+        "bundle_strict"            : args.bundle_strict,
     }
