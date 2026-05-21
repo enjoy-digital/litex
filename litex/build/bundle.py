@@ -12,6 +12,7 @@ import hashlib
 import tarfile
 import datetime
 import subprocess
+import importlib.util
 
 
 # LiteX Build Bundle ------------------------------------------------------------------------------
@@ -113,6 +114,80 @@ def _git_info(path):
     return info
 
 
+def _module_pythonpath_root(module_name):
+    spec = importlib.util.find_spec(module_name)
+    if spec is None:
+        return None
+
+    if spec.submodule_search_locations:
+        locations = list(spec.submodule_search_locations)
+        if locations:
+            return os.path.dirname(os.path.abspath(locations[0]))
+
+    if spec.origin:
+        return os.path.dirname(os.path.dirname(os.path.abspath(spec.origin)))
+
+    return None
+
+
+def get_pythonpath_roots(module_names=("litex", "litex_boards")):
+    roots = []
+    for module_name in module_names:
+        root = _module_pythonpath_root(module_name)
+        if root is not None and root not in roots:
+            roots.append(root)
+    return roots
+
+
+_PATH_MAP_ENV        = "LITEX_BUILD_BUNDLE_PATH_MAP"
+_path_map_cache_raw  = None
+_path_map_cache      = []
+
+
+def get_path_map():
+    global _path_map_cache_raw
+    global _path_map_cache
+
+    raw = os.getenv(_PATH_MAP_ENV)
+    if raw == _path_map_cache_raw:
+        return _path_map_cache
+
+    _path_map_cache_raw = raw
+    if not raw:
+        _path_map_cache = []
+        return _path_map_cache
+
+    try:
+        path_map = json.loads(raw)
+    except json.JSONDecodeError:
+        path_map = []
+
+    _path_map_cache = path_map if isinstance(path_map, list) else []
+    return _path_map_cache
+
+
+def remap_path(path):
+    if path is None or not os.path.isabs(path):
+        return path
+
+    path = os.path.abspath(path)
+    for entry in get_path_map():
+        if not isinstance(entry, dict):
+            continue
+        source = entry.get("path")
+        target = entry.get("mapped")
+        if source is None or target is None:
+            continue
+
+        if entry.get("kind") == "root" and _is_subpath(path, source):
+            rel = os.path.relpath(path, source)
+            return os.path.join(target, rel)
+        if path == source:
+            return target
+
+    return path
+
+
 class BuildBundle:
     def __init__(self,
         output_dir,
@@ -133,11 +208,15 @@ class BuildBundle:
         self.exclude_dirs  = [_abspath(p) for p in _as_list(exclude_dirs)]
         self.exclude_dirs.append(self.output_dir)
 
-        self._records    = {}
-        self._missing    = []
-        self._roots      = []
-        self._warnings   = []
-        self._git_probes = []
+        self._records         = {}
+        self._missing         = []
+        self._roots           = []
+        self._root_paths      = {}
+        self._input_dirs      = []
+        self._input_dir_paths = {}
+        self._pythonpath      = []
+        self._warnings        = []
+        self._git_probes      = []
 
     def _is_excluded(self, path):
         for exclude_dir in self.exclude_dirs:
@@ -157,15 +236,32 @@ class BuildBundle:
             self.add_path(path, role=role)
             return
 
+        if path in self._root_paths:
+            root = self._root_paths[path]
+            root["roles"].append(role)
+            root["roles"] = sorted(set(root["roles"]))
+            return root
+
         root_hash = hashlib.sha256(path.encode("utf-8")).hexdigest()[:8]
         root_name = _sanitize(os.path.basename(path) or "root")
         arc_root  = f"roots/{root_name}-{root_hash}"
-        self._roots.append({
+        root = {
             "path"        : path,
             "archive_path": arc_root,
             "role"        : role,
-        })
+            "roles"       : [role],
+        }
+        self._roots.append(root)
+        self._root_paths[path] = root
         self._add_dir(path, role=role, archive_prefix=arc_root, base_dir=path, honor_exclude=True)
+        return root
+
+    def add_pythonpath(self, path, role="pythonpath"):
+        root = self.add_root(path, role=role)
+        if root is None:
+            return
+        if root not in self._pythonpath:
+            self._pythonpath.append(root)
 
     def add_path(self, path, role="input"):
         path = _abspath(path)
@@ -178,10 +274,24 @@ class BuildBundle:
         if os.path.isdir(path) and not os.path.islink(path):
             path_hash = hashlib.sha256(path.encode("utf-8")).hexdigest()[:8]
             path_name = _sanitize(os.path.basename(path) or "input")
+            archive_prefix = f"inputs/{path_name}-{path_hash}"
+            if path in self._input_dir_paths:
+                input_dir = self._input_dir_paths[path]
+                input_dir["roles"].append(role)
+                input_dir["roles"] = sorted(set(input_dir["roles"]))
+            else:
+                input_dir = {
+                    "path"        : path,
+                    "archive_path": archive_prefix,
+                    "role"        : role,
+                    "roles"       : [role],
+                }
+                self._input_dirs.append(input_dir)
+                self._input_dir_paths[path] = input_dir
             self._add_dir(
                 path           = path,
                 role           = role,
-                archive_prefix = f"inputs/{path_name}-{path_hash}",
+                archive_prefix = archive_prefix,
                 base_dir       = path,
                 honor_exclude  = False,
             )
@@ -274,12 +384,14 @@ class BuildBundle:
                 "version"   : sys.version,
                 "platform"  : sys.platform,
             },
-            "env"      : self.env,
-            "roots"    : sorted(self._roots, key=lambda r: r["archive_path"]),
-            "files"    : sorted(self._records.values(), key=lambda r: r["archive_path"]),
-            "missing"  : self._missing,
-            "warnings" : self._warnings,
-            "git"      : sorted(git_roots.values(), key=lambda r: r["root"]),
+            "env"        : self.env,
+            "roots"      : sorted(self._roots,      key=lambda r: r["archive_path"]),
+            "input_dirs" : sorted(self._input_dirs, key=lambda r: r["archive_path"]),
+            "pythonpath" : sorted(self._pythonpath, key=lambda r: r["archive_path"]),
+            "files"      : sorted(self._records.values(), key=lambda r: r["archive_path"]),
+            "missing"    : self._missing,
+            "warnings"   : self._warnings,
+            "git"        : sorted(git_roots.values(), key=lambda r: r["root"]),
         }
 
     def create(self):

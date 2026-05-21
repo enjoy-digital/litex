@@ -24,7 +24,7 @@ from packaging.version import Version
 from litex import get_data_mod
 from litex.gen import colorer
 
-from litex.build.bundle import BuildBundle
+from litex.build.bundle import BuildBundle, remap_path
 from litex.build.tools import write_to_file
 from litex.build.log import build_log_context
 
@@ -179,6 +179,7 @@ class Builder:
     def add_software_package(self, name, src_dir=None):
         if src_dir is None:
             src_dir = os.path.join(soc_directory, "software", name)
+        src_dir = remap_path(src_dir)
         self.software_packages.append((name, src_dir))
 
     def _has_software_package(self, name):
@@ -192,6 +193,7 @@ class Builder:
     def add_json(self, filename, origin=0, name="", exclude_constants=None):
         if exclude_constants is None:
             exclude_constants = ["_INTERRUPT"]
+        filename = remap_path(filename)
         self.jsons.append((filename, origin, name, exclude_constants))
 
     def _load_jsons(self):

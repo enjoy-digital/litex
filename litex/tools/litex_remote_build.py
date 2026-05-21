@@ -21,8 +21,14 @@ from litex.tools.litex_build_bundle import create_bundle
 
 # Helpers ------------------------------------------------------------------------------------------
 
-def _ssh_command(host, command, pty="auto"):
-    ssh = ["ssh"]
+def _command_words(command):
+    if isinstance(command, str):
+        return shlex.split(command)
+    return list(command)
+
+
+def _ssh_command(ssh_cmd, host, command, pty="auto"):
+    ssh = _command_words(ssh_cmd)
     if pty == "yes" or (pty == "auto" and sys.stdin.isatty()):
         ssh.append("-t")
     elif pty == "no":
@@ -31,24 +37,35 @@ def _ssh_command(host, command, pty="auto"):
     return ssh
 
 
-def _run_ssh(host, command, pty="auto", check=True):
-    rc = subprocess.call(_ssh_command(host, command, pty=pty))
+def _run_ssh(ssh_cmd, host, command, pty="auto", check=True):
+    rc = subprocess.call(_ssh_command(ssh_cmd, host, command, pty=pty))
     if check and rc != 0:
         raise OSError(f"SSH command failed with exit code {rc}.")
     return rc
 
 
-def _upload(host, local_path, remote_path):
-    subprocess.check_call(["scp", local_path, f"{host}:{remote_path}"])
+def _upload(scp_cmd, host, local_path, remote_path):
+    subprocess.check_call(_command_words(scp_cmd) + [
+        local_path,
+        f"{host}:{remote_path}",
+    ])
 
 
-def _download(host, remote_path, local_path):
-    subprocess.check_call(["scp", "-r", f"{host}:{remote_path}", local_path])
+def _download(scp_cmd, host, remote_path, local_path):
+    subprocess.check_call(_command_words(scp_cmd) + [
+        "-r",
+        f"{host}:{remote_path}",
+        local_path,
+    ])
 
 
 def _load_manifest(manifest_path):
     with open(manifest_path, encoding="utf-8") as f:
         return json.load(f)
+
+
+def _runner_path():
+    return os.path.join(os.path.dirname(__file__), "litex_build_bundle.py")
 
 
 def _default_job_name(archive_path):
@@ -70,18 +87,23 @@ def _remote_join(first, *parts):
 
 def _first_replay_root(manifest):
     roots = manifest.get("roots", [])
+    for root in roots:
+        if "bundle_root" in root.get("roles", [root.get("role")]):
+            return root["archive_path"]
     return roots[0]["archive_path"] if roots else ""
 
 
 def _create_archive_from_command(args):
     bundle_args = SimpleNamespace(
-        output     = None,
-        output_dir = args.output_dir,
-        root       = args.root,
-        include    = args.include,
-        env        = args.env,
-        strict     = args.strict,
-        command    = args.command,
+        output             = None,
+        output_dir         = args.output_dir,
+        root               = args.root,
+        include            = args.include,
+        pythonpath_root    = args.pythonpath_root,
+        no_auto_pythonpath = args.no_auto_pythonpath,
+        env                = args.env,
+        strict             = args.strict,
+        command            = args.command,
     )
     return create_bundle(bundle_args)
 
@@ -90,18 +112,22 @@ def _create_archive_from_command(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Run a LiteX build from a build bundle on a remote host.")
-    parser.add_argument("--host",        required=True,             help="SSH host, for example user@server.")
-    parser.add_argument("--remote-root", default="~/.cache/litex/remote-builds", help="Remote work root.")
-    parser.add_argument("--archive",     default=None,              help="Existing build bundle archive to replay remotely.")
-    parser.add_argument("--output-dir",  default="build",           help="Local bundle output directory when creating an archive.")
-    parser.add_argument("--root",        action="append", default=[], help="Directory root to archive when creating a bundle.")
-    parser.add_argument("--include",     action="append", default=[], help="Extra file/directory to archive when creating a bundle.")
-    parser.add_argument("--env",         action="append", default=[], help="Environment variable to record/pass (KEY or KEY=VALUE).")
-    parser.add_argument("--strict",      default="warn", choices=["warn", "error"], help="Missing input handling.")
-    parser.add_argument("--sync-back",   action="append", default=["build"], help="Root-relative path to copy back.")
-    parser.add_argument("--keep-remote", action="store_true",       help="Keep remote work directory after completion.")
-    parser.add_argument("--pty",         default="auto", choices=["auto", "yes", "no"], help="SSH TTY allocation policy.")
-    parser.add_argument("command",       nargs=argparse.REMAINDER,  help="Command to bundle/replay, usually after '--'.")
+    parser.add_argument("--host",            required=True,             help="SSH host, for example user@server.")
+    parser.add_argument("--remote-root",     default="~/.cache/litex/remote-builds", help="Remote work root.")
+    parser.add_argument("--archive",         default=None,              help="Existing build bundle archive to replay remotely.")
+    parser.add_argument("--output-dir",      default="build",           help="Local bundle output directory when creating an archive.")
+    parser.add_argument("--root",            action="append", default=[], help="Directory root to archive when creating a bundle.")
+    parser.add_argument("--include",         action="append", default=[], help="Extra file/directory to archive when creating a bundle.")
+    parser.add_argument("--pythonpath-root", action="append", default=[], help="Python import root to archive/prepend on replay.")
+    parser.add_argument("--no-auto-pythonpath", action="store_true",   help="Do not auto-bundle LiteX Python import roots.")
+    parser.add_argument("--env",             action="append", default=[], help="Environment variable to record/pass (KEY or KEY=VALUE).")
+    parser.add_argument("--strict",          default="warn", choices=["warn", "error"], help="Missing input handling.")
+    parser.add_argument("--sync-back",       action="append", default=["build"], help="Root-relative path to copy back.")
+    parser.add_argument("--keep-remote",     action="store_true",       help="Keep remote work directory after completion.")
+    parser.add_argument("--pty",             default="auto", choices=["auto", "yes", "no"], help="SSH TTY allocation policy.")
+    parser.add_argument("--ssh-cmd",         default=os.getenv("LITEX_REMOTE_SSH", "ssh"), help="SSH command.")
+    parser.add_argument("--scp-cmd",         default=os.getenv("LITEX_REMOTE_SCP", "scp"), help="SCP command.")
+    parser.add_argument("command",           nargs=argparse.REMAINDER,  help="Command to bundle/replay, usually after '--'.")
     args = parser.parse_args()
 
     if args.command and args.command[0] == "--":
@@ -123,17 +149,20 @@ def main():
     job_name = _default_job_name(archive_path)
     remote_work    = _remote_join(args.remote_root, job_name)
     remote_archive = _remote_join(remote_work, "input.tar.gz")
+    remote_runner  = _remote_join(remote_work, "litex_build_bundle.py")
     remote_replay  = _remote_join(remote_work, "replay")
 
     mkdir_cmd = "mkdir -p {}".format(shlex.quote(remote_work))
-    _run_ssh(args.host, mkdir_cmd, pty="no")
-    _upload(args.host, archive_path, remote_archive)
+    _run_ssh(args.ssh_cmd, args.host, mkdir_cmd, pty="no")
+    _upload(args.scp_cmd, args.host, archive_path, remote_archive)
+    _upload(args.scp_cmd, args.host, _runner_path(), remote_runner)
 
-    replay_cmd = "python3 -m litex.tools.litex_build_bundle --run-local {} --work-dir {}".format(
+    replay_cmd = "python3 {} --run-local {} --work-dir {}".format(
+        shlex.quote(remote_runner),
         shlex.quote(remote_archive),
         shlex.quote(remote_replay),
     )
-    rc = _run_ssh(args.host, replay_cmd, pty=args.pty, check=False)
+    rc = _run_ssh(args.ssh_cmd, args.host, replay_cmd, pty=args.pty, check=False)
 
     root = _first_replay_root(manifest)
     remote_root = _remote_join(remote_replay, "src", root)
@@ -141,13 +170,13 @@ def main():
         remote_path = _remote_join(remote_root, path)
         local_path  = os.path.abspath(path)
         try:
-            _download(args.host, remote_path, local_path)
+            _download(args.scp_cmd, args.host, remote_path, local_path)
         except subprocess.CalledProcessError:
             print(f"Warning: unable to sync back {remote_path}.")
 
     if not args.keep_remote:
         rm_cmd = "rm -rf {}".format(shlex.quote(remote_work))
-        _run_ssh(args.host, rm_cmd, pty="no", check=False)
+        _run_ssh(args.ssh_cmd, args.host, rm_cmd, pty="no", check=False)
 
     sys.exit(rc)
 
