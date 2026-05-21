@@ -16,12 +16,17 @@ from litex.soc.cores.dma import WishboneDMAReader, WishboneDMAWriter
 
 # Helpers ------------------------------------------------------------------------------------------
 
-def make_bus():
-    return wishbone.Interface(data_width=32, address_width=32, addressing="word")
+def make_bus(bursting=False):
+    return wishbone.Interface(data_width=32, address_width=32, addressing="word", bursting=bursting)
+
+
+def burst_ctis(length):
+    assert length >= 1
+    return [wishbone.CTI_BURST_INCREMENTING]*(length - 1) + [wishbone.CTI_BURST_END]
 
 
 @passive
-def wb_read_slave(bus, mem):
+def wb_read_slave(bus, mem, bus_cycles=None):
     """Passive Wishbone read slave answering with mem[adr] (word-addressed).
 
     Handles back-to-back beats (stb held high across multiple addresses) by pulsing ack for
@@ -32,19 +37,24 @@ def wb_read_slave(bus, mem):
         yield
         if (yield bus.cyc) and (yield bus.stb) and not (yield bus.we):
             adr = (yield bus.adr) & (len(mem) - 1)
+            if bus_cycles is not None:
+                bus_cycles.append((adr, (yield bus.cti), (yield bus.bte)))
             yield bus.dat_r.eq(mem[adr])
             yield bus.ack.eq(1)
             yield
 
 
 @passive
-def wb_write_slave(bus, captures):
+def wb_write_slave(bus, captures, bus_cycles=None):
     """Passive Wishbone write slave appending (adr, dat) on every accepted write beat."""
     while True:
         yield bus.ack.eq(0)
         yield
         if (yield bus.cyc) and (yield bus.stb) and (yield bus.we):
-            captures.append(((yield bus.adr), (yield bus.dat_w)))
+            adr = (yield bus.adr)
+            captures.append((adr, (yield bus.dat_w)))
+            if bus_cycles is not None:
+                bus_cycles.append((adr, (yield bus.cti), (yield bus.bte)))
             yield bus.ack.eq(1)
             yield
 
@@ -52,10 +62,10 @@ def wb_write_slave(bus, captures):
 # DMA Reader ---------------------------------------------------------------------------------------
 
 class _ReaderDUT(LiteXModule):
-    def __init__(self):
-        self.bus = make_bus()
+    def __init__(self, bus_bursting=False, dma_bursting=None):
+        self.bus = make_bus(bursting=bus_bursting)
         # endianness="big" leaves bus.dat_r unmodified so the stream data matches mem[] directly.
-        self.dma = WishboneDMAReader(bus=self.bus, endianness="big")
+        self.dma = WishboneDMAReader(bus=self.bus, endianness="big", bursting=dma_bursting)
         self.dma.add_ctrl()
 
 
@@ -113,13 +123,62 @@ class TestDMAReader(unittest.TestCase):
         run_simulation(dut, [driver(dut), wb_read_slave(dut.bus, mem)])
         self.assertEqual(outputs, mem[4:8])
 
+    def test_reads_burst_when_bus_supports_bursting(self):
+        mem        = [0x10000000 + i for i in range(4)]
+        dut        = _ReaderDUT(bus_bursting=True)
+        outputs    = []
+        bus_cycles = []
+
+        def driver(dut):
+            yield dut.dma.base.eq(0)
+            yield dut.dma.length.eq(len(mem)*4)
+            yield dut.dma.source.ready.eq(1)
+            yield dut.dma.enable.eq(1)
+
+            timeout = 0
+            while len(outputs) < len(mem):
+                if (yield dut.dma.source.valid) and (yield dut.dma.source.ready):
+                    outputs.append((yield dut.dma.source.data))
+                yield
+                timeout += 1
+                self.assertLess(timeout, 10_000)
+
+        run_simulation(dut, [driver(dut), wb_read_slave(dut.bus, mem, bus_cycles)])
+        self.assertEqual(outputs, mem)
+        self.assertEqual([cti for _, cti, _ in bus_cycles], burst_ctis(len(mem)))
+        self.assertEqual([bte for _, _, bte in bus_cycles], [0]*len(mem))
+
+    def test_reads_classic_when_bursting_forced_off(self):
+        mem        = [0x20000000 + i for i in range(4)]
+        dut        = _ReaderDUT(bus_bursting=True, dma_bursting=False)
+        outputs    = []
+        bus_cycles = []
+
+        def driver(dut):
+            yield dut.dma.base.eq(0)
+            yield dut.dma.length.eq(len(mem)*4)
+            yield dut.dma.source.ready.eq(1)
+            yield dut.dma.enable.eq(1)
+
+            timeout = 0
+            while len(outputs) < len(mem):
+                if (yield dut.dma.source.valid) and (yield dut.dma.source.ready):
+                    outputs.append((yield dut.dma.source.data))
+                yield
+                timeout += 1
+                self.assertLess(timeout, 10_000)
+
+        run_simulation(dut, [driver(dut), wb_read_slave(dut.bus, mem, bus_cycles)])
+        self.assertEqual(outputs, mem)
+        self.assertEqual([cti for _, cti, _ in bus_cycles], [wishbone.CTI_BURST_NONE]*len(mem))
+
 
 # DMA Writer ---------------------------------------------------------------------------------------
 
 class _WriterDUT(LiteXModule):
-    def __init__(self):
-        self.bus = make_bus()
-        self.dma = WishboneDMAWriter(bus=self.bus, endianness="big")
+    def __init__(self, bus_bursting=False, dma_bursting=None):
+        self.bus = make_bus(bursting=bus_bursting)
+        self.dma = WishboneDMAWriter(bus=self.bus, endianness="big", bursting=dma_bursting)
         self.dma.add_ctrl()
 
 
@@ -157,6 +216,39 @@ class TestDMAWriter(unittest.TestCase):
         run_simulation(dut, [driver(dut), wb_write_slave(dut.bus, captures)])
         self.assertEqual([v for _, v in captures], payload)
         self.assertEqual([a for a, _ in captures], list(range(len(payload))))
+
+    def test_writes_burst_when_bus_supports_bursting(self):
+        payload    = [0x10000000 + i for i in range(4)]
+        dut        = _WriterDUT(bus_bursting=True)
+        captures   = []
+        bus_cycles = []
+
+        def driver(dut):
+            yield dut.dma.base.eq(0)
+            yield dut.dma.length.eq(len(payload)*4)
+            yield dut.dma.enable.eq(1)
+            for _ in range(4):
+                yield
+
+            yield dut.dma.sink.valid.eq(1)
+            for word in payload:
+                yield dut.dma.sink.data.eq(word)
+                yield
+                while not (yield dut.dma.sink.ready):
+                    yield
+            yield dut.dma.sink.valid.eq(0)
+
+            timeout = 0
+            while not (yield dut.dma.done):
+                yield
+                timeout += 1
+                self.assertLess(timeout, 200)
+
+        run_simulation(dut, [driver(dut), wb_write_slave(dut.bus, captures, bus_cycles)])
+        self.assertEqual([v for _, v in captures], payload)
+        self.assertEqual([a for a, _ in captures], list(range(len(payload))))
+        self.assertEqual([cti for _, cti, _ in bus_cycles], burst_ctis(len(payload)))
+        self.assertEqual([bte for _, _, bte in bus_cycles], [0]*len(payload))
 
 
 if __name__ == "__main__":

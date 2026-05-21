@@ -20,13 +20,15 @@ from litex.soc.interconnect import wishbone
 def format_bytes(s, endianness):
     return {"big": s, "little": reverse_bytes(s)}[endianness]
 
-def add_wishbone_burst_cti(module, bus, last, with_burst):
+def add_wishbone_burst_cti(module, bus, last, bursting):
     """Optionally add Wishbone CTI/BTE burst tagging.
 
-    This is disabled by default to preserve the legacy Wishbone classic behavior.
     When enabled, the DMA emits incrementing-burst CTI values and uses linear BTE.
+    Raw stream users must drive ``last`` on the final beat of a burst.
     """
-    if not with_burst:
+    if bursting is None:
+        bursting = getattr(bus, "bursting", False)
+    if not bursting:
         return
 
     if not hasattr(bus, "cti"):
@@ -34,18 +36,14 @@ def add_wishbone_burst_cti(module, bus, last, with_burst):
     if not hasattr(bus, "bte"):
         raise ValueError("Wishbone burst support requires a bus with BTE.")
 
-    cti_burst_none         = getattr(wishbone, "CTI_BURST_NONE",         0b000)
-    cti_burst_incrementing = getattr(wishbone, "CTI_BURST_INCREMENTING", 0b010)
-    cti_burst_end          = getattr(wishbone, "CTI_BURST_END",          0b111)
-
     module.comb += [
-        bus.cti.eq(cti_burst_none),
+        bus.cti.eq(wishbone.CTI_BURST_NONE),
         bus.bte.eq(0b00), # Linear burst.
         If(bus.cyc,
             If(last,
-                bus.cti.eq(cti_burst_end)
+                bus.cti.eq(wishbone.CTI_BURST_END)
             ).Else(
-                bus.cti.eq(cti_burst_incrementing)
+                bus.cti.eq(wishbone.CTI_BURST_INCREMENTING)
             )
         )
     ]
@@ -70,7 +68,7 @@ class WishboneDMAReader(LiteXModule):
     source : Record("data")
         Source for MMAP word results from reading.
     """
-    def __init__(self, bus, endianness="little", fifo_depth=16, with_csr=False, with_burst=False):
+    def __init__(self, bus, endianness="little", fifo_depth=16, with_csr=False, bursting=None):
         if not isinstance(bus, wishbone.Interface):
             raise TypeError("DMAReader requires a Wishbone bus.")
         if "r" not in bus.mode:
@@ -107,7 +105,7 @@ class WishboneDMAReader(LiteXModule):
             module     = self,
             bus        = bus,
             last       = sink.last,
-            with_burst = with_burst,
+            bursting   = bursting,
         )
 
         # CSRs.
@@ -194,7 +192,7 @@ class WishboneDMAWriter(LiteXModule):
     sink : Record("address", "data")
         Sink for MMAP addresses/datas to be written.
     """
-    def __init__(self, bus, endianness="little", with_csr=False, with_burst=False):
+    def __init__(self, bus, endianness="little", with_csr=False, bursting=None):
         if not isinstance(bus, wishbone.Interface):
             raise TypeError("DMAWriter requires a Wishbone bus.")
         if "w" not in bus.mode:
@@ -221,7 +219,7 @@ class WishboneDMAWriter(LiteXModule):
             module     = self,
             bus        = bus,
             last       = sink.last,
-            with_burst = with_burst,
+            bursting   = bursting,
         )
 
         # CSRs.
