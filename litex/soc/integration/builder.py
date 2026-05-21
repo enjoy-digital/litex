@@ -24,7 +24,7 @@ from packaging.version import Version
 from litex import get_data_mod
 from litex.gen import colorer
 
-from litex.build.bundle import BuildBundle, remap_path
+from litex.build.bundle import BuildBundle, get_pythonpath_roots, remap_path
 from litex.build.tools import write_to_file
 from litex.build.log import build_log_context
 
@@ -116,6 +116,8 @@ class Builder:
         build_bundle     = True,
         bundle_root      = None,
         bundle_include   = None,
+        bundle_pythonpath_root    = None,
+        bundle_auto_pythonpath    = False,
         bundle_strict    = "warn"):
 
         # SoC/Builder Attach.
@@ -157,12 +159,14 @@ class Builder:
         self.hierarchical = hierarchical
 
         # Build Bundle.
-        self.build_bundle       = bool(build_bundle) and (os.getenv("LITEX_BUILD_BUNDLE_REPLAY", "0") != "1")
-        self.build_bundle_path  = build_bundle if isinstance(build_bundle, str) else None
-        self.bundle_root        = [] if bundle_root    is None else list(bundle_root)
-        self.bundle_include     = [] if bundle_include is None else list(bundle_include)
-        self.bundle_strict      = bundle_strict
-        self.last_build_bundle  = None
+        self.build_bundle           = bool(build_bundle) and (os.getenv("LITEX_BUILD_BUNDLE_REPLAY", "0") != "1")
+        self.build_bundle_path      = build_bundle if isinstance(build_bundle, str) else None
+        self.bundle_root            = [] if bundle_root            is None else list(bundle_root)
+        self.bundle_include         = [] if bundle_include         is None else list(bundle_include)
+        self.bundle_pythonpath_root = [] if bundle_pythonpath_root is None else list(bundle_pythonpath_root)
+        self.bundle_auto_pythonpath = bundle_auto_pythonpath
+        self.bundle_strict          = bundle_strict
+        self.last_build_bundle      = None
 
         # Software packages and libraries.
         self.software_packages  = []
@@ -253,10 +257,10 @@ class Builder:
             define(k, v)
 
         # Define SoC/Picolibc/Compiler-RT/Software/Include directories.
-        picolibc_directory    = get_data_mod("software", "picolibc").data_location
-        compiler_rt_directory = get_data_mod("software", "compiler_rt").data_location
+        picolibc_directory    = remap_path(get_data_mod("software", "picolibc").data_location)
+        compiler_rt_directory = remap_path(get_data_mod("software", "compiler_rt").data_location)
 
-        define("SOC_DIRECTORY",         _check_makefile_path(soc_directory))
+        define("SOC_DIRECTORY",         _check_makefile_path(remap_path(soc_directory)))
         define("PICOLIBC_DIRECTORY",    _check_makefile_path(picolibc_directory))
         define("PICOLIBC_FORMAT",       self.bios_format)
         define("LIBC_MODE",             self.libc_mode)
@@ -469,7 +473,7 @@ class Builder:
         bundle = BuildBundle(
             output_dir    = self.output_dir,
             archive_path  = self.build_bundle_path,
-            command       = sys.argv,
+            command       = [sys.executable] + sys.argv,
             strict        = self.bundle_strict,
             exclude_dirs  = [self.output_dir],
         )
@@ -479,6 +483,11 @@ class Builder:
             bundle.add_root(path, role="bundle_root")
         for path in self.bundle_include:
             bundle.add_path(path, role="bundle_include")
+        for path in self.bundle_pythonpath_root:
+            bundle.add_pythonpath(path, role="pythonpath")
+        if self.bundle_auto_pythonpath:
+            for path in get_pythonpath_roots():
+                bundle.add_pythonpath(path, role="pythonpath_auto")
 
         # The target script is often the smallest useful handle for replay/debug.
         if sys.argv and sys.argv[0] and os.path.exists(sys.argv[0]):
@@ -659,6 +668,10 @@ def builder_args(parser):
         help="Add a directory root to the build input bundle.")
     bundle_group.add_argument("--bundle-include", action="append", default=[],
         help="Add an extra file/directory to the build input bundle.")
+    bundle_group.add_argument("--bundle-pythonpath-root", action="append", default=[],
+        help="Add a Python import root to the build input bundle.")
+    bundle_group.add_argument("--bundle-auto-pythonpath", action="store_true",
+        help="Auto-bundle LiteX Python import roots.")
     bundle_group.add_argument("--bundle-strict", default="warn", choices=["warn", "error"],
         help="Control missing build bundle input handling.")
     bios_group = parser.add_argument_group(title="BIOS options") # FIXME: Move?
@@ -697,5 +710,7 @@ def builder_argdict(args):
         "build_bundle"             : args.build_bundle,
         "bundle_root"              : args.bundle_root,
         "bundle_include"           : args.bundle_include,
+        "bundle_pythonpath_root"   : args.bundle_pythonpath_root,
+        "bundle_auto_pythonpath"   : args.bundle_auto_pythonpath,
         "bundle_strict"            : args.bundle_strict,
     }
