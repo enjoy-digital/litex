@@ -140,6 +140,50 @@ def litex_setup_validate_config(config):
     print_status(f"Available configs: {', '.join(install_configs)}")
     raise SetupError
 
+def litex_setup_uninitialized_repos(config="standard", develop_only=False):
+    missing = []
+    invalid = []
+    for name in install_configs[config]:
+        repo = git_repos[name]
+        if develop_only and not repo.develop:
+            continue
+        repo_path = os.path.join(current_path, name)
+        if not os.path.exists(repo_path):
+            missing.append((name, repo_path))
+        elif not git_is_repository(repo_path):
+            invalid.append((name, repo_path))
+    return missing, invalid
+
+def litex_setup_check_initialized_repos(config="standard", develop_only=False, retry="install"):
+    missing, invalid = litex_setup_uninitialized_repos(
+        config       = config,
+        develop_only = develop_only,
+    )
+    if not missing and not invalid:
+        return
+
+    if len(missing) + len(invalid) == 1:
+        name = (missing or invalid)[0][0]
+        print_error(f"{name} Git repository is not initialized, please run --init first.")
+    else:
+        print_error("Some Git repositories are not initialized, please run --init first.")
+
+    if missing:
+        print_status("Missing repositories:")
+        for name, repo_path in missing:
+            print_status(f"  {name}: {repo_path}")
+
+    if invalid:
+        print_status("Paths that exist but are not Git repositories:")
+        for name, repo_path in invalid:
+            print_status(f"  {name}: {repo_path}")
+        print_status("Move or remove these paths before running --init.")
+
+    print_status("Initialize repositories first, then retry:")
+    print_status(f"  ./litex_setup.py --init --config={config}")
+    print_status(f"  ./litex_setup.py --{retry} --config={config}")
+    raise SetupError
+
 def litex_setup_auto_update():
     print_status("LiteX Setup auto-update...")
     try:
@@ -505,6 +549,7 @@ def pip_install_error(
 
 def litex_setup_install_repos(config="standard", user_mode=False, break_system_packages=False):
     print_status("Installing Git repositories...", underline=True)
+    litex_setup_check_initialized_repos(config=config, develop_only=True, retry="install")
     for name in install_configs[config]:
         repo = git_repos[name]
         os.chdir(os.path.join(current_path))

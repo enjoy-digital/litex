@@ -183,6 +183,28 @@ class TestLiteXSetup(unittest.TestCase):
         self.assertIn("litex Git repository is not initialized, please run --init first.", output)
         self.assertNotIn("Traceback", output + stderr)
 
+    def test_install_reports_all_uninitialized_repositories(self):
+        os.makedirs(os.path.join(self.workspace, "migen"))
+        litex_setup.git_repos = {
+            "migen": SimpleNamespace(develop=True, editable=True),
+            "litex": SimpleNamespace(develop=True, editable=True),
+            "optional": SimpleNamespace(develop=False, editable=True),
+        }
+        litex_setup.install_configs = {"standard": ["migen", "litex", "optional"]}
+
+        output, stderr = self.assert_setup_error(litex_setup.litex_setup_install_repos, config="standard")
+
+        self.assertIn("Some Git repositories are not initialized, please run --init first.", output)
+        self.assertIn("Missing repositories:", output)
+        self.assertIn("litex:", output)
+        self.assertIn("Paths that exist but are not Git repositories:", output)
+        self.assertIn("migen:", output)
+        self.assertIn("Move or remove these paths before running --init.", output)
+        self.assertIn("./litex_setup.py --init --config=standard", output)
+        self.assertIn("./litex_setup.py --install --config=standard", output)
+        self.assertNotIn("optional:", output)
+        self.assertNotIn("Traceback", output + stderr)
+
     def test_install_pip_failure_has_actionable_error(self):
         self.create_repo()
 
