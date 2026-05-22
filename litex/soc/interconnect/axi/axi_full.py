@@ -235,53 +235,213 @@ class AXIUpConverter(LiteXModule):
 
         # # #
 
-        # Note: Assuming size of "axi_from" burst >= "axi_to" data_width.
+        lane_bits = log2_int(ratio)
+        lane_lsb  = log2_int(dw_from//8)
+
+        # Convert each narrow AXI beat into one wide single-beat transfer. This preserves the
+        # address-selected data/strb lane for short or unaligned bursts.
 
         # Write path -------------------------------------------------------------------------------
 
-        # AW Channel.
+        aw = AXIStreamInterface(
+            layout   = ax_description(axi_from.address_width, version=axi_from.version),
+            id_width = axi_from.id_width)
+        self.submodules.aw_burst2beat = AXIBurst2Beat(axi_from.aw, aw)
+
+        aw_layout = [
+            ("addr",   len(axi_to.aw.addr)),
+            ("size",   len(axi_to.aw.size)),
+            ("lock",   len(axi_to.aw.lock)),
+            ("prot",   len(axi_to.aw.prot)),
+            ("cache",  len(axi_to.aw.cache)),
+            ("qos",    len(axi_to.aw.qos)),
+            ("region", len(axi_to.aw.region)),
+            ("id",     len(axi_to.aw.id)),
+            ("dest",   len(axi_to.aw.dest)),
+            ("user",   len(axi_to.aw.user)),
+            ("lane",   lane_bits),
+        ]
+        aw_cmd  = stream.SyncFIFO(aw_layout, 16)
+        aw_data = stream.SyncFIFO([("lane", lane_bits)], 16)
+        b_info  = stream.SyncFIFO([("id", len(axi_to.b.id))], 16)
+        self.submodules += aw_cmd, aw_data, b_info
+
+        aw_fifos_ready = Signal()
         self.comb += [
-            axi_from.aw.connect(axi_to.aw, omit={"len", "size"}),
-            axi_to.aw.len.eq( axi_from.aw.len >> log2_int(ratio)),
-            axi_to.aw.size.eq(axi_from.aw.size + log2_int(ratio)),
+            aw_fifos_ready.eq(aw_cmd.sink.ready & aw_data.sink.ready),
+            aw.ready.eq(aw_fifos_ready),
+
+            aw_cmd.sink.valid.eq(aw.valid & aw_data.sink.ready),
+            aw_cmd.sink.addr.eq(aw.addr),
+            aw_cmd.sink.size.eq(axi_from.aw.size),
+            aw_cmd.sink.lock.eq(axi_from.aw.lock),
+            aw_cmd.sink.prot.eq(axi_from.aw.prot),
+            aw_cmd.sink.cache.eq(axi_from.aw.cache),
+            aw_cmd.sink.qos.eq(axi_from.aw.qos),
+            aw_cmd.sink.region.eq(axi_from.aw.region),
+            aw_cmd.sink.id.eq(aw.id),
+            aw_cmd.sink.dest.eq(axi_from.aw.dest),
+            aw_cmd.sink.user.eq(axi_from.aw.user),
+            aw_cmd.sink.lane.eq(aw.addr[lane_lsb:lane_lsb + lane_bits]),
+            aw_cmd.sink.last.eq(aw.last),
+
+            aw_data.sink.valid.eq(aw.valid & aw_cmd.sink.ready),
+            aw_data.sink.lane.eq(aw.addr[lane_lsb:lane_lsb + lane_bits]),
+        ]
+
+        self.comb += [
+            axi_to.aw.valid.eq(aw_cmd.source.valid & b_info.sink.ready),
+            axi_to.aw.addr.eq(aw_cmd.source.addr),
+            axi_to.aw.burst.eq(BURST_INCR),
+            axi_to.aw.len.eq(0),
+            axi_to.aw.size.eq(aw_cmd.source.size),
+            axi_to.aw.lock.eq(aw_cmd.source.lock),
+            axi_to.aw.prot.eq(aw_cmd.source.prot),
+            axi_to.aw.cache.eq(aw_cmd.source.cache),
+            axi_to.aw.qos.eq(aw_cmd.source.qos),
+            axi_to.aw.region.eq(aw_cmd.source.region),
+            axi_to.aw.id.eq(aw_cmd.source.id),
+            axi_to.aw.dest.eq(aw_cmd.source.dest),
+            axi_to.aw.user.eq(aw_cmd.source.user),
+            aw_cmd.source.ready.eq(axi_to.aw.ready & b_info.sink.ready),
+
+            b_info.sink.valid.eq(aw_cmd.source.valid & axi_to.aw.ready),
+            b_info.sink.id.eq(aw_cmd.source.id),
+            b_info.sink.last.eq(aw_cmd.source.last),
         ]
 
         # W Channel.
-        w_converter = stream.StrideConverter(
-            description_from = [("data", dw_from), ("strb", dw_from//8)],
-            description_to   = [("data",   dw_to), ("strb",   dw_to//8)],
-        )
-        self.submodules += w_converter
-        self.comb += axi_from.w.connect(w_converter.sink, omit={"id", "dest", "user"})
-        self.comb += w_converter.source.connect(axi_to.w)
-        self.comb += axi_to.w.id.eq(axi_from.w.id)
-        self.comb += axi_to.w.dest.eq(axi_from.w.dest)
-        self.comb += axi_to.w.user.eq(axi_from.w.user)
+        self.comb += [
+            axi_to.w.valid.eq(axi_from.w.valid & aw_data.source.valid),
+            axi_from.w.ready.eq(axi_to.w.ready & aw_data.source.valid),
+            aw_data.source.ready.eq(axi_from.w.valid & axi_to.w.ready),
+            axi_to.w.data.eq(0),
+            axi_to.w.strb.eq(0),
+            axi_to.w.last.eq(1),
+            axi_to.w.id.eq(axi_from.w.id),
+            axi_to.w.dest.eq(axi_from.w.dest),
+            axi_to.w.user.eq(axi_from.w.user),
+        ]
+        for i in range(ratio):
+            self.comb += If(aw_data.source.lane == i,
+                axi_to.w.data[i*dw_from:(i + 1)*dw_from].eq(axi_from.w.data),
+                axi_to.w.strb[i*(dw_from//8):(i + 1)*(dw_from//8)].eq(axi_from.w.strb),
+            )
 
         # B Channel.
-        self.comb += axi_to.b.connect(axi_from.b)
+        b_resp = Signal(2, reset=RESP_OKAY)
+        self.comb += [
+            axi_from.b.valid.eq(axi_to.b.valid & b_info.source.valid & b_info.source.last),
+            axi_from.b.resp.eq(Mux(axi_to.b.resp != RESP_OKAY, axi_to.b.resp, b_resp)),
+            axi_from.b.id.eq(axi_to.b.id),
+            axi_from.b.dest.eq(axi_to.b.dest),
+            axi_from.b.user.eq(axi_to.b.user),
+            axi_to.b.ready.eq(b_info.source.valid & (~b_info.source.last | axi_from.b.ready)),
+            b_info.source.ready.eq(axi_to.b.valid & axi_to.b.ready),
+        ]
+        self.sync += If(axi_to.b.valid & axi_to.b.ready,
+            If(b_info.source.last,
+                b_resp.eq(RESP_OKAY)
+            ).Elif(axi_to.b.resp != RESP_OKAY,
+                b_resp.eq(axi_to.b.resp)
+            )
+        )
 
         # Read path --------------------------------------------------------------------------------
 
-        # AR Channel.
+        ar = AXIStreamInterface(
+            layout   = ax_description(axi_from.address_width, version=axi_from.version),
+            id_width = axi_from.id_width)
+        self.submodules.ar_burst2beat = AXIBurst2Beat(axi_from.ar, ar)
+
+        ar_layout = [
+            ("addr",   len(axi_to.ar.addr)),
+            ("size",   len(axi_to.ar.size)),
+            ("lock",   len(axi_to.ar.lock)),
+            ("prot",   len(axi_to.ar.prot)),
+            ("cache",  len(axi_to.ar.cache)),
+            ("qos",    len(axi_to.ar.qos)),
+            ("region", len(axi_to.ar.region)),
+            ("id",     len(axi_to.ar.id)),
+            ("dest",   len(axi_to.ar.dest)),
+            ("user",   len(axi_to.ar.user)),
+            ("lane",   lane_bits),
+        ]
+        ar_cmd = stream.SyncFIFO(ar_layout, 16)
+        r_info = stream.SyncFIFO([("lane", lane_bits)], 16)
+        r_fifo = stream.SyncFIFO([
+            ("data", dw_from),
+            ("resp", len(axi_from.r.resp)),
+            ("id",   len(axi_from.r.id)),
+            ("dest", len(axi_from.r.dest)),
+            ("user", len(axi_from.r.user)),
+        ], 16)
+        self.submodules += ar_cmd, r_info, r_fifo
+
         self.comb += [
-            axi_from.ar.connect(axi_to.ar, omit={"len", "size"}),
-            axi_to.ar.len.eq( axi_from.ar.len >> log2_int(ratio)),
-            axi_to.ar.size.eq(axi_from.ar.size + log2_int(ratio)),
+            ar_cmd.sink.valid.eq(ar.valid),
+            ar.ready.eq(ar_cmd.sink.ready),
+            ar_cmd.sink.addr.eq(ar.addr),
+            ar_cmd.sink.size.eq(axi_from.ar.size),
+            ar_cmd.sink.lock.eq(axi_from.ar.lock),
+            ar_cmd.sink.prot.eq(axi_from.ar.prot),
+            ar_cmd.sink.cache.eq(axi_from.ar.cache),
+            ar_cmd.sink.qos.eq(axi_from.ar.qos),
+            ar_cmd.sink.region.eq(axi_from.ar.region),
+            ar_cmd.sink.id.eq(ar.id),
+            ar_cmd.sink.dest.eq(axi_from.ar.dest),
+            ar_cmd.sink.user.eq(axi_from.ar.user),
+            ar_cmd.sink.lane.eq(ar.addr[lane_lsb:lane_lsb + lane_bits]),
+            ar_cmd.sink.last.eq(ar.last),
+        ]
+
+        self.comb += [
+            axi_to.ar.valid.eq(ar_cmd.source.valid & r_info.sink.ready),
+            axi_to.ar.addr.eq(ar_cmd.source.addr),
+            axi_to.ar.burst.eq(BURST_INCR),
+            axi_to.ar.len.eq(0),
+            axi_to.ar.size.eq(ar_cmd.source.size),
+            axi_to.ar.lock.eq(ar_cmd.source.lock),
+            axi_to.ar.prot.eq(ar_cmd.source.prot),
+            axi_to.ar.cache.eq(ar_cmd.source.cache),
+            axi_to.ar.qos.eq(ar_cmd.source.qos),
+            axi_to.ar.region.eq(ar_cmd.source.region),
+            axi_to.ar.id.eq(ar_cmd.source.id),
+            axi_to.ar.dest.eq(ar_cmd.source.dest),
+            axi_to.ar.user.eq(ar_cmd.source.user),
+            ar_cmd.source.ready.eq(axi_to.ar.ready & r_info.sink.ready),
+
+            r_info.sink.valid.eq(ar_cmd.source.valid & axi_to.ar.ready),
+            r_info.sink.lane.eq(ar_cmd.source.lane),
+            r_info.sink.last.eq(ar_cmd.source.last),
         ]
 
         # R Channel.
-        r_converter = stream.StrideConverter(
-            description_from = [("data",   dw_to)],
-            description_to   = [("data", dw_from)],
-        )
-        self.submodules += r_converter
-        self.comb += axi_to.r.connect(r_converter.sink, omit={"id", "dest", "user", "resp"})
-        self.comb += r_converter.source.connect(axi_from.r)
-        self.comb += axi_from.r.resp.eq(axi_to.r.resp)
-        self.comb += axi_from.r.id.eq(axi_to.r.id)
-        self.comb += axi_from.r.user.eq(axi_to.r.user)
-        self.comb += axi_from.r.dest.eq(axi_to.r.dest)
+        r_data = Signal(dw_from)
+        for i in range(ratio):
+            self.comb += If(r_info.source.lane == i,
+                r_data.eq(axi_to.r.data[i*dw_from:(i + 1)*dw_from])
+            )
+        self.comb += [
+            r_fifo.sink.valid.eq(axi_to.r.valid & r_info.source.valid),
+            r_fifo.sink.data.eq(r_data),
+            r_fifo.sink.resp.eq(axi_to.r.resp),
+            r_fifo.sink.id.eq(axi_to.r.id),
+            r_fifo.sink.dest.eq(axi_to.r.dest),
+            r_fifo.sink.user.eq(axi_to.r.user),
+            r_fifo.sink.last.eq(r_info.source.last),
+            axi_to.r.ready.eq(r_info.source.valid & r_fifo.sink.ready),
+            r_info.source.ready.eq(axi_to.r.valid & axi_to.r.ready),
+
+            axi_from.r.valid.eq(r_fifo.source.valid),
+            axi_from.r.data.eq(r_fifo.source.data),
+            axi_from.r.resp.eq(r_fifo.source.resp),
+            axi_from.r.last.eq(r_fifo.source.last),
+            axi_from.r.id.eq(r_fifo.source.id),
+            axi_from.r.dest.eq(r_fifo.source.dest),
+            axi_from.r.user.eq(r_fifo.source.user),
+            r_fifo.source.ready.eq(axi_from.r.ready),
+        ]
 
 class AXIDownConverter(LiteXModule):
     """AXI4-Full data-width down-converter.

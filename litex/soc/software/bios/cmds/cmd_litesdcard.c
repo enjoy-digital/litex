@@ -79,11 +79,13 @@ define_command(sdcard_freq, sdcard_freq_handler, "Set SDCard clock freq", LITESD
 static void sdcard_read_handler(int nb_params, char **params)
 {
 	unsigned int block;
+	unsigned long addr;
 	char *c;
 	uint8_t buf[512];
+	uint8_t *dst = buf;
 
 	if (nb_params < 1) {
-		printf("sdcard_read <block>\n");
+		printf("sdcard_read <block> [addr]\n");
 		return;
 	}
 
@@ -92,9 +94,17 @@ static void sdcard_read_handler(int nb_params, char **params)
 		printf("Error: invalid block number\n");
 		return;
 	}
+	if (nb_params >= 2) {
+		addr = strtoul(params[1], &c, 0);
+		if (*c != 0) {
+			printf("Error: invalid destination address\n");
+			return;
+		}
+		dst = (uint8_t *)(uintptr_t)addr;
+	}
 
-	sdcard_read(block, 1, buf);
-	dump_bytes((unsigned int *)buf, 512, (unsigned long) buf);
+	sdcard_read(block, 1, dst);
+	dump_bytes((unsigned int *)dst, 512, (unsigned long)dst);
 }
 
 define_command(sdcard_read, sdcard_read_handler, "Read SDCard block", LITESDCARD_CMDS);
