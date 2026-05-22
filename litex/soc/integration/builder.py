@@ -38,6 +38,108 @@ def _create_dir(d, remove_if_exists=False):
         shutil.rmtree(dir_path)
     os.makedirs(dir_path, exist_ok=True)
 
+def _get_sdram_phy_c_header_compat(get_sdram_phy_c_header, sdram):
+    sdram_name         = getattr(sdram, "name", "sdram")
+    ddrphy_name        = getattr(sdram, "phy_name", "ddrphy")
+    ddrctrl_name       = getattr(sdram, "ddrctrl_name", "ddrctrl")
+    memory_region_name = getattr(sdram, "region_name", "main_ram")
+
+    phy_settings    = sdram.controller.settings.phy
+    timing_settings = sdram.controller.settings.timing
+    geom_settings   = sdram.controller.settings.geom
+
+    try:
+        return get_sdram_phy_c_header(
+            phy_settings,
+            timing_settings,
+            geom_settings,
+            sdram_name         = sdram_name,
+            ddrphy_name        = ddrphy_name,
+            ddrctrl_name       = ddrctrl_name,
+            memory_region_name = memory_region_name)
+    except TypeError as e:
+        if "unexpected keyword argument" not in str(e):
+            raise
+
+    contents = get_sdram_phy_c_header(phy_settings, timing_settings, geom_settings)
+
+    alias_lines = [
+        "",
+        f'#define SDRAM_NAME "{sdram_name}"',
+        f"#define SDRAM_BASE {memory_region_name.upper()}_BASE",
+        f"#define SDRAM_SIZE {memory_region_name.upper()}_SIZE",
+    ]
+
+    if sdram_name != "sdram":
+        contents = contents.replace("CSR_SDRAM_", f"CSR_{sdram_name.upper()}_")
+        alias_lines += [
+            f"#ifdef CSR_{sdram_name.upper()}_BASE",
+            f"#define CSR_SDRAM_BASE CSR_{sdram_name.upper()}_BASE",
+            "#endif",
+        ]
+        for name in ["control_read", "control_write"]:
+            alias_lines.append(f"#define sdram_dfii_{name} {sdram_name}_dfii_{name}")
+        for n in range(phy_settings.nphases):
+            for name in ["command_write", "command_issue_write", "address_write", "baddress_write"]:
+                alias_lines.append(f"#define sdram_dfii_pi{n}_{name} {sdram_name}_dfii_pi{n}_{name}")
+
+    if ddrphy_name != "ddrphy":
+        ddrphy_upper = ddrphy_name.upper()
+        for suffix in ["BASE", "RST_ADDR", "EN_VTC_ADDR", "RDPHASE_ADDR", "WRPHASE_ADDR"]:
+            alias_lines += [
+                f"#ifdef CSR_{ddrphy_upper}_{suffix}",
+                f"#define CSR_DDRPHY_{suffix} CSR_{ddrphy_upper}_{suffix}",
+                "#endif",
+            ]
+        for name in [
+            "rst_write",
+            "en_vtc_write",
+            "half_sys8x_taps_read",
+            "wlevel_en_write",
+            "wlevel_strobe_write",
+            "cdly_rst_write",
+            "cdly_inc_write",
+            "dly_sel_write",
+            "dq_dly_sel_write",
+            "rdly_dq_rst_write",
+            "rdly_dq_inc_write",
+            "rdly_dq_bitslip_rst_write",
+            "rdly_dq_bitslip_write",
+            "wdly_dq_rst_write",
+            "wdly_dq_inc_write",
+            "wdly_dqs_rst_write",
+            "wdly_dqs_inc_write",
+            "wdly_dqs_inc_count_read",
+            "wdly_dq_bitslip_rst_write",
+            "wdly_dq_bitslip_write",
+            "rdphase_read",
+            "rdphase_write",
+            "wrphase_read",
+            "wrphase_write",
+            "burstdet_clr_write",
+            "burstdet_seen_read",
+        ]:
+            alias_lines.append(f"#define ddrphy_{name} {ddrphy_name}_{name}")
+
+    if ddrctrl_name != "ddrctrl":
+        ddrctrl_upper = ddrctrl_name.upper()
+        alias_lines += [
+            f"#ifdef CSR_{ddrctrl_upper}_BASE",
+            f"#define CSR_DDRCTRL_BASE CSR_{ddrctrl_upper}_BASE",
+            "#endif",
+            f"#define ddrctrl_init_done_write {ddrctrl_name}_init_done_write",
+            f"#define ddrctrl_init_error_write {ddrctrl_name}_init_error_write",
+        ]
+
+    aliases = "\n".join(alias_lines) + "\n"
+    include = "#include <generated/csr.h>\n"
+    if include in contents:
+        contents = contents.replace(include, include + aliases, 1)
+    else:
+        contents = aliases + contents
+
+    return contents
+
 # Software Packages --------------------------------------------------------------------------------
 
 soc_software_packages = [
@@ -297,14 +399,7 @@ class Builder:
         if sdram_controllers:
             from litedram.init import get_sdram_phy_c_header
             for name, sdram in sdram_controllers.items():
-                sdram_contents = get_sdram_phy_c_header(
-                    sdram.controller.settings.phy,
-                    sdram.controller.settings.timing,
-                    sdram.controller.settings.geom,
-                    sdram_name         = name,
-                    ddrphy_name        = getattr(sdram, "phy_name", "ddrphy"),
-                    ddrctrl_name       = getattr(sdram, "ddrctrl_name", "ddrctrl"),
-                    memory_region_name = getattr(sdram, "region_name", "main_ram"))
+                sdram_contents = _get_sdram_phy_c_header_compat(get_sdram_phy_c_header, sdram)
                 header_name = "sdram_phy.h" if name == "sdram" else f"{name}_phy.h"
                 write_to_file(os.path.join(self.generated_dir, header_name), sdram_contents)
 
