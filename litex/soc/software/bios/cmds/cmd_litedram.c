@@ -19,33 +19,78 @@
 #include "../command.h"
 #include "../helpers.h"
 
+#if (defined(CSR_SDRAM_GENERATOR_BASE)  && defined(CSR_SDRAM_CHECKER_BASE))  || \
+    (defined(CSR_SDRAM1_GENERATOR_BASE) && defined(CSR_SDRAM1_CHECKER_BASE)) || \
+    (defined(CSR_SDRAM2_GENERATOR_BASE) && defined(CSR_SDRAM2_CHECKER_BASE)) || \
+    (defined(CSR_SDRAM3_GENERATOR_BASE) && defined(CSR_SDRAM3_CHECKER_BASE))
+#define LITEDRAM_BIST_AVAILABLE
+#endif
+
+#ifdef LITEDRAM_BIST_AVAILABLE
+static bool sdram_bist_param_is_named_controller(const char *param)
+{
+	return (strcmp(param, "all") == 0) || (strncmp(param, "sdram", 5) == 0);
+}
+
+static bool sdram_bist_param_is_numeric_controller(const char *param)
+{
+	char *c;
+	unsigned long channel;
+
+	channel = strtoul(param, &c, 0);
+	return (*c == 0) && (channel <= 3);
+}
+#endif
+
 /**
  * Command "sdram_bist"
  *
  * Run SDRAM Built-In Self-Test
  *
  */
-#if defined(CSR_SDRAM_GENERATOR_BASE) && defined(CSR_SDRAM_CHECKER_BASE)
+#ifdef LITEDRAM_BIST_AVAILABLE
 static void sdram_bist_handler(int nb_params, char **params)
 {
 	char *c;
+	const char *controller = NULL;
 	int burst_length;
 	int random;
+	int loops = 0;
+	int arg = 0;
+
 	if (nb_params < 2) {
-		printf("sdram_bist <burst_length> <random>\n");
+		printf("sdram_bist [controller|all] <burst_length> <random> [loops]\n");
+		sdram_bist_print_targets();
 		return;
 	}
-	burst_length = strtoul(params[0], &c, 0);
+	if (nb_params >= 3 && (
+		sdram_bist_param_is_named_controller(params[arg]) ||
+		((nb_params >= 4) && sdram_bist_param_is_numeric_controller(params[arg])))) {
+		controller = params[arg++];
+	}
+	burst_length = strtoul(params[arg++], &c, 0);
 	if (*c != 0) {
 		printf("Error: invalid burst_length\n");
 		return;
 	}
-	random = strtoul(params[1], &c, 0);
+	random = strtoul(params[arg++], &c, 0);
 	if (*c != 0) {
 		printf("Error: invalid random\n");
 		return;
 	}
-	sdram_bist(burst_length, random);
+	if (nb_params > arg) {
+		loops = strtoul(params[arg++], &c, 0);
+		if (*c != 0) {
+			printf("Error: invalid loops\n");
+			return;
+		}
+	}
+	if (nb_params > arg) {
+		printf("sdram_bist [controller|all] <burst_length> <random> [loops]\n");
+		return;
+	}
+	if (sdram_bist_controller(controller, burst_length, random, loops) < 0)
+		sdram_bist_print_targets();
 }
 define_command(sdram_bist, sdram_bist_handler, "Run SDRAM Built-In Self-Test", LITEDRAM_CMDS);
 #endif
@@ -56,36 +101,50 @@ define_command(sdram_bist, sdram_bist_handler, "Run SDRAM Built-In Self-Test", L
  * Run SDRAM HW-accelerated memtest
  *
  */
-#if defined(CSR_SDRAM_GENERATOR_BASE) && defined(CSR_SDRAM_CHECKER_BASE)
+#ifdef LITEDRAM_BIST_AVAILABLE
 static void sdram_hw_test_handler(int nb_params, char **params)
 {
 	char *c;
+	const char *controller = NULL;
 	uint64_t origin;
 	uint64_t size;
 	uint64_t burst_length = 1;
+	int arg = 0;
+
 	if (nb_params < 2) {
-		printf("sdram_hw_test <origin> <size> [burst_length]\n");
+		printf("sdram_hw_test [controller|all] <origin> <size> [burst_length]\n");
+		sdram_bist_print_targets();
 		return;
 	}
-	origin = strtoull(params[0], &c, 0);
+	if (nb_params >= 4) {
+		controller = params[arg++];
+	}
+	origin = strtoul(params[arg++], &c, 0);
 	if (*c != 0) {
 		printf("Error: invalid origin\n");
 		return;
 	}
-	size = strtoull(params[1], &c, 0);
+	size = strtoul(params[arg++], &c, 0);
 	if (*c != 0) {
 		printf("Error: invalid size\n");
 		return;
 	}
-	if (nb_params > 2) {
-		burst_length = strtoull(params[2], &c, 0);
+	if (nb_params > arg) {
+		burst_length = strtoul(params[arg++], &c, 0);
 		if (*c != 0) {
 			printf("Error: invalid burst_length\n");
 			return;
 		}
 	}
-	int errors = sdram_hw_test(origin, size, burst_length);
-	printf("%d errors found\n", errors);
+	if (nb_params > arg) {
+		printf("sdram_hw_test [controller|all] <origin> <size> [burst_length]\n");
+		return;
+	}
+	int errors = sdram_hw_test_controller(controller, origin, size, burst_length);
+	if (errors < 0)
+		sdram_bist_print_targets();
+	else
+		printf("%d errors found\n", errors);
 }
 define_command(sdram_hw_test, sdram_hw_test_handler, "Run SDRAM HW-accelerated memtest", LITEDRAM_CMDS);
 #endif

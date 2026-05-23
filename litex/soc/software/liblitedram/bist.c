@@ -2,26 +2,135 @@
 // License: BSD
 
 #include <generated/csr.h>
-#if defined(CSR_SDRAM_GENERATOR_BASE) && defined(CSR_SDRAM_CHECKER_BASE)
+
+#if (defined(CSR_SDRAM_GENERATOR_BASE)  && defined(CSR_SDRAM_CHECKER_BASE))  || \
+    (defined(CSR_SDRAM1_GENERATOR_BASE) && defined(CSR_SDRAM1_CHECKER_BASE)) || \
+    (defined(CSR_SDRAM2_GENERATOR_BASE) && defined(CSR_SDRAM2_CHECKER_BASE)) || \
+    (defined(CSR_SDRAM3_GENERATOR_BASE) && defined(CSR_SDRAM3_CHECKER_BASE))
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <uart.h>
 #include <time.h>
 #include <console.h>
 #include <inttypes.h>
+#include <stdint.h>
 
+#include <generated/mem.h>
+#include <generated/sdram_phy.h>
 #include <liblitedram/bist.h>
 #include <liblitedram/utils.h>
-#include <generated/sdram_phy.h>
 
 #define SDRAM_TEST_BASE 0x00000000
 #define SDRAM_TEST_DATA_BYTES (SDRAM_PHY_DFI_DATABITS / 8 * SDRAM_PHY_PHASES)
+#define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
 
-static uint32_t wr_ticks = 0;
-static uint32_t wr_length = 0;
-static uint32_t rd_ticks = 0;
-static uint32_t rd_length = 0;
-static uint32_t rd_errors = 0;
+#ifdef DDRAM_MAIN_CHANNEL
+#define SDRAM_BIST_MAIN_CHANNEL DDRAM_MAIN_CHANNEL
+#else
+#define SDRAM_BIST_MAIN_CHANNEL 0
+#endif
+
+#ifdef MAIN_RAM_SIZE
+#define SDRAM_BIST_MAIN_SIZE MAIN_RAM_SIZE
+#else
+#define SDRAM_BIST_MAIN_SIZE 0
+#endif
+
+#ifdef DDRAM1_SIZE
+#define SDRAM_BIST_DDRAM1_SIZE DDRAM1_SIZE
+#else
+#define SDRAM_BIST_DDRAM1_SIZE 0
+#endif
+
+#ifdef DDRAM2_SIZE
+#define SDRAM_BIST_DDRAM2_SIZE DDRAM2_SIZE
+#else
+#define SDRAM_BIST_DDRAM2_SIZE 0
+#endif
+
+#ifdef DDRAM3_SIZE
+#define SDRAM_BIST_DDRAM3_SIZE DDRAM3_SIZE
+#else
+#define SDRAM_BIST_DDRAM3_SIZE 0
+#endif
+
+typedef void (*sdram_bist_write_csr)(uint32_t value);
+typedef uint32_t (*sdram_bist_read_csr)(void);
+
+struct sdram_bist_target {
+	const char *name;
+	uint32_t channel;
+	uint64_t size;
+	uint32_t data_bytes;
+
+	sdram_bist_write_csr generator_reset_write;
+	sdram_bist_write_csr generator_start_write;
+	sdram_bist_write_csr generator_random_write;
+	sdram_bist_write_csr generator_base_write;
+	sdram_bist_write_csr generator_end_write;
+	sdram_bist_write_csr generator_length_write;
+	sdram_bist_read_csr  generator_done_read;
+	sdram_bist_read_csr  generator_ticks_read;
+
+	sdram_bist_write_csr checker_reset_write;
+	sdram_bist_write_csr checker_start_write;
+	sdram_bist_write_csr checker_random_write;
+	sdram_bist_write_csr checker_base_write;
+	sdram_bist_write_csr checker_end_write;
+	sdram_bist_write_csr checker_length_write;
+	sdram_bist_read_csr  checker_done_read;
+	sdram_bist_read_csr  checker_ticks_read;
+	sdram_bist_read_csr  checker_errors_read;
+};
+
+struct sdram_bist_stats {
+	uint64_t wr_ticks;
+	uint64_t wr_length;
+	uint64_t rd_ticks;
+	uint64_t rd_length;
+	uint64_t rd_errors;
+};
+
+#define SDRAM_BIST_TARGET(prefix, label, channel_id, memory_size) { \
+	.name                   = label, \
+	.channel                = channel_id, \
+	.size                   = memory_size, \
+	.data_bytes             = SDRAM_TEST_DATA_BYTES, \
+	.generator_reset_write  = prefix##_generator_reset_write, \
+	.generator_start_write  = prefix##_generator_start_write, \
+	.generator_random_write = prefix##_generator_random_write, \
+	.generator_base_write   = prefix##_generator_base_write, \
+	.generator_end_write    = prefix##_generator_end_write, \
+	.generator_length_write = prefix##_generator_length_write, \
+	.generator_done_read    = prefix##_generator_done_read, \
+	.generator_ticks_read   = prefix##_generator_ticks_read, \
+	.checker_reset_write    = prefix##_checker_reset_write, \
+	.checker_start_write    = prefix##_checker_start_write, \
+	.checker_random_write   = prefix##_checker_random_write, \
+	.checker_base_write     = prefix##_checker_base_write, \
+	.checker_end_write      = prefix##_checker_end_write, \
+	.checker_length_write   = prefix##_checker_length_write, \
+	.checker_done_read      = prefix##_checker_done_read, \
+	.checker_ticks_read     = prefix##_checker_ticks_read, \
+	.checker_errors_read    = prefix##_checker_errors_read, \
+}
+
+static const struct sdram_bist_target sdram_bist_targets[] = {
+#if defined(CSR_SDRAM_GENERATOR_BASE) && defined(CSR_SDRAM_CHECKER_BASE)
+	SDRAM_BIST_TARGET(sdram,  "sdram",  SDRAM_BIST_MAIN_CHANNEL, SDRAM_BIST_MAIN_SIZE),
+#endif
+#if defined(CSR_SDRAM1_GENERATOR_BASE) && defined(CSR_SDRAM1_CHECKER_BASE)
+	SDRAM_BIST_TARGET(sdram1, "sdram1", 1,                       SDRAM_BIST_DDRAM1_SIZE),
+#endif
+#if defined(CSR_SDRAM2_GENERATOR_BASE) && defined(CSR_SDRAM2_CHECKER_BASE)
+	SDRAM_BIST_TARGET(sdram2, "sdram2", 2,                       SDRAM_BIST_DDRAM2_SIZE),
+#endif
+#if defined(CSR_SDRAM3_GENERATOR_BASE) && defined(CSR_SDRAM3_CHECKER_BASE)
+	SDRAM_BIST_TARGET(sdram3, "sdram3", 3,                       SDRAM_BIST_DDRAM3_SIZE),
+#endif
+};
 
 static uint32_t pseudo_random_bases[128] = {
 	0x000e4018,0x0003338d,0x00233429,0x001f589d,
@@ -58,153 +167,327 @@ static uint32_t pseudo_random_bases[128] = {
 	0x00027e36,0x000e51ae,0x002e7627,0x00275c9f,
 };
 
-static void sdram_bist_write(uint32_t base, uint32_t length) {
-	/* Prepare write */
-	sdram_generator_reset_write(1);
-	sdram_generator_random_write(1); /* Random data */
-	sdram_generator_base_write(base);
-	sdram_generator_end_write(base + length);
-	sdram_generator_length_write(length);
-
-	/* Start write */
-	sdram_generator_start_write(1);
-
-	/* Wait write */
-	while(sdram_generator_done_read() == 0);
+static uint64_t sdram_bist_target_size(const struct sdram_bist_target *target)
+{
+	if (target->size != 0)
+		return target->size;
+	return sdram_get_supported_memory();
 }
 
-static void sdram_bist_read(uint32_t base, uint32_t length) {
-	/* Prepare read */
-	sdram_checker_reset_write(1);
-	sdram_checker_random_write(1); /* Random data */
-	sdram_checker_base_write(base);
-	sdram_checker_end_write(base + length);
-	sdram_checker_length_write(length);
-
-	/* Start read */
-
-	sdram_checker_start_write(1);
-	/* Wait read */
-	while(sdram_checker_done_read() == 0);
+static uint64_t align_down(uint64_t value, uint32_t alignment)
+{
+	return value & ~((uint64_t)alignment - 1);
 }
 
-static void sdram_bist_loop(uint32_t loop, uint32_t burst_length, uint32_t random) {
-	int i;
+static int sdram_bist_add_errors(int errors, int new_errors)
+{
+	if (new_errors < 0)
+		return new_errors;
+	if (INT32_MAX - errors < new_errors)
+		return INT32_MAX;
+	return errors + new_errors;
+}
+
+static const struct sdram_bist_target *sdram_bist_find_target(const char *name)
+{
+	char *c;
+	uint32_t channel;
+
+	if (name == NULL)
+		return &sdram_bist_targets[0];
+
+	for (unsigned int i = 0; i < ARRAY_SIZE(sdram_bist_targets); i++) {
+		if (strcmp(name, sdram_bist_targets[i].name) == 0)
+			return &sdram_bist_targets[i];
+	}
+
+	if (strncmp(name, "sdram", 5) == 0 && name[5] != '\0')
+		name += 5;
+
+	channel = strtoul(name, &c, 0);
+	if (*c != 0)
+		return NULL;
+
+	for (unsigned int i = 0; i < ARRAY_SIZE(sdram_bist_targets); i++) {
+		if (channel == sdram_bist_targets[i].channel)
+			return &sdram_bist_targets[i];
+	}
+
+	return NULL;
+}
+
+void sdram_bist_print_targets(void)
+{
+	printf("Available SDRAM BIST controllers:");
+	for (unsigned int i = 0; i < ARRAY_SIZE(sdram_bist_targets); i++)
+		printf(" %s(channel=%" PRIu32 ")", sdram_bist_targets[i].name, sdram_bist_targets[i].channel);
+	printf(" all\n");
+}
+
+static void sdram_bist_write(const struct sdram_bist_target *target, uint32_t base, uint32_t length)
+{
+	/* Prepare write. */
+	target->generator_reset_write(1);
+	target->generator_random_write(1); /* Random data. */
+	target->generator_base_write(base);
+	target->generator_end_write(base + length);
+	target->generator_length_write(length);
+
+	/* Start write. */
+	target->generator_start_write(1);
+
+	/* Wait write. */
+	while (target->generator_done_read() == 0);
+}
+
+static void sdram_bist_read(const struct sdram_bist_target *target, uint32_t base, uint32_t length)
+{
+	/* Prepare read. */
+	target->checker_reset_write(1);
+	target->checker_random_write(1); /* Random data. */
+	target->checker_base_write(base);
+	target->checker_end_write(base + length);
+	target->checker_length_write(length);
+
+	/* Start read. */
+	target->checker_start_write(1);
+
+	/* Wait read. */
+	while (target->checker_done_read() == 0);
+}
+
+static void sdram_bist_loop(const struct sdram_bist_target *target,
+	uint32_t loop, uint32_t burst_length, uint32_t random, struct sdram_bist_stats *stats)
+{
 	uint32_t base;
 	uint32_t length;
-	length = burst_length * SDRAM_TEST_DATA_BYTES;
+	uint64_t length64;
+	uint64_t max_base;
+	uint64_t target_size = sdram_bist_target_size(target);
 
-	rd_errors = 0;
-	for (i = 0; i < 128; i++) {
+	length64 = (uint64_t)burst_length * target->data_bytes;
+	if (length64 > target_size)
+		length64 = align_down(target_size, target->data_bytes);
+	if (length64 > UINT32_MAX)
+		length64 = align_down(UINT32_MAX, target->data_bytes);
+	if (length64 == 0)
+		return;
+	length = length64;
+
+	for (int i = 0; i < 128; i++) {
 		if (random)
-			base = SDRAM_TEST_BASE + pseudo_random_bases[(i+loop)%128]*SDRAM_TEST_DATA_BYTES;
+			base = SDRAM_TEST_BASE + pseudo_random_bases[(i + loop) % 128] * target->data_bytes;
 		else
-			base = SDRAM_TEST_BASE + ((i+loop)%128)*SDRAM_TEST_DATA_BYTES;
+			base = SDRAM_TEST_BASE + ((i + loop) % 128) * target->data_bytes;
 
-		sdram_bist_write(base, length);
-		/* Get write results */
-		wr_length += length;
-		wr_ticks += sdram_generator_ticks_read();
+		max_base = target_size - length;
+		if (max_base == 0)
+			base = 0;
+		else if (base > max_base)
+			base = align_down(base % max_base, target->data_bytes);
 
-		sdram_bist_read(base, length);
-		/* Get read results */
-		rd_length += length;
-		rd_ticks  += sdram_checker_ticks_read();
-		rd_errors += sdram_checker_errors_read();
+		sdram_bist_write(target, base, length);
+		stats->wr_length += length;
+		stats->wr_ticks  += target->generator_ticks_read();
+
+		sdram_bist_read(target, base, length);
+		stats->rd_length += length;
+		stats->rd_ticks  += target->checker_ticks_read();
+		stats->rd_errors += target->checker_errors_read();
 	}
 }
 
-static uint32_t compute_speed_mibs(uint32_t length, uint32_t ticks) {
-	uint32_t speed;
-	//printf("(%u, %u)", length, ticks);
-	speed = (uint64_t)length*(CONFIG_CLOCK_FREQUENCY/(1024*1024))/ticks;
-	return speed;
+static uint64_t compute_speed_mibs(uint64_t length, uint64_t ticks)
+{
+	if (ticks == 0)
+		return 0;
+	return length * (uint64_t)CONFIG_CLOCK_FREQUENCY / (1024 * 1024) / ticks;
+}
+
+static void sdram_bist_print_header(void)
+{
+	printf("CTRL       WR-SPEED(MiB/s) RD-SPEED(MiB/s)  TESTED(MiB)       ERRORS\n");
+}
+
+static void sdram_bist_print_stats(const struct sdram_bist_target *target,
+	const struct sdram_bist_stats *stats, uint64_t total_length, uint64_t total_errors)
+{
+	printf("%-8s %15" PRIu64 " %15" PRIu64 "%12" PRIu64 "%12" PRIu64 "\n",
+		target->name,
+		compute_speed_mibs(stats->wr_length, stats->wr_ticks),
+		compute_speed_mibs(stats->rd_length, stats->rd_ticks),
+		total_length / (1024 * 1024),
+		total_errors);
+}
+
+static int sdram_bist_run_target(const struct sdram_bist_target *target,
+	uint32_t burst_length, uint32_t random, uint32_t loops)
+{
+	uint64_t total_length = 0;
+	uint64_t total_errors = 0;
+	uint32_t report_period = 100;
+	struct sdram_bist_stats stats = {0};
+
+	if (loops != 0 && loops < report_period)
+		report_period = loops;
+
+	printf("Starting SDRAM BIST on %s/channel %" PRIu32 " with burst_length=%" PRIu32 ", random=%" PRIu32 ", loops=%" PRIu32 "\n",
+		target->name, target->channel, burst_length, random, loops);
+	sdram_bist_print_header();
+
+	for (uint32_t i = 0; loops == 0 || i < loops; i++) {
+		if (readchar_nonblock())
+			break;
+
+		sdram_bist_loop(target, i, burst_length, random, &stats);
+
+		if (((i + 1) % report_period) == 0) {
+			total_length += stats.wr_length;
+			total_errors += stats.rd_errors;
+			sdram_bist_print_stats(target, &stats, total_length, total_errors);
+			memset(&stats, 0, sizeof(stats));
+		}
+	}
+
+	if (stats.wr_length != 0) {
+		total_length += stats.wr_length;
+		total_errors += stats.rd_errors;
+		sdram_bist_print_stats(target, &stats, total_length, total_errors);
+	}
+
+	if (total_errors > INT32_MAX)
+		return INT32_MAX;
+	return total_errors;
+}
+
+static int sdram_bist_run_all(uint32_t burst_length, uint32_t random, uint32_t loops)
+{
+	int errors = 0;
+
+	for (unsigned int i = 0; i < ARRAY_SIZE(sdram_bist_targets); i++) {
+		int target_errors = sdram_bist_run_target(&sdram_bist_targets[i], burst_length, random, loops);
+		if (target_errors < 0)
+			return target_errors;
+		errors = sdram_bist_add_errors(errors, target_errors);
+	}
+
+	printf("SDRAM BIST total errors: %d\n", errors);
+	return errors;
 }
 
 void sdram_bist(uint32_t burst_length, uint32_t random)
 {
-	uint32_t i;
-	uint64_t total_length;
-	uint32_t total_errors;
-
-	printf("Starting SDRAM BIST with burst_length=%" PRIu32 " and random=%" PRIu32 "\n", burst_length, random);
-
-	total_length = 0;
-	total_errors = 0;
-	for (i = 0; !readchar_nonblock(); i++) { /* Exit on key pressed */
-		/* Bist loop */
-		sdram_bist_loop(i, burst_length, random);
-
-		/* Results */
-		if (i%1000 == 0) {
-			printf("WR-SPEED(MiB/s) RD-SPEED(MiB/s)  TESTED(MiB)       ERRORS\n");
-		}
-		if (i%100 == 100-1) {
-			printf("%15" PRIu32 " %15" PRIu32 "%12" PRIu64 "%12" PRIu32 "\n",
-				compute_speed_mibs(wr_length, wr_ticks),
-				compute_speed_mibs(rd_length, rd_ticks),
-				total_length/(1024*1024),
-				total_errors);
-
-			total_length += wr_length;
-			total_errors += rd_errors;
-
-			/* Clear length/ticks/errors */
-			wr_length = 0;
-			wr_ticks  = 0;
-			rd_length = 0;
-			rd_ticks  = 0;
-			rd_errors = 0;
-		}
-	}
+	sdram_bist_controller(NULL, burst_length, random, 0);
 }
 
-int sdram_hw_test(uint64_t origin, uint64_t size, uint64_t burst_length) {
-	uint64_t burst_size = SDRAM_TEST_DATA_BYTES * burst_length;
-	uint64_t old_burst_size = burst_size;
-	int errors = 0;
+int sdram_bist_controller(const char *controller, uint32_t burst_length, uint32_t random, uint32_t loops)
+{
+	const struct sdram_bist_target *target;
 
-	uint64_t supported_memory = sdram_get_supported_memory();
-
-	if (origin >= supported_memory) {
-		printf("Selected origin out of memory bounds! Supported memory: ");
-		print_size(supported_memory);
-		printf("\n");
-		return 0;
+	if (controller != NULL && strcmp(controller, "all") == 0) {
+		if (loops == 0)
+			loops = 100;
+		return sdram_bist_run_all(burst_length, random, loops);
 	}
 
-	if (origin + size > supported_memory) {
-		printf("Test would go out of memory bounds. Clipping size to memory end: ");
+	target = sdram_bist_find_target(controller);
+	if (target == NULL) {
+		printf("Unknown SDRAM BIST controller: %s\n", controller);
+		return -1;
+	}
+
+	return sdram_bist_run_target(target, burst_length, random, loops);
+}
+
+static int sdram_hw_test_target(const struct sdram_bist_target *target,
+	uint64_t origin, uint64_t size, uint64_t burst_length)
+{
+	uint64_t burst_size;
+	uint64_t supported_memory = sdram_bist_target_size(target);
+	uint64_t end;
+	int errors = 0;
+
+	if (burst_length > UINT64_MAX / target->data_bytes) {
+		printf("Burst size is too large\n");
+		return -1;
+	}
+
+	burst_size = target->data_bytes * burst_length;
+	if (burst_size < target->data_bytes) {
+		printf("Burst size is too small\n");
+		return -1;
+	}
+	if (burst_size > UINT32_MAX) {
+		printf("Burst size is too large\n");
+		return -1;
+	}
+
+	if (origin >= supported_memory) {
+		printf("Selected origin out of memory bounds for %s. Supported memory: ", target->name);
+		print_size(supported_memory);
+		printf("\n");
+		return -1;
+	}
+
+	if (size > supported_memory - origin) {
+		printf("Test would go out of %s bounds. Clipping size to memory end: ", target->name);
 		print_size(supported_memory);
 		printf("\n");
 		size = supported_memory - origin;
 	}
 
-	for (uint64_t address = origin; address < origin + size; address += burst_size) {
-		if (address + burst_size > size) {
-			old_burst_size = burst_size;
-			burst_size = size - address;
-		}
+	end = origin + size;
+	printf("Starting SDRAM HW test on %s/channel %" PRIu32 ": 0x%" PRIx64 "-0x%" PRIx64 "\n",
+		target->name, target->channel, origin, end);
 
-		if (burst_size < SDRAM_TEST_DATA_BYTES || old_burst_size < burst_size)
+	for (uint64_t address = origin; address < end; address += burst_size) {
+		uint64_t current_burst_size = burst_size;
+
+		if (address + current_burst_size > end)
+			current_burst_size = end - address;
+		current_burst_size = align_down(current_burst_size, target->data_bytes);
+		if (current_burst_size < target->data_bytes)
 			break;
 
-		sdram_bist_write(address, burst_size);
+		sdram_bist_write(target, address, current_burst_size);
+		sdram_bist_read(target, address, current_burst_size);
+		errors += target->checker_errors_read();
 
-		sdram_bist_read(address, burst_size);
-		errors += sdram_checker_errors_read();
-
-		print_progress("  SDRAM HW test:", origin, address - origin + burst_size);
-	}
-
-	if (burst_size < SDRAM_TEST_DATA_BYTES || old_burst_size < burst_size) {
-		printf("\nTest would go out of memory bounds. Finished early at the end: ");
-		print_size(supported_memory);
+		print_progress("  SDRAM HW test:", origin, address - origin + current_burst_size);
 	}
 
 	printf("\n");
 
 	return errors;
+}
+
+int sdram_hw_test(uint64_t origin, uint64_t size, uint64_t burst_length)
+{
+	return sdram_hw_test_controller(NULL, origin, size, burst_length);
+}
+
+int sdram_hw_test_controller(const char *controller, uint64_t origin, uint64_t size, uint64_t burst_length)
+{
+	const struct sdram_bist_target *target;
+	int total_errors = 0;
+
+	if (controller != NULL && strcmp(controller, "all") == 0) {
+		for (unsigned int i = 0; i < ARRAY_SIZE(sdram_bist_targets); i++) {
+			int errors = sdram_hw_test_target(&sdram_bist_targets[i], origin, size, burst_length);
+			if (errors < 0)
+				return errors;
+			total_errors = sdram_bist_add_errors(total_errors, errors);
+		}
+		return total_errors;
+	}
+
+	target = sdram_bist_find_target(controller);
+	if (target == NULL) {
+		printf("Unknown SDRAM BIST controller: %s\n", controller);
+		return -1;
+	}
+
+	return sdram_hw_test_target(target, origin, size, burst_length);
 }
 
 #endif
