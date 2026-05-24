@@ -140,6 +140,10 @@ def get_linker_regions(regions):
 
 # C Export -----------------------------------------------------------------------------------------
 
+def _get_c_hex(value):
+    suffix = "ULL" if value > 0xffffffff else "L"
+    return f"0x{value:x}{suffix}"
+
 
 # Header.
 
@@ -156,16 +160,17 @@ def get_mem_header(regions):
     r += "#ifndef __GENERATED_MEM_H\n#define __GENERATED_MEM_H\n\n"
     for name, region in regions.items():
         r += f"#ifndef {name.upper()}_BASE\n"
-        r += f"#define {name.upper()}_BASE 0x{region.origin:08x}L\n"
-        r += f"#define {name.upper()}_SIZE 0x{region.size:08x}\n"
+        r += f"#define {name.upper()}_BASE {_get_c_hex(region.origin)}\n"
+        r += f"#define {name.upper()}_SIZE {_get_c_hex(region.size)}\n"
         r += "#endif\n\n"
 
     r += "#ifndef MEM_REGIONS\n"
     r += "#define MEM_REGIONS \""
     if len(regions):
         name_length = max([len(name) for name in regions.keys()])
+        addr_length = max(8, max(len(f"{region.origin:x}") for region in regions.values()))
         for name, region in regions.items():
-            r += f"{name.upper()} {' '*(name_length-len(name))} 0x{region.origin:08x} 0x{region.size:x} \\n"
+            r += f"{name.upper()} {' '*(name_length-len(name))} 0x{region.origin:0{addr_length}x} 0x{region.size:x} \\n"
         r = r[:-2]
     r += "\"\n"
     r += "#endif\n"
@@ -174,10 +179,12 @@ def get_mem_header(regions):
     r += "#define MEM_REGIONS_DETAILS \""
     if len(regions):
         name_length = max(len("Region"), max([len(name) for name in regions.keys()]))
-        r += f"{'Region':<{name_length}} Origin     End        Size \\n"
+        addr_length = max(8, max(len(f"{region.origin:x}") for region in regions.values()))
+        addr_length = max(addr_length, max(len(f"{region.origin + region.size - 1:x}") for region in regions.values()))
+        r += f"{'Region':<{name_length}} {'Origin':<{addr_length + 2}} {'End':<{addr_length + 2}} Size \\n"
         for name, region in regions.items():
             end = region.origin + region.size - 1
-            r += f"{name.upper():<{name_length}} 0x{region.origin:08x} 0x{end:08x} 0x{region.size:x} \\n"
+            r += f"{name.upper():<{name_length}} 0x{region.origin:0{addr_length}x} 0x{end:0{addr_length}x} 0x{region.size:x} \\n"
         r = r[:-2]
     r += "\"\n"
     r += "#endif\n"

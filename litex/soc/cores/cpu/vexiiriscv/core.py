@@ -8,6 +8,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import shlex
 import hashlib
 import subprocess
 from types import SimpleNamespace
@@ -56,6 +57,7 @@ class VexiiRiscv(CPU):
     internal_mem_map   = dict()
     # vexii params received from vexii:
     xlen               = None
+    physical_width     = 32
     internal_bus_width = None
     with_rvc           = None
     with_rvm           = None
@@ -98,6 +100,27 @@ class VexiiRiscv(CPU):
         ex = ["zicntr", "zicsr", "zifencei", "zihpm", "sscofpmf"]
 
         return VexiiRiscv.get_arch(ex)
+
+    @staticmethod
+    def _get_vexii_arg(args, name):
+        tokens = shlex.split(args)
+        for n, token in enumerate(tokens):
+            if token == f"--{name}" and n + 1 < len(tokens):
+                return tokens[n + 1]
+            if token.startswith(f"--{name}="):
+                return token.split("=", 1)[1]
+        return None
+
+    @staticmethod
+    def set_physical_width(width):
+        width = int(width)
+        current_width = VexiiRiscv._get_vexii_arg(VexiiRiscv.vexii_args, "physical-width")
+        if current_width is not None and int(current_width, 0) != width:
+            raise ValueError("Conflicting VexiiRiscv physical widths: "
+                f"{current_width} from vexii_args and {width} requested.")
+        VexiiRiscv.physical_width = width
+        if current_width is None:
+            VexiiRiscv.vexii_args += f" --physical-width={width}"
 
     # Memory Mapping.
     @property
@@ -162,6 +185,7 @@ class VexiiRiscv(CPU):
         cpu_group.add_argument("--update-repo",      default="recommended", choices=["latest","wipe+latest","recommended","wipe+recommended","no"], help="Specify how the VexiiRiscv & SpinalHDL repo should be updated (latest: update to HEAD, recommended: Update to known compatible version, no: Don't update, wipe+*: Do clean&reset before checkout)")
         cpu_group.add_argument("--no-netlist-cache", action="store_true", help="Always (re-)build the netlist.")
         cpu_group.add_argument("--vexii-args",       default="",          help="Specify the CPU configuration")
+        cpu_group.add_argument("--vexii-physical-width", default=None, type=lambda x: int(x, 0), help="VexiiRiscv physical/external address width.")
         # Vexii: ISA
         cpu_group.add_argument("--with-isa",         action="extend",     dest="isa", nargs='+', default=[], help="Enabled ISA mapping")
         cpu_group.add_argument("--with-aia",         action="store_true", help="Enable AIA support (Use --with-isa instead).")
@@ -231,10 +255,31 @@ class VexiiRiscv(CPU):
             if "s" in VexiiRiscv.isa_map:
                 VexiiRiscv.isa_map.add("ssaia")
 
-        VexiiRiscv.vexii_args += " --with-isa=" + ",".join(VexiiRiscv.isa_map)
+        if "a" in VexiiRiscv.isa_map:
+            VexiiRiscv.vexii_args += " --with-rva"
+        if "c" in VexiiRiscv.isa_map:
+            VexiiRiscv.vexii_args += " --with-rvc"
+        if "f" in VexiiRiscv.isa_map:
+            VexiiRiscv.vexii_args += " --with-rvf"
+        if "d" in VexiiRiscv.isa_map:
+            VexiiRiscv.vexii_args += " --with-rvd"
+        if any(isa in VexiiRiscv.isa_map for isa in ["zba", "zbb", "zbc", "zbs"]):
+            VexiiRiscv.vexii_args += " --with-rvZb"
+        if VexiiRiscv.with_supervisor:
+            VexiiRiscv.vexii_args += " --with-supervisor"
+        elif "u" in VexiiRiscv.isa_map:
+            VexiiRiscv.vexii_args += " --with-user"
 
         VexiiRiscv.soc_args = SimpleNamespace(**{k:getattr(args,k) for k in VexiiRiscv.soc_keys})
         VexiiRiscv.no_netlist_cache = args.no_netlist_cache
+        user_physical_width = VexiiRiscv._get_vexii_arg(args.vexii_args, "physical-width")
+        if args.vexii_physical_width is not None:
+            if user_physical_width is not None and int(user_physical_width, 0) != args.vexii_physical_width:
+                raise ValueError("Conflicting VexiiRiscv physical widths: "
+                    f"{user_physical_width} from --vexii-args and {args.vexii_physical_width} from --vexii-physical-width.")
+            VexiiRiscv.set_physical_width(args.vexii_physical_width)
+        elif user_physical_width is not None:
+            VexiiRiscv.physical_width = int(user_physical_width, 0)
         VexiiRiscv.vexii_args      += " " + args.vexii_args
         VexiiRiscv.update_repo      = args.update_repo
 
@@ -257,7 +302,7 @@ class VexiiRiscv(CPU):
         self.platform         = platform
         self.reset            = Signal()
         self.interrupt        = Signal(32)
-        self.pbus             = pbus = axi.AXILiteInterface(address_width=32, data_width=32)
+        self.pbus             = pbus = axi.AXILiteInterface(address_width=VexiiRiscv.physical_width, data_width=32)
 
         self.periph_buses     = [pbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses     = []           # Memory buses (Connected directly to LiteDRAM).
@@ -417,6 +462,7 @@ class VexiiRiscv(CPU):
         md5_hash.update(str(VexiiRiscv.reset_address).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.litedram_width).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.xlen).encode('utf-8'))
+        md5_hash.update(str(VexiiRiscv.physical_width).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.memory_regions).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.vexii_args).encode('utf-8'))
         md5_hash.update(str(VexiiRiscv.with_opensbi).encode('utf-8'))
@@ -444,9 +490,9 @@ class VexiiRiscv(CPU):
         # gen_args.append(f"--internal_bus_width={VexiiRiscv.internal_bus_width}")
         for region in VexiiRiscv.memory_regions:
             gen_args.append(f"--memory-region={region[0]},{region[1]},{region[2]},{region[3]}")
-        for device, address in VexiiRiscv.internal_mem_map.items():
-            gen_args.append(" --device-region:{}={}".format(device, address))
         for k,v in vars(VexiiRiscv.soc_args).items():
+            if k == "imsic_interrupt_number" and v == 0:
+                continue
             if isinstance(v, bool):
                 if v:
                     gen_args.append(f"--{k.replace('_','-')}")
@@ -504,6 +550,7 @@ class VexiiRiscv(CPU):
         soc.add_config("CPU_COUNT", VexiiRiscv.soc_args.cpu_count)
         soc.add_config("CPU_ISA", VexiiRiscv.get_arch())
         soc.add_config("CPU_MMU", {32 : "sv32", 64 : "sv39"}[VexiiRiscv.xlen])
+        soc.add_config("CPU_PHYSICAL_ADDR_WIDTH", VexiiRiscv.physical_width)
 
         if VexiiRiscv.soc_args.with_aplic:
             soc.bus.add_region("aplic_m",  SoCRegion(origin=soc.mem_map.get("aplic_m"),  size=0x20_0000, cached=False,  linker=True))
@@ -571,7 +618,7 @@ class VexiiRiscv(CPU):
 
         mbus = axi.AXIInterface(
             data_width    = VexiiRiscv.litedram_width,
-            address_width = 32,
+            address_width = VexiiRiscv.physical_width,
             id_width      = 8,
             version       = "axi3" if VexiiRiscv.soc_args.with_axi3 else "axi4"
         )
@@ -659,6 +706,10 @@ class VexiiRiscv(CPU):
         for name, region in self.soc_bus.regions.items():
             if region.linker: # Remove virtual regions.
                 continue
+            if (region.origin + region.size) > 2**VexiiRiscv.physical_width:
+                raise ValueError(
+                    f"Region {name} at 0x{region.origin:x} size 0x{region.size:x} "
+                    f"exceeds the VexiiRiscv {VexiiRiscv.physical_width}-bit physical address space.")
             if len(self.memory_buses) and name == 'main_ram': # m bus
                 bus = "m"
             else:

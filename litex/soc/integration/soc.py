@@ -162,7 +162,7 @@ class SoCCSRRegion:
 class SoCBusHandler(LiteXModule):
     supported_standard      = ["wishbone", "axi-lite", "axi"]
     supported_data_width    = [32, 64, 128, 256, 512]
-    supported_address_width = [32, 64]
+    supported_address_width = [32, 40, 64]
     supported_addressing    = ["word", "byte"]
     supported_interconnect  = ["shared", "crossbar"]
 
@@ -529,6 +529,56 @@ class SoCBusHandler(LiteXModule):
                         self.comb += interface.adr[address_shift:].eq(adapted_interface.adr)
                 return adapted_interface
 
+        # Bus-Address-Width conversion helper.
+        def bus_address_width_convert(interface, direction):
+            # Same Address-Width, return un-modified interface.
+            if interface.address_width == self.address_width:
+                return interface
+            # Wider Master/Slave than Bus, not supported.
+            if interface.address_width > self.address_width:
+                self.logger.error("{} Bus Address-Width {} higher than SoC Bus Address-Width {}.".format(
+                    colorer(name, color="red"),
+                    colorer(interface.address_width),
+                    colorer(self.address_width)))
+                raise SoCError()
+
+            interface_cls = type(interface)
+            adapted_interface = interface_cls(**self._get_interface_args(interface,
+                address_width = self.address_width))
+
+            # Wishbone.
+            if isinstance(interface, wishbone.Interface):
+                if direction == "m2s":
+                    self.comb += interface.connect(adapted_interface, omit={"adr"})
+                    self.comb += adapted_interface.adr.eq(interface.adr)
+                elif direction == "s2m":
+                    self.comb += adapted_interface.connect(interface, omit={"adr"})
+                    self.comb += interface.adr.eq(adapted_interface.adr)
+
+            # AXI / AXI-Lite.
+            elif isinstance(interface, (axi.AXIInterface, axi.AXILiteInterface)):
+                if direction == "m2s":
+                    self.comb += interface.connect(adapted_interface, omit={"addr"})
+                    if "w" in interface.mode:
+                        self.comb += adapted_interface.aw.addr.eq(interface.aw.addr)
+                    if "r" in interface.mode:
+                        self.comb += adapted_interface.ar.addr.eq(interface.ar.addr)
+                elif direction == "s2m":
+                    self.comb += adapted_interface.connect(interface, omit={"addr"})
+                    if "w" in interface.mode:
+                        self.comb += interface.aw.addr.eq(adapted_interface.aw.addr)
+                    if "r" in interface.mode:
+                        self.comb += interface.ar.addr.eq(adapted_interface.ar.addr)
+
+            # Unsupported.
+            else:
+                self.logger.error("{} Bus Address-Width conversion is not supported for {}.".format(
+                    colorer(name, color="red"),
+                    colorer(type(interface).__name__)))
+                raise SoCError()
+
+            return adapted_interface
+
         # Bus-Standard conversion helper.
         def bus_standard_convert(interface, direction):
             main_bus_cls = {
@@ -581,10 +631,13 @@ class SoCBusHandler(LiteXModule):
         adapted_interface = interface
         adapted_interface = bus_data_width_convert(adapted_interface, direction)
         adapted_interface = bus_addressing_convert(adapted_interface, direction)
+        adapted_interface = bus_address_width_convert(adapted_interface, direction)
         adapted_interface =   bus_standard_convert(adapted_interface, direction)
 
-        if type(interface) != type(adapted_interface) or interface.data_width != adapted_interface.data_width:
-            fmt = "{name} Bus {adapted} from {from_bus} {from_bits}-bit to {to_bus} {to_bits}-bit."
+        if (type(interface) != type(adapted_interface) or
+            interface.data_width != adapted_interface.data_width or
+            interface.address_width != adapted_interface.address_width):
+            fmt = "{name} Bus {adapted} from {from_bus} {from_bits}-bit/{from_adr}-bit to {to_bus} {to_bits}-bit/{to_adr}-bit."
             bus_names = {
                 wishbone.Interface:   "Wishbone",
                 axi.AXILiteInterface: "AXI-Lite",
@@ -596,8 +649,10 @@ class SoCBusHandler(LiteXModule):
                 adapted   = colorer("adapted", color="cyan"),
                 from_bus  = colorer(bus_names[type(interface)]),
                 from_bits = colorer(interface.data_width),
+                from_adr  = colorer(interface.address_width),
                 to_bus    = colorer(bus_names[type(adapted_interface)]),
-                to_bits   = colorer(adapted_interface.data_width)))
+                to_bits   = colorer(adapted_interface.data_width),
+                to_adr    = colorer(adapted_interface.address_width)))
 
         return adapted_interface
 
@@ -2070,7 +2125,7 @@ class LiteXSoC(SoC):
         # Add CPU's direct memory buses (if not already declared) ----------------------------------
         if main_ram and hasattr(self.cpu, "add_memory_buses"):
             self.cpu.add_memory_buses(
-                address_width = 32,
+                address_width = self.bus.address_width,
                 data_width    = sdram.crossbar.controller.data_width
             )
 
