@@ -16,6 +16,7 @@ from unittest.mock import patch
 from litex.build.bundle import BuildBundle, remap_path
 from litex.build.generic_platform import GenericPlatform
 from litex.tools.litex_build_bundle import create_bundle, run_local
+from litex.tools.litex_remote_build import _remote_shell_path
 from litex.tools.litex_remote_build import main as remote_build_main
 
 
@@ -217,11 +218,18 @@ class TestBuildBundle(unittest.TestCase):
             self.assertEqual(platform.verilog_include_paths[0], os.path.join(mapped_root, "include"))
             self.assertEqual(remap_path("relative.v"), "relative.v")
 
+    def test_remote_shell_path_preserves_home_expansion(self):
+        self.assertEqual(_remote_shell_path("~"), "~")
+        self.assertEqual(_remote_shell_path("~/.cache/litex"), "~/.cache/litex")
+        self.assertEqual(_remote_shell_path("~/remote build/job"), "~/'remote build/job'")
+        self.assertEqual(_remote_shell_path("/tmp/remote build/job"), "'/tmp/remote build/job'")
+        self.assertEqual(_remote_shell_path("~user/remote-builds"), "'~user/remote-builds'")
+
     def test_remote_build_works_with_local_fake_transport(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             project     = os.path.join(tmp_dir, "project")
             deps        = os.path.join(tmp_dir, "deps")
-            remote_root = os.path.join(tmp_dir, "remote")
+            remote_root = "~/remote build"
             fake_ssh    = os.path.join(tmp_dir, "fake_ssh.py")
             fake_scp    = os.path.join(tmp_dir, "fake_scp.py")
             os.makedirs(project)
@@ -258,8 +266,8 @@ class TestBuildBundle(unittest.TestCase):
                 f.write("src, dst = args[-2:]\n")
                 f.write("def path(value):\n")
                 f.write("    return value.split(':', 1)[1] if ':' in value and not value.startswith('/') else value\n")
-                f.write("src = path(src)\n")
-                f.write("dst = path(dst)\n")
+                f.write("src = os.path.expanduser(path(src))\n")
+                f.write("dst = os.path.expanduser(path(dst))\n")
                 f.write("if os.path.isdir(src):\n")
                 f.write("    if os.path.exists(dst):\n")
                 f.write("        shutil.rmtree(dst)\n")
@@ -287,9 +295,10 @@ class TestBuildBundle(unittest.TestCase):
             cwd = os.getcwd()
             os.chdir(project)
             try:
-                with patch.object(sys, "argv", argv):
-                    with self.assertRaises(SystemExit) as cm:
-                        remote_build_main()
+                with patch.dict(os.environ, {"HOME": tmp_dir}):
+                    with patch.object(sys, "argv", argv):
+                        with self.assertRaises(SystemExit) as cm:
+                            remote_build_main()
             finally:
                 os.chdir(cwd)
 

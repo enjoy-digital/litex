@@ -59,6 +59,14 @@ def _download(scp_cmd, host, remote_path, local_path):
     ])
 
 
+def _remote_shell_path(path):
+    if path == "~":
+        return path
+    if path.startswith("~/"):
+        return "~/" + shlex.quote(path[2:])
+    return shlex.quote(path)
+
+
 def _load_manifest(manifest_path):
     with open(manifest_path, encoding="utf-8") as f:
         return json.load(f)
@@ -152,15 +160,15 @@ def main():
     remote_runner  = _remote_join(remote_work, "litex_build_bundle.py")
     remote_replay  = _remote_join(remote_work, "replay")
 
-    mkdir_cmd = "mkdir -p {}".format(shlex.quote(remote_work))
+    mkdir_cmd = "mkdir -p {}".format(_remote_shell_path(remote_work))
     _run_ssh(args.ssh_cmd, args.host, mkdir_cmd, pty="no")
     _upload(args.scp_cmd, args.host, archive_path, remote_archive)
     _upload(args.scp_cmd, args.host, _runner_path(), remote_runner)
 
     replay_cmd = "python3 {} --run-local {} --work-dir {}".format(
-        shlex.quote(remote_runner),
-        shlex.quote(remote_archive),
-        shlex.quote(remote_replay),
+        _remote_shell_path(remote_runner),
+        _remote_shell_path(remote_archive),
+        _remote_shell_path(remote_replay),
     )
     rc = _run_ssh(args.ssh_cmd, args.host, replay_cmd, pty=args.pty, check=False)
 
@@ -175,7 +183,7 @@ def main():
             print(f"Warning: unable to sync back {remote_path}.")
 
     if not args.keep_remote:
-        rm_cmd = "rm -rf {}".format(shlex.quote(remote_work))
+        rm_cmd = "rm -rf {}".format(_remote_shell_path(remote_work))
         _run_ssh(args.ssh_cmd, args.host, rm_cmd, pty="no", check=False)
 
     sys.exit(rc)
