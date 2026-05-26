@@ -238,6 +238,7 @@ def test_linux_on_litex_rocket_nexys_video_generation(tmp_path):
     )
 
 TESTED_CPUS = [
+    "coreblocks",   # (riscv   / softcore)
     #"cv32e40p",     # (riscv   / softcore)
     "femtorv",      # (riscv   / softcore)
     "firev",        # (riscv   / softcore)
@@ -254,7 +255,6 @@ TESTED_CPUS = [
     "minerva",      # (riscv   / softcore)
 ]
 UNTESTED_CPUS = [
-    "coreblocks",   # (riscv   / softcore) -> Broken install?
     "blackparrot",  # (riscv   / softcore) -> Broken install?
     "cortex_m1",    # (arm     / softcore) -> Proprietary code.
     "cortex_m3",    # (arm     / softcore) -> Proprieraty code.
