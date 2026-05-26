@@ -1,11 +1,7 @@
 name: PyPI
 
 on:
-  push:
-    tags:
-      - "[0-9][0-9][0-9][0-9].04"
-      - "[0-9][0-9][0-9][0-9].08"
-      - "[0-9][0-9][0-9][0-9].12"
+  workflow_dispatch:
 
 permissions:
   contents: read
