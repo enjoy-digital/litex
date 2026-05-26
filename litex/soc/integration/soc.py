@@ -2105,6 +2105,8 @@ class LiteXSoC(SoC):
 
         sdram.size        = sdram_size
         sdram.name        = name
+        sdram.channel     = channel if channel is not None else name
+        sdram.with_bist   = with_bist
         sdram.main_ram    = main_ram
         sdram.region_name = "main_ram" if main_ram else (region_name or name)
         sdram.origin      = self.mem_map.get(sdram.region_name, origin)
@@ -2154,8 +2156,9 @@ class LiteXSoC(SoC):
                     # UpConvert.
                     elif data_width_ratio > 1:
                         axi_port = axi.AXIInterface(
-                            data_width = port.data_width,
-                            id_width   = len(mem_bus.aw.id),
+                            data_width    = port.data_width,
+                            address_width = mem_bus.address_width,
+                            id_width      = len(mem_bus.aw.id),
                         )
                         self.submodules += axi.AXIUpConverter(
                             axi_from = mem_bus,
@@ -2169,8 +2172,9 @@ class LiteXSoC(SoC):
                     # DownConvert.
                     else:
                         axi_port = axi.AXIInterface(
-                            data_width = port.data_width,
-                            id_width   = len(mem_bus.aw.id),
+                            data_width    = port.data_width,
+                            address_width = mem_bus.address_width,
+                            id_width      = len(mem_bus.aw.id),
                         )
                         self.submodules += axi.AXIDownConverter(
                             axi_from = mem_bus,

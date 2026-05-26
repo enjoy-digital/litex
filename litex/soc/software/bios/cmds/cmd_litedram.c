@@ -9,6 +9,7 @@
 #include <generated/soc.h>
 #include <generated/csr.h>
 #include <generated/mem.h>
+#include <generated/sdram_bist.h>
 #include <libbase/i2c.h>
 
 #include <liblitedram/sdram.h>
@@ -19,13 +20,6 @@
 #include "../command.h"
 #include "../helpers.h"
 
-#if (defined(CSR_SDRAM_GENERATOR_BASE)  && defined(CSR_SDRAM_CHECKER_BASE))  || \
-    (defined(CSR_SDRAM1_GENERATOR_BASE) && defined(CSR_SDRAM1_CHECKER_BASE)) || \
-    (defined(CSR_SDRAM2_GENERATOR_BASE) && defined(CSR_SDRAM2_CHECKER_BASE)) || \
-    (defined(CSR_SDRAM3_GENERATOR_BASE) && defined(CSR_SDRAM3_CHECKER_BASE))
-#define LITEDRAM_BIST_AVAILABLE
-#endif
-
 #ifdef LITEDRAM_BIST_AVAILABLE
 static bool sdram_bist_param_is_named_controller(const char *param)
 {
@@ -35,10 +29,51 @@ static bool sdram_bist_param_is_named_controller(const char *param)
 static bool sdram_bist_param_is_numeric_controller(const char *param)
 {
 	char *c;
-	unsigned long channel;
 
-	channel = strtoul(param, &c, 0);
-	return (*c == 0) && (channel <= 3);
+	strtoul(param, &c, 0);
+	return (*c == 0);
+}
+
+static int sdram_bist_digit_value(char c)
+{
+	if (c >= '0' && c <= '9')
+		return c - '0';
+	if (c >= 'a' && c <= 'z')
+		return c - 'a' + 10;
+	if (c >= 'A' && c <= 'Z')
+		return c - 'A' + 10;
+	return -1;
+}
+
+static uint64_t sdram_bist_strtou64(const char *param, char **endptr, int base)
+{
+	const char *p = param;
+	uint64_t value = 0;
+	int digit;
+	bool valid = false;
+
+	if (base == 0) {
+		if (p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) {
+			base = 16;
+			p += 2;
+		} else if (p[0] == '0') {
+			base = 8;
+		} else {
+			base = 10;
+		}
+	} else if (base == 16 && p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) {
+		p += 2;
+	}
+
+	while ((digit = sdram_bist_digit_value(*p)) >= 0 && digit < base) {
+		value = value * base + digit;
+		p++;
+		valid = true;
+	}
+
+	if (endptr != NULL)
+		*endptr = (char *)(valid ? p : param);
+	return value;
 }
 #endif
 
@@ -119,18 +154,18 @@ static void sdram_hw_test_handler(int nb_params, char **params)
 	if (nb_params >= 4) {
 		controller = params[arg++];
 	}
-	origin = strtoul(params[arg++], &c, 0);
+	origin = sdram_bist_strtou64(params[arg++], &c, 0);
 	if (*c != 0) {
 		printf("Error: invalid origin\n");
 		return;
 	}
-	size = strtoul(params[arg++], &c, 0);
+	size = sdram_bist_strtou64(params[arg++], &c, 0);
 	if (*c != 0) {
 		printf("Error: invalid size\n");
 		return;
 	}
 	if (nb_params > arg) {
-		burst_length = strtoul(params[arg++], &c, 0);
+		burst_length = sdram_bist_strtou64(params[arg++], &c, 0);
 		if (*c != 0) {
 			printf("Error: invalid burst_length\n");
 			return;

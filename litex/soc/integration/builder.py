@@ -38,107 +38,18 @@ def _create_dir(d, remove_if_exists=False):
         shutil.rmtree(dir_path)
     os.makedirs(dir_path, exist_ok=True)
 
-def _get_sdram_phy_c_header_compat(get_sdram_phy_c_header, sdram):
-    sdram_name         = getattr(sdram, "name", "sdram")
-    ddrphy_name        = getattr(sdram, "phy_name", "ddrphy")
-    ddrctrl_name       = getattr(sdram, "ddrctrl_name", "ddrctrl")
-    memory_region_name = getattr(sdram, "region_name", "main_ram")
+def _get_sdram_controllers(soc):
+    sdram_controllers = getattr(soc, "sdram_controllers", None)
+    if sdram_controllers is None and hasattr(soc, "sdram"):
+        sdram_controllers = {"sdram": soc.sdram}
+    return sdram_controllers or {}
 
-    phy_settings    = sdram.controller.settings.phy
-    timing_settings = sdram.controller.settings.timing
-    geom_settings   = sdram.controller.settings.geom
+def _get_sdram_csr_prefix(name):
+    return name.upper()
 
-    try:
-        return get_sdram_phy_c_header(
-            phy_settings,
-            timing_settings,
-            geom_settings,
-            sdram_name         = sdram_name,
-            ddrphy_name        = ddrphy_name,
-            ddrctrl_name       = ddrctrl_name,
-            memory_region_name = memory_region_name)
-    except TypeError as e:
-        if "unexpected keyword argument" not in str(e):
-            raise
-
-    contents = get_sdram_phy_c_header(phy_settings, timing_settings, geom_settings)
-
-    alias_lines = [
-        "",
-        f'#define SDRAM_NAME "{sdram_name}"',
-        f"#define SDRAM_BASE {memory_region_name.upper()}_BASE",
-        f"#define SDRAM_SIZE {memory_region_name.upper()}_SIZE",
-    ]
-
-    if sdram_name != "sdram":
-        contents = contents.replace("CSR_SDRAM_", f"CSR_{sdram_name.upper()}_")
-        alias_lines += [
-            f"#ifdef CSR_{sdram_name.upper()}_BASE",
-            f"#define CSR_SDRAM_BASE CSR_{sdram_name.upper()}_BASE",
-            "#endif",
-        ]
-        for name in ["control_read", "control_write"]:
-            alias_lines.append(f"#define sdram_dfii_{name} {sdram_name}_dfii_{name}")
-        for n in range(phy_settings.nphases):
-            for name in ["command_write", "command_issue_write", "address_write", "baddress_write"]:
-                alias_lines.append(f"#define sdram_dfii_pi{n}_{name} {sdram_name}_dfii_pi{n}_{name}")
-
-    if ddrphy_name != "ddrphy":
-        ddrphy_upper = ddrphy_name.upper()
-        for suffix in ["BASE", "RST_ADDR", "EN_VTC_ADDR", "RDPHASE_ADDR", "WRPHASE_ADDR"]:
-            alias_lines += [
-                f"#ifdef CSR_{ddrphy_upper}_{suffix}",
-                f"#define CSR_DDRPHY_{suffix} CSR_{ddrphy_upper}_{suffix}",
-                "#endif",
-            ]
-        for name in [
-            "rst_write",
-            "en_vtc_write",
-            "half_sys8x_taps_read",
-            "wlevel_en_write",
-            "wlevel_strobe_write",
-            "cdly_rst_write",
-            "cdly_inc_write",
-            "dly_sel_write",
-            "dq_dly_sel_write",
-            "rdly_dq_rst_write",
-            "rdly_dq_inc_write",
-            "rdly_dq_bitslip_rst_write",
-            "rdly_dq_bitslip_write",
-            "wdly_dq_rst_write",
-            "wdly_dq_inc_write",
-            "wdly_dqs_rst_write",
-            "wdly_dqs_inc_write",
-            "wdly_dqs_inc_count_read",
-            "wdly_dq_bitslip_rst_write",
-            "wdly_dq_bitslip_write",
-            "rdphase_read",
-            "rdphase_write",
-            "wrphase_read",
-            "wrphase_write",
-            "burstdet_clr_write",
-            "burstdet_seen_read",
-        ]:
-            alias_lines.append(f"#define ddrphy_{name} {ddrphy_name}_{name}")
-
-    if ddrctrl_name != "ddrctrl":
-        ddrctrl_upper = ddrctrl_name.upper()
-        alias_lines += [
-            f"#ifdef CSR_{ddrctrl_upper}_BASE",
-            f"#define CSR_DDRCTRL_BASE CSR_{ddrctrl_upper}_BASE",
-            "#endif",
-            f"#define ddrctrl_init_done_write {ddrctrl_name}_init_done_write",
-            f"#define ddrctrl_init_error_write {ddrctrl_name}_init_error_write",
-        ]
-
-    aliases = "\n".join(alias_lines) + "\n"
-    include = "#include <generated/csr.h>\n"
-    if include in contents:
-        contents = contents.replace(include, include + aliases, 1)
-    else:
-        contents = aliases + contents
-
-    return contents
+def _get_sdram_data_bytes(sdram):
+    phy_settings = sdram.controller.settings.phy
+    return phy_settings.dfi_databits//8 * phy_settings.nphases
 
 # Software Packages --------------------------------------------------------------------------------
 
@@ -291,6 +202,154 @@ class Builder:
                     kind, ", ".join(collisions)))
         items.update(new_items)
 
+    def _get_software_package_dir(self, name):
+        for package_name, src_dir in self.software_packages:
+            if package_name == name:
+                return src_dir
+        return os.path.join(soc_directory, "software", name)
+
+    def _get_litedram_objects(self):
+        objects = [
+            "sdram.o",
+            "sdram_multichannel.o",
+            "bist.o",
+            "sdram_dbg.o",
+            "sdram_spd.o",
+            "utils.o",
+            "accessors.o",
+        ]
+        for name in _get_sdram_controllers(self.soc):
+            if name == "sdram":
+                continue
+            objects += [f"{name}.o", f"{name}_accessors.o"]
+        return objects
+
+    def _get_litedram_instance_source(self, name, template):
+        liblitedram_dir = self._get_software_package_dir("liblitedram")
+        template_path   = os.path.join(liblitedram_dir, template)
+        csr_prefix      = _get_sdram_csr_prefix(name)
+        phy_header      = f"<generated/{name}_phy.h>"
+
+        return "\n".join([
+            "#include <generated/csr.h>",
+            "",
+            f"#ifdef CSR_{csr_prefix}_BASE",
+            f"#define LITEDRAM_PHY_HEADER {phy_header}",
+            f'#include "{template_path}"',
+            "#endif",
+            "",
+        ])
+
+    def _get_litedram_multichannel_source(self, sdram_controllers):
+        lines = [
+            "#include <generated/csr.h>",
+            "",
+            "#include <liblitedram/sdram.h>",
+            "",
+        ]
+        for name in sdram_controllers:
+            if name == "sdram":
+                continue
+            csr_prefix = _get_sdram_csr_prefix(name)
+            lines += [
+                f"#ifdef CSR_{csr_prefix}_BASE",
+                f"int {name}_init(void);",
+                "#endif",
+            ]
+        if len(lines) > 4:
+            lines.append("")
+
+        lines += [
+            "int sdram_init_all(void)",
+            "{",
+            "\tint ok = 1;",
+            "",
+        ]
+        for name in sdram_controllers:
+            csr_prefix = _get_sdram_csr_prefix(name)
+            init_name  = "sdram_init" if name == "sdram" else f"{name}_init"
+            lines += [
+                f"#ifdef CSR_{csr_prefix}_BASE",
+                f"\tok &= {init_name}();",
+                "#endif",
+            ]
+        lines += [
+            "",
+            "\treturn ok;",
+            "}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _get_litedram_bist_header(self, sdram_controllers):
+        targets = []
+        for n, (name, sdram) in enumerate(sdram_controllers.items()):
+            if not getattr(sdram, "with_bist", False):
+                continue
+            channel = getattr(sdram, "channel", n)
+            if not isinstance(channel, int):
+                channel = n
+            targets.append(
+                f"    SDRAM_BIST_TARGET({name}, \"{name}\", {channel}, "
+                f"0x{sdram.size:x}ULL, {_get_sdram_data_bytes(sdram)}),")
+
+        lines = [
+            "// This file is generated by LiteX.",
+            "#ifndef __GENERATED_SDRAM_BIST_H",
+            "#define __GENERATED_SDRAM_BIST_H",
+            "",
+            f"#define LITEDRAM_BIST_TARGET_COUNT {len(targets)}",
+        ]
+        if targets:
+            lines += [
+                "#define LITEDRAM_BIST_AVAILABLE",
+                "#define LITEDRAM_BIST_TARGETS \\",
+                " \\\n".join(targets),
+            ]
+        else:
+            lines += ["#define LITEDRAM_BIST_TARGETS"]
+        lines += [
+            "",
+            "#endif",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _generate_litedram_files(self):
+        sdram_controllers = _get_sdram_controllers(self.soc)
+        if not sdram_controllers:
+            write_to_file(os.path.join(self.generated_dir, "sdram_bist.h"),
+                self._get_litedram_bist_header(sdram_controllers))
+            return
+
+        from litedram.init import get_sdram_phy_c_header
+        for name, sdram in sdram_controllers.items():
+            sdram_contents = get_sdram_phy_c_header(
+                sdram.controller.settings.phy,
+                sdram.controller.settings.timing,
+                sdram.controller.settings.geom,
+                sdram_name         = name,
+                ddrphy_name        = getattr(sdram, "phy_name", "ddrphy"),
+                ddrctrl_name       = getattr(sdram, "ddrctrl_name", "ddrctrl"),
+                memory_region_name = getattr(sdram, "region_name", "main_ram"))
+            header_name = "sdram_phy.h" if name == "sdram" else f"{name}_phy.h"
+            write_to_file(os.path.join(self.generated_dir, header_name), sdram_contents)
+
+        write_to_file(os.path.join(self.generated_dir, "sdram_bist.h"),
+            self._get_litedram_bist_header(sdram_controllers))
+
+        liblitedram_build_dir = os.path.join(self.software_dir, "liblitedram")
+        _create_dir(liblitedram_build_dir)
+        write_to_file(os.path.join(liblitedram_build_dir, "sdram_multichannel.c"),
+            self._get_litedram_multichannel_source(sdram_controllers))
+        for name in sdram_controllers:
+            if name == "sdram":
+                continue
+            write_to_file(os.path.join(liblitedram_build_dir, f"{name}.c"),
+                self._get_litedram_instance_source(name, "sdram.c"))
+            write_to_file(os.path.join(liblitedram_build_dir, f"{name}_accessors.c"),
+                self._get_litedram_instance_source(name, "accessors.c"))
+
     def _get_variables_contents(self):
         # Helper.
         variables_contents = []
@@ -324,6 +383,11 @@ class Builder:
         define("BUILDINC_DIRECTORY", self.include_dir)
         for name, src_dir in self.software_packages:
             define(name.upper() + "_DIRECTORY", src_dir)
+
+        # Define LiteDRAM objects. Multi-controller instance wrappers are
+        # generated in the build directory, so only the controllers present in
+        # the SoC are compiled.
+        define("LIBLITEDRAM_OBJECTS", " ".join(self._get_litedram_objects()))
 
         # Define BIOS variables.
         define("LTO", f"{self.bios_lto:d}")
@@ -392,16 +456,8 @@ class Builder:
         git_contents = export.get_git_header()
         write_to_file(os.path.join(self.generated_dir, "git.h"), git_contents)
 
-        # Generate LiteDRAM C headers when the SoC uses SDRAM.
-        sdram_controllers = getattr(self.soc, "sdram_controllers", None)
-        if sdram_controllers is None and hasattr(self.soc, "sdram"):
-            sdram_controllers = {"sdram": self.soc.sdram}
-        if sdram_controllers:
-            from litedram.init import get_sdram_phy_c_header
-            for name, sdram in sdram_controllers.items():
-                sdram_contents = _get_sdram_phy_c_header_compat(get_sdram_phy_c_header, sdram)
-                header_name = "sdram_phy.h" if name == "sdram" else f"{name}_phy.h"
-                write_to_file(os.path.join(self.generated_dir, header_name), sdram_contents)
+        # Generate LiteDRAM headers and instance-specific software sources.
+        self._generate_litedram_files()
 
     def _generate_csr_map(self):
         # JSON Export.

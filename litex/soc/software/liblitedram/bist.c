@@ -2,11 +2,9 @@
 // License: BSD
 
 #include <generated/csr.h>
+#include <generated/sdram_bist.h>
 
-#if (defined(CSR_SDRAM_GENERATOR_BASE)  && defined(CSR_SDRAM_CHECKER_BASE))  || \
-    (defined(CSR_SDRAM1_GENERATOR_BASE) && defined(CSR_SDRAM1_CHECKER_BASE)) || \
-    (defined(CSR_SDRAM2_GENERATOR_BASE) && defined(CSR_SDRAM2_CHECKER_BASE)) || \
-    (defined(CSR_SDRAM3_GENERATOR_BASE) && defined(CSR_SDRAM3_CHECKER_BASE))
+#ifdef LITEDRAM_BIST_AVAILABLE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,43 +16,11 @@
 #include <stdint.h>
 
 #include <generated/mem.h>
-#include <generated/sdram_phy.h>
 #include <liblitedram/bist.h>
 #include <liblitedram/utils.h>
 
 #define SDRAM_TEST_BASE 0x00000000
-#define SDRAM_TEST_DATA_BYTES (SDRAM_PHY_DFI_DATABITS / 8 * SDRAM_PHY_PHASES)
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
-
-#ifdef DDRAM_MAIN_CHANNEL
-#define SDRAM_BIST_MAIN_CHANNEL DDRAM_MAIN_CHANNEL
-#else
-#define SDRAM_BIST_MAIN_CHANNEL 0
-#endif
-
-#ifdef MAIN_RAM_SIZE
-#define SDRAM_BIST_MAIN_SIZE MAIN_RAM_SIZE
-#else
-#define SDRAM_BIST_MAIN_SIZE 0
-#endif
-
-#ifdef DDRAM1_SIZE
-#define SDRAM_BIST_DDRAM1_SIZE DDRAM1_SIZE
-#else
-#define SDRAM_BIST_DDRAM1_SIZE 0
-#endif
-
-#ifdef DDRAM2_SIZE
-#define SDRAM_BIST_DDRAM2_SIZE DDRAM2_SIZE
-#else
-#define SDRAM_BIST_DDRAM2_SIZE 0
-#endif
-
-#ifdef DDRAM3_SIZE
-#define SDRAM_BIST_DDRAM3_SIZE DDRAM3_SIZE
-#else
-#define SDRAM_BIST_DDRAM3_SIZE 0
-#endif
 
 typedef void (*sdram_bist_write_csr)(uint32_t value);
 typedef uint32_t (*sdram_bist_read_csr)(void);
@@ -93,11 +59,11 @@ struct sdram_bist_stats {
 	uint64_t rd_errors;
 };
 
-#define SDRAM_BIST_TARGET(prefix, label, channel_id, memory_size) { \
+#define SDRAM_BIST_TARGET(prefix, label, channel_id, memory_size, bytes_per_word) { \
 	.name                   = label, \
 	.channel                = channel_id, \
 	.size                   = memory_size, \
-	.data_bytes             = SDRAM_TEST_DATA_BYTES, \
+	.data_bytes             = bytes_per_word, \
 	.generator_reset_write  = prefix##_generator_reset_write, \
 	.generator_start_write  = prefix##_generator_start_write, \
 	.generator_random_write = prefix##_generator_random_write, \
@@ -118,18 +84,7 @@ struct sdram_bist_stats {
 }
 
 static const struct sdram_bist_target sdram_bist_targets[] = {
-#if defined(CSR_SDRAM_GENERATOR_BASE) && defined(CSR_SDRAM_CHECKER_BASE)
-	SDRAM_BIST_TARGET(sdram,  "sdram",  SDRAM_BIST_MAIN_CHANNEL, SDRAM_BIST_MAIN_SIZE),
-#endif
-#if defined(CSR_SDRAM1_GENERATOR_BASE) && defined(CSR_SDRAM1_CHECKER_BASE)
-	SDRAM_BIST_TARGET(sdram1, "sdram1", 1,                       SDRAM_BIST_DDRAM1_SIZE),
-#endif
-#if defined(CSR_SDRAM2_GENERATOR_BASE) && defined(CSR_SDRAM2_CHECKER_BASE)
-	SDRAM_BIST_TARGET(sdram2, "sdram2", 2,                       SDRAM_BIST_DDRAM2_SIZE),
-#endif
-#if defined(CSR_SDRAM3_GENERATOR_BASE) && defined(CSR_SDRAM3_CHECKER_BASE)
-	SDRAM_BIST_TARGET(sdram3, "sdram3", 3,                       SDRAM_BIST_DDRAM3_SIZE),
-#endif
+	LITEDRAM_BIST_TARGETS
 };
 
 static uint32_t pseudo_random_bases[128] = {
