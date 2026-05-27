@@ -171,15 +171,15 @@ static uint32_t spiflash_read_id_register(void)
 	return buf[3];
 }
 
-static uint32_t spiflash_read_status_register(void)
+static uint32_t spiflash_read_register(uint8_t command)
 {
 	volatile uint8_t buf[4];
-	w_buf[0] = 0x05;
+	w_buf[0] = command;
 	w_buf[1] = 0x00;
 	transfer_cmd(w_buf, buf, 4);
 
 #ifdef SPIFLASH_DEBUG
-	printf("[SR: %02x %02x %02x %02x]\n", buf[0], buf[1], buf[2], buf[3]);
+	printf("[REG %02x: %02x %02x %02x %02x]\n", command, buf[0], buf[1], buf[2], buf[3]);
 #endif
 
 	/* FIXME normally the status should be in buf[1],
@@ -188,12 +188,68 @@ static uint32_t spiflash_read_status_register(void)
 	return buf[3];
 }
 
+static uint32_t spiflash_read_status_register(void)
+{
+	return spiflash_read_register(0x05);
+}
+
 static void spiflash_write_enable(void)
 {
 	uint8_t buf[1];
 	w_buf[0] = 0x06;
 	transfer_cmd(w_buf, buf, 1);
 }
+
+#ifdef SPIFLASH_MODULE_QUAD_CAPABLE
+#define SPIFLASH_READY_TIMEOUT 1000
+
+static bool spiflash_wait_until_ready(void)
+{
+	for (unsigned int timeout = 0; timeout < SPIFLASH_READY_TIMEOUT; timeout++) {
+		if ((spiflash_read_status_register() & 1) == 0)
+			return true;
+#ifdef SPIFLASH_DEBUG
+		printf(".");
+#endif
+		cdelay(CONFIG_CLOCK_FREQUENCY/1000);
+	}
+
+	return (spiflash_read_status_register() & 1) == 0;
+}
+
+static bool spiflash_enable_quad_mode(void)
+{
+#ifdef SPIFLASH_MODULE_QUAD_ENABLE_WRR_CR1_BIT1
+	uint32_t sr = spiflash_read_status_register();
+	uint32_t cr = spiflash_read_register(0x35);
+
+	if ((sr == 0xff) || (cr == 0xff)) {
+		printf("Unable to read SPI Flash status/configuration registers.\n");
+		return false;
+	}
+
+	spiflash_write_enable();
+	spiflash_master_write((0x01 << 16) | ((sr & 0x9c) << 8) | ((cr | 0x02) & 0xff), 3, 1, 0x1);
+#else
+	spiflash_master_write(0x00000006, 1, 1, 0x1);
+	spiflash_master_write(0x00014307, 3, 1, 0x1);
+#endif
+
+	if (!spiflash_wait_until_ready()) {
+		printf("SPI Flash quad enable timeout.\n");
+		return false;
+	}
+
+#ifdef SPIFLASH_MODULE_QUAD_ENABLE_WRR_CR1_BIT1
+	if ((spiflash_read_register(0x35) & 0x02) == 0) {
+		printf("SPI Flash quad enable failed.\n");
+		return false;
+	}
+#endif
+
+	return true;
+}
+#endif
 
 static void page_program(uint32_t addr, uint8_t *data, int len)
 {
@@ -320,15 +376,8 @@ void spiflash_init(void)
 	/* Quad / QPI Configuration. */
 #ifdef SPIFLASH_MODULE_QUAD_CAPABLE
 	printf("Enabling Quad mode...\n");
-	spiflash_master_write(0x00000006, 1, 1, 0x1);
-	spiflash_master_write(0x00014307, 3, 1, 0x1);
-
-	/* Wait for the flash to finish writing the configuration */
-	while(spiflash_read_status_register() & 1) {
-#ifdef SPIFLASH_DEBUG
-		printf(".");
-#endif
-	}
+	if (!spiflash_enable_quad_mode())
+		return;
 
 #ifdef SPIFLASH_MODULE_QPI_CAPABLE
 	printf("Switching to QPI mode...\n");

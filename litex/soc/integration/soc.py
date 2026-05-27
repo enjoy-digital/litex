@@ -2535,6 +2535,9 @@ class LiteXSoC(SoC):
             if mode in [ "4x" ]:
                 if module.bus_width >= 4 and SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
                     self.add_constant(f"{name}_MODULE_QUAD_CAPABLE")
+                    quad_enable = getattr(module, "quad_enable", None)
+                    if quad_enable is not None:
+                        self.add_constant(f"{name}_MODULE_QUAD_ENABLE_{quad_enable.upper()}")
                 if module.cmd_width >= 4 and SpiNorFlashOpCodes.READ_4_4_4 in module.supported_opcodes:
                     self.add_constant(f"{name}_MODULE_QPI_CAPABLE")
         if software_debug:
