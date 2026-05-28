@@ -631,6 +631,8 @@ class DummyAttrTranslate(dict):
 def _prepare_fragment(f, platform, special_overrides, global_clock_domains=None):
     # Convert to FHDL's fragments if not already done.
     if not isinstance(f, _Fragment):
+        _apply_module_memory_name_overrides(f)
+        _apply_module_clock_domain_signal_name_overrides(f)
         f = f.get_fragment()
 
     # Ensure clock domains are available (hierarchical mode may require global domains).
@@ -703,6 +705,158 @@ def _apply_io_name_overrides(ios):
             io_name = io.backtrace[-1][0]
             if io_name:
                 io.name_override = io_name
+
+
+def _is_default_fifo_storage(memory):
+    """Return whether memory looks like an unnamed/default FIFO storage RAM."""
+    if getattr(memory, "name_override", None) != "storage":
+        return False
+
+    fifo_trace_names = {
+        "syncfifo",
+        "syncfifobuffered",
+        "asyncfifo",
+        "asyncfifobuffered",
+    }
+
+    for port in memory.ports:
+        for attr in ["adr", "dat_r", "dat_w", "we", "re"]:
+            sig = getattr(port, attr, None)
+            if not isinstance(sig, Signal):
+                continue
+            trace_names = {name for name, _ in sig.backtrace if name is not None}
+            if trace_names & fifo_trace_names:
+                return True
+    return False
+
+
+def _derive_fifo_memory_name(memory):
+    """Derive a stable owner-based name for default FIFO storage memories."""
+    if not _is_default_fifo_storage(memory):
+        return None
+
+    fifo_trace_names = {
+        "syncfifo",
+        "syncfifobuffered",
+        "asyncfifo",
+        "asyncfifobuffered",
+    }
+    ignored_trace_names = {
+        "__main__",
+        "memory",
+        "rdport",
+        "wrport",
+    }
+
+    port_signals = []
+    for port in memory.ports:
+        for attr in ["adr", "dat_r", "dat_w", "we", "re"]:
+            sig = getattr(port, attr, None)
+            if isinstance(sig, Signal):
+                port_signals.append(sig)
+
+    for sig in port_signals:
+        trace_names = [name for name, _ in sig.backtrace if name is not None]
+        for n, trace_name in enumerate(trace_names):
+            if trace_name not in fifo_trace_names:
+                continue
+            owner_names = []
+            for owner_name in trace_names[:n]:
+                if owner_name in ignored_trace_names:
+                    continue
+                if owner_names and owner_names[-1] == owner_name:
+                    continue
+                owner_names.append(owner_name)
+            # Avoid deriving names from just the top-level/module class trace.
+            if len(owner_names) < 2:
+                return None
+            return f"{owner_names[-1]}_storage"
+
+    return None
+
+
+def _apply_memory_name_overrides(specials):
+    """Stabilize generated names for memories with recognizable owners."""
+    for special in sorted(specials, key=lambda x: x.duid):
+        if not isinstance(special, Memory):
+            continue
+        memory_name = _derive_fifo_memory_name(special)
+        if memory_name is not None:
+            special.name_override = memory_name
+
+
+def _fifo_memory_owner_from_path(path):
+    named_path = [name for name in path if name is not None]
+    if not named_path:
+        return None
+    while len(named_path) > 1 and named_path[-1] == "fifo":
+        named_path.pop()
+    if named_path == ["fifo"] and path and path[0] is None:
+        return None
+    return named_path[-1]
+
+
+def _apply_module_memory_name_overrides(module, path=None):
+    """Stabilize FIFO storage memory names from the module/submodule path."""
+    if path is None:
+        path = []
+
+    for special in sorted(module._fragment.specials, key=lambda x: x.duid):
+        if not isinstance(special, Memory):
+            continue
+        if not _is_default_fifo_storage(special):
+            continue
+        owner_name = _fifo_memory_owner_from_path(path)
+        if owner_name is not None:
+            special.name_override = f"{owner_name}_storage"
+
+    for submodule_name, submodule in module._submodules:
+        _apply_module_memory_name_overrides(submodule, path + [submodule_name])
+
+
+def _is_cdc_temporary_clock_domain(cd):
+    return re.match(r"^(from|to)\d+$", cd.name)
+
+
+def _cdc_clock_domain_owner_from_path(path):
+    if not path or path[-1] is None:
+        return None
+    named_path = [name for name in path if name is not None]
+    if not named_path:
+        return None
+    return _sanitize_identifier("_".join(named_path))
+
+
+def _apply_cdc_clock_domain_signal_name_override(signal, old_name, new_name):
+    if getattr(signal, "name_override", None) == old_name:
+        signal.name_override = new_name
+
+
+def _apply_module_clock_domain_signal_name_overrides(module, path=None):
+    """Stabilize generated signal names for CDC temporary clock domains."""
+    if path is None:
+        path = []
+
+    if module.__class__.__name__ == "ClockDomainCrossing":
+        owner_name = _cdc_clock_domain_owner_from_path(path)
+        if owner_name is not None:
+            for cd in module._fragment.clock_domains:
+                match = _is_cdc_temporary_clock_domain(cd)
+                if match is None:
+                    continue
+                direction = match.group(1)
+                _apply_cdc_clock_domain_signal_name_override(
+                    cd.clk,
+                    f"{cd.name}_clk",
+                    f"{owner_name}_{direction}_clk")
+                if cd.rst is not None:
+                    _apply_cdc_clock_domain_signal_name_override(
+                        cd.rst,
+                        f"{cd.name}_rst",
+                        f"{owner_name}_{direction}_rst")
+
+    for submodule_name, submodule in module._submodules:
+        _apply_module_clock_domain_signal_name_overrides(submodule, path + [submodule_name])
 
 
 def _normalize_hier_path(path):
@@ -1163,6 +1317,7 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             node.subtree_specials |= child.subtree_specials
 
     _aggregate(ctx.root)
+    _apply_memory_name_overrides(ctx.root.subtree_specials)
     ctx.all_signals |= set(ctx.ios)
     ctx.ns = build_signal_namespace(
         signals=ctx.all_signals,
@@ -1318,6 +1473,8 @@ def convert(f, ios=set(), name="top", platform=None,
 
     # Convert to FHDL fragment if needed (used by both flat and hierarchical paths).
     if not isinstance(f, _Fragment):
+        _apply_module_memory_name_overrides(f)
+        _apply_module_clock_domain_signal_name_overrides(f)
         f = f.get_fragment()
 
     # Hierarchical Verilog generation (opt-in path).
@@ -1349,6 +1506,7 @@ def convert(f, ios=set(), name="top", platform=None,
     # IOs collection (when not specified) and naming stabilization.
     ios = _resolve_ios(ios, platform)
     _apply_io_name_overrides(ios)
+    _apply_memory_name_overrides(f.specials)
 
     # Build Signal Namespace.
     # ----------------------

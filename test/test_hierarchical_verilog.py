@@ -3,11 +3,14 @@ import re
 
 from migen import *
 from migen.fhdl.decorators import ClockDomainsRenamer
+from migen.fhdl.structure import DUID
 from migen.fhdl.specials import Tristate
 
+from litex.build.sim.common import sim_special_overrides
 from litex.gen import LiteXContext
 from litex.gen.fhdl.hierarchy import LiteXHierarchyExplorer
 from litex.gen.fhdl.verilog import convert
+from litex.soc.interconnect import stream
 
 
 class _Leaf(Module):
@@ -131,6 +134,131 @@ class _SharedMemoryTop(Module):
         self.comb += self.o.eq(self.reader.dat_r)
 
 
+class _FIFONamingTop(Module):
+    def __init__(self, with_inserted_fifo=False):
+        self.clock_domains.cd_sys = ClockDomain("sys")
+
+        self.rx_o = Signal(8, name="rx_o")
+        self.tx_o = Signal(8, name="tx_o")
+
+        self.submodules.rx_fifo = stream.SyncFIFO([("data", 8)], 4)
+        if with_inserted_fifo:
+            self.submodules.mid_fifo = stream.SyncFIFO([("data", 8)], 4)
+        self.submodules.tx_fifo = stream.SyncFIFO([("data", 8)], 4, buffered=True)
+
+        self.comb += [
+            self.rx_o.eq(self.rx_fifo.source.data),
+            self.tx_o.eq(self.tx_fifo.source.data),
+        ]
+
+
+class _GenericFIFONamingTop(Module):
+    def __init__(self):
+        self.clock_domains.cd_sys = ClockDomain("sys")
+
+        self.o = Signal(8, name="o")
+        self.submodules.fifo = stream.SyncFIFO([("data", 8)], 4)
+        self.comb += self.o.eq(self.fifo.source.data)
+
+
+class _AnonymousFIFONamingTop(Module):
+    def __init__(self):
+        self.clock_domains.cd_sys = ClockDomain("sys")
+
+        data_buffer = stream.SyncFIFO([("data", 8)], 4)
+        self.submodules += data_buffer
+
+        self.o = Signal(8, name="o")
+        self.comb += self.o.eq(data_buffer.source.data)
+
+
+class _AnonymousFIFOListNamingTop(Module):
+    def __init__(self):
+        self.clock_domains.cd_sys = ClockDomain("sys")
+
+        buffers = [stream.SyncFIFO([("data", 8)], 4) for _ in range(2)]
+        self.submodules += buffers[0]
+        self.submodules += buffers[1]
+
+        self.o0 = Signal(8, name="o0")
+        self.o1 = Signal(8, name="o1")
+        self.comb += [
+            self.o0.eq(buffers[0].source.data),
+            self.o1.eq(buffers[1].source.data),
+        ]
+
+
+class _AsyncFIFONamingTop(Module):
+    def __init__(self):
+        self.clock_domains.cd_sys = ClockDomain("sys")
+        self.clock_domains.cd_rx  = ClockDomain("rx")
+        self.clock_domains.cd_tx  = ClockDomain("tx")
+
+        self.rx_o = Signal(8, name="rx_o")
+        self.tx_o = Signal(8, name="tx_o")
+
+        self.submodules.rx_fifo = ClockDomainsRenamer({"write": "rx", "read": "sys"})(
+            stream.AsyncFIFO([("data", 8)], 4))
+        self.submodules.tx_fifo = ClockDomainsRenamer({"write": "sys", "read": "tx"})(
+            stream.AsyncFIFO([("data", 8)], 4, buffered=True))
+
+        self.comb += [
+            self.rx_o.eq(self.rx_fifo.source.data),
+            self.tx_o.eq(self.tx_fifo.source.data),
+        ]
+
+
+class _CDCNamingTop(Module):
+    def __init__(self):
+        self.clock_domains.cd_sys  = ClockDomain("sys")
+        self.clock_domains.cd_fast = ClockDomain("fast")
+
+        self.o0 = Signal(8, name="o0")
+        self.o1 = Signal(8, name="o1")
+
+        self.submodules.rx_cdc = stream.ClockDomainCrossing(
+            [("data", 8)],
+            cd_from         = "fast",
+            cd_to           = "sys",
+            with_common_rst = True,
+        )
+        self.submodules.tx_cdc = stream.ClockDomainCrossing(
+            [("data", 8)],
+            cd_from         = "sys",
+            cd_to           = "fast",
+            with_common_rst = True,
+        )
+
+        self.comb += [
+            self.o0.eq(self.rx_cdc.source.data),
+            self.o1.eq(self.tx_cdc.source.data),
+        ]
+
+
+class _MemoryNamingTop(Module):
+    def __init__(self):
+        self.clock_domains.cd_sys = ClockDomain("sys")
+
+        self.named_mem = Memory(8, 4, name="explicit_mem")
+        self.plain_mem = Memory(8, 4)
+
+        named_port = self.named_mem.get_port(async_read=True)
+        plain_port = self.plain_mem.get_port(async_read=True)
+        named_port.clock = self.cd_sys.clk
+        plain_port.clock = self.cd_sys.clk
+
+        self.specials += self.named_mem, self.plain_mem
+
+        self.o0 = Signal(8, name="o0")
+        self.o1 = Signal(8, name="o1")
+        self.comb += [
+            named_port.adr.eq(0),
+            plain_port.adr.eq(0),
+            self.o0.eq(named_port.dat_r),
+            self.o1.eq(plain_port.dat_r),
+        ]
+
+
 class TestHierarchicalVerilog(unittest.TestCase):
     @staticmethod
     def _module_body(verilog, name):
@@ -138,6 +266,19 @@ class TestHierarchicalVerilog(unittest.TestCase):
         if match is None:
             raise AssertionError(f"module {name} not found")
         return match.group(0)
+
+    @staticmethod
+    def _memory_names(verilog):
+        return re.findall(r"// Memory ([a-zA-Z0-9_]+):", verilog)
+
+    @staticmethod
+    def _normalized_verilog(verilog):
+        verilog = re.sub(r"Date       : .*", "Date       : <date>", verilog)
+        verilog = re.sub(
+            r"Auto-Generated by LiteX on .*",
+            "Auto-Generated by LiteX on <date>.",
+            verilog)
+        return verilog
 
     def test_hierarchy_golden_text(self):
         expected = "\n".join([
@@ -183,6 +324,132 @@ class TestHierarchicalVerilog(unittest.TestCase):
         # Hierarchical mode should emit child module and submodule instantiation.
         self.assertIn("module top__leaf", hier)
         self.assertIn("top__leaf leaf", hier)
+
+    def test_flat_fifo_memory_names_use_owner(self):
+        top = _FIFONamingTop(with_inserted_fifo=False)
+        verilog = convert(
+            top,
+            ios={top.cd_sys.clk, top.cd_sys.rst, top.rx_o, top.tx_o},
+            name="top",
+        ).main_source
+
+        self.assertIn("rx_fifo_storage", self._memory_names(verilog))
+        self.assertIn("tx_fifo_storage", self._memory_names(verilog))
+        self.assertNotIn("storage_1", self._memory_names(verilog))
+
+    def test_flat_fifo_memory_names_survive_inserted_fifo(self):
+        top = _FIFONamingTop(with_inserted_fifo=True)
+        verilog = convert(
+            top,
+            ios={top.cd_sys.clk, top.cd_sys.rst, top.rx_o, top.tx_o},
+            name="top",
+        ).main_source
+
+        memory_names = self._memory_names(verilog)
+        self.assertIn("rx_fifo_storage", memory_names)
+        self.assertIn("mid_fifo_storage", memory_names)
+        self.assertIn("tx_fifo_storage", memory_names)
+
+    def test_flat_generic_fifo_name_is_not_lost(self):
+        top = _GenericFIFONamingTop()
+        verilog = convert(
+            top,
+            ios={top.cd_sys.clk, top.cd_sys.rst, top.o},
+            name="top",
+        ).main_source
+
+        self.assertIn("fifo_storage", self._memory_names(verilog))
+        self.assertNotIn("top_storage", self._memory_names(verilog))
+
+    def test_flat_anonymous_fifo_memory_name_uses_trace_owner(self):
+        top = _AnonymousFIFONamingTop()
+        verilog = convert(
+            top,
+            ios={top.cd_sys.clk, top.cd_sys.rst, top.o},
+            name="top",
+        ).main_source
+
+        memory_names = self._memory_names(verilog)
+        self.assertIn("data_buffer_storage", memory_names)
+        self.assertNotIn("fifo_storage", memory_names)
+
+    def test_flat_anonymous_fifo_list_memory_names_use_trace_owner(self):
+        top = _AnonymousFIFOListNamingTop()
+        verilog = convert(
+            top,
+            ios={top.cd_sys.clk, top.cd_sys.rst, top.o0, top.o1},
+            name="top",
+        ).main_source
+
+        memory_names = self._memory_names(verilog)
+        self.assertIn("buffers_storage", memory_names)
+        self.assertIn("buffers_storage_1", memory_names)
+        self.assertNotIn("fifo_storage", memory_names)
+
+    def test_flat_clock_renamed_async_fifo_memory_names_use_owner(self):
+        top = _AsyncFIFONamingTop()
+        verilog = convert(
+            top,
+            ios={
+                top.cd_sys.clk, top.cd_sys.rst,
+                top.cd_rx.clk,  top.cd_rx.rst,
+                top.cd_tx.clk,  top.cd_tx.rst,
+                top.rx_o,       top.tx_o,
+            },
+            name="top",
+        ).main_source
+
+        memory_names = self._memory_names(verilog)
+        self.assertIn("rx_fifo_storage", memory_names)
+        self.assertIn("tx_fifo_storage", memory_names)
+        self.assertNotIn("top_storage", memory_names)
+
+    def test_flat_cdc_common_reset_domains_use_owner_signal_names(self):
+        top = _CDCNamingTop()
+        verilog = convert(
+            top,
+            ios={
+                top.cd_sys.clk,  top.cd_sys.rst,
+                top.cd_fast.clk, top.cd_fast.rst,
+                top.o0,          top.o1,
+            },
+            name="top",
+            special_overrides=sim_special_overrides,
+        ).main_source
+
+        self.assertIn("rx_cdc_from_clk", verilog)
+        self.assertIn("rx_cdc_to_clk", verilog)
+        self.assertIn("tx_cdc_from_clk", verilog)
+        self.assertIn("tx_cdc_to_clk", verilog)
+        self.assertNotRegex(verilog, r"\bfrom\d+_(clk|rst)\b")
+        self.assertNotRegex(verilog, r"\bto\d+_(clk|rst)\b")
+
+    def test_flat_cdc_common_reset_source_is_duid_stable(self):
+        def generate(noise_count):
+            for _ in range(noise_count):
+                DUID()
+            top = _CDCNamingTop()
+            verilog = convert(
+                top,
+                ios={
+                    top.cd_sys.clk,  top.cd_sys.rst,
+                    top.cd_fast.clk, top.cd_fast.rst,
+                    top.o0,          top.o1,
+                },
+                name="top",
+                special_overrides=sim_special_overrides,
+            ).main_source
+            return self._normalized_verilog(verilog)
+
+        self.assertEqual(generate(noise_count=0), generate(noise_count=20))
+
+    def test_flat_non_fifo_memory_names_are_unchanged(self):
+        top = _MemoryNamingTop()
+        verilog = convert(top, ios={top.o0, top.o1}, name="top").main_source
+
+        memory_names = self._memory_names(verilog)
+        self.assertIn("explicit_mem", memory_names)
+        self.assertIn("plain_mem", memory_names)
 
     def test_hierarchical_tristate_keeps_child_controls_local(self):
         top = _TristateTop()
