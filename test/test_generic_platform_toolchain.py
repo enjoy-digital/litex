@@ -79,6 +79,14 @@ class _EdalizeToolchain(_DummyToolchain):
         return ("dummy", {"parameters": {"unit": 1}})
 
 
+class _SimpleVNS:
+    def __init__(self, names):
+        self.names = names
+
+    def get_name(self, signal):
+        return self.names[signal]
+
+
 def _make_platform(io=None, connectors=None):
     return GenericPlatform(
         device     = "unit-device",
@@ -471,6 +479,35 @@ class TestGenericToolchain(unittest.TestCase):
         self.assertEqual(toolchain.false_paths, {(a, b)})
         self.assertNotIn("keep", a.attr)
         self.assertNotIn("keep", b.attr)
+
+    def test_lattice_diamond_emits_false_path_constraints(self):
+        from litex.build.lattice.diamond import LatticeDiamondToolchain
+
+        toolchain = LatticeDiamondToolchain()
+        sys_clk   = Signal()
+        video_clk = Signal()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            toolchain._build_name = os.path.join(tmp_dir, "top")
+            toolchain._vns        = _SimpleVNS({
+                sys_clk:   "sys_clk",
+                video_clk: "video_clk",
+            })
+            toolchain.named_sc    = [("sys_clk", ["A1"], [], ("clk", 0, None))]
+            toolchain.clocks      = {sys_clk: [10.0, None]}
+            toolchain.false_paths = {
+                (sys_clk, video_clk),
+                ("clk_a", "clk_b"),
+            }
+
+            toolchain.build_io_constraints()
+
+            with open(os.path.join(tmp_dir, "top.lpf")) as f:
+                lpf = f.read()
+
+        self.assertIn('FREQUENCY PORT "sys_clk" 100.0 MHz;', lpf)
+        self.assertIn('BLOCK PATH FROM CLKNET "sys_clk" TO CLKNET "video_clk";', lpf)
+        self.assertIn('BLOCK PATH FROM CLKNET "clk_a" TO CLKNET "clk_b";', lpf)
 
     def test_build_litex_backend_generates_verilog_project_and_script(self):
         platform = _make_platform(io=[])

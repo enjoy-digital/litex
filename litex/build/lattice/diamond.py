@@ -71,6 +71,20 @@ class LatticeDiamondToolchain(GenericToolchain):
             lpf.append(pre + "\"" + signame + "\"" + suf + ";")
         return "\n".join(lpf)
 
+    @classmethod
+    def _format_false_path_constraint(cls, from_, to):
+        return "BLOCK PATH FROM CLKNET \"{}\" TO CLKNET \"{}\";".format(from_, to)
+
+    @classmethod
+    def _false_path_sort_key(cls, false_path):
+        return tuple(
+            (0, signal.duid) if hasattr(signal, "duid") else (1, str(signal))
+            for signal in false_path
+        )
+
+    def _get_constraint_name(self, signal):
+        return signal if isinstance(signal, str) else self._vns.get_name(signal)
+
     def build_io_constraints(self):
         lpf = []
         lpf.append("BLOCK RESETPATHS;")
@@ -91,6 +105,10 @@ class LatticeDiamondToolchain(GenericToolchain):
                 "PORT" if clk_name in [name for name, _, _, _ in self.named_sc] else "NET",
                 clk_name,
                 str(1e3/period)))
+        for from_, to in sorted(self.false_paths, key=self._false_path_sort_key):
+            from_name = self._get_constraint_name(from_)
+            to_name   = self._get_constraint_name(to)
+            lpf.append(self._format_false_path_constraint(from_name, to_name))
 
         tools.write_to_file(self._build_name + ".lpf", "\n".join(lpf))
 
