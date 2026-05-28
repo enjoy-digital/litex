@@ -40,11 +40,22 @@ from migen import *
 from migen.util.misc import xdir
 from migen.fhdl.tracer import get_obj_var_name
 
+# Helpers ------------------------------------------------------------------------------------------
+
+def _check_csr_location(n):
+    if n is None:
+        return
+    if not isinstance(n, int):
+        raise ValueError("CSR location should be an integer.")
+    if n < 0:
+        raise ValueError("CSR location should be non-negative.")
+
 # CSRBase ------------------------------------------------------------------------------------------
 
 class _CSRBase(DUID):
     def __init__(self, size, name, n=None):
         DUID.__init__(self)
+        _check_csr_location(n)
         self.n     = n
         self.fixed = n is not None
         self.size = size
@@ -62,6 +73,7 @@ class CSRConstant(DUID):
 
     def __init__(self, value, bits_sign=None, name=None, n=None):
         DUID.__init__(self)
+        _check_csr_location(n)
         self.n        = n
         self.fixed    = n is not None
         self.value    = Constant(value, bits_sign)
@@ -487,8 +499,7 @@ def _sort_gathered_items(items):
 
     # Eventually extend with fixed items:
     for item in fixed_items:
-        if item.n > items_length:
-            items_length = (item.n + 1)
+        items_length = max(items_length, item.n + 1)
 
     # Create list of sorted items:
     # ----------------------------
@@ -524,7 +535,7 @@ def _sort_gathered_items(items):
     # Return.
     return sorted_items
 
-def _make_gatherer(method, cls, prefix_cb):
+def _make_gatherer(method, cls, prefix_cb, sort_cb=None):
     def gatherer(self, sort=False):
         try:
             exclude = self.autocsr_exclude
@@ -544,8 +555,8 @@ def _make_gatherer(method, cls, prefix_cb):
                     prefix_cb(k + "_", items, prefixed)
                     r += items
         r = sorted(r, key=lambda x: x.duid)
-        if sort:
-            r = _sort_gathered_items(r)
+        if sort and sort_cb is not None:
+            r = sort_cb(r)
         return r
     return gatherer
 
@@ -561,7 +572,12 @@ class AutoCSR:
     with the child objects' names as prefixes.
     """
     get_memories  = _make_gatherer(method="get_memories",  cls=Memory,      prefix_cb=memprefix)
-    get_csrs      = _make_gatherer(method="get_csrs",      cls=_CSRBase,    prefix_cb=csrprefix)
+    get_csrs      = _make_gatherer(
+        method    = "get_csrs",
+        cls       = _CSRBase,
+        prefix_cb = csrprefix,
+        sort_cb   = _sort_gathered_items,
+    )
     get_constants = _make_gatherer(method="get_constants", cls=CSRConstant, prefix_cb=csrprefix)
 
 

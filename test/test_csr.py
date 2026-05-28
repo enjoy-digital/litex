@@ -145,6 +145,44 @@ class TestCSR(unittest.TestCase):
         dut = DUT()
         run_simulation(dut, generator(dut))
 
+    def test_fixed_csr_locations(self):
+        class DUT(Module, csr.AutoCSR):
+            def __init__(self):
+                self._auto  = csr.CSRStorage(name="auto")
+                self._zero  = csr.CSRStorage(name="zero", n=0)
+                self._three = csr.CSRStatus(name="three", n=3)
+
+        dut = DUT()
+        csrs = dut.get_csrs(sort=True)
+
+        self.assertEqual([c.name for c in csrs], ["zero", "auto", "reserved2", "three"])
+        self.assertIs(csrs[0], dut._zero)
+        self.assertIs(csrs[1], dut._auto)
+        self.assertIs(csrs[3], dut._three)
+
+    def test_fixed_csr_location_conflict_rejected(self):
+        class DUT(Module, csr.AutoCSR):
+            def __init__(self):
+                self._csr0 = csr.CSRStorage(name="csr0", n=0)
+                self._csr1 = csr.CSRStorage(name="csr1", n=0)
+
+        with self.assertRaisesRegex(ValueError, "CSR conflict"):
+            DUT().get_csrs(sort=True)
+
+    def test_fixed_csr_location_rejects_negative(self):
+        with self.assertRaisesRegex(ValueError, "non-negative"):
+            csr.CSRStorage(name="negative", n=-1)
+
+    def test_fixed_csr_constant_sort_does_not_create_reserved_constants(self):
+        class DUT(Module, csr.AutoCSR):
+            def __init__(self):
+                self._constant = csr.CSRConstant(0x12345678, name="constant", n=3)
+
+        constants = DUT().get_constants(sort=True)
+
+        self.assertEqual([c.name for c in constants], ["constant"])
+        self.assertEqual(constants[0].constant, 0x12345678)
+
     # Additional focused tests on the CSRStorage / CSR* primitives themselves, without the CSR
     # bus plumbing of CSRDUT. These exercise behaviour that is directly observable via the
     # simulation-friendly `read()` / `write()` generators on each primitive.
