@@ -235,6 +235,27 @@ class _CDCNamingTop(Module):
         ]
 
 
+class _PrefixStabilityBlock(Module):
+    def __init__(self):
+        self.a = Signal(8)
+        self.o = Signal(8, name="o")
+
+        self.comb += self.o.eq(self.a)
+
+
+class _PrefixStabilityTop(Module):
+    def __init__(self, with_sibling=False):
+        self.submodules.main = _PrefixStabilityBlock()
+
+        self.o = Signal(8, name="o")
+        self.comb += self.o.eq(self.main.o)
+
+        if with_sibling:
+            self.submodules.other = _PrefixStabilityBlock()
+            self.o2 = Signal(8, name="o2")
+            self.comb += self.o2.eq(self.other.o)
+
+
 class _MemoryNamingTop(Module):
     def __init__(self):
         self.clock_domains.cd_sys = ClockDomain("sys")
@@ -270,6 +291,10 @@ class TestHierarchicalVerilog(unittest.TestCase):
     @staticmethod
     def _memory_names(verilog):
         return re.findall(r"// Memory ([a-zA-Z0-9_]+):", verilog)
+
+    @staticmethod
+    def _declared_signal_names(verilog):
+        return re.findall(r"^\s*(?:wire|reg)\s+(?:\[[^\]]+\]\s*)?([a-zA-Z0-9_]+)", verilog, re.M)
 
     @staticmethod
     def _normalized_verilog(verilog):
@@ -423,6 +448,22 @@ class TestHierarchicalVerilog(unittest.TestCase):
         self.assertIn("tx_cdc_to_clk", verilog)
         self.assertNotRegex(verilog, r"\bfrom\d+_(clk|rst)\b")
         self.assertNotRegex(verilog, r"\bto\d+_(clk|rst)\b")
+
+    def test_flat_named_submodule_signal_names_are_prefixed_without_conflict(self):
+        top = _PrefixStabilityTop(with_sibling=False)
+        verilog = convert(top, ios={top.o}, name="top").main_source
+
+        signal_names = self._declared_signal_names(verilog)
+        self.assertIn("main_a", signal_names)
+        self.assertNotIn("a", signal_names)
+
+    def test_flat_named_submodule_signal_names_survive_sibling_insertion(self):
+        top = _PrefixStabilityTop(with_sibling=True)
+        verilog = convert(top, ios={top.o, top.o2}, name="top").main_source
+
+        signal_names = self._declared_signal_names(verilog)
+        self.assertIn("main_a", signal_names)
+        self.assertIn("other_a", signal_names)
 
     def test_flat_cdc_common_reset_source_is_duid_stable(self):
         def generate(noise_count):

@@ -631,6 +631,7 @@ class DummyAttrTranslate(dict):
 def _prepare_fragment(f, platform, special_overrides, global_clock_domains=None):
     # Convert to FHDL's fragments if not already done.
     if not isinstance(f, _Fragment):
+        _apply_module_signal_name_overrides(f)
         _apply_module_memory_name_overrides(f)
         _apply_module_clock_domain_signal_name_overrides(f)
         f = f.get_fragment()
@@ -857,6 +858,56 @@ def _apply_module_clock_domain_signal_name_overrides(module, path=None):
 
     for submodule_name, submodule in module._submodules:
         _apply_module_clock_domain_signal_name_overrides(submodule, path + [submodule_name])
+
+
+def _module_signal_owner_from_path(path):
+    named_path = [name for name in path if name is not None]
+    if not named_path:
+        return None, []
+    while len(named_path) > 1 and named_path[-1] == "fifo":
+        named_path.pop()
+    return _sanitize_identifier("_".join(named_path)), named_path
+
+
+def _signal_backtrace_has_owner(signal, owner_path):
+    if not owner_path:
+        return False
+    trace_names = [name for name, _ in signal.backtrace if name is not None]
+    for n in range(len(trace_names) - len(owner_path) + 1):
+        if trace_names[n:n + len(owner_path)] == owner_path:
+            return True
+    return False
+
+
+def _apply_module_signal_name_overrides(module, path=None):
+    """Stabilize generated signal names for named submodule internals."""
+    if path is None:
+        path = []
+
+    owner_name, owner_path = _module_signal_owner_from_path(path)
+    if owner_name is not None:
+        local_signals = (
+            list_signals(module._fragment) |
+            list_special_ios(module._fragment, ins=True, outs=True, inouts=True)
+        )
+        memory_signals, _, _ = _collect_memory_port_signals(module._fragment.specials)
+        local_signals |= memory_signals
+        local_signals = {
+            signal for signal in local_signals
+            if isinstance(signal, Signal) and
+               (signal.name_override is None) and
+               _signal_backtrace_has_owner(signal, owner_path)
+        }
+
+        local_ns = build_signal_namespace(
+            signals           = local_signals,
+            reserved_keywords = _ieee_1800_2017_verilog_reserved_keywords,
+        )
+        for signal in sorted(local_signals, key=lambda x: x.duid):
+            signal.name_override = f"{owner_name}_{local_ns.get_name(signal)}"
+
+    for submodule_name, submodule in module._submodules:
+        _apply_module_signal_name_overrides(submodule, path + [submodule_name])
 
 
 def _normalize_hier_path(path):
@@ -1473,6 +1524,8 @@ def convert(f, ios=set(), name="top", platform=None,
 
     # Convert to FHDL fragment if needed (used by both flat and hierarchical paths).
     if not isinstance(f, _Fragment):
+        if not hierarchical:
+            _apply_module_signal_name_overrides(f)
         _apply_module_memory_name_overrides(f)
         _apply_module_clock_domain_signal_name_overrides(f)
         f = f.get_fragment()
