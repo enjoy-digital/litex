@@ -53,7 +53,9 @@ INCLUDES = -I$(PICOLIBC_DIRECTORY)/libc/include \
            -I$(BUILDINC_DIRECTORY) \
            -I$(BUILDINC_DIRECTORY)/../libc \
            -I$(CPU_DIRECTORY)
-COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -no-pie -fomit-frame-pointer -Wall -fno-builtin -fno-stack-protector $(INCLUDES)
+COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -no-pie -fomit-frame-pointer -Wall \
+              -fno-builtin -fno-stack-protector -ffunction-sections -fdata-sections \
+              $(INCLUDES)
 ifeq ($(LTO), 1)
 COMMONFLAGS += -flto
 endif

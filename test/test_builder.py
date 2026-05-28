@@ -176,6 +176,24 @@ class TestBuilderArguments(unittest.TestCase):
         self.assertTrue(argdict["hierarchical"])
 
 
+class TestSoftwareMakefiles(unittest.TestCase):
+    def test_software_makefiles_enable_section_gc(self):
+        repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+        with open(os.path.join(repo_dir, "litex", "soc", "software", "common.mak")) as f:
+            common_mak = f.read()
+
+        self.assertIn("-ffunction-sections", common_mak)
+        self.assertIn("-fdata-sections", common_mak)
+
+        for path in [
+            os.path.join(repo_dir, "litex", "soc", "software", "bios", "Makefile"),
+            os.path.join(repo_dir, "litex", "soc", "software", "demo", "Makefile"),
+        ]:
+            with open(path) as f:
+                self.assertIn("-Wl,--gc-sections", f.read())
+
+
 class TestBuilderPaths(unittest.TestCase):
     def test_default_directories_and_exports_are_under_output_dir(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
