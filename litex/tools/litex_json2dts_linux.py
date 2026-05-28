@@ -31,6 +31,17 @@ def generate_dts_intc(d):
     else:
         return "intc0"
 
+def generate_dts_framebuffer_format(depth):
+    if (depth == 1):
+        return "mono1"
+    elif (depth == 16):
+        return "r5g6b5"
+    else:
+        return "a8b8g8r8"
+
+def generate_dts_framebuffer_stride(width, depth):
+    return (width*depth + 7)//8
+
 def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_device=None, polling=False):
     aliases = {}
 
@@ -366,13 +377,17 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     opensbi_base = d["memories"]["opensbi"]["base"],
     opensbi_size = d["memories"]["opensbi"]["size"])
         if "video_framebuffer" in d["csr_bases"]:
+            framebuffer_width  = d["constants"]["video_framebuffer_hres"]
+            framebuffer_height = d["constants"]["video_framebuffer_vres"]
+            framebuffer_depth  = d["constants"]["video_framebuffer_depth"]
+            framebuffer_stride = generate_dts_framebuffer_stride(framebuffer_width, framebuffer_depth)
             dts += """
             framebuffer@{framebuffer_base:x} {{
                 reg = <0x{framebuffer_base:x} 0x{framebuffer_size:x}>;
             }};
 """.format(
     framebuffer_base = d["constants"]["video_framebuffer_base"],
-    framebuffer_size = (d["constants"]["video_framebuffer_hres"] * d["constants"]["video_framebuffer_vres"] * (d["constants"]["video_framebuffer_depth"]//8)))
+    framebuffer_size = framebuffer_stride * framebuffer_height)
 
         dts += """
         };
@@ -853,9 +868,9 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         framebuffer_width  = d["constants"]["video_framebuffer_hres"]
         framebuffer_height = d["constants"]["video_framebuffer_vres"]
         framebuffer_depth  = d["constants"]["video_framebuffer_depth"]
-        framebuffer_format = "a8b8g8r8"
-        if (framebuffer_depth == 16):
-            framebuffer_format = "r5g6b5"
+        framebuffer_stride = generate_dts_framebuffer_stride(framebuffer_width, framebuffer_depth)
+        framebuffer_size   = framebuffer_stride * framebuffer_height
+        framebuffer_format = generate_dts_framebuffer_format(framebuffer_depth)
         dts += """
             framebuffer0: framebuffer@{framebuffer_base:x} {{
                 compatible = "simple-framebuffer";
@@ -869,8 +884,8 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     framebuffer_base   = framebuffer_base,
     framebuffer_width  = framebuffer_width,
     framebuffer_height = framebuffer_height,
-    framebuffer_size   = framebuffer_width * framebuffer_height * (framebuffer_depth//8),
-    framebuffer_stride = framebuffer_width * (framebuffer_depth//8),
+    framebuffer_size   = framebuffer_size,
+    framebuffer_stride = framebuffer_stride,
     framebuffer_format = framebuffer_format)
 
     # ICAP Bitstream -------------------------------------------------------------------------------
