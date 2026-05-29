@@ -61,6 +61,9 @@ class _FakePlatform:
         self.build_calls.append((soc, args, kwargs))
         return "built"
 
+    def request(self, name, loose=False):
+        return None
+
 
 def _make_bus_interface(interface_cls, data_width=32, address_width=32):
     return interface_cls(data_width=data_width, address_width=address_width)
@@ -624,6 +627,14 @@ class TestSoC(unittest.TestCase):
         soc.add_config("FEATURE", 1)
 
         self.assertEqual(soc.constants["CONFIG_FEATURE"], 1)
+
+    def test_add_uart_keeps_soc_level_integration(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        soc.add_uart(uart_name="stub")
+
+        self.assertTrue(hasattr(soc, "uart"))
+        self.assertIn("UART_POLLING", soc.constants)
 
     def test_get_csr_address_returns_main_bus_address(self):
         soc = SoC(_FakePlatform(), sys_clk_freq=1e6)

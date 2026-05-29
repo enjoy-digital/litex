@@ -10,7 +10,14 @@ from migen import *
 
 from litex.gen import *
 
-from litex.soc.cores.uart import UARTPads, RS232PHY
+from litex.soc.cores.uart import (
+    UART,
+    UARTCrossover,
+    UARTPads,
+    RS232PHY,
+    get_uart_core,
+    get_uart_supported_names,
+)
 
 
 class _LoopbackDUT(LiteXModule):
@@ -22,6 +29,46 @@ class _LoopbackDUT(LiteXModule):
 
 
 class TestUART(unittest.TestCase):
+    def test_supported_uart_names_include_soc_modes(self):
+        self.assertIn("crossover",          get_uart_supported_names())
+        self.assertIn("crossover+uartbone", get_uart_supported_names())
+        self.assertIn("jtag_uart",          get_uart_supported_names())
+        self.assertIn("sim",                get_uart_supported_names())
+        self.assertIn("stub",               get_uart_supported_names())
+        self.assertIn("stream",             get_uart_supported_names())
+        self.assertIn("uartbone",           get_uart_supported_names())
+        self.assertIn("usb_acm",            get_uart_supported_names())
+
+    def test_get_uart_core_builds_crossover(self):
+        uart = get_uart_core("crossover", fifo_depth=8, rx_fifo_rx_we=True)
+
+        self.assertIsInstance(uart, UARTCrossover)
+
+    def test_get_uart_core_builds_regular_uart(self):
+        uart = get_uart_core("serial", uart_pads=UARTPads(), clk_freq=1_000_000)
+
+        self.assertIsInstance(uart, UART)
+        self.assertTrue(hasattr(uart, "phy"))
+
+    def test_get_uart_core_builds_stub_uart(self):
+        uart = get_uart_core("stub")
+
+        self.assertIsInstance(uart, UART)
+        self.assertFalse(hasattr(uart, "phy"))
+
+    def test_get_uart_core_returns_none_for_uartbone(self):
+        self.assertIsNone(get_uart_core("uartbone"))
+
+    def test_get_uart_core_validates_soc_supplied_dependencies(self):
+        with self.assertRaisesRegex(ValueError, "platform"):
+            get_uart_core("jtag_uart")
+        with self.assertRaisesRegex(ValueError, "pads"):
+            get_uart_core("sim")
+        with self.assertRaisesRegex(ValueError, "pads"):
+            get_uart_core("serial")
+        with self.assertRaisesRegex(ValueError, "clk_freq"):
+            get_uart_core("serial", uart_pads=UARTPads())
+
     def test_loopback(self):
         # Use a short "symbol time" so the test runs in tens of ms, not seconds.
         # clk/baud = 10 → 10 sys cycles per UART bit, 100 cycles per 10-bit frame.

@@ -1827,31 +1827,16 @@ class LiteXSoC(SoC):
     # Add UART -------------------------------------------------------------------------------------
     def add_uart(self, name="uart", uart_name="serial", uart_pads=None, baudrate=115200, fifo_depth=16, with_dynamic_baudrate=False, rx_fifo_rx_we=False):
         # Imports.
-        from litex.soc.cores.uart import UART, UARTCrossover
+        from litex.soc.cores import uart
 
         # Core.
         self.check_if_exists(name)
-        supported_uarts = [
-            "crossover",
-            "crossover+uartbone",
-            "jtag_uart",
-            "sim",
-            "stub",
-            "stream",
-            "uartbone",
-            "usb_acm",
-            "serial(x)",
-        ]
+        supported_uarts = uart.get_uart_supported_names()
         if uart_pads is None:
             uart_pads_name = "serial" if uart_name == "sim" else uart_name
             uart_pads      = self.platform.request(uart_pads_name, loose=True)
-        uart_phy       = None
-        uart           = None
-        uart_kwargs    = {
-            "tx_fifo_depth": fifo_depth,
-            "rx_fifo_depth": fifo_depth,
-            "rx_fifo_rx_we": rx_fifo_rx_we,
-        }
+            if (uart_pads is None) and (uart_name == "usb_acm"):
+                uart_pads = self.platform.request("usb")
         if (uart_pads is None) and (uart_name not in supported_uarts):
             self.logger.error("{} UART {}, supported are: \n{}.".format(
                 colorer(uart_name),
@@ -1859,54 +1844,26 @@ class LiteXSoC(SoC):
                 colorer("- " + "\n- ".join(supported_uarts))))
             raise SoCError()
 
-        # Crossover.
-        if uart_name in ["crossover"]:
-            uart = UARTCrossover(**uart_kwargs)
-
-        # Crossover + UARTBone.
-        elif uart_name in ["crossover+uartbone"]:
-            self.add_uartbone(baudrate=baudrate, with_dynamic_baudrate=with_dynamic_baudrate)
-            uart = UARTCrossover(**uart_kwargs)
-
-        # JTAG UART.
-        elif uart_name in ["jtag_uart"]:
-            from litex.soc.cores.jtag import JTAGPHY
-            uart_phy = JTAGPHY(device=self.platform.device, platform=self.platform)
-            uart     = UART(uart_phy, **uart_kwargs)
-
-        # Sim.
-        elif uart_name in ["sim"]:
-            from litex.soc.cores.uart import RS232PHYModel
-            uart_phy = RS232PHYModel(uart_pads)
-            uart     = UART(uart_phy, **uart_kwargs)
-
-        # Stub / Stream.
-        elif uart_name in ["stub", "stream"]:
-            uart = UART(tx_fifo_depth=0, rx_fifo_depth=0)
-            self.comb += uart.source.ready.eq(uart_name == "stub")
-
         # UARTBone.
+        if uart_name in ["crossover+uartbone"]:
+            self.add_uartbone(baudrate=baudrate, with_dynamic_baudrate=with_dynamic_baudrate)
         elif uart_name in ["uartbone"]:
             self.add_uartbone(baudrate=baudrate)
 
-        # USB ACM (with LUNA ACM core).
-        elif uart_name in ["usb_acm"]:
-            from litex.soc.cores.luna_cdc_acm import LunaCDCACM
-            if uart_pads is None:
-                uart_pads = self.platform.request("usb")
-            uart_phy = LunaCDCACM(self.platform, uart_pads)
-            self.comb += uart_phy.connect.eq(1)
-            uart     = UART(uart_phy, **uart_kwargs)
-
-        # Regular UART.
-        else:
-            from litex.soc.cores.uart import UARTPHY
-            uart_phy  = UARTPHY(uart_pads, clk_freq=self.sys_clk_freq, baudrate=baudrate, with_dynamic_baudrate=with_dynamic_baudrate)
-            uart      = UART(uart_phy, **uart_kwargs)
+        uart_core = uart.get_uart_core(
+            uart_name              = uart_name,
+            uart_pads              = uart_pads,
+            platform               = self.platform,
+            clk_freq               = self.sys_clk_freq,
+            baudrate               = baudrate,
+            fifo_depth             = fifo_depth,
+            with_dynamic_baudrate  = with_dynamic_baudrate,
+            rx_fifo_rx_we          = rx_fifo_rx_we,
+        )
 
         # Add UART.
-        if uart is not None:
-            self.add_module(name=name, module=uart)
+        if uart_core is not None:
+            self.add_module(name=name, module=uart_core)
 
         if rx_fifo_rx_we:
             self.add_config(f"{name}_RX_FIFO_RX_WE", 1)

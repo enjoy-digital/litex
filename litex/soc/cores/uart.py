@@ -201,6 +201,21 @@ class RS232PHYModel(LiteXModule):
 
 # UART ---------------------------------------------------------------------------------------------
 
+supported_uarts = [
+    "crossover",
+    "crossover+uartbone",
+    "jtag_uart",
+    "sim",
+    "stub",
+    "stream",
+    "uartbone",
+    "usb_acm",
+    "serial(x)",
+]
+
+def get_uart_supported_names():
+    return list(supported_uarts)
+
 def _get_uart_fifo(depth, sink_cd="sys", source_cd="sys"):
     if sink_cd != source_cd:
         fifo = stream.AsyncFIFO([("data", 8)], depth)
@@ -493,3 +508,73 @@ class UARTCrossover(UART):
             self.source.connect(self.xover.sink),
             self.xover.source.connect(self.sink)
         ]
+
+def get_uart_core(
+    uart_name,
+    uart_pads             = None,
+    platform              = None,
+    clk_freq              = None,
+    baudrate              = 115200,
+    fifo_depth            = 16,
+    with_dynamic_baudrate = False,
+    rx_fifo_rx_we         = False,
+):
+    uart_kwargs = {
+        "tx_fifo_depth": fifo_depth,
+        "rx_fifo_depth": fifo_depth,
+        "rx_fifo_rx_we": rx_fifo_rx_we,
+    }
+
+    # Crossover.
+    if uart_name in ["crossover", "crossover+uartbone"]:
+        return UARTCrossover(**uart_kwargs)
+
+    # JTAG UART.
+    if uart_name in ["jtag_uart"]:
+        if platform is None:
+            raise ValueError("platform is required for JTAG UART.")
+        from litex.soc.cores.jtag import JTAGPHY
+        uart_phy = JTAGPHY(device=platform.device, platform=platform)
+        return UART(uart_phy, **uart_kwargs)
+
+    # Sim.
+    if uart_name in ["sim"]:
+        if uart_pads is None:
+            raise ValueError("pads are required for simulated UART.")
+        uart_phy = RS232PHYModel(uart_pads)
+        return UART(uart_phy, **uart_kwargs)
+
+    # Stub / Stream.
+    if uart_name in ["stub", "stream"]:
+        uart = UART(tx_fifo_depth=0, rx_fifo_depth=0)
+        uart.comb += uart.source.ready.eq(uart_name == "stub")
+        return uart
+
+    # UARTBone.
+    if uart_name in ["uartbone"]:
+        return None
+
+    # USB ACM (with LUNA ACM core).
+    if uart_name in ["usb_acm"]:
+        if platform is None:
+            raise ValueError("platform is required for USB ACM UART.")
+        if uart_pads is None:
+            raise ValueError("pads are required for USB ACM UART.")
+        from litex.soc.cores.luna_cdc_acm import LunaCDCACM
+        uart_phy = LunaCDCACM(platform, uart_pads)
+        uart     = UART(uart_phy, **uart_kwargs)
+        uart.comb += uart_phy.connect.eq(1)
+        return uart
+
+    # Regular UART.
+    if uart_pads is None:
+        raise ValueError("pads are required for serial UART.")
+    if clk_freq is None:
+        raise ValueError("clk_freq is required for serial UART.")
+    uart_phy = UARTPHY(
+        uart_pads,
+        clk_freq              = clk_freq,
+        baudrate              = baudrate,
+        with_dynamic_baudrate = with_dynamic_baudrate,
+    )
+    return UART(uart_phy, **uart_kwargs)
