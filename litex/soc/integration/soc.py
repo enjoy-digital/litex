@@ -1998,6 +1998,11 @@ class LiteXSoC(SoC):
         self.bus.add_region("main_ram", main_ram_region)
 
         # Add CPU's direct memory buses (if not already declared) ----------------------------------
+        if hasattr(self.cpu, "check_sdram"):
+            self.cpu.check_sdram(
+                phy        = phy,
+                data_width = sdram.crossbar.controller.data_width,
+            )
         if hasattr(self.cpu, "add_memory_buses"):
             self.cpu.add_memory_buses(
                 address_width = 32,

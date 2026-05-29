@@ -79,7 +79,7 @@ class VexRiscvSMP(CPU):
         cpu_group.add_argument("--icache-ways",                  default=None,         help="L1 instruction cache ways per CPU")
         cpu_group.add_argument("--aes-instruction",              default=None,         help="Enable AES instruction acceleration.")
         cpu_group.add_argument("--without-out-of-order-decoder", action="store_true",  help="Reduce area at cost of peripheral access speed")
-        cpu_group.add_argument("--with-wishbone-memory",         action="store_true",  help="Disable native LiteDRAM interface")
+        cpu_group.add_argument("--with-wishbone-memory",         action="store_true",  help="Disable native LiteDRAM interface (needed with SDRAM PHYs without DM/data-mask pads).")
         cpu_group.add_argument("--with-privileged-debug",        action="store_true",  help="Enable official RISC-V debug spec")
         cpu_group.add_argument("--hardware-breakpoints",         default=1,            help="Number of hardware breapoints", type=int)
         cpu_group.add_argument("--wishbone-force-32b",           action="store_true",  help="Force the wishbone bus to be 32 bits")
@@ -524,6 +524,28 @@ class VexRiscvSMP(CPU):
             i_clintWishbone_DAT_MOSI = clintbus.dat_w,
         )
         soc.bus.add_slave("clint", clintbus, region=SoCRegion(origin=soc.mem_map.get("clint"), size=0x1_0000, cached=False))
+
+    @staticmethod
+    def _sdram_phy_has_byte_masks(phy):
+        settings = getattr(phy, "settings", None)
+        if settings is not None and hasattr(settings, "with_dm"):
+            return settings.with_dm
+        return True
+
+    def check_sdram(self, phy, data_width):
+        if VexRiscvSMP.wishbone_memory:
+            return
+        if self._sdram_phy_has_byte_masks(phy):
+            return
+
+        raise ValueError(
+            "VexRiscv SMP's native LiteDRAM interface uses byte write enables, "
+            f"but the selected {data_width}-bit SDRAM PHY does not expose DM/data-mask pads. "
+            "With the current LiteDRAM implementation these byte masks cannot reach the SDRAM, "
+            "so partial writes can corrupt the other bytes of the written SDRAM word. "
+            "Add --with-wishbone-memory to route main RAM through the Wishbone/L2 path, "
+            "which writes full SDRAM words instead of relying on SDRAM byte masks."
+        )
 
     def add_memory_buses(self, address_width, data_width):
         VexRiscvSMP.litedram_width = data_width
