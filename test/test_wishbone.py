@@ -96,6 +96,35 @@ class TestWishbone(unittest.TestCase):
         clone    = wishbone.Interface.like(original)
         self.assertTrue(clone.bursting)
 
+    def test_sram_existing_narrow_byte_memory(self):
+        def generator(dut):
+            yield from dut.wb.write(0x0000, 0x12345678)
+            self.assertEqual((yield from dut.wb.read(0x0000)), 0x00345678)
+
+            yield from dut.wb.write(0x0000, 0xff000000, sel=0b1000)
+            self.assertEqual((yield from dut.wb.read(0x0000)), 0x00345678)
+
+            yield from dut.wb.write(0x0000, 0x0000aa00, sel=0b0010)
+            self.assertEqual((yield from dut.wb.read(0x0000)), 0x0034aa78)
+
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.wb  = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.mem = Memory(24, 4)
+                self.submodules.sram = wishbone.SRAM(self.mem, bus=self.wb)
+
+        dut = DUT()
+        run_simulation(dut, generator(dut))
+
+    def test_sram_rejects_writable_non_byte_memory(self):
+        wb = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        with self.assertRaisesRegex(ValueError, "multiple of 8 bits"):
+            wishbone.SRAM(Memory(20, 4), bus=wb)
+
+    def test_sram_allows_read_only_non_byte_memory(self):
+        wb = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        wishbone.SRAM(Memory(20, 4), bus=wb, read_only=True)
+
     def test_upconverter_16_32(self):
         def generator(dut):
             yield from dut.wb16.write(0x0000, 0x1234)

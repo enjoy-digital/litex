@@ -518,6 +518,8 @@ class SRAM(LiteXModule):
                 read_only = self.mem.bus_read_only
             else:
                 read_only = False
+        if not read_only and (self.mem.width % 8):
+            raise ValueError("Writable Wishbone SRAM memory width must be a multiple of 8 bits.")
 
         # # #
 

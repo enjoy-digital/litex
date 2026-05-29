@@ -325,6 +325,44 @@ class TestAXILite(unittest.TestCase):
         run_simulation(dut, [generator(dut, init)])
         self.assertEqual(dut.errors, 0)
 
+    def test_axilite_sram_existing_narrow_byte_memory(self):
+        class DUT(Module):
+            def __init__(self):
+                self.axi_lite = AXILiteInterface(data_width=32)
+                self.mem      = Memory(24, 4)
+                self.submodules.sram = AXILiteSRAM(self.mem, bus=self.axi_lite)
+
+        def generator(dut):
+            resp = yield from dut.axi_lite.write(0x0000, 0x12345678)
+            self.assertEqual(resp, RESP_OKAY)
+            data, resp = yield from dut.axi_lite.read(0x0000)
+            self.assertEqual(resp, RESP_OKAY)
+            self.assertEqual(data, 0x00345678)
+
+            resp = yield from dut.axi_lite.write(0x0000, 0xff000000, strb=0b1000)
+            self.assertEqual(resp, RESP_OKAY)
+            data, resp = yield from dut.axi_lite.read(0x0000)
+            self.assertEqual(resp, RESP_OKAY)
+            self.assertEqual(data, 0x00345678)
+
+            resp = yield from dut.axi_lite.write(0x0000, 0x0000aa00, strb=0b0010)
+            self.assertEqual(resp, RESP_OKAY)
+            data, resp = yield from dut.axi_lite.read(0x0000)
+            self.assertEqual(resp, RESP_OKAY)
+            self.assertEqual(data, 0x0034aa78)
+
+        dut = DUT()
+        run_simulation(dut, [generator(dut)])
+
+    def test_axilite_sram_rejects_writable_non_byte_memory(self):
+        bus = AXILiteInterface(data_width=32)
+        with self.assertRaisesRegex(ValueError, "multiple of 8 bits"):
+            AXILiteSRAM(Memory(20, 4), bus=bus)
+
+    def test_axilite_sram_allows_read_only_non_byte_memory(self):
+        bus = AXILiteInterface(data_width=32)
+        AXILiteSRAM(Memory(20, 4), bus=bus, read_only=True)
+
     def converter_test(self, width_from, width_to, parallel_rw=False,
                        write_pattern=None, write_expected=None,
                        read_pattern=None, read_expected=None):
