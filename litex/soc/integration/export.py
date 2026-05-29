@@ -377,25 +377,28 @@ def _generate_csr_field_definitions_c(csr, name):
 
 def _generate_csr_field_accessors_c(name, csr, field):
     accessors = ""
-    if csr.size <= 32:
-        reg_name   = name + "_" + csr.name.lower()
-        field_name = reg_name + "_" + field.name.lower()
-        offset     = str(field.offset)
-        size       = str(field.size)
-        accessors += f"static inline uint32_t {field_name}_extract(uint32_t oldword) {{\n"
-        accessors += f"\tuint32_t mask = 0x{(1 << int(size)) - 1:x};\n"
-        accessors += f"\treturn ((oldword >> {offset}) & mask);\n}}\n"
-        accessors += f"static inline uint32_t {field_name}_read(void) {{\n"
-        accessors += f"\tuint32_t word = {reg_name}_read();\n"
-        accessors += f"\treturn {field_name}_extract(word);\n}}\n"
-        if not getattr(csr, "read_only", False):
-            accessors += f"static inline uint32_t {field_name}_replace(uint32_t oldword, uint32_t plain_value) {{\n"
-            accessors += f"\tuint32_t mask = 0x{(1 << int(size)) - 1:x};\n"
-            accessors += f"\treturn (oldword & (~(mask << {offset}))) | ((mask & plain_value) << {offset});\n}}\n"
-            accessors += f"static inline void {field_name}_write(uint32_t plain_value) {{\n"
-            accessors += f"\tuint32_t oldword = {reg_name}_read();\n"
-            accessors += f"\tuint32_t newword = {field_name}_replace(oldword, plain_value);\n"
-            accessors += f"\t{reg_name}_write(newword);\n}}\n"
+    if csr.size > 64:
+        return accessors
+
+    ctype      = "uint64_t" if csr.size > 32 else "uint32_t"
+    reg_name   = name + "_" + csr.name.lower()
+    field_name = reg_name + "_" + field.name.lower()
+    offset     = str(field.offset)
+    size       = str(field.size)
+    accessors += f"static inline {ctype} {field_name}_extract({ctype} oldword) {{\n"
+    accessors += f"\t{ctype} mask = 0x{(1 << int(size)) - 1:x};\n"
+    accessors += f"\treturn ((oldword >> {offset}) & mask);\n}}\n"
+    accessors += f"static inline {ctype} {field_name}_read(void) {{\n"
+    accessors += f"\t{ctype} word = {reg_name}_read();\n"
+    accessors += f"\treturn {field_name}_extract(word);\n}}\n"
+    if not getattr(csr, "read_only", False):
+        accessors += f"static inline {ctype} {field_name}_replace({ctype} oldword, {ctype} plain_value) {{\n"
+        accessors += f"\t{ctype} mask = 0x{(1 << int(size)) - 1:x};\n"
+        accessors += f"\treturn (oldword & (~(mask << {offset}))) | ((mask & plain_value) << {offset});\n}}\n"
+        accessors += f"static inline void {field_name}_write({ctype} plain_value) {{\n"
+        accessors += f"\t{ctype} oldword = {reg_name}_read();\n"
+        accessors += f"\t{ctype} newword = {field_name}_replace(oldword, plain_value);\n"
+        accessors += f"\t{reg_name}_write(newword);\n}}\n"
     return accessors
 
 def _generate_csr_field_functions_c(csr, name):
