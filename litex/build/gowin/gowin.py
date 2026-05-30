@@ -178,11 +178,14 @@ class GowinToolchain(GenericToolchain):
         # which does not have 'os.uname' support, we should check 'sys.platform' firstly.
         gw_sh      = "gw_sh"
         gw_sh_path = which(gw_sh)
-        
+
         if gw_sh_path is None:
             msg = "Unable to find Gowin toolchain, please:\n"
             msg += "- Add Gowin toolchain to your $PATH."
             raise OSError(msg)
+
+        # Resolve the path in case it is a symlink.
+        gw_sh_path = os.path.realpath(gw_sh_path)
 
         # Prefer Gowin's bundled libs (avoids Qt/libstdc++ version mismatches).
         env           = os.environ.copy()
