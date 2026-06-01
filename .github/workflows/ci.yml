@@ -58,6 +58,23 @@ jobs:
           packages: gcc-riscv64-unknown-elf gcc-or1k-elf gcc-powerpc64le-linux-gnu binutils-multiarch
           version: 1.0
 
+      # Install LM32 GCC Toolchain. Ubuntu does not currently package
+      # lm32-elf-gcc, so use the LiteX-Hub Conda package and expose only
+      # the lm32-elf-* tools to the regular test environment.
+      - name: Setup Conda for LM32 Toolchain
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: false
+          activate-environment: litex-toolchains
+          channels: litex-hub,conda-forge
+          channel-priority: flexible
+
+      - name: Install LM32 GCC Toolchain
+        shell: bash -el {0}
+        run: |
+          python3 litex_setup.py --dev --gcc=lm32
+          sudo ln -sf "$CONDA_PREFIX/bin"/lm32-elf-* /usr/local/bin/
+
       # Cache OSS CAD Suite (keyed on pinned release version — cache hit
       # skips the ~500 MB download from the YosysHQ release bucket).
       - name: Cache OSS CAD Suite
@@ -153,7 +170,8 @@ jobs:
           # to rank. Refine from `--durations=0` log output if desired.
           BOOT_TIMES = {
               "femtorv":      60, "firev":        60, "serv":         45,
-              "sentinel":    120, "minerva":     120, "marocchino":  120,
+              "sentinel":    120, "minerva":     120, "lm32":        120,
+              "marocchino":  120,
               "vexriscv":    120, "neorv32":     150, "ibex":        150,
               "naxriscv":    240, "vexiiriscv":  240, "vexriscv_smp":360,
           }

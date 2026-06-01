@@ -745,8 +745,24 @@ def toolchain_install_cmd(toolchain, cmd):
         print_status("Install the toolchain manually or rerun after fixing package-manager access.")
         raise SetupError
 
-def toolchain_manual_install(toolchain):
+def toolchain_conda_install(toolchain, package):
+    conda = shutil.which("mamba") or shutil.which("conda")
+    if conda is None:
+        return False
+    toolchain_install_cmd(toolchain, [
+        conda,
+        "install",
+        "-y",
+        "-c", "litex-hub",
+        "-c", "conda-forge",
+        package,
+    ])
+    return True
+
+def toolchain_manual_install(toolchain, hint=None):
     print_error(f"{toolchain} GCC requires manual installation on {sys.platform}.")
+    if hint is not None:
+        print_status(hint)
     raise SetupError
 
 # RISC-V toolchain.
@@ -832,6 +848,37 @@ def openrisc_gcc_install():
     else:
         toolchain_manual_install("OpenRISC")
 
+# LM32 toolchain.
+# ---------------
+
+def lm32_gcc_install():
+    conda_hint = (
+        "Try with Conda/Mamba: "
+        "conda install -c litex-hub -c conda-forge gcc-lm32-elf-newlib"
+    )
+
+    # Linux.
+    # ------
+    if sys.platform.startswith("linux"):
+        os_release = _read_os_release()
+        # Arch.
+        if "arch" in os_release:
+            toolchain_install_cmd("LM32", ["pacman", "-S", "lm32-elf-gcc"])
+        # Conda/Mamba fallback.
+        elif not toolchain_conda_install("LM32", "gcc-lm32-elf-newlib"):
+            toolchain_manual_install("LM32", hint=conda_hint)
+
+    # Mac OS.
+    # -------
+    elif sys.platform.startswith("darwin"):
+        if not toolchain_conda_install("LM32", "gcc-lm32-elf-newlib"):
+            toolchain_manual_install("LM32", hint=conda_hint)
+
+    # Manual installation.
+    # --------------------
+    else:
+        toolchain_manual_install("LM32", hint=conda_hint)
+
 # Run ----------------------------------------------------------------------------------------------
 
 def main():
@@ -849,8 +896,8 @@ def main():
     parser.add_argument("--tag",       default=None,        help="Use version from release tag.")
 
     # GCC toolchains.
-    parser.add_argument("--gcc", default=None, choices=["riscv", "powerpc", "openrisc"],
-        help="Install GCC Toolchain (riscv, powerpc or openrisc).")
+    parser.add_argument("--gcc", default=None, choices=["riscv", "powerpc", "openrisc", "lm32"],
+        help="Install GCC Toolchain (riscv, powerpc, openrisc or lm32).")
 
     # Development mode.
     parser.add_argument("--dev",            action="store_true",
@@ -910,6 +957,8 @@ def main():
         powerpc_gcc_install()
     if args.gcc == "openrisc":
         openrisc_gcc_install()
+    if args.gcc == "lm32":
+        lm32_gcc_install()
 
 def run():
     try:

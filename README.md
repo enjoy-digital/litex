@@ -165,10 +165,10 @@ $ ./litex_setup.py --update
 
 > **Note:** On Windows, it's possible you'll have to set `SHELL` environment variable to `SHELL=cmd.exe`.
 
-3. Install a RISC-V toolchain (Only if you want to test/create a SoC with a CPU):
+3. Install a CPU GCC toolchain (Only if you want to test/create a SoC with a CPU):
 ```sh
 $ pip3 install meson ninja
-$ ./litex_setup.py --gcc=riscv
+$ ./litex_setup.py --gcc=riscv # Or lm32/openrisc/powerpc.
 ```
 
 4. Build the target of your board...:

@@ -297,6 +297,42 @@ class TestLiteXSetup(unittest.TestCase):
         self.assertIn("RISC-V GCC requires manual installation on unknown-os.", output)
         self.assertNotIn("Traceback", output + stderr)
 
+    def test_lm32_toolchain_uses_arch_package(self):
+        with mock.patch.object(sys, "platform", "linux"), \
+             mock.patch("litex_setup._read_os_release", return_value="arch linux"), \
+             mock.patch("subprocess.check_call") as check_call:
+            litex_setup.lm32_gcc_install()
+
+        check_call.assert_called_once_with(["pacman", "-S", "lm32-elf-gcc"])
+
+    def test_lm32_toolchain_uses_conda_fallback(self):
+        with mock.patch.object(sys, "platform", "linux"), \
+             mock.patch("litex_setup._read_os_release", return_value="ubuntu"), \
+             mock.patch("shutil.which", side_effect=[None, "/opt/conda/bin/conda"]), \
+             mock.patch("subprocess.check_call") as check_call:
+            litex_setup.lm32_gcc_install()
+
+        check_call.assert_called_once_with([
+            "/opt/conda/bin/conda",
+            "install",
+            "-y",
+            "-c",
+            "litex-hub",
+            "-c",
+            "conda-forge",
+            "gcc-lm32-elf-newlib",
+        ])
+
+    def test_lm32_toolchain_without_package_manager_has_hint(self):
+        with mock.patch.object(sys, "platform", "linux"), \
+             mock.patch("litex_setup._read_os_release", return_value="ubuntu"), \
+             mock.patch("shutil.which", return_value=None):
+            output, stderr = self.assert_setup_error(litex_setup.lm32_gcc_install)
+
+        self.assertIn("LM32 GCC requires manual installation on linux.", output)
+        self.assertIn("conda install -c litex-hub -c conda-forge gcc-lm32-elf-newlib", output)
+        self.assertNotIn("Traceback", output + stderr)
+
     def test_invalid_config_is_rejected_cleanly(self):
         litex_setup.install_configs = {"minimal": [], "standard": [], "full": []}
 
