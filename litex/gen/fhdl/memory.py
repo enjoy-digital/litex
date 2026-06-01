@@ -89,34 +89,40 @@ def _memory_generate_verilog(name, memory, namespace, add_data_file):
         if port.dat_r is None or port.async_read:
             continue
 
-        # Create Address Register in Write-First mode.
-        if port.mode in [WRITE_FIRST]:
+        split_write = port.we is not None and port.we_granularity != 0
+
+        # Create Address Register for split Write-First mode.
+        if port.mode in [WRITE_FIRST] and split_write:
             adr_regs[n] = Signal(name_override=f"{_get_name(memory)}_adr{n}")
             r += f"reg [{bits_for(memory.depth-1)-1}:0] {_get_name(adr_regs[n])};\n"
 
-        # Create Data Register in Read-First/No Change mode.
-        if port.mode in [READ_FIRST, NO_CHANGE]:
+        # Create Data Register for Sync Read.
+        if port.mode in [READ_FIRST, NO_CHANGE] or (port.mode in [WRITE_FIRST] and not split_write):
             data_regs[n] = Signal(name_override=f"{_get_name(memory)}_dat{n}")
             r += f"reg [{memory.width-1}:0] {_get_name(data_regs[n])};\n"
 
     # Ports Write/Read Logic.
     # -----------------------
     for n, port in enumerate(memory.ports):
+        split_write = port.we is not None and port.we_granularity != 0
+
         # This block has to be named to use a integer variable in it.
-        rd = f" : {_get_name(Signal(name_override='mem_write_block'))}" if port.we is not None and port.we_granularity != 0 else ""
+        rd = f" : {_get_name(Signal(name_override='mem_write_block'))}" if split_write else ""
         r += f"always @(posedge {_get_name(port.clock)}) begin{rd}\n"
+        we_index = None
 
         # Write Logic.
         if port.we is not None:
             # Split Write Logic.
-            if port.we_granularity != 0:
+            if split_write:
                 m = memory.width//port.we_granularity
                 we_index = Signal(name_override="we_index")
+                we_index_name = _get_name(we_index)
 
-                r += f"\tinteger {_get_name(we_index)};\n"
-                sl = f"[{_get_name(we_index)}*{port.we_granularity} +: {port.we_granularity}]"
-                r += f"\tfor({_get_name(we_index)} = 0; {_get_name(we_index)} < {m}; {_get_name(we_index)}={_get_name(we_index)}+1)\n"
-                r += f"\t\tif ({_get_name(port.we)}[{_get_name(we_index)}])\n"
+                r += f"\tinteger {we_index_name};\n"
+                sl = f"[{we_index_name}*{port.we_granularity} +: {port.we_granularity}]"
+                r += f"\tfor({we_index_name} = 0; {we_index_name} < {m}; {we_index_name}={we_index_name}+1)\n"
+                r += f"\t\tif ({_get_name(port.we)}[{we_index_name}])\n"
                 r += f"\t\t\t{_get_name(memory)}[{_get_name(port.adr)}]{sl} <= {_get_name(port.dat_w)}{sl};\n"
             else:
                 r += f"\tif ({_get_name(port.we)})\n"
@@ -124,9 +130,17 @@ def _memory_generate_verilog(name, memory, namespace, add_data_file):
 
         # Read Logic.
         if port.dat_r is not None and not port.async_read:
-            # In Write-First mode, Read from Address Register.
+            # In Write-First mode, Read the written Data or Memory Data.
             if port.mode in [WRITE_FIRST]:
-                rd = f"\t{_get_name(adr_regs[n])} <= {_get_name(port.adr)};\n"
+                if split_write:
+                    rd = f"\t{_get_name(adr_regs[n])} <= {_get_name(port.adr)};\n"
+                elif port.we is not None:
+                    rd = f"\tif ({_get_name(port.we)})\n"
+                    rd += f"\t\t{_get_name(data_regs[n])} <= {_get_name(port.dat_w)};\n"
+                    rd += "\telse\n"
+                    rd += f"\t\t{_get_name(data_regs[n])} <= {_get_name(memory)}[{_get_name(port.adr)}];\n"
+                else:
+                    rd = f"\t{_get_name(data_regs[n])} <= {_get_name(memory)}[{_get_name(port.adr)}];\n"
 
             # In Read-First/No Change mode:
             if port.mode in [READ_FIRST, NO_CHANGE]:
@@ -141,8 +155,10 @@ def _memory_generate_verilog(name, memory, namespace, add_data_file):
             if port.re is None:
                 r += rd
             else:
-                r += f"\tif ({_get_name(port.re)})\n"
-                r += "\t" + rd.replace("\n\t", "\n\t\t")
+                r += f"\tif ({_get_name(port.re)}) begin\n"
+                for line in rd.splitlines():
+                    r += "\t" + line + "\n"
+                r += "\tend\n"
         r += "end\n"
 
     # Ports Read Mapping.
@@ -156,12 +172,14 @@ def _memory_generate_verilog(name, memory, namespace, add_data_file):
             r += f"assign {_get_name(port.dat_r)} = {_get_name(memory)}[{_get_name(port.adr)}];\n"
             continue
 
-        # Write-First mode: Do Read through Address Register.
-        if port.mode in [WRITE_FIRST]:
+        split_write = port.we is not None and port.we_granularity != 0
+
+        # Write-First split-write mode: Do Read through Address Register.
+        if port.mode in [WRITE_FIRST] and split_write:
             r += f"assign {_get_name(port.dat_r)} = {_get_name(memory)}[{_get_name(adr_regs[n])}];\n"
 
-        # Read-First/No-Change mode: Data already Read on Data Register.
-        if port.mode in [READ_FIRST, NO_CHANGE]:
+        # Sync-Read modes: Data already Read on Data Register.
+        if port.mode in [READ_FIRST, NO_CHANGE] or (port.mode in [WRITE_FIRST] and not split_write):
              r += f"assign {_get_name(port.dat_r)} = {_get_name(data_regs[n])};\n"
     r += "\n\n"
 
