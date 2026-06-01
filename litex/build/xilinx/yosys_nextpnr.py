@@ -19,6 +19,7 @@ from migen.fhdl.structure import _Fragment, wrap, Constant
 from migen.fhdl.specials import Instance
 
 from litex.build.yosys_nextpnr_toolchain import YosysNextPNRToolchain
+from litex.build.yosys_nextpnr_toolchain import yosys_nextpnr_args, yosys_nextpnr_argdict
 from litex.build.generic_platform import *
 from litex.build.xilinx.vivado import _xdc_separator, _format_xdc, _build_xdc, signed_bitstream_script
 from litex.build import tools
@@ -199,3 +200,12 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
     def add_false_path_constraint(self, platform, from_, to):
         # FIXME: false path constraints are currently not supported by the toolchain
         return
+
+
+def xilinx_yosys_nextpnr_args(parser):
+    toolchain_group = parser.add_argument_group(title="Yosys/NextPNR toolchain options")
+    yosys_nextpnr_args(toolchain_group)
+
+
+def xilinx_yosys_nextpnr_argdict(args):
+    return yosys_nextpnr_argdict(args)

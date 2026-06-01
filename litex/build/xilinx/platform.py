@@ -153,6 +153,8 @@ class XilinxPlatform(GenericPlatform):
         """
         if toolchain == "vivado":
             vivado.vivado_build_args(parser)
+        elif toolchain in ["yosys+nextpnr", "openxc7"]:
+            yosys_nextpnr.xilinx_yosys_nextpnr_args(parser)
 
     @classmethod
     def get_argdict(cls, toolchain, args):
@@ -170,6 +172,8 @@ class XilinxPlatform(GenericPlatform):
         """
         if toolchain == "vivado":
             return vivado.vivado_build_argdict(args)
+        elif toolchain in ["yosys+nextpnr", "openxc7"]:
+            return yosys_nextpnr.xilinx_yosys_nextpnr_argdict(args)
         else:
             return dict()
 

@@ -9,6 +9,7 @@ import io
 import unittest
 
 from litex.build.parser import LiteXArgumentParser
+from litex.build.xilinx.platform import Xilinx7SeriesPlatform
 
 
 class _FakePlatform:
@@ -126,6 +127,42 @@ class TestLiteXArgumentParserCPUArguments(unittest.TestCase):
         self.assertEqual(args.cpu_type, "vexriscv")
         self.assertEqual(args.cpu_variant, "full+cfu")
         self.assertEqual(args.cpu_cfu,  "cfu.v")
+
+
+class TestLiteXArgumentParserXilinxToolchainArguments(unittest.TestCase):
+    def make_parser(self):
+        return LiteXArgumentParser(
+            platform    = Xilinx7SeriesPlatform,
+            description = "LiteX Xilinx argument parser test.",
+        )
+
+    def help_for(self, *args):
+        stdout = io.StringIO()
+        parser = self.make_parser()
+
+        with contextlib.redirect_stdout(stdout):
+            with self.assertRaises(SystemExit) as cm:
+                parser.parse_args([*args, "--help"])
+
+        self.assertEqual(cm.exception.code, 0)
+        return stdout.getvalue()
+
+    def test_xilinx_yosys_nextpnr_help_adds_nextpnr_arguments(self):
+        help_text = self.help_for("--toolchain=yosys+nextpnr")
+
+        self.assertIn("--nextpnr-timingstrict", help_text)
+        self.assertIn("--nextpnr-seed",         help_text)
+
+    def test_xilinx_openxc7_argdict_keeps_nextpnr_timingstrict(self):
+        parser = self.make_parser()
+
+        parser.parse_args([
+            "--toolchain=openxc7",
+            "--nextpnr-timingstrict",
+            "--no-build-log",
+        ])
+
+        self.assertTrue(parser.toolchain_argdict["timingstrict"])
 
 
 if __name__ == "__main__":
