@@ -208,10 +208,19 @@ class LiteXArgumentParser(argparse.ArgumentParser):
 
                 self.add_target_group()
 
+        # Intercept selected SoC/CPU options to select matching arguments.
+        default_cpu_type             = self._args_default.get("cpu_type", "vexriscv")
+        selected_cpu_type            = self.get_value_from_key("--cpu-type", default_cpu_type, args)
+        default_cpu_variant          = self._args_default.get("cpu_variant", None)
+        selected_cpu_variant         = self.get_value_from_key("--cpu-variant", default_cpu_variant, args)
+
         # When platform provided/set, set builder/soc_core args.
         if self._platform is not None:
             builder.builder_args(self)
-            soc.soc_core_args(self)
+            soc.soc_core_args(self,
+                cpu_type    = selected_cpu_type,
+                cpu_variant = selected_cpu_variant,
+            )
 
         # Intercept selected toolchain to fill arguments.
         if self._platform is not None:
@@ -220,8 +229,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
                 self._platform.fill_args(self._toolchain, self)
 
         # Intercept selected CPU to fill arguments.
-        default_cpu_type = self._args_default.get("cpu_type", None)
-        cpu_cls = cpu.CPUS.get(self.get_value_from_key("--cpu-type", default_cpu_type, args))
+        cpu_cls = cpu.CPUS.get(selected_cpu_type)
         if cpu_cls is not None and hasattr(cpu_cls, "args_fill"):
             cpu_cls.args_fill(self)
 

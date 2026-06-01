@@ -698,6 +698,14 @@ class TestSoC(unittest.TestCase):
         with _assert_raises_soc_error(self):
             soc._get_mem_map_origin("sram")
 
+    def test_soc_core_rejects_cfu_without_cpu(self):
+        with _assert_raises_soc_error(self):
+            SoCCore(_FakePlatform(), clk_freq=1e6, cpu_type="None", cpu_cfu="cfu.v")
+
+    def test_soc_core_rejects_cfu_without_cfu_variant(self):
+        with _assert_raises_soc_error(self):
+            SoCCore(_FakePlatform(), clk_freq=1e6, cpu_type="vexriscv", cpu_cfu="cfu.v")
+
     def test_init_ram_rejects_unknown_name(self):
         soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
 

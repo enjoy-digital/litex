@@ -1463,10 +1463,17 @@ class SoC(LiteXModule):
                 raise SoCError()
 
         # Add optional CFU plugin.
-        if "cfu" in variant and hasattr(self.cpu, "add_cfu"):
+        if cfu is not None:
+            if isinstance(self.cpu, cpu.CPUNone):
+                self.logger.error("CPU CFU requires a CPU.")
+                raise SoCError()
+            if "cfu" not in variant or not hasattr(self.cpu, "add_cfu"):
+                self.logger.error("CPU CFU requires a CFU-capable CPU variant.")
+                raise SoCError()
             self.cpu.add_cfu(cfu_filename=cfu)
-        elif cfu is not None:
-            self.logger.warning("CPU CFU ignored: CPU variant does not expose CFU support.")
+        elif "cfu" in variant and hasattr(self.cpu, "add_cfu"):
+            self.logger.error("CPU CFU variant requires a CFU file/instance.")
+            raise SoCError()
 
         # Update SoC with CPU constraints.
         # IO regions.
@@ -3382,8 +3389,19 @@ class SoCCore(LiteXSoC):
 
 # SoCCore arguments --------------------------------------------------------------------------------
 
-def soc_core_args(parser):
+def soc_core_cpu_cfu_supported(cpu_cls, cpu_variant=None):
+    if cpu_cls is None or not hasattr(cpu_cls, "add_cfu"):
+        return False
+
+    cpu_variant = "standard" if cpu_variant is None else cpu_variant
+    return (cpu_variant in getattr(cpu_cls, "variants", [])) and ("cfu" in cpu_variant)
+
+
+def soc_core_args(parser, cpu_type="vexriscv", cpu_variant=None):
     from litex.soc.cores import cpu
+
+    cpu_cls = cpu.CPUS.get(cpu_type)
+    integrated_rom_supported = (cpu_cls is None) or getattr(cpu_cls, "integrated_rom_supported", True)
 
     soc_group = parser.add_argument_group(title="SoC options")
     # Bus parameters.
@@ -3397,16 +3415,19 @@ def soc_core_args(parser):
 
     # CPU parameters.
     soc_group.add_argument("--cpu-type",                 default="vexriscv",                 help="Select CPU: {}.".format(", ".join(map(str, cpu.CPUS.keys()))))
-    soc_group.add_argument("--cpu-variant",              default=None,                       help="CPU variant.")
-    soc_group.add_argument("--cpu-reset-address",        default=None,       type=auto_int,  help="CPU reset address (Boot from Integrated ROM by default).")
-    soc_group.add_argument("--cpu-cfu",                  default=None,                       help="Optional CPU CFU file/instance to add to the CPU.")
+    if cpu_cls is not cpu.CPUNone:
+        soc_group.add_argument("--cpu-variant",              default=None,                       help="CPU variant.")
+        soc_group.add_argument("--cpu-reset-address",        default=None,       type=auto_int,  help="CPU reset address (Boot from Integrated ROM by default).")
+        if soc_core_cpu_cfu_supported(cpu_cls, cpu_variant):
+            soc_group.add_argument("--cpu-cfu",              default=None,                       help="Optional CPU CFU file/instance to add to the CPU.")
 
     # Controller parameters.
     soc_group.add_argument("--no-ctrl",                  action="store_true",                help="Disable controller.")
 
     # ROM parameters.
-    soc_group.add_argument("--integrated-rom-size",      default=0x20000,     type=auto_int, help="Size/enable the integrated (BIOS) ROM (automatically resized to BIOS size when smaller).")
-    soc_group.add_argument("--integrated-rom-init",      default=None,        type=str,      help="Integrated ROM binary initialization file (override the BIOS when specified).")
+    if integrated_rom_supported:
+        soc_group.add_argument("--integrated-rom-size",      default=0x20000,     type=auto_int, help="Size/enable the integrated (BIOS) ROM (automatically resized to BIOS size when smaller).")
+        soc_group.add_argument("--integrated-rom-init",      default=None,        type=str,      help="Integrated ROM binary initialization file (override the BIOS when specified).")
 
     # SRAM parameters.
     soc_group.add_argument("--integrated-sram-size",     default=0x2000,      type=auto_int, help="Size/enable the integrated SRAM.")
