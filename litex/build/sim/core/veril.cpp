@@ -29,6 +29,7 @@ Vsim *g_sim = nullptr;
 uint64_t main_time = 0;
 uint64_t save_time = -1;
 uint64_t load_time = 0;
+static bool finalized = false;
 
 #ifdef SAVABLE
 static void litex_sim_save_state(void *vsim, const char *filename);
@@ -46,7 +47,11 @@ static void litex_sim_tracer_flush(void)
 static void litex_sim_tracer_close(void)
 {
   if (tfp != nullptr) {
+    tfp->flush();
     tfp->close();
+    delete tfp;
+    tfp = nullptr;
+    g_sim = nullptr;
   }
 }
 #endif
@@ -146,7 +151,7 @@ extern "C" void litex_sim_tracer_dump()
     last_enabled = (int) dump_enabled;
   }
 
-  if (dump_enabled && tfp_start <= main_time && main_time <= tfp_end) {
+  if (dump_enabled && tfp != nullptr && tfp_start <= main_time && main_time <= tfp_end) {
     tfp->dump((vluint64_t) main_time);
   }
 #endif
@@ -160,13 +165,24 @@ extern "C" int litex_sim_got_finish()
   litex_sim_tracer_flush();
 #endif
 
-  if (finished) {
-#if VM_TRACE
-    litex_sim_tracer_close();
-#endif
-  }
-
   return finished;
+}
+
+extern "C" void litex_sim_finalize(void *vsim)
+{
+  Vsim *sim = (Vsim *)vsim;
+
+  if (finalized)
+    return;
+
+  finalized = true;
+
+  if (sim != nullptr)
+    sim->final();
+
+#if VM_TRACE
+  litex_sim_tracer_close();
+#endif
 }
 
 #if VM_COVERAGE

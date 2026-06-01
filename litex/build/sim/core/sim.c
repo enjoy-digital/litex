@@ -72,6 +72,7 @@ static int litex_sim_initialize_all(void **sim, void *base)
   }
   /* Init generated */
   litex_sim_init(&vsim);
+  *sim = vsim;
 
   /* Get pads from generated */
   ret = litex_sim_pads_get_list(&plist);
@@ -136,7 +137,6 @@ static int litex_sim_initialize_all(void **sim, void *base)
       }
     }
   }
-  *sim = vsim;
 out:
   return ret;
 }
@@ -246,9 +246,13 @@ int main(int argc, char *argv[])
   ev = event_new(base, -1, EV_PERSIST, cb, vsim);
   event_add(ev, &tv);
   event_base_dispatch(base);
-#if VM_COVERAGE
-  litex_sim_coverage_dump();
-#endif
 out:
+  if(vsim != NULL)
+  {
+    litex_sim_finalize(vsim);
+#if VM_COVERAGE
+    litex_sim_coverage_dump();
+#endif
+  }
   return ret;
 }
