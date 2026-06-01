@@ -285,9 +285,11 @@ class VexRiscvSMP(CPU):
 
     # Netlist Generation.
     @staticmethod
-    def generate_netlist():
+    def generate_netlist(netlist_directory=None):
         print(f"Generating cluster netlist")
         vdir = get_data_mod("cpu", "vexriscv_smp").data_location
+        netlist_directory = netlist_directory or vdir
+        os.makedirs(netlist_directory, exist_ok=True)
         gen_args = []
         if(VexRiscvSMP.coherent_dma):
             gen_args.append("--coherent-dma")
@@ -311,7 +313,7 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--cpu-per-fpu={VexRiscvSMP.cpu_per_fpu}")
         gen_args.append(f"--rvc={VexRiscvSMP.with_rvc}")
         gen_args.append(f"--netlist-name={VexRiscvSMP.cluster_name}")
-        gen_args.append(f"--netlist-directory={vdir}")
+        gen_args.append(f"--netlist-directory={netlist_directory}")
         gen_args.append(f"--dtlb-size={VexRiscvSMP.dtlb_size}")
         gen_args.append(f"--itlb-size={VexRiscvSMP.itlb_size}")
         gen_args.append(f"--jtag-tap={VexRiscvSMP.jtag_tap}")
@@ -434,30 +436,38 @@ class VexRiscvSMP(CPU):
     def add_sources(self, platform):
         vdir = get_data_mod("cpu", "vexriscv_smp").data_location
         print(f"VexRiscv cluster : {self.cluster_name}")
-        if not os.path.exists(os.path.join(vdir, self.cluster_name + ".v")):
-            self.generate_netlist()
 
+        # Prepare build directory.
+        if getattr(platform, "output_dir", None) is not None:
+            build_dir = os.path.join(platform.output_dir, "gateware")
+        else:
+            build_dir = os.getcwd()
+        os.makedirs(build_dir, exist_ok=True)
 
         # Add RAM.
         ram_filename = get_cpu_ram_filename(platform, "1w_1rs")
         platform.add_source(os.path.join(vdir, ram_filename), "verilog")
 
         # Add Cluster.
-        cluster_filename = os.path.join(vdir,  self.cluster_name + ".v")
-        def add_synthesis_define(filename):
-            """Add SYNTHESIS define to verilog for toolchains requiring it, ex Gowin"""
+        cluster_filename = os.path.join(vdir, self.cluster_name + ".v")
+        build_cluster_filename = os.path.join(build_dir, self.cluster_name + ".v")
+        if not os.path.exists(cluster_filename):
+            self.generate_netlist(netlist_directory=build_dir)
+            cluster_filename = build_cluster_filename
+
+        def copy_with_synthesis_define(src, dst):
+            """Add SYNTHESIS define to verilog for toolchains requiring it, ex Gowin."""
             synthesis_define = "`define SYNTHESIS\n"
-            # Read file.
-            with open(filename, "r") as f:
+            with open(src, "r") as f:
                 lines = f.readlines()
-            # Modify file.
-            with open(filename, "w") as f:
-                if lines[0] != synthesis_define:
+            with open(dst, "w") as f:
+                if not lines or lines[0] != synthesis_define:
                     f.write(synthesis_define)
                 for line in lines:
                     f.write(line)
-        add_synthesis_define(cluster_filename)
-        platform.add_source(cluster_filename, "verilog")
+
+        copy_with_synthesis_define(cluster_filename, build_cluster_filename)
+        platform.add_source(build_cluster_filename, "verilog")
 
     def add_jtag(self, pads):
         self.comb += [
