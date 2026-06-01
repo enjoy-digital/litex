@@ -6,8 +6,9 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
-import sys
+import signal
 import subprocess
+import sys
 from pathlib import Path
 from shutil import which
 
@@ -196,7 +197,24 @@ def _run_sim(build_name, as_root=False, interactive=True):
         import termios
         termios_settings = termios.tcgetattr(sys.stdin.fileno())
     try:
-        r = subprocess.call(["bash", run_script_file])
+        p = subprocess.Popen(["bash", run_script_file])
+        try:
+            r = p.wait()
+        except KeyboardInterrupt:
+            try:
+                p.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                p.terminate()
+                try:
+                    p.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    p.kill()
+                    p.wait()
+            print()
+            raise SystemExit(130)
+        if r == -signal.SIGINT:
+            print()
+            raise SystemExit(130)
         if r != 0:
             raise OSError("Subprocess failed")
     finally:
