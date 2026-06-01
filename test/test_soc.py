@@ -151,6 +151,52 @@ class TestSoCVideoTiming(unittest.TestCase):
             parse_video_timing_resolution(())
 
 
+class TestSoCVideoFrameBuffer(unittest.TestCase):
+    def test_default_region_is_placed_at_end_of_main_ram(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.bus.add_region("main_ram", SoCRegion(origin=0x40000000, size=0x04000000))
+
+        region = soc._get_video_framebuffer_default_region("video_framebuffer", 0x0012c000)
+
+        self.assertEqual(region.origin, 0x43e00000)
+        self.assertEqual(region.size,   0x0012c000)
+        self.assertTrue(region.linker)
+
+    def test_default_region_falls_back_when_main_ram_is_unknown(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        region = soc._get_video_framebuffer_default_region("video_framebuffer", 0x0012c000)
+
+        self.assertEqual(region.origin, 0x40c00000)
+        self.assertEqual(region.size,   0x0012c000)
+        self.assertTrue(region.linker)
+
+    def test_default_base_adds_region_at_end_of_main_ram(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.bus.add_region("main_ram", SoCRegion(origin=0x40000000, size=0x04000000))
+
+        base = soc._get_video_framebuffer_base("video_framebuffer", 0x0012c000)
+
+        self.assertEqual(base, 0x43e00000)
+        self.assertEqual(soc.bus.regions["video_framebuffer"].origin, 0x43e00000)
+
+    def test_explicit_mem_map_override_is_preserved(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.mem_map["video_framebuffer"] = 0x50c00000
+
+        base = soc._get_video_framebuffer_base("video_framebuffer", 0x0012c000)
+
+        self.assertEqual(base, 0x50c00000)
+        self.assertNotIn("video_framebuffer", soc.bus.regions)
+
+    def test_default_region_rejects_framebuffer_larger_than_main_ram(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.bus.add_region("main_ram", SoCRegion(origin=0x40000000, size=0x00100000))
+
+        with _assert_raises_soc_error(self):
+            soc._get_video_framebuffer_default_region("video_framebuffer", 0x00200000)
+
+
 class TestSoCRegion(unittest.TestCase):
     def test_region_size_is_rounded_to_power_of_two_for_decoding(self):
         region = SoCRegion(origin=0x1000, size=0x1800, mode="rx")

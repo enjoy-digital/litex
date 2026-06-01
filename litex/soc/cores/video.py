@@ -1004,6 +1004,20 @@ class VideoTerminal(LiteXModule):
 
 # Video FrameBuffer --------------------------------------------------------------------------------
 
+def video_framebuffer_format_depth(format):
+    return {
+        "rgb888" : 32,
+        "rgb565" : 16,
+        "rgb332" : 8,
+        "mono8"  : 8,
+        "mono1"  : 1,
+    }[format]
+
+def video_framebuffer_size(hres, vres, format):
+    depth  = video_framebuffer_format_depth(format)
+    stride = (hres*depth + 7)//8
+    return stride*vres
+
 class VideoFrameBuffer(LiteXModule):
     """Video FrameBuffer"""
     def __init__(self, dram_port, hres=800, vres=600, base=0x00000000, fifo_depth=64*KILOBYTE, clock_domain="sys", clock_faster_than_sys=False, format="rgb888"):
@@ -1011,13 +1025,7 @@ class VideoFrameBuffer(LiteXModule):
         self.source    = source   = stream.Endpoint(video_data_layout)
         self.underflow = Signal()
 
-        self.depth = depth = {
-            "rgb888" : 32,
-            "rgb565" : 16,
-            "rgb332" : 8,
-            "mono8"  : 8,
-            "mono1"  : 1,
-        }[format]
+        self.depth = depth = video_framebuffer_format_depth(format)
 
         # # #
 
@@ -1026,7 +1034,7 @@ class VideoFrameBuffer(LiteXModule):
         self.dma = LiteDRAMDMAReader(dram_port, fifo_depth=fifo_depth//(dram_port.data_width//8), fifo_buffered=True)
         self.dma.add_csr(
             default_base   = base,
-            default_length = hres*vres*depth//8, # 32-bit RGB-888 or 16-bit RGB-565
+            default_length = video_framebuffer_size(hres, vres, format),
             default_enable = 0,
             default_loop   = 1
         )

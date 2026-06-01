@@ -16,7 +16,13 @@ import unittest
 
 from migen import *
 
-from litex.soc.cores.video import VideoTimingGenerator, ColorBarsPattern, VideoGenericPHY
+from litex.soc.cores.video import (
+    VideoTimingGenerator,
+    ColorBarsPattern,
+    VideoGenericPHY,
+    video_framebuffer_format_depth,
+    video_framebuffer_size,
+)
 from litex.soc.cores.code_tmds import TMDSEncoder, control_tokens
 
 
@@ -66,6 +72,22 @@ VSYNC_START  = VRES + SMALL_TIMINGS["v_sync_offset"]                            
 VSYNC_END    = VSYNC_START + SMALL_TIMINGS["v_sync_width"]                         # 7
 VSCAN        = VRES + SMALL_TIMINGS["v_blanking"] - 1                              # 7
 VTOTAL       = VSCAN + 1                                                           # 8
+
+
+# Video FrameBuffer --------------------------------------------------------------------------------
+
+class TestVideoFrameBufferHelpers(unittest.TestCase):
+    def test_format_depths_match_video_pixel_formats(self):
+        self.assertEqual(video_framebuffer_format_depth("rgb888"), 32)
+        self.assertEqual(video_framebuffer_format_depth("rgb565"), 16)
+        self.assertEqual(video_framebuffer_format_depth("rgb332"),  8)
+        self.assertEqual(video_framebuffer_format_depth("mono8"),   8)
+        self.assertEqual(video_framebuffer_format_depth("mono1"),   1)
+
+    def test_size_uses_byte_rounded_line_stride(self):
+        self.assertEqual(video_framebuffer_size(640, 480, "rgb888"), 640*480*4)
+        self.assertEqual(video_framebuffer_size(640, 480, "rgb565"), 640*480*2)
+        self.assertEqual(video_framebuffer_size(13,    2, "mono1"),  2*2)
 
 
 # VideoTimingGenerator -----------------------------------------------------------------------------

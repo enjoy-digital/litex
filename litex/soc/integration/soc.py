@@ -3066,6 +3066,37 @@ class LiteXSoC(SoC):
         self.comb += vt.source.connect(phy if isinstance(phy, stream.Endpoint) else phy.sink)
 
     # Add Video Framebuffer ------------------------------------------------------------------------
+    def _get_video_framebuffer_default_region(self, name, size):
+        main_ram = self.bus.regions.get("main_ram", None)
+        if main_ram is None:
+            return SoCRegion(
+                origin = 0x40c00000,
+                size   = size,
+                linker = True)
+
+        size_pow2    = 2**log2_int(size, False)
+        main_ram_end = main_ram.origin + main_ram.size
+        origin       = (main_ram_end - size_pow2) & ~(size_pow2 - 1)
+        if origin < main_ram.origin:
+            self.logger.error("{} of size {} does not fit in main_ram:".format(
+                colorer(name, color="red"),
+                colorer("0x{:08x}".format(size))))
+            self.logger.error(str(main_ram))
+            raise SoCError()
+
+        return SoCRegion(
+            origin = origin,
+            size   = size,
+            linker = True)
+
+    def _get_video_framebuffer_base(self, name, size):
+        base = self.mem_map.get(name, None)
+        if base is not None:
+            return base
+
+        self.bus.add_region(name, self._get_video_framebuffer_default_region(name, size))
+        return self.bus.regions[name].origin
+
     def add_video_framebuffer(self, name="video_framebuffer", phy=None, timings="800x600@60Hz", clock_domain="sys", format="rgb888", fifo_depth=64*KILOBYTE):
         if not hasattr(self, "sdram"):
             self.logger.error("Video framebuffer requires {}.".format(
@@ -3079,6 +3110,7 @@ class LiteXSoC(SoC):
 
         # Imports.
         from litex.soc.cores.video import VideoTimingGenerator, VideoFrameBuffer
+        from litex.soc.cores.video import video_framebuffer_size
 
         # Video Timing Generator.
         vtg = VideoTimingGenerator(default_video_timings=timings if isinstance(timings, str) else timings[1])
@@ -3086,14 +3118,8 @@ class LiteXSoC(SoC):
         self.add_module(name=f"{name}_vtg", module=vtg)
 
         # Video FrameBuffer.
-        base = self.mem_map.get(name, None)
-        if base is None:
-            self.bus.add_region(name, SoCRegion(
-                origin = 0x40c00000,
-                size   = 0x800000,
-                linker = True)
-            )
-            base = self.bus.regions[name].origin
+        framebuffer_size = video_framebuffer_size(hres, vres, format)
+        base = self._get_video_framebuffer_base(name, framebuffer_size)
         vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
             hres                  = hres,
             vres                  = vres,
