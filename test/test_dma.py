@@ -11,6 +11,7 @@ from migen import *
 from litex.gen import *
 
 from litex.soc.interconnect import wishbone
+from litex.soc.interconnect import stream
 from litex.soc.cores.dma import WishboneDMAReader, WishboneDMAWriter
 
 
@@ -77,6 +78,15 @@ class _ReaderDUT(LiteXModule):
         self.dma.add_ctrl()
 
 
+class _ReaderToBytesDUT(LiteXModule):
+    def __init__(self, endianness):
+        self.bus = make_bus()
+        self.dma = WishboneDMAReader(bus=self.bus, endianness=endianness)
+        self.dma.add_ctrl()
+        self.converter = stream.Converter(32, 8, reverse=True)
+        self.comb += self.dma.source.connect(self.converter.sink)
+
+
 class TestDMAReader(unittest.TestCase):
     def test_reads_sequence(self):
         mem    = [0xdeadbeef, 0xcafebabe, 0x12345678, 0xfeedc0de,
@@ -108,6 +118,29 @@ class TestDMAReader(unittest.TestCase):
 
         run_simulation(dut, [driver(dut), wb_read_slave(dut.bus, mem)])
         self.assertEqual(outputs, mem)
+
+    def test_default_reader_byte_stream_order(self):
+        mem = [0xcafef00d]
+        for endianness in ["little", "big"]:
+            dut     = _ReaderToBytesDUT(endianness=endianness)
+            outputs = []
+
+            def driver(dut):
+                yield dut.dma.base.eq(0)
+                yield dut.dma.length.eq(4)
+                yield dut.converter.source.ready.eq(1)
+                yield dut.dma.enable.eq(1)
+
+                timeout = 0
+                while len(outputs) < 4:
+                    if (yield dut.converter.source.valid) and (yield dut.converter.source.ready):
+                        outputs.append((yield dut.converter.source.data))
+                    yield
+                    timeout += 1
+                    self.assertLess(timeout, 10_000)
+
+            run_simulation(dut, [driver(dut), wb_read_slave(dut.bus, mem)])
+            self.assertEqual(outputs, list(mem[0].to_bytes(4, byteorder=endianness)))
 
     def test_reads_from_nonzero_base(self):
         mem = [i*0x11111111 & 0xffffffff for i in range(16)]
@@ -239,6 +272,15 @@ class _WriterDUT(LiteXModule):
         self.dma.add_ctrl()
 
 
+class _BytesToWriterDUT(LiteXModule):
+    def __init__(self, endianness):
+        self.bus = make_bus()
+        self.dma = WishboneDMAWriter(bus=self.bus, endianness=endianness)
+        self.dma.add_ctrl()
+        self.converter = stream.Converter(8, 32, reverse=True)
+        self.comb += self.converter.source.connect(self.dma.sink)
+
+
 class TestDMAWriter(unittest.TestCase):
     def test_writes_sequence(self):
         payload  = [0x11111111, 0x22222222, 0x33333333, 0x44444444, 0xdeadbeef, 0xc0ffee00]
@@ -273,6 +315,37 @@ class TestDMAWriter(unittest.TestCase):
         run_simulation(dut, [driver(dut), wb_write_slave(dut.bus, captures)])
         self.assertEqual([v for _, v in captures], payload)
         self.assertEqual([a for a, _ in captures], list(range(len(payload))))
+
+    def test_default_writer_byte_stream_order(self):
+        payload = 0xcafef00d
+        for endianness in ["little", "big"]:
+            dut      = _BytesToWriterDUT(endianness=endianness)
+            captures = []
+
+            def driver(dut):
+                yield dut.dma.base.eq(0)
+                yield dut.dma.length.eq(4)
+                yield dut.dma.enable.eq(1)
+                for _ in range(4):
+                    yield
+
+                yield dut.converter.sink.valid.eq(1)
+                for i, byte in enumerate(payload.to_bytes(4, byteorder=endianness)):
+                    yield dut.converter.sink.data.eq(byte)
+                    yield dut.converter.sink.last.eq(i == 3)
+                    yield
+                    while not (yield dut.converter.sink.ready):
+                        yield
+                yield dut.converter.sink.valid.eq(0)
+
+                timeout = 0
+                while not (yield dut.dma.done):
+                    yield
+                    timeout += 1
+                    self.assertLess(timeout, 200)
+
+            run_simulation(dut, [driver(dut), wb_write_slave(dut.bus, captures)])
+            self.assertEqual([v for _, v in captures], [payload])
 
     def test_writes_burst_when_bus_supports_bursting(self):
         payload    = [0x10000000 + i for i in range(4)]
