@@ -255,6 +255,9 @@ TESTED_CPUS = [
     "ibex",         # (riscv   / softcore)
     "minerva",      # (riscv   / softcore)
 ]
+TESTED_CPU_VARIANTS = {
+    "microwatt": "standard+irq",
+}
 UNTESTED_CPUS = [
     "blackparrot",  # (riscv   / softcore) -> Broken install?
     "cortex_m1",    # (arm     / softcore) -> Proprietary code.
@@ -273,7 +276,8 @@ UNTESTED_CPUS = [
 
 @pytest.mark.parametrize("cpu", TESTED_CPUS)
 def test_cpu(cpu, request, tmp_path):
-    assert boot_test(cpu_type=cpu, output_dir=str(tmp_path))
+    variant = TESTED_CPU_VARIANTS.get(cpu, "standard")
+    assert boot_test(cpu_type=cpu, cpu_variant=variant, output_dir=str(tmp_path))
 
 BUS_OPTIONS = [
     ("--bus-standard", ["wishbone", "axi-lite", "axi"]),
