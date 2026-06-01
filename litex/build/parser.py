@@ -12,7 +12,7 @@ import importlib
 import importlib.util
 
 from litex.soc.cores import cpu
-from litex.soc.integration import soc_core
+from litex.soc.integration import soc
 from litex.soc.integration import builder
 from litex.build.log import configure_build_log
 
@@ -160,7 +160,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         ======
         soc_core arguments dict
         """
-        soc_arg = soc_core.soc_core_argdict(self._args) # FIXME: Rename to soc_argdict in the future.
+        soc_arg = soc.soc_core_argdict(self._args) # FIXME: Rename to soc_argdict in the future.
 
         # Work around for backward compatibility
         if getattr(self, "_rm_jtagbone", False):
@@ -211,7 +211,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         # When platform provided/set, set builder/soc_core args.
         if self._platform is not None:
             builder.builder_args(self)
-            soc_core.soc_core_args(self)
+            soc.soc_core_args(self)
 
         # Intercept selected toolchain to fill arguments.
         if self._platform is not None:

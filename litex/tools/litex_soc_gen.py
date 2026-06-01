@@ -21,8 +21,7 @@ from migen import *
 
 from litex.build.generic_platform import *
 
-from litex.soc.integration.soc_core import *
-from litex.soc.integration.soc import SoCRegion
+from litex.soc.integration.soc import *
 from litex.soc.integration.builder import *
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import axi

@@ -21,7 +21,6 @@ from litex.build.sim              import SimPlatform
 from litex.build.sim.config       import SimConfig
 
 from litex.soc.integration.common   import *
-from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder  import *
 from litex.soc.integration.soc      import *
 

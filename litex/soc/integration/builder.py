@@ -25,7 +25,7 @@ from litex.gen import colorer
 from litex.build.tools import write_to_file
 from litex.build.log import build_log_context
 
-from litex.soc.integration import export, soc_core
+from litex.soc.integration import export, soc
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -360,7 +360,7 @@ class Builder:
     def _initialize_rom_software(self):
         # Get BIOS data from compiled BIOS binary.
         bios_file = os.path.join(self.software_dir, "bios", "bios.bin")
-        bios_data = soc_core.get_mem_data(bios_file,
+        bios_data = soc.get_mem_data(bios_file,
             data_width = self.soc.bus.data_width,
             endianness = self.soc.cpu.endianness,
         )
