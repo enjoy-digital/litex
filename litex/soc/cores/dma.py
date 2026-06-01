@@ -17,8 +17,12 @@ from litex.soc.interconnect import wishbone
 
 # Helpers ------------------------------------------------------------------------------------------
 
-def format_bytes(s, endianness):
-    return {"big": s, "little": reverse_bytes(s)}[endianness]
+def format_bytes(s, endianness, with_byteswap=None):
+    if endianness not in ["big", "little"]:
+        raise ValueError("endianness must be big or little.")
+    if with_byteswap is None:
+        with_byteswap = {"big": False, "little": True}[endianness]
+    return reverse_bytes(s) if with_byteswap else s
 
 def add_wishbone_burst_cti(module, bus, last, bursting):
     """Optionally add Wishbone CTI/BTE burst tagging.
@@ -68,7 +72,15 @@ class WishboneDMAReader(LiteXModule):
     source : Record("data")
         Source for MMAP word results from reading.
     """
-    def __init__(self, bus, endianness="little", fifo_depth=16, with_csr=False, bursting=None):
+    def __init__(self, bus, endianness="little", fifo_depth=16, with_csr=False, bursting=None,
+        with_byteswap=None):
+        """Create a Wishbone DMA reader.
+
+        ``endianness`` preserves the legacy behavior: ``"little"`` byte-swaps the Wishbone word
+        before presenting it on the stream, while ``"big"`` leaves it unchanged. Raw word users
+        can set ``with_byteswap=False`` explicitly to keep the Wishbone word order independent of
+        CPU endianness.
+        """
         if not isinstance(bus, wishbone.Interface):
             raise TypeError("DMAReader requires a Wishbone bus.")
         if "r" not in bus.mode:
@@ -90,7 +102,7 @@ class WishboneDMAReader(LiteXModule):
             bus.sel.eq(2**(bus.data_width//8)-1),
             bus.adr.eq(sink.address),
             fifo.sink.last.eq(sink.last),
-            fifo.sink.data.eq(format_bytes(bus.dat_r, endianness)),
+            fifo.sink.data.eq(format_bytes(bus.dat_r, endianness, with_byteswap)),
             If(bus.stb & bus.ack,
                 sink.ready.eq(1),
                 fifo.sink.valid.eq(1),
@@ -192,7 +204,14 @@ class WishboneDMAWriter(LiteXModule):
     sink : Record("address", "data")
         Sink for MMAP addresses/datas to be written.
     """
-    def __init__(self, bus, endianness="little", with_csr=False, bursting=None):
+    def __init__(self, bus, endianness="little", with_csr=False, bursting=None, with_byteswap=None):
+        """Create a Wishbone DMA writer.
+
+        ``endianness`` preserves the legacy behavior: ``"little"`` byte-swaps stream words before
+        writing them to Wishbone, while ``"big"`` leaves them unchanged. Raw word users can set
+        ``with_byteswap=False`` explicitly to keep the stream word order independent of CPU
+        endianness.
+        """
         if not isinstance(bus, wishbone.Interface):
             raise TypeError("DMAWriter requires a Wishbone bus.")
         if "w" not in bus.mode:
@@ -210,7 +229,7 @@ class WishboneDMAWriter(LiteXModule):
             bus.we.eq(1),
             bus.sel.eq(2**(bus.data_width//8)-1),
             bus.adr.eq(sink.address),
-            bus.dat_w.eq(format_bytes(sink.data, endianness)),
+            bus.dat_w.eq(format_bytes(sink.data, endianness, with_byteswap)),
             sink.ready.eq(bus.ack),
         ]
 
