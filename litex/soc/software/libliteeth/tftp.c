@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <limits.h>
 #include <string.h>
 
 #include <libbase/progress.h>
@@ -90,7 +91,24 @@ static int transfer_finished;
 static uint8_t *dst_buffer;
 static size_t dst_buffer_size;
 static int last_ack; /* signed, so we can use -1 */
+static uint32_t server_ip;
 static uint16_t data_port;
+static uint16_t next_data_block;
+static int tftp_write;
+
+static int check_server(uint32_t src_ip, uint16_t src_port)
+{
+	if(src_ip != server_ip) return 0;
+	if(data_port && (src_port != data_port)) return 0;
+	if(!data_port) data_port = src_port;
+	return 1;
+}
+
+static void send_ack(uint16_t block)
+{
+	packet_data = udp_get_tx_buffer();
+	udp_send(PORT_IN, data_port, format_ack(packet_data, block));
+}
 
 static void rx_callback(uint32_t src_ip, uint16_t src_port,
     uint16_t dst_port, void *_data, unsigned int length)
@@ -106,15 +124,14 @@ static void rx_callback(uint32_t src_ip, uint16_t src_port,
 	opcode = data[0] << 8 | data[1];
 	block = data[2] << 8 | data[3];
 	if(opcode == TFTP_ACK) { /* Acknowledgement */
-		data_port = src_port;
+		if(!tftp_write) return;
+		if(!check_server(src_ip, src_port)) return;
 		last_ack = block;
 		return;
 	}
 	if (opcode == TFTP_OACK) { /* Option Acknowledgement */
-		data_port = src_port;
-		packet_data = udp_get_tx_buffer();
-		length = format_ack(packet_data, 0);
-		udp_send(PORT_IN, src_port, length);
+		if(!check_server(src_ip, src_port)) return;
+		send_ack(0);
 		last_ack = 0;
 		return;
 	}
@@ -122,9 +139,22 @@ static void rx_callback(uint32_t src_ip, uint16_t src_port,
 	if(opcode == TFTP_DATA) { /* Data */
 		size_t write_offset;
 
+		if(tftp_write) return;
+		if(!check_server(src_ip, src_port)) return;
 		length -= 4;
+		if(block == (uint16_t)(next_data_block - 1)) {
+			send_ack(block);
+			return;
+		}
+		if(block != next_data_block)
+			return;
 		write_offset = ((size_t)block - 1)*BLOCK_SIZE;
 		if ((length > dst_buffer_size) || (write_offset > (dst_buffer_size - length))) {
+			total_length = -1;
+			transfer_finished = 1;
+			return;
+		}
+		if((write_offset + length) > INT_MAX) {
 			total_length = -1;
 			transfer_finished = 1;
 			return;
@@ -133,15 +163,15 @@ static void rx_callback(uint32_t src_ip, uint16_t src_port,
 		offset = write_offset;
 		for(i=0;i<length;i++)
 			dst_buffer[offset+i] = data[i+4];
-		total_length += length;
+		total_length = write_offset + length;
+		next_data_block++;
 		if(length < BLOCK_SIZE)
 			transfer_finished = 1;
 
-		packet_data = udp_get_tx_buffer();
-		length = format_ack(packet_data, block);
-		udp_send(PORT_IN, src_port, length);
+		send_ack(block);
 	}
 	if(opcode == TFTP_ERROR) { /* Error */
+		if(!check_server(src_ip, src_port)) return;
 		total_length = -1;
 		transfer_finished = 1;
 	}
@@ -159,6 +189,12 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 		printf("ARP failed\n");
 		return -1;
 	}
+
+	server_ip = ip;
+	data_port = 0;
+	next_data_block = 1;
+	last_ack = -1;
+	tftp_write = 0;
 
 	udp_set_callback((udp_callback) rx_callback);
 
@@ -216,6 +252,12 @@ int tftp_put(uint32_t ip, uint16_t server_port, const char *filename,
 
 	if(!udp_arp_resolve(ip))
 		return -1;
+
+	server_ip = ip;
+	data_port = 0;
+	next_data_block = 1;
+	last_ack = -1;
+	tftp_write = 1;
 
 	udp_set_callback((udp_callback) rx_callback);
 
