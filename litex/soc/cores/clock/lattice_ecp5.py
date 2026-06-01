@@ -48,6 +48,7 @@ class ECP5PLL(LiteXModule):
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True, uses_dpa=True):
         check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
         check_margin(margin)
+        check_clkout_cd_unused(self, cd)
         check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
         self.clkouts[self.nclkouts] = ClkOutDPA(clkout, freq, phase, margin, uses_dpa)

@@ -115,6 +115,7 @@ class EFINIXPLL(LiteXModule):
     def create_clkout(self, cd, freq, phase=0, margin=0, name="", with_reset=True, dyn_phase=False, is_feedback=False, nclkout=None):
         check_freq_positive(freq, "Output clock frequency")
         check_margin(margin)
+        check_clkout_cd_unused(self, cd)
 
         block = self.platform.toolchain.ifacewriter.get_block(self.name)
 
@@ -135,9 +136,13 @@ class EFINIXPLL(LiteXModule):
             if nclkout is None:
                 raise ValueError("No free clock output found.")
 
+        if is_feedback and block["feedback"] != -1:
+            raise ValueError("Feedback clock output already configured.")
+
         clk_out_name = f"{self.name}_clkout{nclkout}" if name == "" else name
 
         if cd is not None:
+            register_clkout_cd(self, cd)
             clk_name = f"{cd.name}_{self.name}_clk"
             clk_out_name = clk_name # To unify constraints names
             clk_out = self.platform.add_iface_io(clk_out_name)
@@ -153,8 +158,6 @@ class EFINIXPLL(LiteXModule):
         create_clkout_log(self.logger, clk_out_name, freq, margin, nclkout)
 
         if is_feedback:
-            if block["feedback"] != -1:
-                raise ValueError("Feedback clock output already configured.")
             block["feedback"] = nclkout
 
         block["clk_out"][nclkout] = [clk_out_name, freq, phase, margin, dyn_phase]

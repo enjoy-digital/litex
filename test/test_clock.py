@@ -497,6 +497,60 @@ class TestClock(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Cannot add more"):
             pll.create_clkout(ClockDomain("clkout_extra"), 100e6)
 
+    def test_plls_reject_duplicate_clkout_domain(self):
+        test_cases = [
+            ("S6PLL",        lambda: S6PLL(),                              100e6, 200e6),
+            ("S6DCM",        lambda: S6DCM(),                              100e6, 200e6),
+            ("S7PLL",        lambda: S7PLL(),                              100e6, 200e6),
+            ("S7MMCM",       lambda: S7MMCM(),                             100e6, 200e6),
+            ("USPLL",        lambda: USPLL(),                              100e6, 200e6),
+            ("USMMCM",       lambda: USMMCM(),                             100e6, 200e6),
+            ("USPPLL",       lambda: USPPLL(),                             100e6, 200e6),
+            ("USPMMCM",      lambda: USPMMCM(),                            100e6, 200e6),
+            ("CycloneIVPLL", lambda: CycloneIVPLL(),                        50e6, 100e6),
+            ("CycloneVPLL",  lambda: CycloneVPLL(),                         50e6, 100e6),
+            ("Cyclone10PLL", lambda: Cyclone10LPPLL(),                      50e6, 100e6),
+            ("Max10PLL",     lambda: Max10PLL(),                            50e6, 100e6),
+            ("Agilex5PLL",   lambda: Agilex5PLL(platform=None),            100e6, 100e6),
+            ("ECP5PLL",      lambda: ECP5PLL(),                            100e6, 200e6),
+            ("iCE40PLL",     lambda: iCE40PLL(),                            12e6,  48e6),
+            ("NXPLL",        lambda: NXPLL(),                              100e6, 200e6),
+            ("GateMatePLL",  lambda: GateMatePLL(),                         50e6, 100e6),
+            ("GW1NPLL",      lambda: GW1NPLL("GW1N-9", "GW1N-9C"),          50e6, 100e6),
+            ("GW5APLL",      lambda: GW5APLL("GW5A-25", "GW5A-25"),         50e6, 100e6),
+        ]
+        for name, pll_factory, clkin_freq, clkout_freq in test_cases:
+            with self.subTest(pll=name):
+                pll = pll_factory()
+                cd  = ClockDomain("clkout")
+                pll.register_clkin(Signal(), clkin_freq)
+                pll.create_clkout(cd, clkout_freq)
+                with self.assertRaisesRegex(ValueError, "already driven"):
+                    pll.create_clkout(cd, clkout_freq)
+
+    def test_pll_rejects_duplicate_clkout_domain_name(self):
+        pll = S7PLL()
+        pll.register_clkin(Signal(), 100e6)
+        pll.create_clkout(ClockDomain("clkout"), 100e6)
+        with self.assertRaisesRegex(ValueError, "already driven"):
+            pll.create_clkout(ClockDomain("clkout"), 200e6)
+
+    def test_efinix_pll_rejects_duplicate_clkout_domain(self):
+        pll = TITANIUMPLL(_FakeEfinixPlatform())
+        cd  = ClockDomain("clkout")
+
+        pll.create_clkout(cd, 100e6)
+        with self.assertRaisesRegex(ValueError, "already driven"):
+            pll.create_clkout(cd, 100e6)
+
+    def test_nxosca_rejects_duplicate_clkout_domain(self):
+        osc = NXOSCA()
+        cd  = ClockDomain("clkout")
+
+        osc.create_hf_clk(cd, 45e6)
+        with self.assertRaisesRegex(ValueError, "already driven"):
+            osc.create_hfsdc_clk(cd, 45e6)
+
     def test_gw5a_pll_rejects_unreachable_high_clkout(self):
         pll = GW5APLL("GW5A-25", "GW5A-25")
         pll.register_clkin(Signal(), 50e6)

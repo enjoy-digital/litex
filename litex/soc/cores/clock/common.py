@@ -92,6 +92,26 @@ def check_clkouts(nclkouts):
     if nclkouts == 0:
         raise ValueError("At least one output clock must be registered.")
 
+def _clkout_cd_name(cd):
+    return getattr(cd, "name", None) or getattr(getattr(cd, "clk", None), "name_override", None)
+
+def check_clkout_cd_unused(module, cd):
+    if cd is None:
+        return
+    clk  = getattr(cd, "clk", None)
+    name = _clkout_cd_name(cd)
+    for other_cd, other_clk, other_name in getattr(module, "_clkout_cds", []):
+        if other_cd is cd or (clk is not None and other_clk is clk) or (name is not None and name == other_name):
+            raise ValueError("Clock domain {} is already driven by this clocking instance.".format(name or "<unnamed>"))
+
+def register_clkout_cd(module, cd):
+    check_clkout_cd_unused(module, cd)
+    if cd is None:
+        return
+    if not hasattr(module, "_clkout_cds"):
+        module._clkout_cds = []
+    module._clkout_cds.append((cd, getattr(cd, "clk", None), _clkout_cd_name(cd)))
+
 def format_freq(freq):
     return "{:3.2f}MHz".format(freq/1e6)
 
@@ -127,6 +147,7 @@ def connect_clkin(module, clkin, differential=False):
     return clkin_signal
 
 def connect_clkout(module, cd, clkout, reset=None, with_reset=True):
+    register_clkout_cd(module, cd)
     if with_reset and reset is not None:
         module.specials += AsyncResetSynchronizer(cd, reset)
     module.comb += cd.clk.eq(clkout)

@@ -94,6 +94,7 @@ class GateMatePLL(LiteXModule):
             drive cd reset
         """
         check_phase_allowed(phase, [0, 90, 180, 270])
+        check_clkout_cd_unused(self, cd)
         if phase in self._clkouts:
             raise ValueError("Output clock phase {} is already used.".format(phase))
         check_freq_range(freq, (0, self._max_freq), "Output clock frequency")

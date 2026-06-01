@@ -42,12 +42,20 @@ class XilinxClocking(LiteXModule):
     def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, reset_buf=None, ce=None):
         check_freq_positive(freq, "Output clock frequency")
         check_margin(margin)
+        check_clkout_cd_unused(self, cd)
         check_clkout_count(self.nclkouts, self.nclkouts_max)
+        if with_reset and reset_buf not in [None, "bufg"]:
+            raise ValueError("Unsupported reset clock buffer: {}".format(reset_buf))
+        if buf is not None:
+            buf = buf.lower()
+            if buf == "bufgce" and ce is None:
+                raise ValueError("BUFGCE requires user to provide a clock enable ce Signal")
+            if buf not in ["bufg", "bufr", "bufh", "bufgce", "bufio"]:
+                raise ValueError("Unsupported clock buffer: {}".format(buf))
+        register_clkout_cd(self, cd)
         clkout = Signal()
         self.clkouts[self.nclkouts] = ClkOut(clkout, freq, phase, margin)
         if with_reset:
-            if reset_buf not in [None, "bufg"]:
-                raise ValueError("Unsupported reset clock buffer: {}".format(reset_buf))
             cd.rst_buf = reset_buf # FIXME: Improve.
             self.specials += AsyncResetSynchronizer(cd, ~self.locked)
         if buf is None:
@@ -55,7 +63,6 @@ class XilinxClocking(LiteXModule):
         else:
             clkout_buf = Signal()
             self.comb += cd.clk.eq(clkout_buf)
-            buf = buf.lower()
             if buf == "bufg":
                 self.specials += Instance("BUFG", i_I=clkout, o_O=clkout_buf)
             elif buf == "bufr":
@@ -63,13 +70,9 @@ class XilinxClocking(LiteXModule):
             elif buf == "bufh":
                 self.specials += Instance("BUFH", i_I=clkout, o_O=clkout_buf)
             elif buf == "bufgce":
-                if ce is None:
-                    raise ValueError("BUFGCE requires user to provide a clock enable ce Signal")
                 self.specials += Instance("BUFGCE", i_I=clkout, o_O=clkout_buf, i_CE=ce)
             elif buf == "bufio":
                 self.specials += Instance("BUFIO", i_I=clkout, o_O=clkout_buf)
-            else:
-                raise ValueError("Unsupported clock buffer: {}".format(buf))
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
 
