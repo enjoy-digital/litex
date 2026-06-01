@@ -1749,17 +1749,18 @@ class SoC(LiteXModule):
                     raise SoCError()
                 if hasattr(self, name):
                     module = getattr(self, name)
-                    ev = None
                     if hasattr(module, "ev"):
-                        ev = module.ev
+                        irq = module.ev.irq
                     elif isinstance(module, EventManager):
-                        ev = module
+                        irq = module.irq
+                    elif hasattr(module, "irq"):
+                        irq = module.irq
                     else:
-                        self.logger.error("EventManager {} in {} submodule.".format(
+                        self.logger.error("IRQ/EventManager {} in {} submodule.".format(
                             colorer("not found", color="red"),
                             colorer(name)))
                         raise SoCError()
-                    self.comb += self.cpu.interrupt[loc].eq(ev.irq)
+                    self.comb += self.cpu.interrupt[loc].eq(irq)
                 self.add_constant(name + "_INTERRUPT", loc)
 
     def _log_finalized(self):

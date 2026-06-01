@@ -12,6 +12,8 @@ import unittest
 from contextlib import contextmanager
 from types import SimpleNamespace
 
+from migen import Signal
+
 from litex.soc.interconnect import axi, wishbone
 
 from litex.soc.integration.soc import (
@@ -779,6 +781,18 @@ class TestSoC(unittest.TestCase):
         soc._finalize_cpu_reset_address()
 
         self.assertFalse(hasattr(soc.cpu, "reset_address"))
+
+    def test_finalize_irq_accepts_direct_irq_signal(self):
+        soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.cpu = SimpleNamespace(interrupt=Signal(4), interrupts={})
+        soc.raw = SimpleNamespace(irq=Signal())
+        soc.irq.enable()
+        soc.irq.add("raw", 2)
+
+        soc._finalize_irq()
+
+        self.assertEqual(soc.constants["CONFIG_CPU_INTERRUPTS"], 3)
+        self.assertEqual(soc.constants["RAW_INTERRUPT"], 2)
 
     def test_build_uses_platform_name_and_sanitizes_numeric_build_name(self):
         platform = _FakePlatform()
