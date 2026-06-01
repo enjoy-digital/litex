@@ -250,7 +250,7 @@ TESTED_CPUS = [
     "vexiiriscv",   # (riscv   / softcore)
     "vexriscv",     # (riscv   / softcore)
     "vexriscv_smp", # (riscv   / softcore)
-    #"microwatt",    # (ppc64   / softcore)
+    "microwatt",    # (ppc64   / softcore)
     "neorv32",      # (riscv   / softcore)
     "ibex",         # (riscv   / softcore)
     "minerva",      # (riscv   / softcore)

@@ -171,7 +171,7 @@ jobs:
           BOOT_TIMES = {
               "femtorv":      60, "firev":        60, "serv":         45,
               "sentinel":    120, "minerva":     120, "lm32":        120,
-              "marocchino":  120,
+              "marocchino":  120, "microwatt":    240,
               "vexriscv":    120, "neorv32":     150, "ibex":        150,
               "naxriscv":    240, "vexiiriscv":  240, "vexriscv_smp":360,
           }
