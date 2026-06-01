@@ -107,11 +107,11 @@ __attribute__((__used__)) int main(int i, char **c)
 
 #ifndef CONFIG_BIOS_NO_PROMPT
 	printf("\n");
-	printf("\e[1m        __   _ __      _  __\e[0m\n");
-	printf("\e[1m       / /  (_) /____ | |/_/\e[0m\n");
-	printf("\e[1m      / /__/ / __/ -_)>  <\e[0m\n");
-	printf("\e[1m     /____/_/\\__/\\__/_/|_|\e[0m\n");
-	printf("\e[1m   Build your hardware, easily!\e[0m\n");
+	printf(ANSI_BOLD "        __   _ __      _  __" ANSI_RESET "\n");
+	printf(ANSI_BOLD "       / /  (_) /____ | |/_/" ANSI_RESET "\n");
+	printf(ANSI_BOLD "      / /__/ / __/ -_)>  <" ANSI_RESET "\n");
+	printf(ANSI_BOLD "     /____/_/\\__/\\__/_/|_|" ANSI_RESET "\n");
+	printf(ANSI_BOLD "   Build your hardware, easily!" ANSI_RESET "\n");
 	printf("\n");
 	printf(" (c) Copyright 2012-2026 Enjoy-Digital\n");
 	printf(" (c) Copyright 2007-2015 M-Labs\n");
@@ -126,44 +126,44 @@ __attribute__((__used__)) int main(int i, char **c)
 	printf(" LiteX git sha1: "LITEX_GIT_SHA1"\n");
 	printf("\n");
 	bios_print_section("SoC");
-	printf("\e[1mCPU\e[0m:\t\t%s @ %dMHz\n",
+	printf(ANSI_BOLD "CPU" ANSI_RESET ":\t\t%s @ %dMHz\n",
 		CONFIG_CPU_HUMAN_NAME,
 #ifdef CONFIG_CPU_CLK_FREQ
 		CONFIG_CPU_CLK_FREQ/1000000);
 #else
 		CONFIG_CLOCK_FREQUENCY/1000000);
 #endif
-	printf("\e[1mBUS\e[0m:\t\t%s %d-bit data/%d-bit addr\n",
+	printf(ANSI_BOLD "BUS" ANSI_RESET ":\t\t%s %d-bit data/%d-bit addr\n",
 		CONFIG_BUS_STANDARD,
 		CONFIG_BUS_DATA_WIDTH,
 		CONFIG_BUS_ADDRESS_WIDTH);
-	printf("\e[1mCSR\e[0m:\t\t%d-bit data ",
+	printf(ANSI_BOLD "CSR" ANSI_RESET ":\t\t%d-bit data ",
 		CONFIG_CSR_DATA_WIDTH);
 #ifdef CONFIG_CSR_ORDERING_BIG
 	printf("big ordering\n");
 #else
 	printf("little ordering\n");
 #endif
-	printf("\e[1mROM\e[0m:\t\t");
+	printf(ANSI_BOLD "ROM" ANSI_RESET ":\t\t");
 	litex_print_size(ROM_SIZE);
 	printf("\n");
-	printf("\e[1mSRAM\e[0m:\t\t");
+	printf(ANSI_BOLD "SRAM" ANSI_RESET ":\t\t");
 	litex_print_size(SRAM_SIZE);
 	printf("\n");
 #ifdef CONFIG_L2_SIZE
-	printf("\e[1mL2\e[0m:\t\t");
+	printf(ANSI_BOLD "L2" ANSI_RESET ":\t\t");
 	litex_print_size(CONFIG_L2_SIZE);
 	printf("\n");
 #endif
 #ifdef SPIFLASH_MODULE_TOTAL_SIZE
-	printf("\e[1mFLASH\e[0m:\t\t");
+	printf(ANSI_BOLD "FLASH" ANSI_RESET ":\t\t");
 	litex_print_size(SPIFLASH_MODULE_TOTAL_SIZE);
 	printf("\n");
 #endif
 #ifdef MAIN_RAM_SIZE
 #ifdef CSR_SDRAM_BASE
 	uint64_t supported_memory = sdram_get_supported_memory();
-	printf("\e[1mSDRAM\e[0m:\t\t");
+	printf(ANSI_BOLD "SDRAM" ANSI_RESET ":\t\t");
 	litex_print_size(supported_memory);
 	printf(" %d-bit @ %dMT/s ",
 		sdram_get_databits(),
@@ -174,7 +174,7 @@ __attribute__((__used__)) int main(int i, char **c)
 		printf(" CWL-%d", sdram_get_cwl());
 	printf(")\n");
 #endif
-	printf("\e[1mMAIN RAM\e[0m:\t");
+	printf(ANSI_BOLD "MAIN RAM" ANSI_RESET ":\t");
 	litex_print_size(MAIN_RAM_SIZE);
 	printf("\n");
 #endif

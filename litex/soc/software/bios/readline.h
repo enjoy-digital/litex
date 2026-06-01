@@ -6,7 +6,19 @@
 
 #define CMD_LINE_BUFFER_SIZE	64
 
-#define PROMPT "\e[92;1mlitex\e[0m> "
+#ifdef BIOS_CONSOLE_NO_ANSI
+#define ANSI_BOLD		""
+#define ANSI_RESET		""
+#define ANSI_LITEX		""
+#define ANSI_CLEAR_SCREEN	""
+#else
+#define ANSI_BOLD		"\e[1m"
+#define ANSI_RESET		"\e[0m"
+#define ANSI_LITEX		"\e[92;1m"
+#define ANSI_CLEAR_SCREEN	"\e[2J\e[;H"
+#endif
+
+#define PROMPT ANSI_LITEX "litex" ANSI_RESET "> "
 
 #define ESC	27
 
@@ -49,7 +61,6 @@ struct esc_cmds {
 
 #define getcmd_putch(ch)	putchar(ch)
 #define getcmd_cbeep()		getcmd_putch('\a')
-#define ANSI_CLEAR_SCREEN	"\e[2J\e[;H"
 
 #define BEGINNING_OF_LINE() {			\
 	while (num) {				\

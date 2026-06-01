@@ -159,6 +159,7 @@ class TestBuilderArguments(unittest.TestCase):
             "--bios-lto",
             "--bios-format", "float",
             "--bios-console", "lite",
+            "--bios-no-ansi",
             "--libc-mode", "full",
             "--no-integrated-rom-auto-size",
             "--hierarchical-verilog",
@@ -171,6 +172,7 @@ class TestBuilderArguments(unittest.TestCase):
         self.assertTrue(argdict["bios_lto"])
         self.assertEqual(argdict["bios_format"],  "float")
         self.assertEqual(argdict["bios_console"], "lite")
+        self.assertTrue(argdict["bios_no_ansi"])
         self.assertEqual(argdict["libc_mode"],    "full")
         self.assertFalse(argdict["integrated_rom_auto_size"])
         self.assertTrue(argdict["hierarchical"])
@@ -384,12 +386,18 @@ class TestBuilderGeneratedFiles(unittest.TestCase):
                 ("CPU_DIRECTORY", r"C:\cpu"),
             ]):
                 variables = builder._get_variables_contents()
+
                 builder.bios_console = "invalid"
                 with self.assertRaisesRegex(ValueError, "Unsupported BIOS console"):
                     builder._get_variables_contents()
 
+                builder.bios_console = "full"
+                builder.bios_no_ansi = True
+                variables_no_ansi = builder._get_variables_contents()
+
             self.assertIn(r"CUSTOM_DIRECTORY=C:\\liteX\\custom", variables)
             self.assertIn("BIOS_CONSOLE_FULL=1", variables)
+            self.assertIn("BIOS_CONSOLE_NO_ANSI=1", variables_no_ansi)
 
 
 class TestBuilderRomSoftware(unittest.TestCase):

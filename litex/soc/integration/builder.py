@@ -88,6 +88,7 @@ class Builder:
         bios_lto                 = False,
         bios_format              = "integer",
         bios_console             = "full",
+        bios_no_ansi             = False,
         libc_mode                = "minimal",
         integrated_rom_auto_size = True,
 
@@ -124,6 +125,7 @@ class Builder:
         self.bios_lto                 = bios_lto
         self.bios_format              = bios_format
         self.bios_console             = bios_console
+        self.bios_no_ansi             = bios_no_ansi
         self.libc_mode                = libc_mode
         self.integrated_rom_auto_size = integrated_rom_auto_size
 
@@ -228,6 +230,8 @@ class Builder:
         if self.bios_console not in ["full", "no-history", "no-autocomplete", "lite", "disable"]:
             raise ValueError(f"Unsupported BIOS console: {self.bios_console}.")
         define(f"BIOS_CONSOLE_{self.bios_console.upper()}", "1")
+        if self.bios_no_ansi:
+            define("BIOS_CONSOLE_NO_ANSI", "1")
 
         return "\n".join(variables_contents)
 
@@ -519,6 +523,7 @@ def builder_args(parser):
     bios_group.add_argument("--bios-lto",     action="store_true", help="Enable BIOS LTO (Link Time Optimization) compilation.")
     bios_group.add_argument("--bios-format",  default="integer",   help="Select BIOS printf format.",  choices=["integer", "float", "double"])
     bios_group.add_argument("--bios-console", default="full",      help="Select BIOS console config.", choices=["full", "no-history", "no-autocomplete", "lite", "disable"])
+    bios_group.add_argument("--bios-no-ansi", action="store_true", help="Disable ANSI escape sequences in BIOS output.")
     bios_group.add_argument("--libc-mode",    default="minimal",   help="Select LiteX libc build mode.", choices=["full", "minimal"])
     bios_group.add_argument("--no-integrated-rom-auto-size", action="store_true", help="Keep integrated ROM at requested size instead of auto-resizing it to the BIOS size.")
 
@@ -541,6 +546,7 @@ def builder_argdict(args):
         "bios_lto"                 : args.bios_lto,
         "bios_format"              : args.bios_format,
         "bios_console"             : args.bios_console,
+        "bios_no_ansi"             : args.bios_no_ansi,
         "libc_mode"                : args.libc_mode,
         "integrated_rom_auto_size" : not args.no_integrated_rom_auto_size,
         "hierarchical"             : args.hierarchical_verilog,

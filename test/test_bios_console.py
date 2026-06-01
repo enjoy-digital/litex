@@ -55,6 +55,18 @@ def test_bios_readline_host_coverage(tmp_path):
                 ungetc((unsigned char)input[i], stdin);
         }}
 
+        static int test_prompt_config(void)
+        {{
+#ifdef BIOS_CONSOLE_NO_ANSI
+            REQUIRE(strcmp(PROMPT, "litex> ") == 0);
+            REQUIRE(strcmp(ANSI_BOLD, "") == 0);
+            REQUIRE(strcmp(ANSI_RESET, "") == 0);
+#else
+            REQUIRE(strcmp(PROMPT, "\\033[92;1mlitex\\033[0m> ") == 0);
+#endif
+            return 0;
+        }}
+
         static int read_line_from_input(const char *input, char *buf, int len)
         {{
             memset(buf, 0xa5, len);
@@ -165,6 +177,8 @@ def test_bios_readline_host_coverage(tmp_path):
         int main(void)
         {{
             hist_init();
+            if (test_prompt_config())
+                return 1;
             if (test_plain_line_and_ctrl_c())
                 return 1;
             if (test_line_length_is_bounded())
@@ -191,9 +205,10 @@ def test_bios_readline_host_coverage(tmp_path):
         f"-I{include_dir}",
         f"-I{repo}/litex/soc/software",
         f"-I{repo}/litex/soc/software/bios",
-        str(source),
-        "-o",
-        str(binary),
     ]
-    subprocess.check_call(cmd)
+    subprocess.check_call(cmd + [str(source), "-o", str(binary)])
     subprocess.check_call([str(binary)])
+
+    no_ansi_binary = tmp_path / "bios_readline_harness_no_ansi"
+    subprocess.check_call(cmd + ["-DBIOS_CONSOLE_NO_ANSI", str(source), "-o", str(no_ansi_binary)])
+    subprocess.check_call([str(no_ansi_binary)])

@@ -33,7 +33,7 @@ void bios_print_section(const char *name)
 
 	printf("--");
 	print_repeat('=', left);
-	printf(" \e[1m%s\e[0m ", name);
+	printf(" " ANSI_BOLD "%s" ANSI_RESET " ", name);
 	print_repeat('=', right);
 	printf("--\n");
 }
