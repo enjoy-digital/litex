@@ -17,6 +17,8 @@ from litex.soc.interconnect import axi, wishbone
 from litex.soc.integration.soc import (
     LiteXSoC,
     SoC,
+    SoCCore,
+    SoCMini,
     SoCBusHandler,
     SoCCSRHandler,
     SoCCSRRegion,
@@ -27,9 +29,15 @@ from litex.soc.integration.soc import (
     add_ip_address_constants,
     add_mac_address_constants,
     build_time,
+    get_mem_data,
+    mem_decoder,
     parse_video_timing_resolution,
+    soc_core_argdict,
+    soc_core_args,
+    soc_mini_argdict,
+    soc_mini_args,
 )
-from litex.soc.integration.soc_core import SoCCore
+from litex.soc.integration import soc_core
 
 
 @contextmanager
@@ -67,6 +75,18 @@ class _FakePlatform:
 
 def _make_bus_interface(interface_cls, data_width=32, address_width=32):
     return interface_cls(data_width=data_width, address_width=address_width)
+
+
+class TestSoCCoreCompatibility(unittest.TestCase):
+    def test_soc_core_reexports_canonical_soc_api(self):
+        self.assertIs(soc_core.mem_decoder,      mem_decoder)
+        self.assertIs(soc_core.get_mem_data,     get_mem_data)
+        self.assertIs(soc_core.SoCCore,          SoCCore)
+        self.assertIs(soc_core.SoCMini,          SoCMini)
+        self.assertIs(soc_core.soc_core_args,    soc_core_args)
+        self.assertIs(soc_core.soc_core_argdict, soc_core_argdict)
+        self.assertIs(soc_core.soc_mini_args,    soc_mini_args)
+        self.assertIs(soc_core.soc_mini_argdict, soc_mini_argdict)
 
 
 class TestSoCAddressConstants(unittest.TestCase):

@@ -12,7 +12,7 @@ from litex.gen import *
 
 from litex.soc.interconnect import wishbone
 
-from litex.soc.integration.soc_core import SoCRegion
+from litex.soc.integration.soc import SoCRegion
 
 # Helpers ------------------------------------------------------------------------------------------
 

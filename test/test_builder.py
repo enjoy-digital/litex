@@ -405,7 +405,7 @@ class TestBuilderRomSoftware(unittest.TestCase):
             builder = self._make_rom_builder(tmp_dir, auto_size=True)
             bios_file = os.path.join(tmp_dir, "bios", "bios.bin")
 
-            with patch("litex.soc.integration.builder.soc_core.get_mem_data", return_value=[1, 2]) as get_mem_data:
+            with patch("litex.soc.integration.builder.soc.get_mem_data", return_value=[1, 2]) as get_mem_data:
                 builder._initialize_rom_software()
 
             get_mem_data.assert_called_once_with(bios_file, data_width=32, endianness="little")
@@ -416,7 +416,7 @@ class TestBuilderRomSoftware(unittest.TestCase):
             builder = self._make_rom_builder(tmp_dir, auto_size=False)
             bios_file = os.path.join(tmp_dir, "bios", "bios.bin")
 
-            with patch("litex.soc.integration.builder.soc_core.get_mem_data", return_value=[1, 2]) as get_mem_data:
+            with patch("litex.soc.integration.builder.soc.get_mem_data", return_value=[1, 2]) as get_mem_data:
                 builder._initialize_rom_software()
 
             get_mem_data.assert_called_once_with(bios_file, data_width=32, endianness="little")
@@ -426,7 +426,7 @@ class TestBuilderRomSoftware(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             builder = self._make_rom_builder(tmp_dir, auto_size=False)
 
-            with patch("litex.soc.integration.builder.soc_core.get_mem_data", return_value=[1, 2, 3, 4, 5]):
+            with patch("litex.soc.integration.builder.soc.get_mem_data", return_value=[1, 2, 3, 4, 5]):
                 builder._initialize_rom_software()
 
             self.assertEqual(builder.soc.init_rom_calls, [("rom", [1, 2, 3, 4, 5], False)])
