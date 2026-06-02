@@ -101,7 +101,7 @@ static int ethernet_start(void *b)
 {
   base = (struct event_base *) b;
   printf("[ethernet] loaded (%p)\n", base);
-  return RC_OK;
+return RC_OK;
 }
 
 void event_handler(int fd, short event, void *arg)
@@ -203,40 +203,60 @@ out:
 static int ethernet_tick(void *sess, uint64_t time_ps)
 {
   static clk_edge_state_t edge;
-  char c;
+  static int in_frame    = 0;
+  static int preamble    = 0;
+  static int skip_fcs    = 0;
+  unsigned char c;
   struct session_s *s = (struct session_s*)sess;
   struct eth_packet_s *pep;
 
-  if(!clk_pos_edge(&edge, *s->sys_clk)) {
+  if(!clk_pos_edge(&edge, *s->sys_clk))
     return RC_OK;
-  }
 
   *s->tx_ready = 1;
   if(*s->tx_valid == 1) {
-    c = *s->tx;
-    s->databuf[s->datalen++]=c;
+    c = (unsigned char)*s->tx;
+    if(!in_frame) {
+      if(c == 0x55) {
+        preamble = 1;               /* octet de préambule, ignore */
+      } else if(c == 0xd5 && preamble) {
+        in_frame = 1;               /* SFD trouvé → prochain octet = Dst MAC */
+        skip_fcs = 1;               /* mode préambule : FCS présent en fin */
+      } else if(!preamble) {
+        in_frame = 1;               /* pas de préambule : trame nue */
+        skip_fcs = 0;               /* pas de FCS non plus */
+        s->databuf[s->datalen++] = c; /* premier octet = Dst MAC, à garder */
+      }
+    } else {
+      s->databuf[s->datalen++] = c;
+    }
   } else {
     if(s->datalen) {
-      tapcfg_write(s->tapcfg, s->databuf, s->datalen);
-      s->datalen=0;
+      int len = (skip_fcs && s->datalen > 4) ? s->datalen - 4 : s->datalen;
+      tapcfg_write(s->tapcfg, s->databuf, len);
+      s->datalen = 0;
     }
+    in_frame = 0;
+    preamble = 0;
+    skip_fcs = 0;
   }
 
-  *s->rx_valid=0;
+  /* RX : tap0 → SoC — trame nue, inchangé */
+  *s->rx_valid = 0;
   if(s->inlen) {
-    *s->rx_valid=1;
+    *s->rx_valid = 1;
     *s->rx = s->inbuf[s->insent++];
     if(s->insent == s->inlen) {
-      s->insent =0;
-      s->inlen = 0;
+      s->insent = 0;
+      s->inlen  = 0;
     }
   } else {
     if(s->ethpack) {
       memcpy(s->inbuf, s->ethpack->data, s->ethpack->len);
       s->inlen = s->ethpack->len;
-      pep=s->ethpack->next;
+      pep = s->ethpack->next;
       free(s->ethpack);
-      s->ethpack=pep;
+      s->ethpack = pep;
     }
   }
   return RC_OK;
