@@ -212,12 +212,12 @@ class TestEventManager(unittest.TestCase):
             yield
             self.assertEqual((yield dut.ev.a.pending), 1)
 
-            # Simulate "write-1-to-clear" on the pending.a bit: pending.re pulse while r[0]=1.
-            yield dut.ev.pending.r.eq(0b01)
-            yield dut.ev.pending.re.eq(1)
+            # Simulate "write-1-to-clear" on the pending.a bit.
+            yield dut.ev.pending.wr_data.eq(0b01)
+            yield dut.ev.pending.wr_stb.eq(1)
             yield
-            yield dut.ev.pending.re.eq(0)
-            yield dut.ev.pending.r.eq(0)
+            yield dut.ev.pending.wr_stb.eq(0)
+            yield dut.ev.pending.wr_data.eq(0)
             yield
             self.assertEqual((yield dut.ev.a.pending), 0)
         run_simulation(dut, gen())

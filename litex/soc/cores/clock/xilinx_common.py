@@ -145,9 +145,9 @@ class XilinxClocking(LiteXModule):
             o_DO    = self.drp_dat_r.status
         )
         self.sync += [
-            den_pipe.eq(self.drp_read.re | self.drp_write.re),
-            dwe_pipe.eq(self.drp_write.re),
-            If(self.drp_read.re | self.drp_write.re,
+            den_pipe.eq(self.drp_read.wr_stb | self.drp_write.wr_stb),
+            dwe_pipe.eq(self.drp_write.wr_stb),
+            If(self.drp_read.wr_stb | self.drp_write.wr_stb,
                 self.drp_drdy.status.eq(0)
             ).Elif(drp_drdy,
                 self.drp_drdy.status.eq(1)

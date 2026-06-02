@@ -54,7 +54,7 @@ class LedChaser(LiteXModule):
         self.submodules += timer
         self.comb += timer.wait.eq(~timer.done)
         self.sync += If(timer.done, chaser.eq(Cat(~chaser[-1], chaser)))
-        self.sync += If(self._out.re, mode.eq(_CONTROL_MODE))
+        self.sync += If(self._out.wr_stb, mode.eq(_CONTROL_MODE))
         self.comb += [
             If(mode == _CONTROL_MODE,
                 leds.eq(self._out.storage)

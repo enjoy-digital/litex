@@ -266,8 +266,8 @@ class UART(LiteXModule, UARTInterface):
         self.tx_fifo = tx_fifo = _get_uart_fifo(tx_fifo_depth, source_cd=phy_cd)
         self.comb += [
             # CSR --> FIFO.
-            tx_fifo.sink.valid.eq(self._rxtx.re),
-            tx_fifo.sink.data.eq(self._rxtx.r),
+            tx_fifo.sink.valid.eq(self._rxtx.wr_stb),
+            tx_fifo.sink.data.eq(self._rxtx.wr_data),
 
             # FIFO --> Source.
             tx_fifo.source.connect(self.source),
@@ -288,8 +288,8 @@ class UART(LiteXModule, UARTInterface):
             self.sink.connect(rx_fifo.sink),
 
             # FIFO --> CSR.
-            self._rxtx.w.eq(rx_fifo.source.data),
-            rx_fifo.source.ready.eq(self._rxtx.we if rx_fifo_rx_we else self.ev.rx.clear),
+            self._rxtx.rd_data.eq(rx_fifo.source.data),
+            rx_fifo.source.ready.eq(self._rxtx.rd_stb if rx_fifo_rx_we else self.ev.rx.clear),
 
             # Status.
             self._rxempty.status.eq(~rx_fifo.source.valid),

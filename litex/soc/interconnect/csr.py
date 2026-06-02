@@ -338,12 +338,12 @@ class CSRStatus(_CompoundCSR):
         for i in reversed(range(nwords)) if ordering == "big" else range(nwords):
             nbits = min(self.size - i*busword, busword)
             sc    = CSR(nbits, self.name + str(i) if nwords > 1 else self.name)
-            self.comb += sc.w.eq(self.status[i*busword:i*busword+nbits])
+            self.comb += sc.rd_data.eq(self.status[i*busword:i*busword+nbits])
             self.simple_csrs.append(sc)
             if not self.read_only:
                 lo = i*busword
                 hi = lo+nbits
-                self.sync += If(sc.re, self.r[lo:hi].eq(sc.r))
+                self.sync += If(sc.wr_stb, self.wr_data[lo:hi].eq(sc.wr_data))
         self.comb += self.rd_stb.eq(sc.rd_stb)
         self.sync += self.wr_stb.eq(sc.wr_stb)
 
@@ -427,7 +427,7 @@ class CSRStorage(_CompoundCSR):
         for field in [*fields]:
             field_assign = getattr(self.fields, field.name).eq(self.storage[field.offset:field.offset + field.size])
             if field.pulse:
-                self.comb += If(self.re, field_assign)
+                self.comb += If(self.wr_stb, field_assign)
             else:
                 self.comb += field_assign
 
@@ -442,16 +442,17 @@ class CSRStorage(_CompoundCSR):
             lo = i*busword
             hi = lo+nbits
             # read
-            self.comb += sc.w.eq(self.storage[lo:hi])
+            self.comb += sc.rd_data.eq(self.storage[lo:hi])
             # write
             if nwords > 1 and self.atomic_write:
                 if i:
-                    self.sync += If(sc.re, backstore[lo-busword:hi-busword].eq(sc.r))
+                    self.sync += If(sc.wr_stb,
+                        backstore[lo-busword:hi-busword].eq(sc.wr_data))
                 else:
-                    self.sync += If(sc.re, self.storage.eq(Cat(sc.r, backstore)))
+                    self.sync += If(sc.wr_stb, self.storage.eq(Cat(sc.wr_data, backstore)))
             else:
-                self.sync += If(sc.re, self.storage[lo:hi].eq(sc.r))
-        self.sync += self.re.eq(sc.re)
+                self.sync += If(sc.wr_stb, self.storage[lo:hi].eq(sc.wr_data))
+        self.sync += self.wr_stb.eq(sc.wr_stb)
 
     def read(self):
         """Read method for simulation.

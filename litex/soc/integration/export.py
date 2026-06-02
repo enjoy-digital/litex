@@ -582,7 +582,7 @@ def get_csr_json(soc=None, csr_regions=None, constants=None, mem_regions=None):
             for csr in region.obj:
                 _size = (csr.size + region.busword - 1)//region.busword
                 _type = "rw"
-                if isinstance(csr, CSRStatus) and not hasattr(csr, "r"):
+                if isinstance(csr, CSRStatus) and not hasattr(csr, "wr_data"):
                     _type = "ro"
                 csr_origin = _get_csr_origin(csr, region_origin)
                 d["csr_registers"][name + "_" + csr.name] = {

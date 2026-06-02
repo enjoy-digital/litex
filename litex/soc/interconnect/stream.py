@@ -709,15 +709,15 @@ class Monitor(LiteXModule):
         reset = Signal()
         latch = Signal()
         if clock_domain == "sys":
-            self.comb += reset.eq(self._reset.re | self.reset)
-            self.comb += latch.eq(self._latch.re | self.latch)
+            self.comb += reset.eq(self._reset.wr_stb | self.reset)
+            self.comb += latch.eq(self._latch.wr_stb | self.latch)
         else:
             reset_ps = PulseSynchronizer("sys", clock_domain)
             latch_ps = PulseSynchronizer("sys", clock_domain)
             self.submodules += reset_ps, latch_ps
-            self.comb += reset_ps.i.eq(self._reset.re | self.reset)
+            self.comb += reset_ps.i.eq(self._reset.wr_stb | self.reset)
             self.comb += reset.eq(reset_ps.o)
-            self.comb += latch_ps.i.eq(self._latch.re | self.latch)
+            self.comb += latch_ps.i.eq(self._latch.wr_stb | self.latch)
             self.comb += latch.eq(latch_ps.o)
 
         # Generic Monitor Counter ------------------------------------------------------------------

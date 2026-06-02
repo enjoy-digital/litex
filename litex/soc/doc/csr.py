@@ -312,7 +312,9 @@ class DocumentedCSRRegion:
             nbits = int(csr.storage.nbits)
         elif hasattr(csr, "status"):
             nbits = int(csr.status.nbits)
-        elif hasattr(csr ,"r"):
+        elif hasattr(csr, "wr_data"):
+            nbits = int(csr.wr_data.nbits)
+        elif hasattr(csr, "r"):
             nbits = int(csr.r.nbits)
         elif hasattr(csr, "value"):
             nbits = int(csr.value.nbits)

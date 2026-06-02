@@ -37,13 +37,13 @@ class CSRModule(Module, csr.AutoCSR):
         # - Set storage to 0xdeadbeef.
         # - Set status to storage value.
         self.comb += [
-            If(self._csr.re,
+            If(self._csr.wr_stb,
                 self._storage.we.eq(1),
                 self._storage.dat_w.eq(0xdeadbeef)
             )
         ]
         self.sync += [
-            If(self._csr.re,
+            If(self._csr.wr_stb,
                 self._status.status.eq(self._storage.storage)
             )
         ]

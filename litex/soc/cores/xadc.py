@@ -54,10 +54,10 @@ class XilinxSystemMonitor(LiteXModule):
             )
         ]
         self.sync += [
-            self.dwe.eq(self.drp_write.re),
+            self.dwe.eq(self.drp_write.wr_stb),
             self.drp_en.eq(self.drp_enable.storage),
-            den_pipe.eq(self.drp_read.re | self.drp_write.re),
-            If(self.drp_read.re | self.drp_write.re,
+            den_pipe.eq(self.drp_read.wr_stb | self.drp_write.wr_stb),
+            If(self.drp_read.wr_stb | self.drp_write.wr_stb,
                 self.drp_drdy.status.eq(0)
             ).Elif(self.drdy,
                 self.drp_drdy.status.eq(1)
@@ -163,8 +163,8 @@ class S7SystemMonitor(XilinxSystemMonitor):
 
         # End of Conversion/Sequence update.
         self.sync += [
-            self.eoc.status.eq((self.eoc.status & ~self.eoc.we) | eoc),
-            self.eos.status.eq((self.eos.status & ~self.eos.we) | eos),
+            self.eoc.status.eq((self.eoc.status & ~self.eoc.rd_stb) | eoc),
+            self.eos.status.eq((self.eos.status & ~self.eos.rd_stb) | eos),
         ]
 
 class XADC(S7SystemMonitor): pass # For compat.
@@ -272,8 +272,8 @@ class USSystemMonitor(XilinxSystemMonitor):
 
         # End of Convertion/Sequence update.
         self.sync += [
-            self.eoc.status.eq((self.eoc.status & ~self.eoc.we) | eoc),
-            self.eos.status.eq((self.eos.status & ~self.eos.we) | eos),
+            self.eoc.status.eq((self.eoc.status & ~self.eoc.rd_stb) | eoc),
+            self.eos.status.eq((self.eos.status & ~self.eos.rd_stb) | eos),
         ]
 
 # Xilinx Ultrascale Plus System Monitor ------------------------------------------------------------

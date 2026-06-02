@@ -217,7 +217,7 @@ class EventManager(Module, AutoCSR):
             self.comb += [
                 getattr(self.status.fields,  name).eq(source.status),
                 getattr(self.pending.fields, name).eq(source.pending),
-                If(self.pending.re & self.pending.r[i], source.clear.eq(1)),
+                If(self.pending.wr_stb & self.pending.wr_data[i], source.clear.eq(1)),
             ]
             irqs = [self.pending.status[i] & self.enable.storage[i] for i in range(n)]
         self.comb += self.irq.eq(Reduce("OR", irqs))

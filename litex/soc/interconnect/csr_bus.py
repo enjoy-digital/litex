@@ -211,14 +211,14 @@ class CSRBank(csr.GenericBank):
 
         for i, c in enumerate(self.simple_csrs):
             self.comb += [
-                c.r.eq(self.bus.dat_w[:c.size]),
+                c.wr_data.eq(self.bus.dat_w[:c.size]),
                 If(sel & (self.bus.adr[:log2_int(aligned_paging)] == i),
-                    c.re.eq(self.bus.we),
-                    c.we.eq(self.bus.re)
+                    c.wr_stb.eq(self.bus.we),
+                    c.rd_stb.eq(self.bus.re)
                 )
             ]
 
-        brcases = dict((i, self.bus.dat_r.eq(c.w)) for i, c in enumerate(self.simple_csrs))
+        brcases = dict((i, self.bus.dat_r.eq(c.rd_data)) for i, c in enumerate(self.simple_csrs))
         self.sync += [
             self.bus.dat_r.eq(0),
             If(sel, Case(self.bus.adr[:log2_int(aligned_paging)], brcases))

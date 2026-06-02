@@ -306,7 +306,7 @@ class ICAPBitstream(LiteXModule):
         fifo = ClockDomainsRenamer({"write": "sys", "read": "icap"})(fifo)
         self.submodules += fifo
         self.comb += [
-            fifo.sink.valid.eq(self.sink_data.re),
+            fifo.sink.valid.eq(self.sink_data.wr_stb),
             fifo.sink.data.eq(self.sink_data.storage),
             self.sink_ready.status.eq(fifo.sink.ready),
         ]

@@ -125,7 +125,7 @@ class S6DCM(XilinxClocking):
         self.comb += transmitting.eq(remaining_bits != 0)
         sr = Signal(10)
         self.sync += [
-            If(self._send_cmd_data.re,
+            If(self._send_cmd_data.wr_stb,
                 remaining_bits.eq(10),
                 sr.eq(self._cmd_data.storage)
             ).Elif(transmitting,
@@ -135,14 +135,14 @@ class S6DCM(XilinxClocking):
         ]
         self.comb += [
             progdata.eq(transmitting & sr[0]),
-            progen.eq(transmitting | self._send_go.re)
+            progen.eq(transmitting | self._send_go.wr_stb)
         ]
 
         # Enforce gap between commands
         busy_counter = Signal(max=14)
         busy         = Signal()
         self.comb += busy.eq(busy_counter != 0)
-        self.sync += If(self._send_cmd_data.re,
+        self.sync += If(self._send_cmd_data.wr_stb,
                 busy_counter.eq(13)
             ).Elif(busy,
                 busy_counter.eq(busy_counter - 1)
