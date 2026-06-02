@@ -506,6 +506,10 @@ class Builder:
 def builder_args(parser):
     parser.formatter_class = lambda prog: argparse.ArgumentDefaultsHelpFormatter(prog, max_help_position=10, width=120)
     builder_group = parser.add_argument_group(title="Builder options")
+    export_help = (
+        "Generated when the Builder build step runs; "
+        "on board targets, use --build --no-compile for export only."
+    )
     builder_group.add_argument("--output-dir",            default=None,        help="Base output directory.")
     builder_group.add_argument("--gateware-dir",          default=None,        help="Output directory for gateware files.")
     builder_group.add_argument("--software-dir",          default=None,        help="Output directory for software files.")
@@ -517,10 +521,10 @@ def builder_args(parser):
     builder_group.add_argument("--no-compile",            action="store_true", help="Disable software and gateware compilation.")
     builder_group.add_argument("--no-compile-software",   action="store_true", help="Disable software compilation only.")
     builder_group.add_argument("--no-compile-gateware",   action="store_true", help="Disable gateware compilation only.")
-    builder_group.add_argument("--soc-csv", "--csr-csv",  default=None,        help="Write SoC mapping to the specified CSV file.")
-    builder_group.add_argument("--soc-json", "--csr-json", default=None,       help="Write SoC mapping to the specified JSON file.")
-    builder_group.add_argument("--soc-svd", "--csr-svd",  default=None,        help="Write SoC mapping to the specified SVD file.")
-    builder_group.add_argument("--memory-x",              default=None,        help="Write SoC memory regions to the specified Memory-X file.")
+    builder_group.add_argument("--soc-csv", "--csr-csv",  default=None,        help=f"Write SoC mapping to the specified CSV file. {export_help}")
+    builder_group.add_argument("--soc-json", "--csr-json", default=None,       help=f"Write SoC mapping to the specified JSON file. {export_help}")
+    builder_group.add_argument("--soc-svd", "--csr-svd",  default=None,        help=f"Write SoC mapping to the specified SVD file. {export_help}")
+    builder_group.add_argument("--memory-x",              default=None,        help=f"Write SoC memory regions to the specified Memory-X file. {export_help}")
     builder_group.add_argument("--doc",                   action="store_true", help="Generate SoC documentation.")
     builder_group.add_argument("--hierarchical-verilog",  action="store_true", help="Enable hierarchical Verilog generation.")
     bios_group = parser.add_argument_group(title="BIOS options") # FIXME: Move?

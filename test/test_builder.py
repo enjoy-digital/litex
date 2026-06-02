@@ -5,7 +5,9 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
+import contextlib
 import json
+import io
 import logging
 import os
 import tempfile
@@ -177,6 +179,16 @@ class TestBuilderArguments(unittest.TestCase):
         self.assertFalse(argdict["integrated_rom_auto_size"])
         self.assertTrue(argdict["hierarchical"])
 
+    def test_export_help_mentions_export_only_build(self):
+        stdout = io.StringIO()
+        parser = argparse.ArgumentParser()
+        builder_args(parser)
+
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stdout(stdout):
+                parser.parse_args(["--help"])
+
+        self.assertIn("--build --no-compile", stdout.getvalue())
 
 class TestSoftwareMakefiles(unittest.TestCase):
     def test_software_makefiles_enable_section_gc(self):
