@@ -193,7 +193,11 @@ class TestSoftwareMakefiles(unittest.TestCase):
             os.path.join(repo_dir, "litex", "soc", "software", "demo", "Makefile"),
         ]:
             with open(path) as f:
-                self.assertIn("-Wl,--gc-sections", f.read())
+                contents = f.read()
+            self.assertIn("-Wl,--gc-sections", contents)
+            self.assertIn("ALWAYS_LINK_LIBS", contents)
+            self.assertIn("ALWAYS_LINK_LIBFLAGS", contents)
+            self.assertIn("--whole-archive", contents)
 
 
 class TestBuilderPaths(unittest.TestCase):
@@ -375,6 +379,7 @@ class TestBuilderGeneratedFiles(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             builder = _make_builder(tmp_dir, soc=_IncludeFakeSoC(), compile_software=False)
             builder.add_software_package("custom", r"C:\liteX\custom")
+            builder.add_software_library("libcustom", always_link=True)
 
             with patch("litex.soc.integration.builder.export.get_cpu_mak", return_value=[
                 ("TRIPLE",        "--not-found--"),
@@ -397,6 +402,7 @@ class TestBuilderGeneratedFiles(unittest.TestCase):
 
             self.assertIn(r"CUSTOM_DIRECTORY=C:\\liteX\\custom", variables)
             self.assertIn("BIOS_CONSOLE_FULL=1", variables)
+            self.assertIn("ALWAYS_LINK_LIBS=libcustom", variables)
             self.assertIn("BIOS_CONSOLE_NO_ANSI=1", variables_no_ansi)
 
 

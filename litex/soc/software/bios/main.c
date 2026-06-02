@@ -16,6 +16,7 @@
 // License: BSD
 
 #include <stdio.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <system.h>
@@ -54,30 +55,116 @@
 #include <liblitesata/sata.h>
 
 #ifndef CONFIG_BIOS_NO_BOOT
-static void boot_sequence(void)
+#define BOOT_METHOD_CONTINUE 1
+#define BOOT_METHOD_STOP     0
+
+#if defined(CSR_UART_BASE) && !defined(SERIAL_BOOT_DISABLE)
+#ifndef SERIAL_BOOT_PRIORITY
+#define SERIAL_BOOT_PRIORITY 0
+#endif
+static int serial_boot_method(void)
 {
-#ifdef CSR_UART_BASE
-	if (serialboot() == 0)
-		return;
+	return serialboot();
+}
+define_boot_method(serial, serial_boot_method, SERIAL_BOOT_PRIORITY);
 #endif
-#ifdef FLASH_BOOT_ADDRESS
+
+#if defined(FLASH_BOOT_ADDRESS) && !defined(FLASH_BOOT_DISABLE)
+#ifndef FLASH_BOOT_PRIORITY
+#define FLASH_BOOT_PRIORITY 10
+#endif
+static int flash_boot_method(void)
+{
 	flashboot();
+	return BOOT_METHOD_CONTINUE;
+}
+define_boot_method(flash, flash_boot_method, FLASH_BOOT_PRIORITY);
 #endif
-#ifdef ROM_BOOT_ADDRESS
+
+#if defined(ROM_BOOT_ADDRESS) && !defined(ROM_BOOT_DISABLE)
+#ifndef ROM_BOOT_PRIORITY
+#define ROM_BOOT_PRIORITY 20
+#endif
+static int rom_boot_method(void)
+{
 	romboot();
+	return BOOT_METHOD_CONTINUE;
+}
+define_boot_method(rom, rom_boot_method, ROM_BOOT_PRIORITY);
 #endif
-#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCARD_BASE)
+
+#if (defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCARD_BASE)) && !defined(SDCARD_BOOT_DISABLE)
+#ifndef SDCARD_BOOT_PRIORITY
+#define SDCARD_BOOT_PRIORITY 30
+#endif
+static int sdcard_boot_method(void)
+{
 	sdcardboot();
+	return BOOT_METHOD_CONTINUE;
+}
+define_boot_method(sdcard, sdcard_boot_method, SDCARD_BOOT_PRIORITY);
 #endif
-#if defined(CSR_SATA_SECTOR2MEM_BASE)
+
+#if defined(CSR_SATA_SECTOR2MEM_BASE) && !defined(SATA_BOOT_DISABLE)
+#ifndef SATA_BOOT_PRIORITY
+#define SATA_BOOT_PRIORITY 40
+#endif
+static int sata_boot_method(void)
+{
 	sataboot();
+	return BOOT_METHOD_CONTINUE;
+}
+define_boot_method(sata, sata_boot_method, SATA_BOOT_PRIORITY);
 #endif
-#ifdef CSR_ETHMAC_BASE
+
+#if defined(CSR_ETHMAC_BASE) && !defined(NET_BOOT_DISABLE)
+#ifndef NET_BOOT_PRIORITY
+#define NET_BOOT_PRIORITY 50
+#endif
+static int net_boot_method(void)
+{
 #ifdef CSR_ETHPHY_MODE_DETECTION_MODE_ADDR
 	eth_mode();
 #endif
 	netboot(0, NULL);
+	return BOOT_METHOD_CONTINUE;
+}
+define_boot_method(net, net_boot_method, NET_BOOT_PRIORITY);
 #endif
+
+static void boot_sequence(void)
+{
+	const struct boot_method *const *boot_method;
+	int priority;
+
+	priority = INT_MIN;
+	while (1) {
+		int next_priority;
+		int found;
+
+		next_priority = INT_MAX;
+		found = 0;
+		for (boot_method = __bios_boot_start; boot_method != __bios_boot_end; boot_method++) {
+			if ((*boot_method)->priority <= priority)
+				continue;
+			if (found && ((*boot_method)->priority >= next_priority))
+				continue;
+			next_priority = (*boot_method)->priority;
+			found = 1;
+		}
+		if (!found)
+			break;
+
+		for (boot_method = __bios_boot_start; boot_method != __bios_boot_end; boot_method++) {
+			if ((*boot_method)->priority != next_priority)
+				continue;
+			if ((*boot_method)->handler() == BOOT_METHOD_STOP)
+				return;
+		}
+
+		priority = next_priority;
+	}
+
 	printf("No boot medium found\n");
 }
 #endif

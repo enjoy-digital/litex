@@ -138,6 +138,7 @@ class Builder:
         # Software packages and libraries.
         self.software_packages  = []
         self.software_libraries = []
+        self.software_always_link_libraries = []
         for name in soc_software_packages:
             self.add_software_package(name)
             self.add_software_library(name)
@@ -153,8 +154,10 @@ class Builder:
     def _has_software_package(self, name):
         return any(package_name == name for package_name, _ in self.software_packages)
 
-    def add_software_library(self, name):
+    def add_software_library(self, name, always_link=False):
         self.software_libraries.append(name)
+        if always_link:
+            self.software_always_link_libraries.append(name)
 
     def add_json(self, filename, origin=0, name="", exclude_constants=None):
         if exclude_constants is None:
@@ -206,6 +209,7 @@ class Builder:
         define("PACKAGES",     " ".join(name    for name, src_dir in self.software_packages))
         define("PACKAGE_DIRS", " ".join(src_dir for name, src_dir in self.software_packages))
         define("LIBS",         " ".join(self.software_libraries))
+        define("ALWAYS_LINK_LIBS", " ".join(self.software_always_link_libraries))
 
         # Define CPU variables.
         for k, v in export.get_cpu_mak(self.soc.cpu, self.compile_software):

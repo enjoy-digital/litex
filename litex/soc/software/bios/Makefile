@@ -55,6 +55,10 @@ else
 LSCRIPT = linker.ld
 endif
 
+COMMA = ,
+REGULAR_LIBS = $(filter-out $(ALWAYS_LINK_LIBS),$(LIBS))
+ALWAYS_LINK_LIBFLAGS = $(if $(ALWAYS_LINK_LIBS),-Wl$(COMMA)--whole-archive $(ALWAYS_LINK_LIBS:lib%=-l%) -Wl$(COMMA)--no-whole-archive)
+
 all: bios.bin
 	$(PYTHON) -m litex.soc.software.memusage bios.elf $(CURDIR)/../include/generated/regions.ld $(TRIPLE)
 
@@ -78,7 +82,8 @@ vpath %.a $(PACKAGES:%=../%)
 		$(OBJECTS) \
 		$(PACKAGES:%=-L../%) \
 		-Wl,--start-group \
-		$(LIBS:lib%=-l%) \
+		$(REGULAR_LIBS:lib%=-l%) \
+		$(ALWAYS_LINK_LIBFLAGS) \
 		-Wl,--end-group \
 		-Wl,--gc-sections \
 		-Wl,-Map,$@.map

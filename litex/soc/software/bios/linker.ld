@@ -51,6 +51,13 @@ SECTIONS
 		PROVIDE_HIDDEN (__bios_init_end = .);
 	} > rom
 
+	.boot_methods :
+	{
+		PROVIDE_HIDDEN (__bios_boot_start = .);
+		KEEP(*(.bios_boot))
+		PROVIDE_HIDDEN (__bios_boot_end = .);
+	} > rom
+
 	.data :
 	{
 		. = ALIGN(8);
