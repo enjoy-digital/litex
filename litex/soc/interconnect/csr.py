@@ -350,7 +350,15 @@ class CSRStatus(_CompoundCSR):
     def read(self):
         """Read method for simulation."""
         yield self.rd_stb.eq(1)
-        value = (yield self.status)
+        if hasattr(self, "fields"):
+            # In standalone simulation, CSRStatus is commonly used as a plain
+            # CSR object rather than as a submodule, so pack the live fields
+            # directly instead of relying on this module's internal comb logic.
+            value = 0
+            for field in [*self.fields.fields]:
+                value |= (yield getattr(self.fields, field.name)) << field.offset
+        else:
+            value = (yield self.status)
         yield
         yield self.rd_stb.eq(0)
         return value

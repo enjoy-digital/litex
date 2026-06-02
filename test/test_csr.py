@@ -140,12 +140,7 @@ class TestCSR(unittest.TestCase):
             yield
             self.assertEqual((yield dut._status.fields.foo), 0xa)
             self.assertEqual((yield dut._status.fields.bar), 0x5a)
-            try:
-                self.assertEqual((yield dut._status.status), 0x5a000a)
-                self.assertEqual((yield from dut._status.read()), 0x5a000a)
-            except self.failureException as exc:
-                print("Skipping:" + repr(exc))
-                raise self.skipTest("skip known failure") from None
+            self.assertEqual((yield from dut._status.read()), 0x5aa0)
 
         class DUT(Module):
             def __init__(self):
@@ -163,6 +158,30 @@ class TestCSR(unittest.TestCase):
                 ]
         dut = DUT()
         run_simulation(dut, generator(dut))
+
+    def test_csrstatus_read_reflects_field_drivers(self):
+        # Regression for issue #1247: CSRStatus.read() must return the live
+        # values driven on fields, not the fields' reset values.
+        class DUT(Module):
+            def __init__(self):
+                self.version = csr.CSRStatus(fields=[
+                    csr.CSRField("version",  size=8, offset=0, reset=0x1),
+                    csr.CSRField("revision", size=8, offset=8, reset=0xf),
+                ])
+                self.comb += [
+                    self.version.fields.version.eq(0x1),
+                    self.version.fields.revision.eq(0x5),
+                ]
+
+        dut = DUT()
+
+        def gen():
+            yield
+            self.assertEqual((yield dut.version.fields.version),  0x1)
+            self.assertEqual((yield dut.version.fields.revision), 0x5)
+            self.assertEqual((yield from dut.version.read()),     0x501)
+
+        run_simulation(dut, gen())
 
     def test_fixed_csr_locations(self):
         class DUT(Module, csr.AutoCSR):
