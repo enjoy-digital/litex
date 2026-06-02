@@ -177,9 +177,15 @@ Go to litex-boards/litex_boards/targets and execute the target you want to build
 
 5. ... and/or install [Verilator](http://www.veripool.org/) and test LiteX directly on your computer without any FPGA board:
 
-On Linux (Ubuntu):
+On Linux (Ubuntu/Debian):
 ```sh
 $ sudo apt install libevent-dev libjson-c-dev verilator
+$ litex_sim --cpu-type=vexriscv
+```
+
+On Linux (Fedora):
+```sh
+$ sudo dnf install libevent-devel json-c-devel verilator
 $ litex_sim --cpu-type=vexriscv
 ```
 
