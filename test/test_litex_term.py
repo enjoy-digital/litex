@@ -57,6 +57,13 @@ def make_term(port, port_url=None):
     term.delay = 0
     term.length = 64
     term.outstanding = 1
+    term.mem_regions = {}
+    term.reader_alive = False
+    term.writer_alive = False
+    term.prompt_detect_buffer = bytes(len(litex_term.sfl_prompt_req))
+    term.magic_detect_buffer = bytes(len(litex_term.sfl_magic_req))
+    term.set_exit_on(None)
+    term.stop_event = litex_term.threading.Event()
     return term
 
 
@@ -161,6 +168,45 @@ class TestLiteXTermSFL(unittest.TestCase):
 
         self.assertIsNone(port.write_timeout)
         self.assertGreater(term.sigint_time_last, 0)
+
+    def test_exit_marker_detects_split_and_chunked_data(self):
+        term = make_term(FakePort())
+        term.set_exit_on("DONE")
+
+        self.assertFalse(term.detect_exit(b"DO"))
+        self.assertFalse(term.detect_exit(b"N"))
+        self.assertTrue(term.detect_exit(b"E"))
+
+        term.set_exit_on("DONE")
+        self.assertTrue(term.detect_exit(b"prefix DONE suffix"))
+
+    def test_reader_stops_on_exit_marker(self):
+        class CaptureStdout:
+            def __init__(self):
+                self.buffer = io.BytesIO()
+                self.text = io.StringIO()
+
+            def write(self, data):
+                return self.text.write(data)
+
+            def flush(self):
+                pass
+
+        port = FakePort(read_data=b"hello DONE trailing")
+        term = make_term(port)
+        term.set_exit_on("DONE")
+        term.reader_alive = True
+        term.writer_alive = True
+        stdout = CaptureStdout()
+
+        with mock.patch.object(litex_term.sys, "stdout", stdout):
+            term.reader()
+
+        self.assertIn(b"hello DONE", stdout.buffer.getvalue())
+        self.assertIn("Exit marker detected", stdout.text.getvalue())
+        self.assertFalse(term.reader_alive)
+        self.assertFalse(term.writer_alive)
+        self.assertTrue(term.stop_event.is_set())
 
     def test_answer_magic_aborts_on_upload_error(self):
         port = FakePort()

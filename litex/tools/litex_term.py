@@ -331,7 +331,7 @@ def crc16(l):
 # LiteXTerm ----------------------------------------------------------------------------------------
 
 class LiteXTerm:
-    def __init__(self, serial_boot, kernel_image, kernel_address, json_images, safe):
+    def __init__(self, serial_boot, kernel_image, kernel_address, json_images, safe, exit_on=None):
         self.serial_boot = serial_boot
         if kernel_image is not None and json_images is not None:
             raise ValueError("LiteXTerm cannot use both kernel_image and json_images.")
@@ -352,8 +352,10 @@ class LiteXTerm:
 
         self.prompt_detect_buffer = bytes(len(sfl_prompt_req))
         self.magic_detect_buffer  = bytes(len(sfl_magic_req))
+        self.set_exit_on(exit_on)
 
         self.console = Console()
+        self.stop_event = threading.Event()
 
         signal.signal(signal.SIGINT, self.sigint)
         self.sigint_time_last = 0
@@ -362,6 +364,15 @@ class LiteXTerm:
         self.delay       = 0
         self.length      = sfl_safe_data_length if safe else sfl_data_length
         self.outstanding = 1 if safe else sfl_default_outstanding
+
+    def set_exit_on(self, exit_on):
+        if isinstance(exit_on, bytes):
+            self.exit_on = exit_on
+        elif exit_on:
+            self.exit_on = exit_on.encode()
+        else:
+            self.exit_on = None
+        self.exit_detect_buffer = bytes()
 
     def open(self, port, baudrate):
         if hasattr(self, "port"):
@@ -705,6 +716,17 @@ class LiteXTerm:
         else:
             return False
 
+    def detect_exit(self, data):
+        if self.exit_on is None or len(data) == 0:
+            return False
+
+        window = self.exit_detect_buffer + data
+        if len(self.exit_on) > 1:
+            self.exit_detect_buffer = window[-(len(self.exit_on) - 1):]
+        else:
+            self.exit_detect_buffer = bytes()
+        return self.exit_on in window
+
     def answer_magic(self):
         print("[LITEX-TERM] Received firmware download request from the device.")
         if(len(self.mem_regions)):
@@ -729,6 +751,10 @@ class LiteXTerm:
                         self.answer_prompt()
                     if self.detect_magic(c):
                         self.answer_magic()
+                if self.detect_exit(c):
+                    print("\n[LITEX-TERM] Exit marker detected, exiting.")
+                    self.stop()
+                    break
 
         except serial.SerialException:
             self.stop()
@@ -782,6 +808,11 @@ class LiteXTerm:
     def stop(self):
         self.reader_alive = False
         self.writer_alive = False
+        if hasattr(self, "stop_event"):
+            self.stop_event.set()
+
+    def wait(self):
+        self.stop_event.wait()
 
     def join(self, writer_only=False):
         self.writer_thread.join()
@@ -799,6 +830,7 @@ def _get_args():
     parser.add_argument("--kernel-adr",     default="0x40000000",               help="Kernel address.")
     parser.add_argument("--images",         default=None,                       help="JSON description of the images to load to memory.")
     parser.add_argument("--safe",           action="store_true",                help="Safe serial boot mode, disable upload speed optimizations.")
+    parser.add_argument("--exit-on",        default=None,                       help="Exit when this string is received from the device.")
 
     parser.add_argument("--csr-csv",        default=None,                       help="SoC CSV file.")
     parser.add_argument("--base-address",   default=None,                       help="CSR base address.")
@@ -813,7 +845,7 @@ def _get_args():
 
 def main():
     args = _get_args()
-    term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.safe)
+    term = LiteXTerm(args.serial_boot, args.kernel, args.kernel_adr, args.images, args.safe, args.exit_on)
 
     if sys.platform == "win32":
         if args.port in ["crossover", "jtag"]:
@@ -840,8 +872,16 @@ def main():
         port = args.port
     term.open(port, int(float(args.speed)))
     term.console.configure()
-    term.start()
-    term.join(True)
+    try:
+        term.start()
+        if args.exit_on is None:
+            term.join(True)
+        else:
+            term.wait()
+    finally:
+        term.stop()
+        term.console.unconfigure()
+        term.close()
 
 if __name__ == "__main__":
     main()
