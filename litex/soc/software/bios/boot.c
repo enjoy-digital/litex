@@ -385,6 +385,14 @@ static int boot_parse_address(const char *value, unsigned long *address)
 	return 1;
 }
 
+/* Keep the JSON buffer static to limit stack pressure in the boot paths. This
+ * is especially useful on 64-bit CPUs or when FatFs also needs temporary stack
+ * storage while reading boot.json.
+ */
+#define BOOT_JSON_BUFFER_SIZE 1024
+
+static char boot_json_buffer[BOOT_JSON_BUFFER_SIZE];
+
 typedef int (*boot_json_load_cb)(void *opaque, const char *filename,
 	unsigned long load_addr, size_t max_size);
 
@@ -656,19 +664,17 @@ static void netboot_from_json(const char * filename, unsigned int ip, unsigned s
 	int size;
 	struct netboot_json_ctx ctx;
 
-	/* FIXME: modify/increase if too limiting */
-	char json_buffer[1024];
-
 	/* Read JSON file */
-	size = tftp_get(ip, tftp_port, filename, json_buffer, sizeof(json_buffer) - 1);
+	size = tftp_get(ip, tftp_port, filename,
+		boot_json_buffer, sizeof(boot_json_buffer) - 1);
 	if (size <= 0)
 		return;
-	json_buffer[size] = 0;
+	boot_json_buffer[size] = 0;
 
 	/* Parse JSON file */
 	ctx.ip = ip;
 	ctx.tftp_port = tftp_port;
-	boot_from_json_buffer(json_buffer, size, netboot_json_load, &ctx);
+	boot_from_json_buffer(boot_json_buffer, size, netboot_json_load, &ctx);
 }
 
 #ifdef MAIN_RAM_BASE
@@ -891,9 +897,6 @@ static void sdcardboot_from_json(const char * filename)
 
 	uint32_t length;
 
-	/* FIXME: modify/increase if too limiting */
-	char json_buffer[1024];
-
 	/* Read JSON file */
 	fr = f_mount(&fs, "", 1);
 	if (fr != FR_OK)
@@ -906,23 +909,24 @@ static void sdcardboot_from_json(const char * filename)
 	}
 
 	length = f_size(&file);
-	if (length >= sizeof(json_buffer)) {
+	if (length >= sizeof(boot_json_buffer)) {
 		printf("Error: %s is too large for boot JSON buffer\n", filename);
 		f_close(&file);
 		f_mount(0, "", 0);
 		return;
 	}
-	fr = f_read(&file, json_buffer, sizeof(json_buffer) - 1, (UINT *) &length);
+	fr = f_read(&file, boot_json_buffer,
+		sizeof(boot_json_buffer) - 1, (UINT *) &length);
 
 	/* Close JSON file */
 	f_close(&file);
 	f_mount(0, "", 0);
 	if (fr != FR_OK)
 		return;
-	json_buffer[length] = 0;
+	boot_json_buffer[length] = 0;
 
 	/* Parse JSON file */
-	boot_from_json_buffer(json_buffer, length, sdcardboot_json_load, NULL);
+	boot_from_json_buffer(boot_json_buffer, length, sdcardboot_json_load, NULL);
 }
 
 #ifdef MAIN_RAM_BASE
@@ -1037,9 +1041,6 @@ static void sataboot_from_json(const char * filename)
 
 	uint32_t length;
 
-	/* FIXME: modify/increase if too limiting */
-	char json_buffer[1024];
-
 	/* Read JSON file */
 	fr = f_mount(&fs, "", 1);
 	if (fr != FR_OK)
@@ -1052,23 +1053,24 @@ static void sataboot_from_json(const char * filename)
 	}
 
 	length = f_size(&file);
-	if (length >= sizeof(json_buffer)) {
+	if (length >= sizeof(boot_json_buffer)) {
 		printf("Error: %s is too large for boot JSON buffer\n", filename);
 		f_close(&file);
 		f_mount(0, "", 0);
 		return;
 	}
-	fr = f_read(&file, json_buffer, sizeof(json_buffer) - 1, (UINT *) &length);
+	fr = f_read(&file, boot_json_buffer,
+		sizeof(boot_json_buffer) - 1, (UINT *) &length);
 
 	/* Close JSON file */
 	f_close(&file);
 	f_mount(0, "", 0);
 	if (fr != FR_OK)
 		return;
-	json_buffer[length] = 0;
+	boot_json_buffer[length] = 0;
 
 	/* Parse JSON file */
-	boot_from_json_buffer(json_buffer, length, sataboot_json_load, NULL);
+	boot_from_json_buffer(boot_json_buffer, length, sataboot_json_load, NULL);
 }
 
 static void sataboot_from_bin(const char * filename)
