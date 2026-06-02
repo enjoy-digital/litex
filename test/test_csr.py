@@ -66,6 +66,25 @@ class CSRDUT(Module):
         )
 
 class TestCSR(unittest.TestCase):
+    def test_csr_signal_aliases(self):
+        simple = csr.CSR(8, name="simple")
+        self.assertIs(simple.wr_data, simple.r)
+        self.assertIs(simple.wr_stb,  simple.re)
+        self.assertIs(simple.rd_data, simple.w)
+        self.assertIs(simple.rd_stb,  simple.we)
+
+        status = csr.CSRStatus(8, name="status")
+        self.assertIs(status.rd_stb, status.we)
+        self.assertIs(status.wr_stb, status.re)
+
+        pending = csr.CSRStatus(8, read_only=False, name="pending")
+        self.assertIs(pending.wr_data, pending.r)
+        self.assertIs(pending.rd_stb,  pending.we)
+        self.assertIs(pending.wr_stb,  pending.re)
+
+        storage = csr.CSRStorage(8, name="storage")
+        self.assertIs(storage.wr_stb, storage.re)
+
     def test_csr_constant(self):
         def generator(dut):
             self.assertEqual(hex((yield from dut.csrmodule._constant.read())), hex(0x12345678))

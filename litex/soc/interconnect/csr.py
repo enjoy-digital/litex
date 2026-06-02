@@ -103,44 +103,55 @@ class CSR(_CSRBase):
 
     Attributes
     ----------
-    r : Signal(size), out
+    wr_data : Signal(size), out
         Contains the data written from the bus interface.
-        ``r`` is only valid when ``re`` is high.
+        ``wr_data`` is only valid when ``wr_stb`` is high.
 
-    re : Signal(), out
-        The strobe signal for ``r``.
+    wr_stb : Signal(), out
+        The strobe signal for ``wr_data``.
         It is active for one cycle, after or during a write from the bus.
 
-    w : Signal(size), in
+    rd_data : Signal(size), in
         The value to be read from the bus.
         Must be provided at all times.
 
-    we : Signal(), out
-        The strobe signal for ``w``.
+    rd_stb : Signal(), out
+        The strobe signal for ``rd_data``.
         It is active for one cycle, after or during a read from the bus.
+
+    r/re/w/we : Signal(), compatibility aliases
+        Historical names kept for compatibility:
+        ``r``/``re`` alias ``wr_data``/``wr_stb`` and
+        ``w``/``we`` alias ``rd_data``/``rd_stb``.
     """
 
     def __init__(self, size=1, name=None, n=None):
         _CSRBase.__init__(self, size, name, n)
-        self.re = Signal(name=self.name + "_re")
-        self.r  = Signal(self.size, name=self.name + "_r")
-        self.we = Signal(name=self.name + "_we")
-        self.w  = Signal(self.size, name=self.name + "_w")
+        self.wr_stb  = Signal(name=self.name + "_re")
+        self.wr_data = Signal(self.size, name=self.name + "_r")
+        self.rd_stb  = Signal(name=self.name + "_we")
+        self.rd_data = Signal(self.size, name=self.name + "_w")
+
+        # Compatibility aliases.
+        self.re = self.wr_stb
+        self.r  = self.wr_data
+        self.we = self.rd_stb
+        self.w  = self.rd_data
 
     def read(self):
         """Read method for simulation."""
-        yield self.we.eq(1)
-        value = (yield self.w)
+        yield self.rd_stb.eq(1)
+        value = (yield self.rd_data)
         yield
-        yield self.we.eq(0)
+        yield self.rd_stb.eq(0)
         return value
 
     def write(self, value):
         """Write method for simulation."""
-        yield self.r.eq(value)
-        yield self.re.eq(1)
+        yield self.wr_data.eq(value)
+        yield self.wr_stb.eq(1)
         yield
-        yield self.re.eq(0)
+        yield self.wr_stb.eq(0)
 
 
 class _CompoundCSR(_CSRBase, Module):
@@ -312,10 +323,13 @@ class CSRStatus(_CompoundCSR):
         self.description = description
         self.read_only   = read_only
         self.status      = Signal(self.size, reset=reset)
-        self.we          = Signal()
-        self.re          = Signal()
+        self.rd_stb      = Signal()
+        self.wr_stb      = Signal()
+        self.we          = self.rd_stb
+        self.re          = self.wr_stb
         if not read_only:
-            self.r       = Signal(self.size)
+            self.wr_data = Signal(self.size)
+            self.r       = self.wr_data
         for field in fields:
             self.comb += self.status[field.offset:field.offset + field.size].eq(getattr(self.fields, field.name))
 
@@ -330,15 +344,15 @@ class CSRStatus(_CompoundCSR):
                 lo = i*busword
                 hi = lo+nbits
                 self.sync += If(sc.re, self.r[lo:hi].eq(sc.r))
-        self.comb += self.we.eq(sc.we)
-        self.sync += self.re.eq(sc.re)
+        self.comb += self.rd_stb.eq(sc.rd_stb)
+        self.sync += self.wr_stb.eq(sc.wr_stb)
 
     def read(self):
         """Read method for simulation."""
-        yield self.we.eq(1)
+        yield self.rd_stb.eq(1)
         value = (yield self.status)
         yield
-        yield self.we.eq(0)
+        yield self.rd_stb.eq(0)
         return value
 
 # CSRStorage ---------------------------------------------------------------------------------------
@@ -378,9 +392,12 @@ class CSRStorage(_CompoundCSR):
     storage : Signal(size), out
         Signal providing the value of the ``CSRStorage`` object.
 
-    re : Signal(), in
+    wr_stb : Signal(), in
         The strobe signal indicating a write to the ``CSRStorage`` register from the CPU. It is active
         for one cycle, after or during a write from the bus.
+
+    re : Signal(), in
+        Compatibility alias for ``wr_stb``.
 
     we : Signal(), out
         The strobe signal to write to the ``CSRStorage`` register from the logic. Only available when
@@ -401,7 +418,8 @@ class CSRStorage(_CompoundCSR):
         self.description  = description
         self.storage      = Signal(self.size, reset=reset, reset_less=reset_less)
         self.atomic_write = atomic_write
-        self.re           = Signal()
+        self.wr_stb       = Signal()
+        self.re           = self.wr_stb
         if write_from_dev:
             self.we    = Signal()
             self.dat_w = Signal(self.size)
@@ -449,12 +467,12 @@ class CSRStorage(_CompoundCSR):
             raise ValueError(f"value {value} exceeds range of {self.size} bit CSR {self.name}.")
 
         yield self.storage.eq(value)
-        yield self.re.eq(1)
+        yield self.wr_stb.eq(1)
         if hasattr(self, "fields"):
             for field in [*self.fields.fields]:
                 yield getattr(self.fields, field.name).eq((value >> field.offset) & (2**field.size -1))
         yield
-        yield self.re.eq(0)
+        yield self.wr_stb.eq(0)
         if hasattr(self, "fields"):
             for field in [*self.fields.fields]:
                 if field.pulse:
