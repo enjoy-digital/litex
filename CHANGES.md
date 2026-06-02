@@ -1,3 +1,50 @@
+[> Changes since 2026.04 release
+--------------------------------
+
+[> Fixed
+--------
+* **litex/soc/software/liblitespi**                : Made SPI flash quad-enable handling flash-specific to avoid enabling unsupported modes on other flashes ([e0a9476e2](https://github.com/enjoy-digital/litex/commit/e0a9476e2)).
+* **litex/tools/litex_json2dts_linux**             : Added `mono1` framebuffer DTS support and moved the default framebuffer placement near the end of main RAM when possible ([8e9b42fd2](https://github.com/enjoy-digital/litex/commit/8e9b42fd2), [187bf754c](https://github.com/enjoy-digital/litex/commit/187bf754c)).
+* **litex/soc/interconnect/csr**                   : Hardened fixed CSR location handling and fixed `CSRStatus(fields=...).read()` in standalone simulation to return live field values instead of reset values ([685ba8115](https://github.com/enjoy-digital/litex/commit/685ba8115), [e463d2eb6](https://github.com/enjoy-digital/litex/commit/e463d2eb6)).
+* **litex/soc/interconnect**                       : Validated writable SRAM memory widths to catch unsupported non-byte-multiple configurations early ([4149fb257](https://github.com/enjoy-digital/litex/commit/4149fb257)).
+* **litex/build/gowin**                            : Resolved Gowin toolchain symlinks before deriving tool paths ([PR #2469](https://github.com/enjoy-digital/litex/pull/2469)).
+* **litex/build/lattice/diamond**                  : Emitted false-path constraints for the Diamond backend ([ca37a571c](https://github.com/enjoy-digital/litex/commit/ca37a571c)).
+* **litex/build/sim**                              : Finalized Verilator simulation models on exit and restored concise simulation/clock summary reporting ([539ba50a8](https://github.com/enjoy-digital/litex/commit/539ba50a8), [e685c7a21](https://github.com/enjoy-digital/litex/commit/e685c7a21)).
+* **litex/soc/cores/clock**                        : Rejected duplicate clock output domains across vendor clocking helpers ([45c457fc6](https://github.com/enjoy-digital/litex/commit/45c457fc6)).
+* **litex/soc/cores/cpu/vexriscv_smp**             : Rejected SDRAM configurations without byte masks and staged generated cluster netlists in the build directory ([c2120eda8](https://github.com/enjoy-digital/litex/commit/c2120eda8), [e1da240ac](https://github.com/enjoy-digital/litex/commit/e1da240ac)).
+* **litex/soc/integration/soc**                    : Filtered parser options by selected CPU and allowed direct IRQ signal integration ([4ed83bd19](https://github.com/enjoy-digital/litex/commit/4ed83bd19), [48b832b7e](https://github.com/enjoy-digital/litex/commit/48b832b7e)).
+* **litex/soc/software/libliteeth**                : Hardened netboot packet handling ([add101745](https://github.com/enjoy-digital/litex/commit/add101745)).
+
+[> Added
+--------
+* **litex/soc/cores/hwmon / xadc**                 : Added generic FPGA temperature monitor support, Xilinx hwmon conversion metadata/DTS generation, and initial opt-in Gowin/Intel temperature sensor wrappers with regression coverage ([14cc60dc1](https://github.com/enjoy-digital/litex/commit/14cc60dc1)).
+* **litex/soc/software/libcompiler_rt**            : Added RV64 count helper routines ([a733aaa75](https://github.com/enjoy-digital/litex/commit/a733aaa75)).
+* **litex/soc/integration/export**                 : Added wide CSR field helper support to generated software exports ([cc4a2542b](https://github.com/enjoy-digital/litex/commit/cc4a2542b)).
+* **litex/soc/software/bios**                      : Added an option to disable ANSI output ([b26d1096d](https://github.com/enjoy-digital/litex/commit/b26d1096d)).
+* **litex_setup.py**                               : Added LM32 GCC toolchain installation support ([9b5d907b9](https://github.com/enjoy-digital/litex/commit/9b5d907b9)).
+* **litex/build/xilinx**                           : Exposed open nextpnr arguments in the Xilinx build path ([6c1f7c5f5](https://github.com/enjoy-digital/litex/commit/6c1f7c5f5)).
+* **ci**                                           : Enabled Microwatt boot coverage and added IRQ boot coverage ([cfb3c02e3](https://github.com/enjoy-digital/litex/commit/cfb3c02e3), [de10ffc15](https://github.com/enjoy-digital/litex/commit/de10ffc15)).
+* **README / doc**                                 : Added Fedora simulator install notes and linked the LiteX Notes blog ([a35ba0471](https://github.com/enjoy-digital/litex/commit/a35ba0471), [b8c4cf47a](https://github.com/enjoy-digital/litex/commit/b8c4cf47a)).
+
+[> Changed
+----------
+* **litex/soc/integration/soc**                    : Moved the SoCCore API implementation to `soc.py`, kept compatibility imports covered, and switched internal imports to the canonical location ([8c28012c0](https://github.com/enjoy-digital/litex/commit/8c28012c0), [b25fe6e1b](https://github.com/enjoy-digital/litex/commit/b25fe6e1b), [15a9af65f](https://github.com/enjoy-digital/litex/commit/15a9af65f)).
+* **litex/soc/interconnect/csr**                   : Added explicit CSR read/write signal aliases and switched internal code to the clearer names while preserving compatibility aliases ([b8fce7555](https://github.com/enjoy-digital/litex/commit/b8fce7555), [2f4d45657](https://github.com/enjoy-digital/litex/commit/2f4d45657)).
+* **litex/soc/cores/uart**                         : Factored UART core selection for clearer UART integration ([b425ca5b5](https://github.com/enjoy-digital/litex/commit/b425ca5b5)).
+* **litex/soc/cores/dma**                          : Added explicit byte-swap control for DMA reader/writer paths while preserving legacy defaults, with endianness regression coverage ([c4baeb3e](https://github.com/enjoy-digital/litex/commit/c4baeb3e), [db2678d1a](https://github.com/enjoy-digital/litex/commit/db2678d1a)).
+* **litex/soc/software**                           : Enabled section garbage-collection inputs for smaller software images ([ef32c90e1](https://github.com/enjoy-digital/litex/commit/ef32c90e1)).
+* **litex/gen/fhdl**                               : Improved write-first memory template generation ([737cf2b97](https://github.com/enjoy-digital/litex/commit/737cf2b97)).
+
+[> Ecosystem
+------------
+* **litex-boards**                                 : Fixed several platform/target descriptions, switched targets to exact SDRAM module definitions where appropriate, and added Altera Agilex 5E / brisbaneSilicon BRS-100 GW1NR9 board support ([changes](https://github.com/litex-hub/litex-boards/compare/2026.04...master)).
+* **litedram**                                     : Fixed DDR4 RDIMM/SK hynix timing and geometry data, added board-backed SDR/DDR3 module definitions, exposed SDRAM byte-mask capability, and adopted LiteX SoCCore/CSR compatibility updates ([changes](https://github.com/enjoy-digital/litedram/compare/2026.04...master)).
+* **liteeth**                                      : Fixed Agilex RGMII builds with the current Agilex PLL and adopted LiteX SoCCore/CSR compatibility updates ([changes](https://github.com/enjoy-digital/liteeth/compare/2026.04...master)).
+* **litepcie**                                     : Added optional UltraScale+ PCIe Configuration Management interface exposure, fixed 256-bit requester descriptor handling, and adopted LiteX SoCCore/CSR compatibility updates ([changes](https://github.com/enjoy-digital/litepcie/compare/2026.04...master)).
+* **litesdcard**                                   : Fixed SD write CRC feedback through `pads_out`, made generated DMA Wishbone width configurable, and adopted LiteX SoCCore/CSR compatibility updates ([changes](https://github.com/enjoy-digital/litesdcard/compare/2026.04...master)).
+* **litespi**                                      : Added PUYA/P25Q32H flash support, documented the S25FL-S quad-enable sequence, and adopted LiteX SoCCore/CSR compatibility updates ([changes](https://github.com/litex-hub/litespi/compare/2026.04...master)).
+* **litei2c / liteiclink / litesata / litescope**  : Updated companion cores for the explicit CSR signal aliases and canonical SoCCore imports where applicable ([litei2c](https://github.com/litex-hub/litei2c/compare/2026.04...main), [liteiclink](https://github.com/enjoy-digital/liteiclink/compare/2026.04...master), [litesata](https://github.com/enjoy-digital/litesata/compare/2026.04...master), [litescope](https://github.com/enjoy-digital/litescope/compare/2026.04...master)).
+
 [> 2026.04, released on May 26th 2026
 -------------------------------------
 
