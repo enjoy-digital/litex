@@ -28,6 +28,13 @@ class XilinxSystemMonitorChannel:
         self.desc = "\n".join(desc) if isinstance(desc, list) else desc
 
 class XilinxSystemMonitor(LiteXModule):
+    def expose_hwmon(self, temp_scale, temp_divisor, temp_offset, voltage_scale, voltage_divisor):
+        self.hwmon_temp_scale      = CSRConstant(temp_scale,      name="hwmon_temp_scale")
+        self.hwmon_temp_divisor    = CSRConstant(temp_divisor,    name="hwmon_temp_divisor")
+        self.hwmon_temp_offset     = CSRConstant(temp_offset,     name="hwmon_temp_offset")
+        self.hwmon_voltage_scale   = CSRConstant(voltage_scale,   name="hwmon_voltage_scale")
+        self.hwmon_voltage_divisor = CSRConstant(voltage_divisor, name="hwmon_voltage_divisor")
+
     def add_channel(self, channel):
         setattr(self, channel.name, CSRStatus(channel.bits, name=channel.name, description=channel.desc))
         channel.status = getattr(self, channel.name).status
@@ -87,6 +94,15 @@ S7SystemMonitorChannels = [
 
 class S7SystemMonitor(XilinxSystemMonitor):
     def __init__(self, channels=S7SystemMonitorChannels, analog_pads=None):
+        # Hardware Monitor.
+        self.expose_hwmon(
+            temp_scale      = 503975,
+            temp_divisor    = 4096,
+            temp_offset     = 273150,
+            voltage_scale   = 3000,
+            voltage_divisor = 4096,
+        )
+
         # Channels.
         for channel in channels:
             self.add_channel(channel)
@@ -191,7 +207,26 @@ USSystemMonitorChannels = [
 ]
 
 class USSystemMonitor(XilinxSystemMonitor):
-    def __init__(self, channels=USSystemMonitorChannels, primitive="SYSMONE1", sim_device=None, analog_pads=None):
+    def __init__(self,
+        channels        = USSystemMonitorChannels,
+        primitive       = "SYSMONE1",
+        sim_device      = None,
+        analog_pads     = None,
+        temp_scale      = 503975,
+        temp_divisor    = 1024,
+        temp_offset     = 273150,
+        voltage_scale   = 3000,
+        voltage_divisor = 1024,
+    ):
+        # Hardware Monitor.
+        self.expose_hwmon(
+            temp_scale      = temp_scale,
+            temp_divisor    = temp_divisor,
+            temp_offset     = temp_offset,
+            voltage_scale   = voltage_scale,
+            voltage_divisor = voltage_divisor,
+        )
+
         # Channels.
         for channel in channels:
             self.add_channel(channel)
@@ -315,17 +350,21 @@ ZynqUSPSystemMonitorChannels = USPSystemMonitorChannels + [
 class USPSystemMonitor(USSystemMonitor):
     def __init__(self, analog_pads=None):
         USSystemMonitor.__init__(self,
-            channels    = USPSystemMonitorChannels,
-            primitive   = "SYSMONE4",
-            sim_device  = "ULTRASCALE_PLUS",
-            analog_pads = analog_pads,
+            channels        = USPSystemMonitorChannels,
+            primitive       = "SYSMONE4",
+            sim_device      = "ULTRASCALE_PLUS",
+            analog_pads     = analog_pads,
+            temp_scale      = 507592,
+            temp_offset     = 279427,
         )
 
 class ZynqUSPSystemMonitor(USSystemMonitor):
     def __init__(self, analog_pads=None):
         USSystemMonitor.__init__(self,
-            channels    = ZynqUSPSystemMonitorChannels,
-            primitive   = "SYSMONE4",
-            sim_device  = "ZYNQ_ULTRASCALE",
-            analog_pads = analog_pads,
+            channels        = ZynqUSPSystemMonitorChannels,
+            primitive       = "SYSMONE4",
+            sim_device      = "ZYNQ_ULTRASCALE",
+            analog_pads     = analog_pads,
+            temp_scale      = 507592,
+            temp_offset     = 279427,
         )

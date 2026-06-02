@@ -42,6 +42,232 @@ def generate_dts_framebuffer_format(depth):
 def generate_dts_framebuffer_stride(width, depth):
     return (width*depth + 7)//8
 
+def get_dts_int(value):
+    return int(value, 0) if isinstance(value, str) else int(value)
+
+def get_dts_constant(d, name, default):
+    return get_dts_int(d.get("constants", {}).get(name, default))
+
+def generate_dts_hwmon_temperature(d, hwmon_index=0):
+    intel_a10_c10gx = {
+        "compatibles": [
+            "litex,hwmon-intel-a10-c10gx",
+            "litex,hwmon-intel-temp",
+            "litex,hwmon-temp",
+        ],
+        "temp_scale":       693000,
+        "temp_divisor":     1024,
+        "temp_offset":      265000,
+        "temp_signed_bits": 0,
+    }
+    hwmon_cores = {
+        "GowinAroraVTemperatureSensor": {
+            "compatibles": [
+                "litex,hwmon-gowin-arora-v",
+                "litex,hwmon-temp",
+            ],
+            "temp_scale":       250,
+            "temp_divisor":     1,
+            "temp_offset":      0,
+            "temp_signed_bits": 14,
+        },
+        "IntelA10C10GXTemperatureSensor": intel_a10_c10gx,
+        "IntelTemperatureSensor":         intel_a10_c10gx,
+        "IntelLegacyTemperatureSensor": {
+            "compatibles": [
+                "litex,hwmon-intel-legacy",
+                "litex,hwmon-intel-temp",
+                "litex,hwmon-temp",
+            ],
+            "temp_scale":       1000,
+            "temp_divisor":     1,
+            "temp_offset":      128000,
+            "temp_signed_bits": 0,
+        },
+        "LiteXTemperatureMonitor": {
+            "compatibles": [
+                "litex,hwmon-temp",
+            ],
+            "temp_scale":       1,
+            "temp_divisor":     1,
+            "temp_offset":      0,
+            "temp_signed_bits": 0,
+        },
+    }
+
+    dts = ""
+    csr_bases      = d.get("csr_bases", {})
+    csr_registers  = d.get("csr_registers", {})
+    csr_data_width = get_dts_constant(d, "config_csr_data_width", 32)
+    csr_data_bytes = max(1, csr_data_width // 8)
+
+    for name, core in sorted(d.get("cores", {}).items()):
+        if name not in csr_bases:
+            continue
+        if core not in hwmon_cores:
+            continue
+
+        defaults = hwmon_cores[core]
+        csr_base = get_dts_int(csr_bases[name])
+        reg      = csr_registers.get(name + "_temperature")
+        if reg is None:
+            temperature_offset = 0x00
+            temperature_size   = csr_data_bytes
+        else:
+            temperature_offset = get_dts_int(reg["addr"]) - csr_base
+            temperature_size   = get_dts_int(reg.get("size", 1)) * csr_data_bytes
+        csr_size = max(0x04, temperature_offset + temperature_size)
+
+        def get_hwmon_constant(field):
+            return get_dts_constant(d, name + "_hwmon_" + field, defaults[field])
+
+        temp_signed_bits = get_hwmon_constant("temp_signed_bits")
+        temp_signed_dts  = ""
+        if temp_signed_bits:
+            temp_signed_dts = """
+                litex,temperature-signed-bits = <{temp_signed_bits}>;""".format(
+                temp_signed_bits = temp_signed_bits)
+
+        compatibles = ", ".join("\"{}\"".format(c) for c in defaults["compatibles"])
+        dts += """
+            hwmon{hwmon_index}: hwmon@{csr_base:x} {{
+                compatible = {compatibles};
+                reg = <0x{csr_base:x} 0x{csr_size:x}>;
+                litex,temperature-csr-offset = <0x{temperature_offset:x}>;
+                litex,temperature-mul = <{temp_scale}>;
+                litex,temperature-div = <{temp_divisor}>;
+                litex,temperature-offset = <{temp_offset}>;{temp_signed_dts}
+                status = "okay";
+            }};
+""".format(
+            hwmon_index        = hwmon_index,
+            csr_base           = csr_base,
+            csr_size           = csr_size,
+            compatibles        = compatibles,
+            temperature_offset = temperature_offset,
+            temp_scale         = get_hwmon_constant("temp_scale"),
+            temp_divisor       = get_hwmon_constant("temp_divisor"),
+            temp_offset        = get_hwmon_constant("temp_offset"),
+            temp_signed_dts    = temp_signed_dts,
+        )
+        hwmon_index += 1
+
+    return dts
+
+def generate_dts_xadc(d):
+    if "xadc" not in d["csr_bases"]:
+        return ""
+
+    xadc_core = d.get("cores", {}).get("xadc", "XADC")
+    compatibles = {
+        "USSystemMonitor":      "\"litex,hwmon-xadc-us\", \"litex,hwmon-xadc\"",
+        "USPSystemMonitor":     "\"litex,hwmon-xadc-usp\", \"litex,hwmon-xadc\"",
+        "ZynqUSPSystemMonitor": "\"litex,hwmon-xadc-zynqusp\", \"litex,hwmon-xadc-usp\", \"litex,hwmon-xadc\"",
+    }.get(xadc_core, "\"litex,hwmon-xadc\"")
+
+    defaults = {
+        "S7SystemMonitor": {
+            "temp_scale":      503975,
+            "temp_divisor":    4096,
+            "temp_offset":     273150,
+            "voltage_scale":   3000,
+            "voltage_divisor": 4096,
+        },
+        "XADC": {
+            "temp_scale":      503975,
+            "temp_divisor":    4096,
+            "temp_offset":     273150,
+            "voltage_scale":   3000,
+            "voltage_divisor": 4096,
+        },
+        "USSystemMonitor": {
+            "temp_scale":      503975,
+            "temp_divisor":    1024,
+            "temp_offset":     273150,
+            "voltage_scale":   3000,
+            "voltage_divisor": 1024,
+        },
+        "USPSystemMonitor": {
+            "temp_scale":      507592,
+            "temp_divisor":    1024,
+            "temp_offset":     279427,
+            "voltage_scale":   3000,
+            "voltage_divisor": 1024,
+        },
+        "ZynqUSPSystemMonitor": {
+            "temp_scale":      507592,
+            "temp_divisor":    1024,
+            "temp_offset":     279427,
+            "voltage_scale":   3000,
+            "voltage_divisor": 1024,
+        },
+    }.get(xadc_core, {
+        "temp_scale":      503975,
+        "temp_divisor":    4096,
+        "temp_offset":     273150,
+        "voltage_scale":   3000,
+        "voltage_divisor": 4096,
+    })
+
+    xadc_csr_base = get_dts_int(d["csr_bases"]["xadc"])
+    csr_data_width = get_dts_constant(d, "config_csr_data_width", 32)
+    csr_data_bytes = max(1, csr_data_width // 8)
+
+    def get_csr_offset(name, default):
+        reg = d.get("csr_registers", {}).get(name)
+        if reg is None:
+            return default
+        return get_dts_int(reg["addr"]) - xadc_csr_base
+
+    def get_csr_size(name):
+        reg = d.get("csr_registers", {}).get(name)
+        if reg is None:
+            return 0
+        return get_dts_int(reg.get("size", 1)) * csr_data_bytes
+
+    offsets = {
+        "temperature": get_csr_offset("xadc_temperature", 0x00),
+        "vccint":      get_csr_offset("xadc_vccint",      0x08),
+        "vccaux":      get_csr_offset("xadc_vccaux",      0x10),
+        "vccbram":     get_csr_offset("xadc_vccbram",     0x18),
+    }
+    xadc_csr_size = 0x20
+    for name, offset in offsets.items():
+        xadc_csr_size = max(xadc_csr_size, offset + get_csr_size("xadc_" + name))
+
+    def get_hwmon_constant(name):
+        return get_dts_constant(d, "xadc_hwmon_" + name, defaults[name])
+
+    return """
+            hwmon0: xadc@{xadc_csr_base:x} {{
+                compatible = {compatibles};
+                reg = <0x{xadc_csr_base:x} 0x{xadc_csr_size:x}>;
+                litex,temperature-csr-offset = <0x{temperature_offset:x}>;
+                litex,vccint-csr-offset = <0x{vccint_offset:x}>;
+                litex,vccaux-csr-offset = <0x{vccaux_offset:x}>;
+                litex,vccbram-csr-offset = <0x{vccbram_offset:x}>;
+                litex,temperature-mul = <{temp_scale}>;
+                litex,temperature-div = <{temp_divisor}>;
+                litex,temperature-offset = <{temp_offset}>;
+                litex,voltage-mul = <{voltage_scale}>;
+                litex,voltage-div = <{voltage_divisor}>;
+                status = "okay";
+            }};
+""".format(
+    xadc_csr_base     = xadc_csr_base,
+    xadc_csr_size     = xadc_csr_size,
+    compatibles       = compatibles,
+    temperature_offset = offsets["temperature"],
+    vccint_offset     = offsets["vccint"],
+    vccaux_offset     = offsets["vccaux"],
+    vccbram_offset    = offsets["vccbram"],
+    temp_scale        = get_hwmon_constant("temp_scale"),
+    temp_divisor      = get_hwmon_constant("temp_divisor"),
+    temp_offset       = get_hwmon_constant("temp_offset"),
+    voltage_scale     = get_hwmon_constant("voltage_scale"),
+    voltage_divisor   = get_hwmon_constant("voltage_divisor"),
+)
+
 def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_device=None, polling=False):
     aliases = {}
 
@@ -828,16 +1054,11 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(i2c0_csr_base=d["csr_bases"]["i2c0"])
 
-    # XADC -----------------------------------------------------------------------------------------
+    # Hardware Monitors ----------------------------------------------------------------------------
 
-    if "xadc" in d["csr_bases"]:
-        dts += """
-            hwmon0: xadc@{xadc_csr_base:x} {{
-                compatible = "litex,hwmon-xadc";
-                reg = <0x{xadc_csr_base:x} 0x20>;
-                status = "okay";
-            }};
-""".format(xadc_csr_base=d["csr_bases"]["xadc"])
+    xadc_dts = generate_dts_xadc(d)
+    dts += xadc_dts
+    dts += generate_dts_hwmon_temperature(d, hwmon_index=1 if xadc_dts else 0)
 
     # CAN ------------------------------------------------------------------------------------------
 

@@ -341,17 +341,28 @@ def run_gui(host, csr_csv, port, timeout=2.0, raise_on_timeout=False):
             return (reg >> button) & 0b1
 
     if with_xadc:
+        xadc_temp_scale      = get_constant(["xadc_hwmon_temp_scale"],      503975)
+        xadc_temp_divisor    = get_constant(["xadc_hwmon_temp_divisor"],    4096)
+        xadc_temp_offset     = get_constant(["xadc_hwmon_temp_offset"],     273150)
+        xadc_voltage_scale   = get_constant(["xadc_hwmon_voltage_scale"],   3000)
+        xadc_voltage_divisor = get_constant(["xadc_hwmon_voltage_divisor"], 4096)
+
         def get_xadc_temp():
-            return bus.regs.xadc_temperature.read()*503.975/4096 - 273.15
+            raw = bus.regs.xadc_temperature.read()
+            return (raw*xadc_temp_scale/xadc_temp_divisor - xadc_temp_offset)/1000
+
+        def get_xadc_voltage(reg):
+            raw = reg.read()
+            return raw*xadc_voltage_scale/xadc_voltage_divisor/1000
 
         def get_xadc_vccint():
-            return bus.regs.xadc_vccint.read()*3/4096
+            return get_xadc_voltage(bus.regs.xadc_vccint)
 
         def get_xadc_vccaux():
-            return bus.regs.xadc_vccaux.read()*3/4096
+            return get_xadc_voltage(bus.regs.xadc_vccaux)
 
         def get_xadc_vccbram():
-            return bus.regs.xadc_vccbram.read()*3/4096
+            return get_xadc_voltage(bus.regs.xadc_vccbram)
 
         def gen_xadc_data(get_cls, n):
             xadc_data = [get_cls()]*n
