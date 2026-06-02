@@ -72,6 +72,23 @@ def dts_close():
     return "};\n"
 
 
+def dts_compatible(compatible, levels=1):
+    if isinstance(compatible, str):
+        compatible = [compatible]
+    values = ", ".join(f'"{c}"' for c in compatible)
+    return indent(f"compatible = {values};\n", levels)
+
+
+def dts_status(levels=1):
+    return indent('status = "okay";\n', levels)
+
+
+def dts_interrupt_parent(name, csr, levels=1):
+    if name + '_interrupt' in csr['constants']:
+        return indent("interrupt-parent = <&intc0>;\n", levels)
+    return ""
+
+
 def dts_intr(name, csr, levels=1):
     irq = csr['constants'].get(name + '_interrupt', None)
     return indent(f"interrupts = <{irq} 1>;\n" if irq is not None else "", levels)
@@ -299,70 +316,292 @@ _overlay_handlers = {
     'ctrl': {
         'handler': peripheral_handler,
         'alias': 'ctrl0',
+        'compatible': 'litex,soc-controller',
+        'node': 'soc_controller',
     },
     'uart': {
         'handler': uart_handler,
         'alias': 'uart0',
+        'compatible': 'litex,uart',
+        'node': 'serial',
+        'soc_props': ['current-speed = <115200>;'],
     },
     'timer0': {
         'handler': peripheral_handler,
+        'compatible': 'litex,timer0',
+        'node': 'timer',
     },
     'ethmac': {
         'handler': ethmac_handler,
         'alias': 'eth0',
+        'compatible': 'litex,liteeth',
+        'node': 'ethernet',
     },
     'ethphy': {
         'handler': ethphy_mdio_handler,
         'alias': 'mdio0',
+        'compatible': 'litex,liteeth-mdio',
+        'node': 'mdio',
+        'soc_props': [
+            '#address-cells = <1>;',
+            '#size-cells = <0>;',
+        ],
     },
     'spimaster': {
         'handler': spimaster_handler,
         'alias': 'spi0',
+        'compatible': 'litex,spi',
+        'node': 'spi',
+        'soc_props': [
+            '#address-cells = <1>;',
+            '#size-cells = <0>;',
+        ],
     },
     'spiflash': {
         'handler': spiflash_handler,
         'alias': 'spi1',
+        'compatible': 'litex,spi-litespi',
+        'node': 'spi',
+        'soc_props': [
+            '#address-cells = <1>;',
+            '#size-cells = <0>;',
+        ],
     },
     'sdcard': {
         'handler': peripheral_handler,
         'alias': 'sdhc0',
+        'compatible': 'litex,mmc',
+        'node': 'sdhc',
     },
-    'i2c0' : {
+    'i2c0': {
         'handler': i2c_handler,
+        'compatible': 'litex,i2c',
+        'node': 'i2c',
+        'soc_props': [
+            'clock-frequency = <100000>;',
+            '#address-cells = <1>;',
+            '#size-cells = <0>;',
+        ],
     },
-    'i2s_rx' : {
+    'i2s_rx': {
         'handler': i2s_handler,
+        'compatible': 'litex,i2s',
+        'node': 'i2s_rx',
+        'soc_props': [
+            '#address-cells = <1>;',
+            '#size-cells = <0>;',
+        ],
     },
-    'i2s_tx' : {
+    'i2s_tx': {
         'handler': i2s_handler,
+        'compatible': 'litex,i2s',
+        'node': 'i2s_tx',
+        'soc_props': [
+            '#address-cells = <1>;',
+            '#size-cells = <0>;',
+        ],
     },
     'watchdog0': {
         'handler': peripheral_handler,
         'alias': 'wdt0',
+        'compatible': 'litex,watchdog',
+        'node': 'watchdog',
     },
-    'mmcm' : {
+    'mmcm': {
         'alias': 'clock0',
         'handler': peripheral_handler,
+        'compatible': 'litex,clk',
+        'node': 'clock',
+        'soc_props': ['#clock-cells = <1>;'],
     },
     'main_ram': {
         'handler': ram_handler,
         'alias': 'ram0',
+        'node': 'memory',
     },
     'identifier_mem': {
         'handler': peripheral_handler,
         'alias': 'dna0',
+        'compatible': 'litex,dna0',
+        'node': 'dna',
     },
     'prbs0': {
         'handler': peripheral_handler,
+        'compatible': 'litex,prbs',
+        'node': 'prbs',
     }
 }
 
 
-def generate_dts_config(csr, overlay_handlers):
+def _generate_config(csr):
+    # Default CSR data width in zephyr is 32 bits.
+    if csr['constants']['config_csr_data_width'] != 32:
+        return ' -DCONFIG_LITEX_CSR_DATA_WIDTH={}'.format(
+            csr['constants']['config_csr_data_width'],
+        )
+    return ''
+
+
+def _has_numeric_suffix(name, prefix):
+    if not name.startswith(prefix):
+        return False
+    return name[len(prefix):].isdigit()
+
+
+def _copy_soc_template(overlay_handlers, template):
+    parm = dict(overlay_handlers[template])
+    parm.pop('alias', None)
+    return parm
+
+
+def _get_soc_node_handler(name, overlay_handlers):
+    if name in overlay_handlers and 'compatible' in overlay_handlers[name]:
+        return overlay_handlers[name]
+
+    for prefix, template in [
+        ('uart',      'uart'),
+        ('timer',     'timer0'),
+        ('i2c',       'i2c0'),
+        ('spimaster', 'spimaster'),
+        ('watchdog',  'watchdog0'),
+        ('prbs',      'prbs0'),
+    ]:
+        if _has_numeric_suffix(name, prefix):
+            return _copy_soc_template(overlay_handlers, template)
+
+    return None
+
+
+def _first_label(labels, prefix):
+    for name, label in labels.items():
+        if name == prefix or _has_numeric_suffix(name, prefix):
+            return label
+    return None
+
+
+def _generate_chosen(labels):
+    dts = ''
+
+    uart_label = _first_label(labels, 'uart')
+    if uart_label is not None:
+        dts += indent('zephyr,console = &{};\n'.format(uart_label), 2)
+        dts += indent('zephyr,shell-uart = &{};\n'.format(uart_label), 2)
+    if 'main_ram' in labels:
+        dts += indent('zephyr,sram = &{};\n'.format(labels['main_ram']), 2)
+    if 'prbs0' in labels:
+        dts += indent('zephyr,entropy = &{};\n'.format(labels['prbs0']), 2)
+
+    if dts == '':
+        return ''
+    return indent('chosen {\n') + dts + indent('};\n')
+
+
+def _generate_aliases(labels):
+    dts = ''
+
+    if 'sdcard' in labels:
+        dts += indent('sdhc0 = &{};\n'.format(labels['sdcard']), 2)
+    if 'watchdog0' in labels:
+        dts += indent('watchdog0 = &{};\n'.format(labels['watchdog0']), 2)
+
+    if dts == '':
+        return ''
+    return indent('aliases {\n') + dts + indent('};\n')
+
+
+def _generate_memory_node(csr, overlay_handlers):
+    if 'main_ram' not in csr.get('memories', {}):
+        return ''
+
+    label = overlay_handlers['main_ram'].get('alias', 'main_ram')
+    base  = csr['memories']['main_ram']['base']
+    size  = csr['memories']['main_ram']['size']
+
+    dts  = indent('{}: memory@{:x} {{\n'.format(label, base))
+    dts += indent('device_type = "memory";\n', 2)
+    dts += indent('reg = <0x{:x} 0x{:x}>;\n'.format(base, size), 2)
+    dts += indent('};\n')
+    return dts
+
+
+def _generate_soc_node(name, parm, csr):
+    label = parm.get('alias', name)
+    node  = parm.get('node', name)
+    base  = csr['csr_bases'][name]
+
+    dts  = indent('{}: {}@{:x} {{\n'.format(label, node, base), 2)
+    dts += dts_compatible(parm['compatible'], 3)
+    dts += dts_interrupt_parent(name, csr, 3)
+
+    node_body = parm['handler'](name, parm, csr).rstrip()
+    if node_body:
+        dts += indent_all(node_body, 2) + '\n'
+
+    for prop in parm.get('soc_props', []):
+        dts += indent(prop + '\n', 3)
+    dts += dts_status(3)
+    dts += indent('};\n', 2)
+    return dts
+
+
+def _generate_soc_bus_start():
+    dts  = indent('soc {\n')
+    dts += dts_compatible('simple-bus', 2)
+    dts += indent('#address-cells = <1>;\n', 2)
+    dts += indent('#size-cells = <1>;\n', 2)
+    dts += indent('ranges;\n', 2)
+    return dts
+
+
+def generate_soc_nodes_dts_config(csr, overlay_handlers):
+    dts = ''
+    labels = {}
+    soc_nodes = []
+
+    if 'cpu' in overlay_handlers:
+        print('Generating SoC node overlay for: cpu')
+        dts += dts_open('cpu', overlay_handlers['cpu'])
+        dts += overlay_handlers['cpu']['handler']('cpu', overlay_handlers['cpu'], csr)
+        dts += dts_close()
+
+    if 'main_ram' in csr.get('memories', {}):
+        labels['main_ram'] = overlay_handlers['main_ram'].get('alias', 'main_ram')
+
+    for name in csr['csr_bases'].keys():
+        parm = _get_soc_node_handler(name, overlay_handlers)
+        if parm is None:
+            print('No SoC node handler for:', name, 'at', hex(csr['csr_bases'][name]))
+            continue
+        print('Generating SoC node for:', name)
+        labels[name] = parm.get('alias', name)
+        soc_nodes.append((name, parm))
+
+    dts += '/ {\n'
+    dts += _generate_chosen(labels)
+    dts += _generate_aliases(labels)
+    dts += _generate_memory_node(csr, overlay_handlers)
+
+    if soc_nodes:
+        dts += _generate_soc_bus_start()
+        for name, parm in soc_nodes:
+            try:
+                dts += _generate_soc_node(name, parm, csr)
+            except KeyError as e:
+                print('  dtsi key', e, 'not found, skip', name)
+        dts += indent('};\n')
+
+    dts += '};\n'
+    return dts, _generate_config(csr)
+
+
+def generate_dts_config(csr, overlay_handlers, generate_soc_nodes=False):
+    if generate_soc_nodes:
+        return generate_soc_nodes_dts_config(csr, overlay_handlers)
+
     dts = cnf = ''
 
     for name, parm in overlay_handlers.items():
-        print('Generating overlay for:',name)
+        print('Generating overlay for:', name)
         enable = 'y'
         dtsi = dts_open(name, parm)
 
@@ -380,18 +619,13 @@ def generate_dts_config(csr, overlay_handlers):
         dtsi += dts_close()
         dts += dtsi
         if 'config_entry' in parm:
-            cnf += ' -DCONFIG_' + parm['config_entry'] + '=' + enable 
+            cnf += ' -DCONFIG_' + parm['config_entry'] + '=' + enable
 
     for name, value in csr['csr_bases'].items():
         if name not in overlay_handlers.keys():
             print('No overlay handler for:', name, 'at', hex(value))
 
-    # Default CSR data width in zephyr is 32 bits
-    if csr['constants']['config_csr_data_width'] != 32:
-        cnf += ' -DCONFIG_LITEX_CSR_DATA_WIDTH={}'.format(
-            csr['constants']['config_csr_data_width'],
-        )
-
+    cnf += _generate_config(csr)
     return dts, cnf
 
 
@@ -419,6 +653,11 @@ def parse_args():
                         help='Output DTS overlay file')
     parser.add_argument('--config', action='store',
                         help='Output config overlay file')
+    parser.add_argument('--generate-soc-nodes', action='store_true',
+                        help=(
+                            'Generate real /soc nodes instead of patching '
+                            'existing Zephyr labels'
+                        ))
     return parser.parse_args()
 
 
@@ -427,7 +666,7 @@ def main():
 
     with open(args.conf_file) as f:
         csr = json.load(f)
-    dts, config = generate_dts_config(csr, _overlay_handlers)
+    dts, config = generate_dts_config(csr, _overlay_handlers, args.generate_soc_nodes)
 
     print_or_save(args.dts, dts)
     print_or_save(args.config, config)
