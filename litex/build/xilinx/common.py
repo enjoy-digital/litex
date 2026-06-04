@@ -337,10 +337,22 @@ class XilinxDDRInputS7:
 
 # 7-Series SDROutput -------------------------------------------------------------------------------
 
+class XilinxSDROutputImplS7(Module):
+    def __init__(self, i, o, clk):
+        for j in range(len(o)):
+            self.specials += Instance("FDCE",
+                i_C   = clk,
+                i_CE  = 1,
+                i_CLR = 0,
+                i_D   = i[j],
+                o_Q   = o[j]
+            )
+
+
 class XilinxSDROutputS7:
     @staticmethod
     def lower(dr):
-        return XilinxDDROutputImplS7(dr.i, dr.i, dr.o, dr.clk)
+        return XilinxSDROutputImplS7(dr.i, dr.o, dr.clk)
 
 
 # 7-Series SDRInput --------------------------------------------------------------------------------

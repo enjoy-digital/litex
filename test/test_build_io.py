@@ -177,6 +177,34 @@ class TestBuildIO(unittest.TestCase):
         v = str(platform.get_verilog(dut, ios={i1, i2, o, clk}))
         self.assertIn("ODDRE1", v)
 
+    def test_xilinx_s7_sdr_output_uses_single_edge_ff(self):
+        i   = Signal(2)
+        o   = Signal(2)
+        clk = Signal()
+
+        v = _convert_special(
+            SDROutput(i, o, clk),
+            {i, o, clk},
+            _merge_overrides(xilinx_special_overrides, xilinx_s7_special_overrides),
+        )
+
+        self.assertEqual(v.count(" of FDCE Module."), 2)
+        self.assertNotIn("ODDR", v)
+
+    def test_xilinx_s7_ddr_output_still_uses_oddr(self):
+        i1  = Signal(2)
+        i2  = Signal(2)
+        o   = Signal(2)
+        clk = Signal()
+
+        v = _convert_special(
+            DDROutput(i1, i2, o, clk),
+            {i1, i2, o, clk},
+            _merge_overrides(xilinx_special_overrides, xilinx_s7_special_overrides),
+        )
+
+        self.assertEqual(v.count(" of ODDR Module."), 2)
+
     def test_gowin_ddr_primitives_are_lowered_per_bit(self):
         dut = Module()
         i   = Signal(4)
