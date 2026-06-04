@@ -31,7 +31,9 @@ GCC_FLAGS = {
     #                       |    |||/--- Single-Precision Floating-Point
     #                       |    ||||/-- Double-Precision Floating-Point
     #                       i    macfd
-    "standard": "-march=rv32i2p0_mc    -mabi=ilp32 ",
+    # Keep software builds on RV32IM: the archived CV32E41P RTL has a broken
+    # compressed-instruction flag path, which can corrupt c.jal link addresses.
+    "standard": "-march=rv32i2p0_m     -mabi=ilp32 ",
 }
 
 # OBI / APB / Trace Layouts ------------------------------------------------------------------------
