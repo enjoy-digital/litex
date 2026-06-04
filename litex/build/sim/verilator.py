@@ -204,13 +204,12 @@ def _run_sim(build_name, as_root=False, interactive=True):
             try:
                 p.wait(timeout=2)
             except subprocess.TimeoutExpired:
-                if p.poll() is None:
-                    p.terminate()
-                    try:
-                        p.wait(timeout=1)
-                    except subprocess.TimeoutExpired:
-                        p.kill()
-                        p.wait()
+                p.terminate()
+                try:
+                    p.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    p.kill()
+                    p.wait()
             print()
             raise SystemExit(130)
         if r == -signal.SIGINT:
