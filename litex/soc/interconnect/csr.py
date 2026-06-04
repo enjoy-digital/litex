@@ -154,6 +154,44 @@ class CSR(_CSRBase):
         yield self.wr_stb.eq(0)
 
 
+class CSRGap(_CSRBase):
+    """Reserve one or more locations in a fixed CSR bank layout.
+
+    When provided, ``n`` is the first reserved CSR index in the bank. Without
+    ``n``, the gap is inserted at its natural declaration position. ``name`` is
+    used as the generated CSR name prefix, while ``name_start`` controls the
+    numeric suffix. Set ``name_start`` to ``None`` to use ``name`` as an exact
+    name for a single-location gap.
+    """
+
+    def __init__(self, count=1, name="reserved", n=None, name_start=0):
+        if count < 1:
+            raise ValueError("CSRGap count must be >= 1.")
+        if name_start is None and count != 1:
+            raise ValueError("CSRGap name_start=None is only valid for a single-location gap.")
+        _CSRBase.__init__(self, 0, name, n)
+        self.count      = count
+        self.name_start = name_start
+
+    def get_name(self, index):
+        if index < 0 or index >= self.count:
+            raise ValueError(f"CSRGap index {index} outside gap size {self.count}.")
+        if self.name_start is None:
+            return self.name
+        return f"{self.name}{self.name_start + index}"
+
+    def read(self):
+        yield
+        return 0
+
+    def write(self, value):
+        yield
+
+
+def _expand_csr_gap(csr_gap):
+    return [CSR(name=csr_gap.get_name(i)) for i in range(csr_gap.count)]
+
+
 class _CompoundCSR(_CSRBase, Module):
     def __init__(self, size, name, n=None):
         _CSRBase.__init__(self, size, name, n)
@@ -521,12 +559,16 @@ def _sort_gathered_items(items):
 
     # Determine items length.
     # -----------------------
-    # Set to length of provided items.
-    items_length = len(items)
+    # Set to length of provided items after expanding gaps.
+    items_length = 0
+    for item in items:
+        items_length += item.count if isinstance(item, CSRGap) else 1
 
     # Eventually extend with fixed items:
     for item in fixed_items:
-        items_length = max(items_length, item.n + 1)
+        item_count = item.count if isinstance(item, CSRGap) else 1
+        if (item.n + item_count) > items_length:
+            items_length = item.n + item_count
 
     # Create list of sorted items:
     # ----------------------------
@@ -536,6 +578,16 @@ def _sort_gathered_items(items):
 
     # Fill fixed items.
     for item in fixed_items:
+        if isinstance(item, CSRGap):
+            for i, csr in enumerate(_expand_csr_gap(item)):
+                location = item.n + i
+                if sorted_items[location] is not None:
+                    csr0 = item.get_name(i)
+                    csr1 = sorted_items[location].name
+                    raise ValueError(f"CSR conflict on location {location} between {csr0} and {csr1}.")
+                sorted_items[location] = csr
+            continue
+
         if sorted_items[item.n] is not None:
             csr0 = item.name
             csr1 = sorted_items[item.n].name
@@ -545,10 +597,14 @@ def _sort_gathered_items(items):
     # Fill variable items in empty locations.
     while len(variable_items):
         item = variable_items.pop(0)
-        for i in range(items_length):
-            if sorted_items[i] is None:
-                sorted_items[i] = item
-                break
+        expanded_items = _expand_csr_gap(item) if isinstance(item, CSRGap) else [item]
+        for expanded_item in expanded_items:
+            for i in range(items_length):
+                if sorted_items[i] is None:
+                    sorted_items[i] = expanded_item
+                    break
+            else:
+                raise ValueError(f"No free CSR location for {item.name}.")
 
     # Fill remaining location with reserved CSR.
     for i in range(items_length):
@@ -614,7 +670,11 @@ class GenericBank(Module):
         # Turn description into simple CSRs and claim ownership of compound CSR modules
         self.simple_csrs = []
         for c in description:
-            if isinstance(c, CSR):
+            if isinstance(c, CSRGap):
+                for csr in _expand_csr_gap(c):
+                    assert csr.size <= busword
+                    self.simple_csrs.append(csr)
+            elif isinstance(c, CSR):
                 assert c.size <= busword
                 self.simple_csrs.append(c)
             elif hasattr(c, "finalize"):
