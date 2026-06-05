@@ -229,7 +229,7 @@ class DocumentedCSRRegion:
                 new_field.start  = underflow_amount
             # If it extends past the range, clamp the size to the range
             if new_field.offset + new_field.size > (end - start):
-                new_field.size = (end - start) - new_field.offset + 1
+                new_field.size = (end - start) - new_field.offset
                 if new_field.start is None:
                     new_field.start = 0
             split_f.append(new_field)

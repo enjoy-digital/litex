@@ -5,10 +5,12 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
+import xml.etree.ElementTree as ET
+from types import SimpleNamespace
 
-from litex.soc.integration.export import get_csr_header
+from litex.soc.integration.export import get_csr_header, get_csr_svd
 from litex.soc.integration.soc import SoCCSRRegion
-from litex.soc.interconnect.csr import CSRField, CSRStorage
+from litex.soc.interconnect.csr import CSRField, CSRStatus, CSRStorage
 
 
 def _get_csr_header(csr):
@@ -20,6 +22,38 @@ def _get_csr_header(csr):
         csr_base                     = 0xf0000000,
         with_fields_access_functions = True,
     )
+
+
+def _get_csr_svd(csr, ordering="big"):
+    csr.finalize(32, ordering)
+    soc = SimpleNamespace(
+        irq = SimpleNamespace(locs={}),
+        csr = SimpleNamespace(
+            data_width = 32,
+            ordering   = ordering,
+            regions    = {
+                "ctrl": SoCCSRRegion(origin=0xf0000000, busword=32, obj=[csr]),
+            },
+        ),
+        mem_regions = {},
+        constants   = {},
+    )
+    return get_csr_svd(soc, description="test")
+
+
+def _get_svd_registers(svd):
+    registers = {}
+    root = ET.fromstring(svd)
+    for register in root.findall("./peripherals/peripheral/registers/register"):
+        fields = {}
+        for field in register.findall("./fields/field"):
+            fields[field.findtext("name")] = {
+                "msb":      field.findtext("msb"),
+                "lsb":      field.findtext("lsb"),
+                "bitRange": field.findtext("bitRange"),
+            }
+        registers[register.findtext("name")] = fields
+    return registers
 
 
 class TestCSRExport(unittest.TestCase):
@@ -58,6 +92,40 @@ class TestCSRExport(unittest.TestCase):
 
         self.assertNotIn("ctrl_too_wide_field_extract", header)
         self.assertNotIn("ctrl_too_wide_field_read", header)
+
+    def test_svd_splits_wide_csr_fields_per_bus_word(self):
+        csr = CSRStatus(name="switch", description="TMU Switch Status", fields=[
+            CSRField("source", size=32, offset=0,  description="Source Thread ID"),
+            CSRField("dest",   size=32, offset=32, description="Destination Thread ID"),
+        ])
+
+        svd       = _get_csr_svd(csr)
+        registers = _get_svd_registers(svd)
+
+        self.assertNotIn("<msb>-", svd)
+        self.assertNotIn("<bitRange>[-", svd)
+        self.assertEqual(registers["SWITCH1"], {
+            "dest": {"msb": "31", "lsb": "0", "bitRange": "[31:0]"},
+        })
+        self.assertEqual(registers["SWITCH0"], {
+            "source": {"msb": "31", "lsb": "0", "bitRange": "[31:0]"},
+        })
+
+    def test_svd_clips_field_crossing_split_csr_boundary(self):
+        csr = CSRStatus(name="wide", fields=[
+            CSRField("middle", size=32, offset=16),
+        ])
+
+        svd       = _get_csr_svd(csr)
+        registers = _get_svd_registers(svd)
+
+        self.assertNotIn("<msb>32</msb>", svd)
+        self.assertEqual(registers["WIDE1"], {
+            "middle": {"msb": "15", "lsb": "0", "bitRange": "[15:0]"},
+        })
+        self.assertEqual(registers["WIDE0"], {
+            "middle": {"msb": "31", "lsb": "16", "bitRange": "[31:16]"},
+        })
 
 
 if __name__ == "__main__":
