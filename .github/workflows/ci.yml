@@ -173,8 +173,9 @@ jobs:
               "cva6":        480,
               "femtorv":      60, "firev":        60, "serv":         45,
               "sentinel":    120, "minerva":     120, "lm32":        120,
-              "marocchino":  120, "microwatt":    300,
+              "marocchino":  120, "mor1kx":       60, "microwatt":    300,
               "vexriscv":    120, "neorv32":     150, "ibex":        150,
+              "picorv32":     60,
               "naxriscv":    240, "vexiiriscv":  240, "vexriscv_smp":360,
           }
           d = {}

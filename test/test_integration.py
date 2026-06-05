@@ -246,7 +246,9 @@ TESTED_CPUS = [
     "firev",        # (riscv   / softcore)
     "lm32",         # (lm32    / softcore)
     "marocchino",   # (or1k    / softcore)
+    "mor1kx",       # (or1k    / softcore)
     "naxriscv",     # (riscv   / softcore)
+    "picorv32",     # (riscv   / softcore)
     "serv",         # (riscv   / softcore)
     "sentinel",     # (riscv   / softcore)
     "vexiiriscv",   # (riscv   / softcore)
@@ -267,8 +269,6 @@ UNTESTED_CPUS = [
     "cva5",         # (riscv   / softcore) -> Verilator misses generated interface header.
     "eos_s3",       # (arm     / hardcore) -> Hardcore.
     "gowin_emcu",   # (arm     / hardcore) -> Hardcore.
-    "mor1kx",       # (or1k    / softcore) -> Verilator compilation issue.
-    "picorv32",     # (riscv   / softcore) -> Verilator compilation issue.
     "rocket",       # (riscv   / softcore) -> Not enough RAM in CI.
     "zynq7000",     # (arm     / hardcore) -> Hardcore.
     "zynqmp",       # (aarch64 / hardcore) -> Hardcore.
