@@ -238,6 +238,7 @@ def test_linux_on_litex_rocket_nexys_video_generation(tmp_path):
     )
 
 TESTED_CPUS = [
+    "blackparrot",  # (riscv   / softcore)
     "coreblocks",   # (riscv   / softcore)
     "cv32e40p",     # (riscv   / softcore)
     "cv32e41p",     # (riscv   / softcore)
@@ -263,7 +264,6 @@ TESTED_CPU_VARIANTS = {
     "microwatt": "standard+irq",
 }
 UNTESTED_CPUS = [
-    "blackparrot",  # (riscv   / softcore) -> Broken install?
     "cortex_m1",    # (arm     / softcore) -> Proprietary code.
     "cortex_m3",    # (arm     / softcore) -> Proprieraty code.
     "cva5",         # (riscv   / softcore) -> Verilator misses generated interface header.

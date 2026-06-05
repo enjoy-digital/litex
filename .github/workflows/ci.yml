@@ -169,6 +169,7 @@ jobs:
           # matters more than precision — least_duration only uses these
           # to rank. Refine from `--durations=0` log output if desired.
           BOOT_TIMES = {
+              "blackparrot":  180,
               "cv32e40p":    120, "cv32e41p":    120,
               "cva6":        480,
               "femtorv":      60, "firev":        60, "serv":         45,
