@@ -131,7 +131,8 @@ static void rx_callback(uint32_t src_ip, uint16_t src_port,
 	}
 	if (opcode == TFTP_OACK) { /* Option Acknowledgement */
 		if(!check_server(src_ip, src_port)) return;
-		send_ack(0);
+		if(!tftp_write)
+			send_ack(0);
 		last_ack = 0;
 		return;
 	}

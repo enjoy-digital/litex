@@ -150,6 +150,13 @@ def test_liteeth_tftp_receive_bounds_host_coverage(tmp_path):
 
             reset_rx(dst, sizeof(dst));
             tftp_write = 1;
+            rx_callback(0, 1069, PORT_IN, oack, sizeof(oack));
+            REQUIRE(send_count == 0);
+            REQUIRE(last_ack == 0);
+            REQUIRE(data_port == 1069);
+
+            reset_rx(dst, sizeof(dst));
+            tftp_write = 1;
             rx_callback(0, 1070, PORT_IN, ack, sizeof(ack));
             REQUIRE(last_ack == 0x1234);
             REQUIRE(data_port == 1070);
