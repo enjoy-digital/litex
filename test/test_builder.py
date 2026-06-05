@@ -199,6 +199,8 @@ class TestSoftwareMakefiles(unittest.TestCase):
 
         self.assertIn("-ffunction-sections", common_mak)
         self.assertIn("-fdata-sections", common_mak)
+        self.assertIn("CXX_STANDARD_INCLUDE_DIRS", common_mak)
+        self.assertIn("-nostdinc++", common_mak)
 
         for path in [
             os.path.join(repo_dir, "litex", "soc", "software", "bios", "Makefile"),
