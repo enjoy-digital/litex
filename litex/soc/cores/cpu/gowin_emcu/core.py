@@ -257,16 +257,5 @@ class GowinEMCU(CPU):
         # ---------------------------------
         self.submodules += ahb.AHB2Wishbone(ahb_targexp0, self.pbus)
 
-    def connect_jtag(self, pads):
-        self.cpu_params.update(
-            i_DAPSWDITMS  = pads.tms,
-            i_DAPTDI      = pads.tdi,
-            o_DAPTDO      = pads.tdo,
-            o_DAPNTDOEN   = Signal(),
-            i_DAPNTRST    = ~self.reset,
-            i_DAPSWCLKTCK = pads.tck,
-            o_DAPJTAGNSW  = Signal(),  # Indicates debug mode, JTAG or SWD
-        )
-
     def do_finalize(self):
         self.specials += Instance("EMCU", **self.cpu_params)
