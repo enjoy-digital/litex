@@ -218,7 +218,7 @@ class AgilexPLL(IntelClocking):
             p_ref_clk_1_freq              = Constant(0, 32),
             p_ref_clk_delay               = 0,
             p_ref_clk_n_div               = config["n"],
-            p_self_reset_en               = "FALSE",
+            p_self_reset_en               = "TRUE",
             p_set_dutycycle               = "SET_DUTYCYCLE_FRACTION",
             p_set_fractional              = "SET_FRACTIONAL_FRACTION",
             p_set_freq                    = "SET_FREQ_DIVISION_VERIFY",
