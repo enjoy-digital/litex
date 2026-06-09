@@ -10,15 +10,16 @@
 # Copyright (c) 2026 Aoba Fujino <41146f@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import sys
+import os
 import subprocess
-import argparse
 
 from migen import *
 
 from litex.build.generic_platform import *
 from litex.build.sim              import SimPlatform
 from litex.build.sim.config       import SimConfig
+from litex.build.sim.qemu.cosim   import qemu_add_args, qemu_configure, qemu_add_sim_modules
+from litex.build.sim.qemu.cosim   import qemu_add_shared_ram, qemu_command, qemu_spawn_when_bridge_ready
 
 from litex.soc.integration.common   import *
 from litex.soc.integration.builder  import *
@@ -463,6 +464,9 @@ def sim_args(parser):
     # JTAG
     parser.add_argument("--with-jtagremote",      action="store_true", help="Enable jtagremote support")
 
+    # QEMU co-simulation.
+    qemu_add_args(parser)
+
     # GPIO.
     parser.add_argument("--with-gpio",            action="store_true",     help="Enable Tristate GPIO (32 pins).")
 
@@ -495,6 +499,7 @@ def main():
         parser.error("--sim-speed-interval must be greater than 0.")
 
     soc_kwargs = soc_core_argdict(args)
+    qemu_enabled = qemu_configure(args, parser, soc_kwargs)
 
     sys_clk_freq = int(1e6)
     sim_config           = SimConfig()
@@ -529,6 +534,10 @@ def main():
             sim_speed_interfaces.append("serial")
             sim_speed_console = True
 
+    # QEMU co-simulation bridge.
+    if qemu_enabled:
+        qemu_add_sim_modules(sim_config, args, parser)
+
     # Create config SoC that will be used to prepare/configure real one.
     conf_soc = SimSoC(**soc_kwargs)
 
@@ -541,14 +550,16 @@ def main():
 
     # RAM / SDRAM.
     ram_boot_address = None
-    soc_kwargs["integrated_main_ram_size"] = args.integrated_main_ram_size
+    main_ram_init = []
     if args.integrated_main_ram_size:
         if args.ram_init is not None:
-            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init,
+            main_ram_init = get_mem_data(args.ram_init,
                 data_width = conf_soc.bus.data_width,
                 endianness = conf_soc.cpu.endianness,
                 offset     = conf_soc.mem_map["main_ram"]
             )
+            if not args.qemu_shared_ram_enabled:
+                soc_kwargs["integrated_main_ram_init"] = main_ram_init
             ram_boot_address = get_boot_address(args.ram_init)
     elif args.with_sdram:
         from litedram.modules   import parse_spd_hexdump
@@ -619,6 +630,13 @@ def main():
         trace_reset_on         = int(float(args.trace_start)) > 0 or int(float(args.trace_end)) > 0,
         spi_flash_init         = None if args.spi_flash_init is None else get_mem_data(args.spi_flash_init, endianness="big"),
         **soc_kwargs)
+    if args.qemu_shared_ram_enabled:
+        qemu_add_shared_ram(
+            soc        = soc,
+            args       = args,
+            init_data  = main_ram_init,
+            data_width = conf_soc.bus.data_width,
+        )
     if ram_boot_address is not None:
         if ram_boot_address == 0:
             ram_boot_address = conf_soc.mem_map["main_ram"]
@@ -630,18 +648,34 @@ def main():
             soc.add_constant("REMOTEIP{}".format(i+1), int(args.remote_ip.split(".")[i]))
 
     # Build/Run ------------------------------------------------------------------------------------
+    qemu_proc = None
+
     def pre_run_callback(vns):
+        nonlocal qemu_proc
         if args.trace:
             generate_gtkw_savefile(builder, vns, args.trace_fst)
+        if qemu_enabled and not args.qemu_no_run:
+            qemu_cmd = qemu_command(builder, soc, args)
+            print("[litex_sim] QEMU command: {}".format(" ".join(qemu_cmd)))
+            qemu_proc = qemu_spawn_when_bridge_ready(
+                cmd     = qemu_cmd,
+                host    = args.qemu_bind,
+                port    = args.qemu_port,
+                timeout = args.qemu_wait_timeout,
+            )
 
     builder = Builder(soc, **parser.builder_argdict)
-    builder.build(
-        sim_config       = sim_config,
-        interactive      = not args.non_interactive,
-        video            = args.with_video_framebuffer or args.with_video_terminal or args.with_video_colorbars,
-        pre_run_callback = pre_run_callback,
-        **parser.toolchain_argdict,
-    )
+    try:
+        builder.build(
+            sim_config       = sim_config,
+            interactive      = not args.non_interactive,
+            video            = args.with_video_framebuffer or args.with_video_terminal or args.with_video_colorbars,
+            pre_run_callback = pre_run_callback,
+            **parser.toolchain_argdict,
+        )
+    finally:
+        if qemu_proc is not None and qemu_proc.poll() is None:
+            qemu_proc.terminate()
 
 if __name__ == "__main__":
     main()
