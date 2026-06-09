@@ -28,6 +28,7 @@ jobs:
       - name: Install Tools
         run: |
           sudo apt-get install wget build-essential ninja-build help2man
+          sudo apt-get install pkg-config python3-venv libglib2.0-dev libpixman-1-dev libfdt-dev device-tree-compiler
           sudo apt-get install libevent-dev libjson-c-dev flex bison
           sudo apt-get install libfl-dev libfl2 zlib1g-dev
 
@@ -40,7 +41,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          python3 -m pip install setuptools wheel requests pexpect meson pytest pytest-xdist pytest-split
+          python3 -m pip install setuptools wheel requests pexpect meson distlib pytest pytest-xdist pytest-split
 
       # Install (n)Migen / LiteX / Cores
       - name: Install LiteX
@@ -147,6 +148,70 @@ jobs:
       # Install Project
       - name: Install Project
         run: python3 setup.py develop --user
+
+      # Build the patched QEMU once for the dedicated co-simulation
+      # integration test. The regular pytest shards skip this test unless
+      # LITEX_QEMU_COSIM_TEST is set by the step below.
+      - name: Build patched QEMU
+        if: matrix.group == 1
+        env:
+          LD_LIBRARY_PATH: ""
+          PKG_CONFIG_PATH: ""
+        run: |
+          export PATH="${pythonLocation}/bin:${HOME}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          qemu_root="${RUNNER_TEMP}/qemu-litex"
+          # Use a mirrored 8.2.x archive so CI is not dependent on download.qemu.org.
+          # Keep parallelism low: this build only feeds one smoke test and can
+          # otherwise hit memory pressure on hosted runners.
+          qemu_build_log="${RUNNER_TEMP}/qemu-litex-build.log"
+          set +e
+          python3 litex/build/sim/qemu/build_qemu_litex.py \
+            --source=archive \
+            --qemu-ref=v8.2.2 \
+            --archive-url=https://sources.cdn.openwrt.org/qemu-8.2.2.tar.xz \
+            --src-dir="${qemu_root}/src" \
+            --install-dir="${qemu_root}/install" \
+            --targets=riscv32-softmmu \
+            --minimal-devices \
+            --system-fdt \
+            --disable-download \
+            --jobs=2 2>&1 | tee "${qemu_build_log}"
+          qemu_build_status=${PIPESTATUS[0]}
+          set -e
+          if [ "${qemu_build_status}" -ne 0 ]; then
+            qemu_build_tail="$(python3 -c 'import pathlib, sys; s = pathlib.Path(sys.argv[1]).read_text(errors="replace").replace("\r", "\n"); s = "\n".join(s.splitlines()[-80:]); print(s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))' "${qemu_build_log}")"
+            echo "::error title=Patched QEMU build failed::${qemu_build_tail}"
+            exit "${qemu_build_status}"
+          fi
+
+      - name: Check patched QEMU
+        if: matrix.group == 1
+        env:
+          LD_LIBRARY_PATH: ""
+          PKG_CONFIG_PATH: ""
+        run: |
+          export PATH="${pythonLocation}/bin:${HOME}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          qemu_root="${RUNNER_TEMP}/qemu-litex"
+          qemu_check_log="${RUNNER_TEMP}/qemu-litex-check.log"
+          set +e
+          python3 litex/build/sim/qemu/check_qemu_litex.py --variants=rv32 --qemu-dir="${qemu_root}/install/bin" 2>&1 | tee "${qemu_check_log}"
+          qemu_check_status=${PIPESTATUS[0]}
+          set -e
+          if [ "${qemu_check_status}" -ne 0 ]; then
+            qemu_check_tail="$(python3 -c 'import pathlib, sys; s = pathlib.Path(sys.argv[1]).read_text(errors="replace").replace("\r", "\n"); s = "\n".join(s.splitlines()[-80:]); print(s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))' "${qemu_check_log}")"
+            echo "::error title=Patched QEMU check failed::${qemu_check_tail}"
+            exit "${qemu_check_status}"
+          fi
+
+      - name: Run QEMU Co-Simulation Integration Test
+        if: matrix.group == 1
+        env:
+          LITEX_QEMU_COSIM_TEST: "1"
+          LD_LIBRARY_PATH: ""
+          PKG_CONFIG_PATH: ""
+        run: |
+          export PATH="${RUNNER_TEMP}/qemu-litex/install/bin:${pythonLocation}/bin:${HOME}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          python3 -m pytest -v test/test_integration.py::test_qemu_cpu
 
       # Generate .test_durations so pytest-split's least_duration algorithm
       # can pack shards optimally (longest tests first, fill remaining
