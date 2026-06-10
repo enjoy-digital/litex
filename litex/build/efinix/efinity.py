@@ -211,6 +211,7 @@ class EfinityToolchain(GenericToolchain):
 
     def build_timing_constraints(self, vns):
         sdc = []
+        constrained_clock_names = set()
 
         # Clock constraints
         for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
@@ -220,6 +221,8 @@ class EfinityToolchain(GenericToolchain):
                     is_port = True
 
             clk_sig = self._vns.get_name(clk)
+            if self.unified and self._is_excluded_io(clk_sig):
+                continue
             if name is None:
                 name = clk_sig
 
@@ -229,6 +232,29 @@ class EfinityToolchain(GenericToolchain):
             else:
                 tpl = "create_clock -name {name} -period {period} [get_nets {{{clk}}}]"
                 sdc.append(tpl.format(name=name, clk=clk_sig, period=str(period)))
+            constrained_clock_names.add(name)
+
+        if self.unified:
+            port_names = {sig for sig, pins, others, resname in self.named_sc}
+            for block in self.ifacewriter.blocks:
+                if not isinstance(block, dict):
+                    continue
+                if block.get("type") != "PLL":
+                    continue
+                for clock in block["clk_out"]:
+                    if clock is None:
+                        continue
+                    clk_sig = clock[0]
+                    if clk_sig not in port_names:
+                        continue
+                    if self._is_excluded_signal_io(clk_sig):
+                        continue
+                    if clk_sig in constrained_clock_names:
+                        continue
+                    period = 1e9/clock[1]
+                    tpl = "create_clock -name {name} -period {period} [get_ports {{{clk}}}]"
+                    sdc.append(tpl.format(name=clk_sig, clk=clk_sig, period=str(period)))
+                    constrained_clock_names.add(clk_sig)
 
         # False path constraints
         for from_, to in sorted(self.false_paths, key=lambda x: (x[0].duid, x[1].duid)):
@@ -351,6 +377,12 @@ class EfinityToolchain(GenericToolchain):
     def _is_excluded_io(self, sig):
         for excluded_io in self.excluded_ios:
             if sig == _signal_name(excluded_io):
+                return True
+        return False
+
+    def _is_excluded_signal_io(self, sig):
+        for excluded_io in self.excluded_ios:
+            if isinstance(excluded_io, Signal) and sig == _signal_name(excluded_io):
                 return True
         return False
 

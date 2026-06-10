@@ -365,6 +365,46 @@ def test_unified_io_constraints_write_isf_assignments(tmp_path, monkeypatch):
     assert "skip_signal" not in isf
 
 
+def test_unified_timing_constraints_use_pll_output_clocks(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    def signal_name(sig):
+        return sig.backtrace[-1][0]
+
+    clk25 = migen.Signal(name="clk25")
+    hard_clk = migen.Signal(name="hard_pll_clk")
+    toolchain = EfinityToolchain("/tmp/efinity")
+    toolchain.unified = True
+    toolchain._build_name = "top"
+    toolchain._vns = SimpleNamespace(get_name=signal_name)
+    toolchain.clocks = {clk25: [40.0, None]}
+    toolchain.false_paths = set()
+    toolchain.named_sc = [
+        ("clk25", ["P1"], [], ("clk25", 0, None)),
+        ("sys_pll0_clk", ["X"], [], ("sys_pll0_clk", 0, None)),
+        ("hard_pll_clk", ["X"], [], ("hard_pll_clk", 0, None)),
+    ]
+    toolchain.excluded_ios = [clk25, hard_clk]
+    toolchain.additional_sdc_commands = []
+    toolchain.ifacewriter.blocks = [{
+        "type"    : "PLL",
+        "name"    : "pll0",
+        "clk_out" : [
+            ["sys_pll0_clk", 50e6, 0, 0, False],
+            ["hard_pll_clk", 200e6, 0, 0, False],
+            ["unused_pll_clk", 100e6, 0, 0, False],
+        ],
+    }]
+
+    assert toolchain.build_timing_constraints(None) == ("top.sdc", "SDC")
+
+    sdc = (tmp_path / "top.sdc").read_text()
+    assert "clk25" not in sdc
+    assert "hard_pll_clk" not in sdc
+    assert "unused_pll_clk" not in sdc
+    assert "create_clock -name sys_pll0_clk -period 20.0 [get_ports {sys_pll0_clk}]" in sdc
+
+
 def test_unified_io_constraints_write_mixed_iface_isf(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
