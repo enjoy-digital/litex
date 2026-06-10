@@ -74,10 +74,8 @@ def connect_axi(master, slave, keep=None, omit=None, axi_full=False):
         channel_modes.pop("b")
     assert len(channel_modes) > 0, "No AXI channels to connect."
     r = []
-    if omit is None:
-        omit = set()
-    elif isinstance(omit, list):
-        omit = set(omit)
+    # Copy omit: it is mutated below and must not modify the caller's set/list.
+    omit = set(omit) if omit is not None else set()
     omit.add("first")
     omit.add("last")
 

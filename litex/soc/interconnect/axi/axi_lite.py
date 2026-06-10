@@ -144,6 +144,8 @@ class AXILiteRemapper(LiteXModule):
         # Mask.
         if size is None:
             size = 2**master.address_width
+        if size != 2**int(log2(size)):
+            raise ValueError(f"Remapper size must be a power of 2 (got 0x{size:x}).")
         mask = 2**int(log2(size)) - 1
 
         # Address Mask and Shift.
@@ -204,9 +206,11 @@ def axi_lite_to_simple(axi_lite, port_adr, port_dat_r=None, port_dat_w=None, por
             do_write.eq(_aw_valid),
             do_read.eq(_ar_valid),
         ),
-        # Start reading/writing immediately not to waste a cycle.
-        axi_lite.aw.ready.eq(last_was_read  | ~_ar_valid),
-        axi_lite.ar.ready.eq(~last_was_read | ~_aw_valid),
+        # Start reading/writing immediately not to waste a cycle. Only accept commands the
+        # underlying port can serve: asserting ready for an absent direction completed the
+        # handshake, dropped the access and deadlocked the master waiting for a response.
+        axi_lite.aw.ready.eq((last_was_read  | ~_ar_valid) if port_dat_w is not None else 0),
+        axi_lite.ar.ready.eq((~last_was_read | ~_aw_valid) if port_dat_r is not None else 0),
     )
 
     if port_dat_r is not None:
