@@ -746,14 +746,14 @@ static unsigned int check_image_in_flash(unsigned int base_address)
 
 	length = MMPTR(base_address);
 	if((length < 32) || (length > 16*1024*1024)) {
-		printf("Error: invalid image length 0x%08lx\n", length);
+		printf("Error: invalid image length 0x%08lx\n", (unsigned long)length);
 		return 0;
 	}
 
 	crc = MMPTR(base_address + 4);
 	got_crc = crc32((unsigned char *)(base_address + 8), length);
 	if(crc != got_crc) {
-		printf("CRC failed (expected %08lx, got %08lx)\n", crc, got_crc);
+		printf("CRC failed (expected %08lx, got %08lx)\n", (unsigned long)crc, (unsigned long)got_crc);
 		return 0;
 	}
 
@@ -777,7 +777,7 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned lon
 				(unsigned long)length, (unsigned long)max_size);
 			return 0;
 		}
-		printf("Copying 0x%08x to 0x%08lx (%ld bytes)...\n", flash_address, ram_address, length);
+		printf("Copying 0x%08x to 0x%08lx (%lu bytes)...\n", flash_address, ram_address, (unsigned long)length);
 		offset = 0;
 		init_progression_bar(length);
 		while (length > 0) {
@@ -799,22 +799,18 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned lon
 
 void flashboot(void)
 {
-	uint32_t length;
-	uint32_t result;
-
 	printf("Booting from flash...\n");
-	length = check_image_in_flash(FLASH_BOOT_ADDRESS);
-	if(!length)
-		return;
 
 #ifdef MAIN_RAM_BASE
 	/* When Main RAM is available, copy the code from the Flash and execute it
-	from Main RAM since faster */
-	result = copy_image_from_flash_to_ram(FLASH_BOOT_ADDRESS, MAIN_RAM_BASE);
-	if(!result)
+	from Main RAM since faster. The image is checked as part of the copy, no
+	need to check it twice (the CRC over flash is slow). */
+	if(!copy_image_from_flash_to_ram(FLASH_BOOT_ADDRESS, MAIN_RAM_BASE))
 		return;
 	boot(0, 0, 0, MAIN_RAM_BASE);
 #else
+	if(!check_image_in_flash(FLASH_BOOT_ADDRESS))
+		return;
 	/* When Main RAM is not available, execute the code directly from Flash (XIP).
        The code starts after (a) length and (b) CRC -- both uint32_t */
 	boot(0, 0, 0, (FLASH_BOOT_ADDRESS + 2 * sizeof(uint32_t)));
