@@ -10,10 +10,36 @@ from types import SimpleNamespace
 import migen
 
 from litex.build.efinix.efinity import EfinityToolchain, _get_design_file_library, build_argdict
-from litex.build.efinix.common import add_gpio_block, gpio_info
+from litex.build.efinix.common import add_gpio_block, efinix_special_overrides, gpio_info
 from litex.build.efinix.ifacewriter import InterfaceWriter
 from litex.build.efinix.toolchain import find_efinity_path, load_efinity_env
+from litex.build.io import DDRInput, DDROutput, DDRTristate, SDRInput, SDROutput, SDRTristate, ClkInput, ClkOutput
 from litex.build.generic_toolchain import GenericToolchain
+from litex.gen import LiteXContext
+from litex.gen.fhdl import verilog
+from migen.fhdl.specials import Tristate
+
+
+class _UnifiedEfinixPlatform:
+    def __init__(self, family="Titanium"):
+        self.family = family
+        self.clks = {}
+        self.toolchain = SimpleNamespace(unified=True)
+
+    def get_pin_name(self, sig):
+        return "pin"
+
+    def get_pin_properties(self, sig):
+        return [("PULL_OPTION", "WEAK_PULLUP")]
+
+
+def _convert_unified_efinix(dut, ios, family="Titanium"):
+    old_platform = LiteXContext.platform
+    LiteXContext.platform = _UnifiedEfinixPlatform(family)
+    try:
+        return str(verilog.convert(dut, ios=ios, special_overrides=efinix_special_overrides))
+    finally:
+        LiteXContext.platform = old_platform
 
 
 def test_build_argdict_wires_infer_sync_set_reset():
@@ -89,6 +115,94 @@ def test_design_file_library_uses_default_library_for_verilog_languages():
     assert _get_design_file_library("rtl/header.vh", "verilog", "mylib") == "default"
     assert _get_design_file_library("rtl/header.svh", "systemverilog", "mylib") == "default"
     assert _get_design_file_library("core.vhd", "vhdl", "worklib") == "worklib"
+
+
+def test_unified_efinix_clock_io_lowers_to_hdl_primitives():
+    dut = migen.Module()
+    clk_i = migen.Signal()
+    clk_o = migen.Signal()
+    pad_o = migen.Signal()
+    dut.specials += [
+        ClkInput(clk_i, clk_o),
+        ClkOutput(clk_o, pad_o),
+    ]
+
+    v = _convert_unified_efinix(dut, {clk_i, clk_o, pad_o})
+
+    assert "EFX_IBUF" in v
+    assert "EFX_OBUF" in v
+
+
+def test_unified_efinix_tristate_lowers_to_hdl_io_buffers():
+    dut = migen.Module()
+    io = migen.Signal(2)
+    o  = migen.Signal(2)
+    oe = migen.Signal(2)
+    i  = migen.Signal(2)
+    dut.specials += Tristate(io, o, oe, i)
+
+    v = _convert_unified_efinix(dut, {io, o, oe, i})
+
+    assert v.count("\nEFX_IO_BUF #(") == 2
+
+
+def test_unified_efinix_registered_io_lowers_to_hdl_primitives():
+    dut = migen.Module()
+    clk = migen.Signal()
+    sdr_i = migen.Signal(2)
+    sdr_o = migen.Signal(2)
+    ddr_i = migen.Signal(2)
+    ddr_o1 = migen.Signal(2)
+    ddr_o2 = migen.Signal(2)
+    ddr_i1 = migen.Signal(2)
+    ddr_i2 = migen.Signal(2)
+    ddr_o = migen.Signal(2)
+    dut.specials += [
+        SDRInput(sdr_i, sdr_o, clk),
+        SDROutput(sdr_o, sdr_i, clk),
+        DDRInput(ddr_i, ddr_o1, ddr_o2, clk),
+        DDROutput(ddr_i1, ddr_i2, ddr_o, clk),
+    ]
+
+    v = _convert_unified_efinix(dut, {
+        clk, sdr_i, sdr_o, ddr_i, ddr_o1, ddr_o2, ddr_i1, ddr_i2, ddr_o,
+    })
+
+    assert v.count("\nEFX_IREG #(") == 2
+    assert v.count("\nEFX_OREG #(") == 2
+    assert v.count("\nEFX_IDDIO #(") == 2
+    assert v.count("\nEFX_ODDIO #(") == 2
+
+
+def test_unified_efinix_sdr_tristate_lowers_to_hdl_ioreg():
+    dut = migen.Module()
+    clk = migen.Signal()
+    io  = migen.Signal(2)
+    o   = migen.Signal(2)
+    oe  = migen.Signal(2)
+    i   = migen.Signal(2)
+    dut.specials += SDRTristate(io, o, oe, i, clk)
+
+    v = _convert_unified_efinix(dut, {clk, io, o, oe, i})
+
+    assert v.count("\nEFX_IOREG #(") == 2
+
+
+def test_unified_efinix_ddr_tristate_uses_family_gpio_primitive():
+    for family, primitive in [("Trion", "EFX_GPIO_V2"), ("Titanium", "EFX_GPIO_V3")]:
+        dut = migen.Module()
+        clk = migen.Signal()
+        io  = migen.Signal(2)
+        o1  = migen.Signal(2)
+        o2  = migen.Signal(2)
+        oe  = migen.Signal(2)
+        i1  = migen.Signal(2)
+        i2  = migen.Signal(2)
+        dut.specials += DDRTristate(io, o1, o2, oe, i1=i1, i2=i2, clk=clk)
+
+        v = _convert_unified_efinix(dut, {clk, io, o1, o2, oe, i1, i2}, family=family)
+
+        assert v.count(f"\n{primitive} #(") == 2
 
 
 def test_unified_io_constraints_write_isf_assignments(tmp_path, monkeypatch):
