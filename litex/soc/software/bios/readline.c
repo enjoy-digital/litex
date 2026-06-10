@@ -207,7 +207,7 @@ int readline(char *buf, int len)
 	unsigned int eol_num = 0;
 	unsigned int wlen;
 	int insert = 1;
-	unsigned char ichar;
+	int ichar;
 
 #ifndef BIOS_CONSOLE_NO_AUTOCOMPLETE
 	char tmp;
@@ -221,6 +221,10 @@ int readline(char *buf, int len)
 	while (1) {
 
 		ichar = read_key();
+
+		/* Ignore unrecognized escape sequences. */
+		if (ichar < 0)
+			continue;
 
 		if ((ichar == '\n') || (ichar == '\r'))
 			break;

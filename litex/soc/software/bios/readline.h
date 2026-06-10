@@ -24,7 +24,7 @@
 
 struct esc_cmds {
 	const char *seq;
-	char val;
+	int val;
 };
 
 #define CTL_CH(c)		((c) - 'a' + 1)
