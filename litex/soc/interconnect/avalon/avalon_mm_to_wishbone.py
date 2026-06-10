@@ -62,7 +62,7 @@ class AvalonMM2Wishbone(Module):
 
         # Avalon -> Wishbone
         self.comb += [
-            # Avalon is byte addresses, Wishbone word addressed
+            # Both sides are word-addressed here (wishbone_base_address is a word address).
             wb.adr.eq(avl.address + wishbone_base_address),
             If(burst_cycle & burst_cycle_last,
                 wb.adr.eq(burst_address + wishbone_base_address)
