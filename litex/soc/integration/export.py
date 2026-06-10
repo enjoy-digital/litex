@@ -185,6 +185,21 @@ def get_mem_header(regions):
     r += "#endif\n"
     return r
 
+def _c_string_literal(s):
+    # json.dumps escapes quotes/backslashes suitably for C, but encodes control characters as
+    # \uXXXX universal-character-names, which are ill-formed in C below U+00A0 (the generated
+    # header would not compile). Escape them as hex with string-splicing to avoid escape run-on.
+    r = "\""
+    for c in s:
+        if c in "\"\\":
+            r += "\\" + c
+        elif (ord(c) < 0x20) or (ord(c) == 0x7f):
+            r += "\\x{:02x}\"\"".format(ord(c))
+        else:
+            r += c
+    r += "\""
+    return r
+
 def get_soc_header(constants, with_access_functions=True):
     r = generated_banner("//")
     r += "#ifndef __GENERATED_SOC_H\n#define __GENERATED_SOC_H\n"
@@ -197,7 +212,7 @@ def get_soc_header(constants, with_access_functions=True):
             r += "#define "+name+"\n"
             continue
         if isinstance(value, str):
-            value = json.dumps(value)
+            value = _c_string_literal(value)
             ctype = "const char *"
         else:
             if isinstance(value, bool):
@@ -205,9 +220,21 @@ def get_soc_header(constants, with_access_functions=True):
             ctype = "int32_t"
             if isinstance(value, int):
                 if value >= 0:
-                    ctype = "uint64_t" if value > 0xffffffff else "uint32_t"
+                    if value > 0xffffffffffffffff:
+                        raise ValueError(f"Constant {name} value {value} does not fit in a 64-bit C type.")
+                    # >32-bit values need an explicit suffix: an unsuffixed decimal literal above
+                    # INT64_MAX is ill-formed C and values above UINT32_MAX must not be truncated.
+                    if value > 0xffffffff:
+                        ctype = "uint64_t"
+                        value = f"0x{value:x}ULL"
+                    else:
+                        ctype = "uint32_t"
                 else:
-                    ctype = "int64_t" if value < -0x80000000 else "int32_t"
+                    if value < -0x8000000000000000:
+                        raise ValueError(f"Constant {name} value {value} does not fit in a 64-bit C type.")
+                    if value < -0x80000000:
+                        ctype = "int64_t"
+                        value = f"{value}LL"
             value = str(value)
         r += "#define "+name+" "+value+"\n"
         if with_access_functions:
@@ -222,14 +249,15 @@ def get_soc_header(constants, with_access_functions=True):
     r += "\n#endif\n"
     return r
 
-def _generate_csr_header_includes_c(with_access_functions):
+def _generate_csr_header_includes_c(with_access_functions, with_fields_access_functions=False):
     includes = ""
     if with_access_functions:
         includes += "#include <generated/soc.h>\n"
     includes += "#ifndef __GENERATED_CSR_H\n"
     includes += "#define __GENERATED_CSR_H\n"
-    if with_access_functions:
+    if with_access_functions or with_fields_access_functions:
         includes += "#include <stdint.h>\n"
+    if with_access_functions:
         includes += "#include <system.h>\n"
         includes += "#ifndef CSR_ACCESSORS_DEFINED\n"
         includes += "#include <hw/common.h>\n"
@@ -375,7 +403,7 @@ def _generate_csr_field_definitions_c(csr, name):
         field_defs += f"#define CSR_{name.upper()}_{csr.name.upper()}_{field.name.upper()}_SIZE {size}\n"
     return field_defs
 
-def _generate_csr_field_accessors_c(name, csr, field):
+def _generate_csr_field_accessors_c(name, csr, field, with_access_functions=True):
     accessors = ""
     if csr.size > 64:
         return accessors
@@ -388,26 +416,30 @@ def _generate_csr_field_accessors_c(name, csr, field):
     accessors += f"static inline {ctype} {field_name}_extract({ctype} oldword) {{\n"
     accessors += f"\t{ctype} mask = 0x{(1 << int(size)) - 1:x};\n"
     accessors += f"\treturn ((oldword >> {offset}) & mask);\n}}\n"
-    accessors += f"static inline {ctype} {field_name}_read(void) {{\n"
-    accessors += f"\t{ctype} word = {reg_name}_read();\n"
-    accessors += f"\treturn {field_name}_extract(word);\n}}\n"
+    # The register-level _read()/_write() functions only exist with access functions enabled: only
+    # emit the pure _extract/_replace helpers without them.
+    if with_access_functions:
+        accessors += f"static inline {ctype} {field_name}_read(void) {{\n"
+        accessors += f"\t{ctype} word = {reg_name}_read();\n"
+        accessors += f"\treturn {field_name}_extract(word);\n}}\n"
     if not getattr(csr, "read_only", False):
         accessors += f"static inline {ctype} {field_name}_replace({ctype} oldword, {ctype} plain_value) {{\n"
         accessors += f"\t{ctype} mask = 0x{(1 << int(size)) - 1:x};\n"
         accessors += f"\treturn (oldword & (~(mask << {offset}))) | ((mask & plain_value) << {offset});\n}}\n"
-        accessors += f"static inline void {field_name}_write({ctype} plain_value) {{\n"
-        accessors += f"\t{ctype} oldword = {reg_name}_read();\n"
-        accessors += f"\t{ctype} newword = {field_name}_replace(oldword, plain_value);\n"
-        accessors += f"\t{reg_name}_write(newword);\n}}\n"
+        if with_access_functions:
+            accessors += f"static inline void {field_name}_write({ctype} plain_value) {{\n"
+            accessors += f"\t{ctype} oldword = {reg_name}_read();\n"
+            accessors += f"\t{ctype} newword = {field_name}_replace(oldword, plain_value);\n"
+            accessors += f"\t{reg_name}_write(newword);\n}}\n"
     return accessors
 
-def _generate_csr_field_functions_c(csr, name):
+def _generate_csr_field_functions_c(csr, name, with_access_functions=True):
     field_funcs = ""
     for field in csr.fields.fields:
-        field_funcs += _generate_csr_field_accessors_c(name, csr, field)
+        field_funcs += _generate_csr_field_accessors_c(name, csr, field, with_access_functions)
     return field_funcs
 
-def _generate_csr_fields_access_functions_c(name, region, origin, alignment, csr_base, with_csr_base_define):
+def _generate_csr_fields_access_functions_c(name, region, origin, alignment, csr_base, with_csr_base_define, with_access_functions=True):
     base_define = with_csr_base_define and not isinstance(region, MockCSRRegion)
     region_defs = f"\n/* {name.upper()} Fields Access Functions */\n"
 
@@ -416,7 +448,7 @@ def _generate_csr_fields_access_functions_c(name, region, origin, alignment, csr
             nr = (csr.size + region.busword - 1) // region.busword
             origin += alignment // 8 * nr
             if hasattr(csr, "fields"):
-                region_defs += _generate_csr_field_functions_c(csr, name)
+                region_defs += _generate_csr_field_functions_c(csr, name, with_access_functions)
     return region_defs
 
 # CSR Header.
@@ -438,7 +470,7 @@ def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_c
     r += "\n"
     r += generated_separator("//", "CSR Includes.")
     r += "\n"
-    r += _generate_csr_header_includes_c(with_access_functions)
+    r += _generate_csr_header_includes_c(with_access_functions, with_fields_access_functions)
     if csr_base is None:
         _csr_base = regions[next(iter(regions))].origin if len(regions) else 0
     else:
@@ -482,7 +514,7 @@ def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_c
         r += "#if LITEX_CSR_FIELDS_ACCESS_FUNCTIONS\n"
         for name, region in regions.items():
             origin = _get_csr_region_origin(region, _csr_base)
-            r += _generate_csr_fields_access_functions_c(name, region, origin, alignment, csr_base, with_csr_base_define)
+            r += _generate_csr_fields_access_functions_c(name, region, origin, alignment, csr_base, with_csr_base_define, with_access_functions)
         r += "#endif /* LITEX_CSR_FIELDS_ACCESS_FUNCTIONS */\n"
 
     r += "\n#endif /* ! __GENERATED_CSR_H */\n"
@@ -581,8 +613,12 @@ def get_csr_json(soc=None, csr_regions=None, constants=None, mem_regions=None):
         if not isinstance(region.obj, Memory):
             for csr in region.obj:
                 _size = (csr.size + region.busword - 1)//region.busword
+                # Use the same predicate as the csr.h generation so that imported regions
+                # (MockCSRs, which carry read_only) keep their type on re-export.
                 _type = "rw"
-                if isinstance(csr, CSRStatus) and not hasattr(csr, "wr_data"):
+                if getattr(csr, "read_only", False):
+                    _type = "ro"
+                elif isinstance(csr, CSRStatus) and not hasattr(csr, "wr_data"):
                     _type = "ro"
                 csr_origin = _get_csr_origin(csr, region_origin)
                 d["csr_registers"][name + "_" + csr.name] = {
