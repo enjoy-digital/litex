@@ -418,6 +418,100 @@ def test_unified_io_constraints_write_importable_pll_isf(tmp_path, monkeypatch):
     assert "for c in calc_result" not in iface
 
 
+def test_unified_io_constraints_write_hard_ip_iface_isf(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    def sig(name, nbits=1):
+        return migen.Signal(nbits, name=name)
+
+    hyperram_pads = SimpleNamespace(
+        clkp_h   = sig("hyperram_clkp_h"),
+        clkp_l   = sig("hyperram_clkp_l"),
+        clkn_h   = sig("hyperram_clkn_h"),
+        clkn_l   = sig("hyperram_clkn_l"),
+        dq_o_h   = sig("hyperram_dq_o_h", 16),
+        dq_o_l   = sig("hyperram_dq_o_l", 16),
+        dq_i_h   = sig("hyperram_dq_i_h", 16),
+        dq_i_l   = sig("hyperram_dq_i_l", 16),
+        dq_oe    = sig("hyperram_dq_oe", 16),
+        rwds_o_h = sig("hyperram_rwds_o_h", 2),
+        rwds_o_l = sig("hyperram_rwds_o_l", 2),
+        rwds_i_h = sig("hyperram_rwds_i_h", 2),
+        rwds_i_l = sig("hyperram_rwds_i_l", 2),
+        rwds_oe  = sig("hyperram_rwds_oe", 2),
+        csn      = sig("hyperram_csn"),
+        rstn     = sig("hyperram_rstn"),
+    )
+    spiflash_pads = SimpleNamespace(
+        cs_n = sig("spiflash_cs_n"),
+        clk  = sig("spiflash_clk"),
+        mosi = sig("spiflash_mosi"),
+        miso = sig("spiflash_miso"),
+        wp   = sig("spiflash_wp"),
+        hold = sig("spiflash_hold"),
+    )
+
+    toolchain = EfinityToolchain("/tmp/efinity")
+    toolchain.unified = True
+    toolchain._build_name = "top"
+    toolchain.named_sc = []
+    toolchain.named_pc = []
+    toolchain.platform = SimpleNamespace(iobank_info=None, device="Ti60F225")
+    toolchain.ifacewriter.blocks = [
+        {
+            "type"      : "HYPERRAM",
+            "name"      : "hp_inst",
+            "location"  : "HYPER_RAM0",
+            "pads"      : hyperram_pads,
+            "ctl_clk"   : sig("hp_clk"),
+            "cal_clk"   : sig("hp_cal_clk"),
+            "clk90_clk" : sig("hp_clk90"),
+        },
+        {
+            "type"     : "SPI_FLASH",
+            "name"     : "flash",
+            "location" : "SPI_FLASH0",
+            "mode"     : "x1",
+            "pads"     : spiflash_pads,
+        },
+        {
+            "type"      : "MIPI_TX_LANE",
+            "name"      : "mipi_tx",
+            "mode"      : "HS",
+            "props"     : {"TX_PROP": "1"},
+            "ressource" : "MIPI_TX0",
+        },
+        {
+            "type"      : "MIPI_RX_LANE",
+            "name"      : "mipi_rx",
+            "mode"      : "HS",
+            "props"     : {"RX_PROP": "1"},
+            "ressource" : "MIPI_RX0",
+        },
+        {
+            "type"         : "REMOTE_UPDATE",
+            "name"         : "ru",
+            "pins"         : SimpleNamespace(),
+            "clock"        : "sys_clk",
+            "invert_clock" : False,
+            "enable"       : False,
+        },
+    ]
+
+    assert toolchain.build_io_constraints() == ("top.isf", "ISF")
+
+    iface = (tmp_path / "iface.isf").read_text()
+    assert 'design.create_block("hp_inst", "HYPERRAM")' in iface
+    assert 'design.set_property("hp_inst", "CS_N_PIN",        "hyperram_csn", "HYPERRAM")' in iface
+    assert 'design.assign_resource("hp_inst", "HYPER_RAM0", "HYPERRAM")' in iface
+    assert 'design.create_block("flash", "SPI_FLASH")' in iface
+    assert 'design.set_property("flash", "MOSI_OUT_PIN",   "spiflash_mosi", "SPI_FLASH")' in iface
+    assert 'design.assign_resource("flash", "SPI_FLASH0","SPI_FLASH")' in iface
+    assert 'design.create_block("mipi_tx","MIPI_TX_LANE", mode="HS")' in iface
+    assert 'design.assign_resource("mipi_rx","MIPI_RX0","MIPI_RX_LANE")' in iface
+    assert 'design.set_device_property("ru", "RECONFIG_EN", "False", "RU")' in iface
+
+
 def test_unified_io_constraints_reject_non_importable_iface_blocks(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 

@@ -21,6 +21,20 @@ namespaces = {
     "xi"    : "http://www.w3.org/2001/XInclude"
 }
 
+def _signal_name(signal):
+    if isinstance(signal, str):
+        return signal
+    name = getattr(signal, "name", None)
+    if name is not None:
+        return name
+    name = getattr(signal, "name_override", None)
+    if name is not None:
+        return name
+    backtrace = getattr(signal, "backtrace", None)
+    if backtrace:
+        return backtrace[-1][0]
+    raise ValueError("Unable to resolve Efinix InterfaceWriter signal name for {}.".format(signal))
+
 # Interface Writer Block ---------------------------------------------------------------------------
 
 class InterfaceWriterBlock(dict):
@@ -289,9 +303,9 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             cmd += 'design.set_property("{}","RSTN_PIN","{}", block_type="PLL")\n\n'.format(name, block["rstn"])
 
         if block.get("shift_ena", None) is not None:
-            cmd += 'design.set_property("{}","PHASE_SHIFT_ENA_PIN","{}","PLL")\n'.format(name, block["shift_ena"].name)
-            cmd += 'design.set_property("{}","PHASE_SHIFT_PIN","{}","PLL")\n'.format(name, block["shift"].name)
-            cmd += 'design.set_property("{}","PHASE_SHIFT_SEL_PIN","{}","PLL")\n'.format(name, block["shift_sel"].name)
+            cmd += 'design.set_property("{}","PHASE_SHIFT_ENA_PIN","{}","PLL")\n'.format(name, _signal_name(block["shift_ena"]))
+            cmd += 'design.set_property("{}","PHASE_SHIFT_PIN","{}","PLL")\n'.format(name, _signal_name(block["shift"]))
+            cmd += 'design.set_property("{}","PHASE_SHIFT_SEL_PIN","{}","PLL")\n'.format(name, _signal_name(block["shift_sel"]))
 
          # Output clock 0 is enabled by default
         for i, clock in enumerate(block["clk_out"]):
@@ -423,7 +437,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         tx_output_load=block.get("output_load", "3")
 
         if isinstance(rst_pin, Signal):
-                rst_pin = rst_pin.name
+                rst_pin = _signal_name(rst_pin)
 
         if mode == "OUTPUT":
             block_type = "LVDS_TX"
@@ -431,7 +445,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             tx_vod     = block.get("tx_vod", "TYPICAL")
             oe_pin     = block.get("oe", "")
             if isinstance(oe_pin, Signal):
-                oe_pin = oe_pin.name
+                oe_pin = _signal_name(oe_pin)
 
             cmd.append('design.create_block("{}", block_type="{}", tx_mode="{}")'.format(name, block_type, tx_mode))
             if self.platform.family in ["Titanium", "Topaz"]:
@@ -449,7 +463,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             cmd.append('design.set_property("{}", "TX_FASTCLK_PIN", "{}", "{}")'.format(name, fast_clk, block_type))
             cmd.append('design.set_property("{}", "TX_MODE",        "{}", "{}")'.format(name, tx_mode, block_type))
             cmd.append('design.set_property("{}", "TX_OE_PIN",      "{}", "{}")'.format(name, oe_pin, block_type))
-            cmd.append('design.set_property("{}", "TX_OUT_PIN",     "{}", "{}")'.format(name, sig.name, block_type))
+            cmd.append('design.set_property("{}", "TX_OUT_PIN",     "{}", "{}")'.format(name, _signal_name(sig), block_type))
             cmd.append('design.set_property("{}", "TX_RST_PIN",     "{}", "{}")'.format(name, rst_pin, block_type))
             cmd.append('design.set_property("{}", "TX_SLOWCLK_PIN", "{}", "{}")'.format(name, slow_clk, block_type))
         else:
@@ -462,9 +476,9 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             rx_term    = block.get("rx_term", "ON")
             rx_voc_driver = block.get("rx_voc_driver", "0")
             if isinstance(term, Signal):
-                term = term.name
+                term = _signal_name(term)
             if isinstance(ena, Signal):
-                ena = ena.name
+                ena = _signal_name(ena)
 
             dynamic_delay = (rx_delay == "DYNAMIC")
             dpa_delay = (rx_delay == "DPA")
@@ -477,15 +491,15 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 dpa_dbg   = block.get("dpa_dbg", "")
 
                 if isinstance(delay_ena, Signal):
-                    delay_ena = delay_ena.name
+                    delay_ena = _signal_name(delay_ena)
                 if isinstance(delay_rst, Signal):
-                    delay_rst = delay_rst.name
+                    delay_rst = _signal_name(delay_rst)
                 if isinstance(delay_inc, Signal):
-                    delay_inc = delay_inc.name
+                    delay_inc = _signal_name(delay_inc)
                 if isinstance(dpa_lock, Signal):
-                    dpa_lock = dpa_lock.name
+                    dpa_lock = _signal_name(dpa_lock)
                 if isinstance(dpa_dbg, Signal):
-                    dpa_dbg = dpa_dbg.name
+                    dpa_dbg = _signal_name(dpa_dbg)
 
             cmd.append('design.create_block("{}", block_type="{}", rx_conn_type="{}")'.format(name, block_type, rx_mode))
             if self.platform.family in ["Titanium", "Topaz"]:
@@ -513,9 +527,9 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                     rx_fifoclk    = block.get("rx_fifoclk", "")
 
                     if isinstance(rx_fifo_empty, Signal):
-                        rx_fifo_empty = rx_fifo_empty.name
+                        rx_fifo_empty = _signal_name(rx_fifo_empty)
                     if isinstance(rx_fifo_rd, Signal):
-                        rx_fifo_rd = rx_fifo_rd.name
+                        rx_fifo_rd = _signal_name(rx_fifo_rd)
 
                     cmd.append('design.set_property("{}", "RX_FIFO_EMPTY_PIN",  "{}", "{}")'.format(name, rx_fifo_empty, block_type))
                     cmd.append('design.set_property("{}", "RX_FIFO_RD_PIN",     "{}", "{}")'.format(name, rx_fifo_rd, block_type))
@@ -530,7 +544,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             cmd.append('design.set_property("{}", "RX_DELAY",       "{}", "{}")'.format(name, delay, block_type))
             cmd.append('design.set_property("{}", "RX_EN_DESER",    "{}", "{}")'.format(name, serdes, block_type))
             cmd.append('design.set_property("{}", "RX_FASTCLK_PIN", "{}", "{}")'.format(name, fast_clk, block_type))
-            cmd.append('design.set_property("{}", "RX_IN_PIN",      "{}", "{}")'.format(name, sig.name, block_type))
+            cmd.append('design.set_property("{}", "RX_IN_PIN",      "{}", "{}")'.format(name, _signal_name(sig), block_type))
             cmd.append('design.set_property("{}", "RX_SLOWCLK_PIN", "{}", "{}")'.format(name, slow_clk, block_type))
             cmd.append('design.set_property("{}", "RX_TERM",        "{}", "{}")'.format(name, rx_term, block_type))
             cmd.append('design.set_property("{}", "RX_RST_PIN",     "{}", "{}")'.format(name, rst_pin, block_type))
@@ -544,31 +558,31 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         pads       = block["pads"]
         name       = block["name"]
         location   = block["location"]
-        ctl_clk    = block["ctl_clk"].name_override
-        cal_clk    = block["cal_clk"].name_override
-        clk90_clk  = block["clk90_clk"].name_override
+        ctl_clk    = _signal_name(block["ctl_clk"])
+        cal_clk    = _signal_name(block["cal_clk"])
+        clk90_clk  = _signal_name(block["clk90_clk"])
 
         cmd = []
         cmd.append('design.create_block("{}", "{}")'.format(name, block_type))
-        cmd.append('design.set_property("{}", "CK_N_HI_PIN",     "{}", "{}")'.format(name, pads.clkn_h.name, block_type))
-        cmd.append('design.set_property("{}", "CK_N_LO_PIN",     "{}", "{}")'.format(name, pads.clkn_l.name, block_type))
-        cmd.append('design.set_property("{}", "CK_P_HI_PIN",     "{}", "{}")'.format(name, pads.clkp_h.name, block_type))
-        cmd.append('design.set_property("{}", "CK_P_LO_PIN",     "{}", "{}")'.format(name, pads.clkp_l.name, block_type))
+        cmd.append('design.set_property("{}", "CK_N_HI_PIN",     "{}", "{}")'.format(name, _signal_name(pads.clkn_h), block_type))
+        cmd.append('design.set_property("{}", "CK_N_LO_PIN",     "{}", "{}")'.format(name, _signal_name(pads.clkn_l), block_type))
+        cmd.append('design.set_property("{}", "CK_P_HI_PIN",     "{}", "{}")'.format(name, _signal_name(pads.clkp_h), block_type))
+        cmd.append('design.set_property("{}", "CK_P_LO_PIN",     "{}", "{}")'.format(name, _signal_name(pads.clkp_l), block_type))
         cmd.append('design.set_property("{}", "CLK90_PIN",       "{}", "{}")'.format(name, clk90_clk, block_type))
         cmd.append('design.set_property("{}", "CLKCAL_PIN",      "{}", "{}")'.format(name, cal_clk, block_type))
         cmd.append('design.set_property("{}", "CLK_PIN",         "{}", "{}")'.format(name, ctl_clk, block_type))
-        cmd.append('design.set_property("{}", "CS_N_PIN",        "{}", "{}")'.format(name, pads.csn.name, block_type))
-        cmd.append('design.set_property("{}", "DQ_IN_HI_PIN",    "{}", "{}")'.format(name, pads.dq_i_h.name, block_type))
-        cmd.append('design.set_property("{}", "DQ_IN_LO_PIN",    "{}", "{}")'.format(name, pads.dq_i_l.name, block_type))
-        cmd.append('design.set_property("{}", "DQ_OE_PIN",       "{}", "{}")'.format(name, pads.dq_oe.name, block_type))
-        cmd.append('design.set_property("{}", "DQ_OUT_HI_PIN",   "{}", "{}")'.format(name, pads.dq_o_h.name, block_type))
-        cmd.append('design.set_property("{}", "DQ_OUT_LO_PIN",   "{}", "{}")'.format(name, pads.dq_o_l.name, block_type))
-        cmd.append('design.set_property("{}", "RST_N_PIN",       "{}", "{}")'.format(name, pads.rstn.name, block_type))
-        cmd.append('design.set_property("{}", "RWDS_IN_HI_PIN",  "{}", "{}")'.format(name, pads.rwds_i_h.name, block_type))
-        cmd.append('design.set_property("{}", "RWDS_IN_LO_PIN",  "{}", "{}")'.format(name, pads.rwds_i_l.name, block_type))
-        cmd.append('design.set_property("{}", "RWDS_OE_PIN",     "{}", "{}")'.format(name, pads.rwds_oe.name, block_type))
-        cmd.append('design.set_property("{}", "RWDS_OUT_HI_PIN", "{}", "{}")'.format(name, pads.rwds_o_h.name, block_type))
-        cmd.append('design.set_property("{}", "RWDS_OUT_LO_PIN", "{}", "{}")'.format(name, pads.rwds_o_l.name, block_type))
+        cmd.append('design.set_property("{}", "CS_N_PIN",        "{}", "{}")'.format(name, _signal_name(pads.csn), block_type))
+        cmd.append('design.set_property("{}", "DQ_IN_HI_PIN",    "{}", "{}")'.format(name, _signal_name(pads.dq_i_h), block_type))
+        cmd.append('design.set_property("{}", "DQ_IN_LO_PIN",    "{}", "{}")'.format(name, _signal_name(pads.dq_i_l), block_type))
+        cmd.append('design.set_property("{}", "DQ_OE_PIN",       "{}", "{}")'.format(name, _signal_name(pads.dq_oe), block_type))
+        cmd.append('design.set_property("{}", "DQ_OUT_HI_PIN",   "{}", "{}")'.format(name, _signal_name(pads.dq_o_h), block_type))
+        cmd.append('design.set_property("{}", "DQ_OUT_LO_PIN",   "{}", "{}")'.format(name, _signal_name(pads.dq_o_l), block_type))
+        cmd.append('design.set_property("{}", "RST_N_PIN",       "{}", "{}")'.format(name, _signal_name(pads.rstn), block_type))
+        cmd.append('design.set_property("{}", "RWDS_IN_HI_PIN",  "{}", "{}")'.format(name, _signal_name(pads.rwds_i_h), block_type))
+        cmd.append('design.set_property("{}", "RWDS_IN_LO_PIN",  "{}", "{}")'.format(name, _signal_name(pads.rwds_i_l), block_type))
+        cmd.append('design.set_property("{}", "RWDS_OE_PIN",     "{}", "{}")'.format(name, _signal_name(pads.rwds_oe), block_type))
+        cmd.append('design.set_property("{}", "RWDS_OUT_HI_PIN", "{}", "{}")'.format(name, _signal_name(pads.rwds_o_h), block_type))
+        cmd.append('design.set_property("{}", "RWDS_OUT_LO_PIN", "{}", "{}")'.format(name, _signal_name(pads.rwds_o_l), block_type))
 
         cmd.append('design.assign_resource("{}", "{}", "{}")\n'.format(name, location, block_type))
 
@@ -583,10 +597,10 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         assert mode in ["x1"] # FIXME: support x4
         assert location == "SPI_FLASH0"
 
-        dq0 = pads.mosi.name
-        dq1 = pads.miso.name
-        dq2 = pads.wp.name
-        dq3 = pads.hold.name
+        dq0 = _signal_name(pads.mosi)
+        dq1 = _signal_name(pads.miso)
+        dq2 = _signal_name(pads.wp)
+        dq3 = _signal_name(pads.hold)
 
         cmd = []
         cmd.append('design.create_block("{}", "SPI_FLASH")'.format(name))
@@ -595,8 +609,8 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         cmd.append('design.set_property("{}", "CLK_PIN",      "",   "SPI_FLASH")'.format(name)) # only required when REG_EN==1
         cmd.append('design.set_property("{}", "RW_WIDTH",     "{}", "SPI_FLASH")'.format(name, mode))
 
-        cmd.append('design.set_property("{}", "CS_N_OUT_PIN",   "{}", "SPI_FLASH")'.format(name, pads.cs_n.name))
-        cmd.append('design.set_property("{}", "SCLK_OUT_PIN",   "{}", "SPI_FLASH")'.format(name, pads.clk.name))
+        cmd.append('design.set_property("{}", "CS_N_OUT_PIN",   "{}", "SPI_FLASH")'.format(name, _signal_name(pads.cs_n)))
+        cmd.append('design.set_property("{}", "SCLK_OUT_PIN",   "{}", "SPI_FLASH")'.format(name, _signal_name(pads.clk)))
         cmd.append('design.set_property("{}", "MOSI_OUT_PIN",   "{}", "SPI_FLASH")'.format(name, dq0))
         cmd.append('design.set_property("{}", "MISO_IN_PIN",    "{}", "SPI_FLASH")'.format(name, dq1))
         cmd.append('design.set_property("{}", "WP_N_OUT_PIN",   "{}", "SPI_FLASH")'.format(name, dq2))
