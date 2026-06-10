@@ -311,9 +311,12 @@ void spiflash_erase_4k_sector(uint32_t addr)
 	transfer_cmd(w_buf, r_buf, 4);
 }
 
+/* Returns the number of bytes written and verified, or -1 when the readback
+   verification failed (e.g. region not erased beforehand). */
 int spiflash_write_stream(uint32_t addr, uint8_t *stream, uint32_t len)
 {
 	int res = 0;
+	uint32_t errors = 0;
 	uint32_t w_len = min(len, SPI_FLASH_BLOCK_SIZE);
 	uint32_t offset = 0;
 	uint32_t j = 0;
@@ -338,6 +341,7 @@ int spiflash_write_stream(uint32_t addr, uint8_t *stream, uint32_t len)
 			uint8_t* peek = (((uint8_t*)SPIFLASH_BASE)+addr+offset+j);
 			if (*peek != stream[offset+j]) {
 				printf("Error: verify failed at 0x%08lx (0x%02x should be 0x%02x)\n", (uint32_t)peek, *peek, stream[offset+j]);
+				errors++;
 			}
 		}
 
@@ -348,6 +352,8 @@ int spiflash_write_stream(uint32_t addr, uint8_t *stream, uint32_t len)
 #ifdef SPIFLASH_DEBUG
   printf("\n");
 #endif
+	if (errors)
+		return -1;
 	return res;
 }
 
