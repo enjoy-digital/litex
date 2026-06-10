@@ -71,8 +71,11 @@ char uart_read(void)
 
 	if(irq_getie()) {
 		while(rx_consume == rx_produce);
-	} else if (rx_consume == rx_produce) {
-		return 0;
+	} else {
+		/* Interrupts are disabled, so the ISR cannot fill the ring buffer:
+		   harvest the RX FIFO ourselves. */
+		while(rx_consume == rx_produce)
+			uart_isr();
 	}
 
 	c = rx_buf[rx_consume];
@@ -82,6 +85,8 @@ char uart_read(void)
 
 int uart_read_nonblock(void)
 {
+	if(!irq_getie() && (rx_consume == rx_produce))
+		uart_isr();
 	return (rx_consume != rx_produce);
 }
 
@@ -92,8 +97,12 @@ void uart_write(char c)
 
 	if(irq_getie()) {
 		while(tx_produce_next == tx_consume);
-	} else if(tx_produce_next == tx_consume) {
-		return;
+	} else {
+		/* Interrupts are disabled, so the ISR cannot drain the ring buffer:
+		   do it ourselves instead of silently dropping the character (e.g.
+		   long printf output from an exception handler). */
+		while(tx_produce_next == tx_consume)
+			uart_isr();
 	}
 
 	oldmask = irq_getmask();
@@ -124,7 +133,10 @@ void uart_init(void)
 
 void uart_sync(void)
 {
-	while(tx_consume != tx_produce);
+	while(tx_consume != tx_produce) {
+		if(!irq_getie())
+			uart_isr();
+	}
 }
 
 #else
