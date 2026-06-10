@@ -268,6 +268,9 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 		if(length_before != total_length) {
 			i = 12000000;
 			length_before = total_length;
+			/* TFTP does not know the file size up front: print one '#' per
+			   downloaded MB, plus a spinner for intra-MB activity. */
+			show_progress(total_length >> 20);
 			if ((total_length & (0x8000 - 1)) == 0)
 				show_progress(-1);
 		}
