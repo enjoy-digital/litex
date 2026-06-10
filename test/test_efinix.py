@@ -27,6 +27,7 @@ from litex.build.io import (
 from litex.build.generic_toolchain import GenericToolchain
 from litex.gen import LiteXContext
 from litex.gen.fhdl import verilog
+from litex.soc.cores.jtag import EfinixJTAG
 from migen.fhdl.specials import Tristate
 
 
@@ -41,6 +42,42 @@ class _UnifiedEfinixPlatform:
 
     def get_pin_properties(self, sig):
         return [("PULL_OPTION", "WEAK_PULLUP")]
+
+
+class _JTAGPins(SimpleNamespace):
+    def flatten(self):
+        return [
+            self.CAPTURE, self.DRCK, self.RESET, self.RUNTEST, self.SEL, self.SHIFT,
+            self.TCK, self.TDI, self.TMS, self.UPDATE, self.TDO,
+        ]
+
+
+class _LegacyEfinixJTAGPlatform:
+    def __init__(self):
+        self.toolchain = SimpleNamespace(
+            unified=False,
+            ifacewriter=InterfaceWriter("/tmp/efinity"),
+            excluded_ios=[],
+        )
+        self._pins = _JTAGPins(
+            CAPTURE=migen.Signal(name="capture"),
+            DRCK=migen.Signal(name="drck"),
+            RESET=migen.Signal(name="reset"),
+            RUNTEST=migen.Signal(name="runtest"),
+            SEL=migen.Signal(name="sel"),
+            SHIFT=migen.Signal(name="shift"),
+            TCK=migen.Signal(name="tck"),
+            TDI=migen.Signal(name="tdi"),
+            TMS=migen.Signal(name="tms"),
+            UPDATE=migen.Signal(name="update"),
+            TDO=migen.Signal(name="tdo"),
+        )
+
+    def add_extension(self, io):
+        self.io = io
+
+    def request(self, name):
+        return self._pins
 
 
 def _convert_unified_efinix(dut, ios, family="Titanium"):
@@ -203,6 +240,28 @@ def test_unified_efinix_differential_io_lowers_to_lvds_primitives():
 
         assert f"\n{tx_primitive} #(" in v
         assert f"\n{rx_primitive} #(" in v
+
+
+def test_unified_efinix_jtag_lowers_to_hdl_primitive():
+    platform = _UnifiedEfinixPlatform()
+    dut = EfinixJTAG(platform, id=2)
+
+    v = str(verilog.convert(dut, ios={dut.tck, dut.tms, dut.tdi, dut.tdo}))
+
+    assert "\nEFX_JTAG_V1 #(" in v
+    assert '.RESOURCE ("JTAG_USER2")' in v
+
+
+def test_legacy_efinix_jtag_lowers_to_ifacewriter_block():
+    platform = _LegacyEfinixJTAGPlatform()
+    dut = EfinixJTAG(platform, id=3)
+
+    str(verilog.convert(dut, ios={dut.tck, dut.tms, dut.tdi, dut.tdo}))
+
+    assert len(platform.toolchain.ifacewriter.blocks) == 1
+    assert platform.toolchain.ifacewriter.blocks[0]["type"] == "JTAG"
+    assert platform.toolchain.ifacewriter.blocks[0]["id"] == 3
+    assert len(platform.toolchain.excluded_ios) == 11
 
 
 def test_unified_efinix_tristate_lowers_to_hdl_io_buffers():
