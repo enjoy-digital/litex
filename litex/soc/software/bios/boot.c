@@ -1071,6 +1071,7 @@ static void sataboot_from_json(const char * filename)
 	boot_from_json_buffer(boot_json_buffer, length, sataboot_json_load, NULL);
 }
 
+#ifdef MAIN_RAM_BASE
 static void sataboot_from_bin(const char * filename)
 {
 	uint32_t result;
@@ -1079,6 +1080,7 @@ static void sataboot_from_bin(const char * filename)
 		return;
 	boot(0, 0, 0, MAIN_RAM_BASE);
 }
+#endif
 
 void sataboot(void)
 {
@@ -1089,9 +1091,11 @@ void sataboot(void)
 	printf("Booting from boot.json...\n");
 	sataboot_from_json("boot.json");
 
+#ifdef MAIN_RAM_BASE
 	/* Boot from boot.bin */
 	printf("Booting from boot.bin...\n");
 	sataboot_from_bin("boot.bin");
+#endif
 
 	/* Boot failed if we are here... */
 	printf("SATA boot failed.\n");
