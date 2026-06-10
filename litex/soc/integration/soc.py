@@ -140,8 +140,13 @@ class SoCRegion:
             raise SoCError()
         if (not self.decode) or ((origin == 0) and (size == 2**bus.address_width)):
             return lambda a: True
-        origin >>= int(math.log2(bus.data_width//8)) # bytes to words aligned.
-        size   >>= int(math.log2(bus.data_width//8)) # bytes to words aligned.
+        # Convert Origin/Size from bytes to words when the decoded address is word-aligned: AXI/AXI-
+        # Lite interconnects pre-shift addresses to words before calling the decoder and Wishbone
+        # buses carry word addresses natively with addressing="word". With addressing="byte", the
+        # Wishbone Decoder sees raw byte addresses, so no conversion must be done.
+        if not ((bus.standard == "wishbone") and (bus.addressing == "byte")):
+            origin >>= int(math.log2(bus.data_width//8)) # bytes to words aligned.
+            size   >>= int(math.log2(bus.data_width//8)) # bytes to words aligned.
         return lambda a: (a[log2_int(size):] == (origin >> log2_int(size)))
 
     def __str__(self):
