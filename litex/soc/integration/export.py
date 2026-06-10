@@ -780,6 +780,11 @@ def get_csr_csv(soc=None, csr_regions=None, constants=None, mem_regions=None):
 
 # SVD Export --------------------------------------------------------------------------------------
 
+def _svd_cdata(description):
+    # A literal "]]>" inside a CDATA section would terminate it and break the whole SVD: split it
+    # across two CDATA sections (standard XML escaping technique).
+    return "<![CDATA[{}]]>".format(str(description).replace("]]>", "]]]]><![CDATA[>"))
+
 def get_csr_svd(soc, vendor="litex", name="soc", description=None):
     def sub_csr_bit_range(busword, csr, offset):
         nwords = (csr.size + busword - 1)//busword
@@ -793,7 +798,7 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
         svd.append('                <register>')
         svd.append('                    <name>{}</name>'.format(csr.short_numbered_name))
         if description is not None:
-            svd.append('                    <description><![CDATA[{}]]></description>'.format(description))
+            svd.append('                    <description>{}</description>'.format(_svd_cdata(description)))
         svd.append('                    <addressOffset>0x{:04x}</addressOffset>'.format(csr_address))
         svd.append('                    <resetValue>0x{:02x}</resetValue>'.format(csr.reset_value))
         svd.append('                    <size>{}</size>'.format(length))
@@ -810,8 +815,8 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
                     field.offset + field.size - 1, field.offset))
                 svd.append('                            <lsb>{}</lsb>'.format(field.offset))
                 if field.description is not None:
-                    svd.append('                            <description><![CDATA[{}]]></description>'.format(
-                        reflow(field.description)))
+                    svd.append('                            <description>{}</description>'.format(
+                        _svd_cdata(reflow(field.description))))
                 svd.append('                        </field>')
         else:
             field_size = csr.size
@@ -852,11 +857,11 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
     svd.append('    <vendor>{}</vendor>'.format(vendor))
     svd.append('    <name>{}</name>'.format(name.upper()))
     if description is not None:
-        svd.append('    <description><![CDATA[{}]]></description>'.format(reflow(description)))
+        svd.append('    <description>{}</description>'.format(_svd_cdata(reflow(description))))
     else:
         fmt = "%Y-%m-%d %H:%M:%S"
         build_time = datetime.datetime.fromtimestamp(time.time()).strftime(fmt)
-        svd.append('    <description><![CDATA[{}]]></description>'.format(reflow("Litex SoC " + build_time)))
+        svd.append('    <description>{}</description>'.format(_svd_cdata(reflow("Litex SoC " + build_time))))
     svd.append('')
     svd.append('    <addressUnitBits>8</addressUnitBits>')
     svd.append('    <width>32</width>')
@@ -874,8 +879,8 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
         svd.append('            <baseAddress>0x{:08X}</baseAddress>'.format(region.origin))
         svd.append('            <groupName>{}</groupName>'.format(region.name.upper()))
         if len(region.sections) > 0:
-            svd.append('            <description><![CDATA[{}]]></description>'.format(
-                reflow(region.sections[0].body())))
+            svd.append('            <description>{}</description>'.format(
+                _svd_cdata(reflow(region.sections[0].body()))))
         svd.append('            <registers>')
         for csr in region.csrs:
             description = None

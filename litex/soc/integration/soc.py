@@ -111,10 +111,14 @@ class SoCRegion:
         self.logger    = logging.getLogger("SoCRegion")
         self.origin    = origin
         self.decode    = decode
-        if not isinstance(size, int):
-            raise ValueError("Region size must be an integer.")
+        if (not isinstance(size, int)) or isinstance(size, bool):
+            self.logger.error("Region size must be an {} (got {}).".format(
+                colorer("integer"), colorer(repr(size), color="red")))
+            raise SoCError()
         if size <= 0:
-            raise ValueError("Region size must be positive.")
+            self.logger.error("Region size must be {} (got {}).".format(
+                colorer("positive"), colorer(size, color="red")))
+            raise SoCError()
         self.size      = size
         if size != 2**log2_int(size, False):
             self.logger.info("Region size {} internally from {} to {}.".format(
@@ -382,7 +386,9 @@ class SoCBusHandler(LiteXModule):
                 colorer("allocated" if allocated else "added", color="cyan" if allocated else "green"),
                 str(region)))
         else:
-            self.logger.error("{} is not a supported Region.".format(colorer(name, color="red")))
+            self.logger.error("{} is not a supported Region (got {}, expected SoCRegion/SoCIORegion).".format(
+                colorer(name, color="red"),
+                colorer(type(region).__name__, color="red")))
             raise SoCError()
 
     def alloc_region(self, name, size, cached=True, linker=False, mode="rw"):
@@ -1262,7 +1268,7 @@ class SoC(LiteXModule):
             reserved_regions = bus_reserved_regions,
            )
 
-        # SoC Bus Handler --------------------------------------------------------------------------
+        # SoC CSR Handler --------------------------------------------------------------------------
         self.csr = SoCCSRHandler(
             data_width    = csr_data_width,
             address_width = csr_address_width,
@@ -2733,7 +2739,7 @@ class LiteXSoC(SoC):
 
         # Debug.
         if software_debug:
-            self.add_constant("SPISDCARD_DEBUG")
+            self.add_constant(f"{name}_DEBUG")
 
     # Add SDCard -----------------------------------------------------------------------------------
     def add_sdcard(self, name="sdcard", sdcard_name="sdcard", software_debug=False, **kwargs):
@@ -2773,7 +2779,7 @@ class LiteXSoC(SoC):
                     self.block2mem = block2mem = SDBlock2MemDMA(bus=bus, endianness=soc.cpu.endianness)
                     self.comb += core.source.connect(block2mem.sink)
                     dma_bus = getattr(soc, "dma_bus", soc.bus)
-                    dma_bus.add_master(master=bus)
+                    dma_bus.add_master(name=f"{name}_block2mem", master=bus)
 
                 # Mem2Block DMA.
                 if "write" in mode:
@@ -2786,7 +2792,7 @@ class LiteXSoC(SoC):
                     self.mem2block = mem2block = SDMem2BlockDMA(bus=bus, endianness=soc.cpu.endianness)
                     self.comb += mem2block.source.connect(core.sink)
                     dma_bus = getattr(soc, "dma_bus", soc.bus)
-                    dma_bus.add_master(master=bus)
+                    dma_bus.add_master(name=f"{name}_mem2block", master=bus)
 
                 # Interrupts.
                 self.ev = ev = EventManager()
@@ -3023,6 +3029,10 @@ class LiteXSoC(SoC):
             if msi_type in ["msi", "msi-multi-vector"]:
                 self.comb += msi.source.connect(phy.msi)
             self.msis = dict(msis or {})
+        elif msis:
+            self.logger.warning("PCIe {} {}: requires with_msi=True.".format(
+                colorer("msis", color="yellow"),
+                colorer("ignored", color="yellow")))
 
         # DMAs.
         def _pcie_dma_depth(name, depth, index, default=None):
@@ -3064,8 +3074,13 @@ class LiteXSoC(SoC):
             if with_dma_table and map_dma_irqs:
                 self.msis[f"{name.upper()}_DMA{i}_WRITER"] = dma.writer.irq
                 self.msis[f"{name.upper()}_DMA{i}_READER"] = dma.reader.irq
-        self.add_constant("DMA_CHANNELS",   ndmas)
-        self.add_constant("DMA_ADDR_WIDTH", address_width)
+        # Prefix the constants with the instance name so a second add_pcie() does not abort on
+        # duplicate constants; keep the legacy unprefixed constants for the default instance.
+        self.add_constant(f"{name}_DMA_CHANNELS",   ndmas)
+        self.add_constant(f"{name}_DMA_ADDR_WIDTH", address_width)
+        if name == "pcie":
+            self.add_constant("DMA_CHANNELS",   ndmas)
+            self.add_constant("DMA_ADDR_WIDTH", address_width)
 
         # Map/Connect MSI IRQs.
         if with_msi and auto_map_msi_irqs:
@@ -3579,13 +3594,15 @@ def soc_core_args(parser, cpu_type="vexriscv", cpu_variant=None):
     soc_group.add_argument("--uart-name",                default="serial",    type=str,      help="UART type/name.")
     soc_group.add_argument("--uart-baudrate",            default=115200,      type=auto_int, help="UART baudrate.")
     soc_group.add_argument("--uart-fifo-depth",          default=16,          type=auto_int, help="UART FIFO depth.")
+    soc_group.add_argument("--uart-with-dynamic-baudrate", action="store_true",              help="Enable dynamic UART baudrate (tuning CSR).")
+    soc_group.add_argument("--uart-rx-fifo-rx-we",       action="store_true",                help="Use FIFO RX We on UART RX path.")
 
     # UARTBone parameters.
     soc_group.add_argument("--with-uartbone",            action="store_true",                help="Enable UARTBone.")
 
     # JTAGBone parameters.
     soc_group.add_argument("--with-jtagbone",            action="store_true",                help="Enable JTAGBone support.")
-    soc_group.add_argument("--jtagbone-chain",           default=1,          type=int,       help="JTAGBone chain index.")
+    soc_group.add_argument("--jtagbone-chain",           default=1,          type=auto_int,  help="JTAGBone chain index.")
 
     # Timer parameters.
     soc_group.add_argument("--no-timer",                 action="store_true",                help="Disable timer.")
