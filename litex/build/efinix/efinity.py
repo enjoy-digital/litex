@@ -100,6 +100,24 @@ def _add_custom_params(parent, params):
             "value_type": value_type,
         })
 
+def _efinity_supports_unified_flow(efinity_path):
+    map_options = os.path.join(efinity_path, "bin", "efx_map_options.xml")
+    run_script  = os.path.join(efinity_path, "scripts", "efx_run.py")
+    try:
+        with open(map_options, "r") as f:
+            map_options_data = f.read()
+        with open(run_script, "r") as f:
+            run_script_data = f.read()
+    except OSError:
+        return False
+
+    return (
+        "--peri-syn-instantiation" in map_options_data and
+        "--peri-syn-inference"     in map_options_data and
+        "--un_flow"                in run_script_data and
+        "--peri_netlist"           in run_script_data
+    )
+
 
 # Efinity Toolchain --------------------------------------------------------------------------------
 
@@ -136,6 +154,11 @@ class EfinityToolchain(GenericToolchain):
         **kwargs):
 
         self.unified                   = efx_unified
+        if self.unified and not _efinity_supports_unified_flow(self.efinity_path):
+            raise OSError(
+                "Efinity unified netlist flow requires an Efinity installation with "
+                "periphery synthesis support (--peri-syn-instantiation/--peri-syn-inference)."
+            )
         self._efx_map_params           = _default_efx_map_params()
         self._efx_pnr_params           = _default_efx_pnr_params()
         self._efx_pgm_params           = _default_efx_pgm_params()
