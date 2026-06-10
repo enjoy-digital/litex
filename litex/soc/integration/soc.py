@@ -2016,6 +2016,14 @@ class LiteXSoC(SoC):
         l2_cache_full_memory_we = True,
         **kwargs):
 
+        # Checks.
+        if phy is None:
+            self.logger.error("SDRAM requires {}.".format(colorer("phy", color="red")))
+            raise SoCError()
+        if module is None:
+            self.logger.error("SDRAM requires {}.".format(colorer("module", color="red")))
+            raise SoCError()
+
         # Imports.
         from litedram.common import LiteDRAMNativePort
         from litedram.core import LiteDRAMCore
@@ -3059,6 +3067,10 @@ class LiteXSoC(SoC):
 
     # Add Video ColorBars Pattern ------------------------------------------------------------------
     def add_video_colorbars(self, name="video_colorbars", phy=None, timings="800x600@60Hz", clock_domain="sys"):
+        if phy is None:
+            self.logger.error("Video colorbars requires {}.".format(colorer("phy", color="red")))
+            raise SoCError()
+
         # Imports.
         from litex.soc.cores.video import VideoTimingGenerator, ColorBarsPattern
 
@@ -3082,6 +3094,9 @@ class LiteXSoC(SoC):
     # Add Video Terminal ---------------------------------------------------------------------------
     def add_video_terminal(self, name="video_terminal", phy=None, timings="800x600@60Hz", clock_domain="sys",
                            with_extended_csi=False, visible_cols=None):
+        if phy is None:
+            self.logger.error("Video terminal requires {}.".format(colorer("phy", color="red")))
+            raise SoCError()
         if not hasattr(self, "uart"):
             self.logger.error("Video terminal requires {} peripheral.".format(
                 colorer("uart", color="red")))
@@ -3159,6 +3174,9 @@ class LiteXSoC(SoC):
         return self.bus.regions[name].origin
 
     def add_video_framebuffer(self, name="video_framebuffer", phy=None, timings="800x600@60Hz", clock_domain="sys", format="rgb888", fifo_depth=64*KILOBYTE):
+        if phy is None:
+            self.logger.error("Video framebuffer requires {}.".format(colorer("phy", color="red")))
+            raise SoCError()
         if not hasattr(self, "sdram"):
             self.logger.error("Video framebuffer requires {}.".format(
                 colorer("sdram", color="red")))
@@ -3174,11 +3192,13 @@ class LiteXSoC(SoC):
         from litex.soc.cores.video import video_framebuffer_size
 
         # Video Timing Generator.
+        self.check_if_exists(f"{name}_vtg")
         vtg = VideoTimingGenerator(default_video_timings=timings if isinstance(timings, str) else timings[1])
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
         self.add_module(name=f"{name}_vtg", module=vtg)
 
         # Video FrameBuffer.
+        self.check_if_exists(name)
         framebuffer_size = video_framebuffer_size(hres, vres, format)
         base = self._get_video_framebuffer_base(name, framebuffer_size)
         vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
