@@ -529,7 +529,14 @@ class SoCBusHandler(LiteXModule):
                     wishbone.Interface   : wishbone.Converter,
                     axi.AXILiteInterface : axi.AXILiteConverter,
                     axi.AXIInterface     : axi.AXIConverter,
-                }[interface_cls]
+                }.get(interface_cls)
+                if converter_cls is None:
+                    self.logger.error("{} {} Data-Width conversion from {}-bit to {}-bit.".format(
+                        colorer(name, color="red"),
+                        colorer("no supported", color="red"),
+                        colorer(interface.data_width),
+                        colorer(self.data_width)))
+                    raise SoCError()
                 adapted_interface = interface_cls(**self._get_interface_args(interface, data_width=self.data_width))
 
                 if direction == "m2s":
@@ -613,7 +620,14 @@ class SoCBusHandler(LiteXModule):
                     (axi.AXIInterface,     axi.AXILiteInterface): axi.AXI2AXILite,
                     (axi.AXIInterface,     wishbone.Interface)  : axi.AXI2Wishbone,
                     (ahb.AHBInterface,     wishbone.Interface)  : ahb.AHB2Wishbone,
-                }[type(master), type(slave)]
+                }.get((type(master), type(slave)))
+                if bridge_cls is None:
+                    self.logger.error("{} {} Bus-Standard conversion from {} to {}.".format(
+                        colorer(name, color="red"),
+                        colorer("no supported", color="red"),
+                        colorer(type(master).__name__),
+                        colorer(type(slave).__name__)))
+                    raise SoCError()
                 bridge = bridge_cls(master, slave)
                 self.submodules += bridge
                 return adapted_interface
@@ -1388,8 +1402,9 @@ class SoC(LiteXModule):
             colorer(f"0x{contents_size:x}")))
         ram.mem.init = contents
 
-        # RAM Auto-Resize (Optional).
-        if auto_size and ram_region.is_rom:
+        # RAM Auto-Resize (Optional). Skip on empty contents: resizing would create a depth-0
+        # Memory that only fails much later, at elaboration, with a cryptic error.
+        if auto_size and contents and ram_region.is_rom:
             self.logger.info("Auto-Resizing {} {} from {} to {}.".format(
                 ram_type,
                 colorer(name),
