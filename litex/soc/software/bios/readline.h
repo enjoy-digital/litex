@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define CMD_LINE_BUFFER_SIZE	64
+#define CMD_LINE_BUFFER_SIZE	128
 
 #ifdef BIOS_CONSOLE_NO_ANSI
 #define ANSI_BOLD		""
@@ -45,8 +45,6 @@ struct esc_cmds {
 #define KEY_PAGEUP		135		/* Cursor Key Page Up	*/
 #define KEY_PAGEDOWN		136		/* Cursor Key Page Down	*/
 #define KEY_DEL			137		/* Cursor Key Del	*/
-
-#define MAX_CMDBUF_SIZE		256
 
 #define CTL_BACKSPACE		('\b')
 #define DEL			255
