@@ -941,8 +941,13 @@ static void sdcardboot_from_bin(const char * filename)
 }
 #endif
 
-void sdcardboot(void)
+void sdcardboot(int nb_params, char **params)
 {
+	char * filename = NULL;
+
+	if (nb_params > 0)
+		filename = params[0];
+
 #ifdef CSR_SPISDCARD_BASE
 	printf("Booting from SDCard in SPI-Mode...\n");
 	fatfs_set_ops_spisdcard();	/* use spisdcard disk access ops */
@@ -952,15 +957,20 @@ void sdcardboot(void)
 	fatfs_set_ops_sdcard();		/* use sdcard disk access ops */
 #endif
 
-	/* Boot from boot.json */
-	printf("Booting from boot.json...\n");
-	sdcardboot_from_json("boot.json");
+	if (filename) {
+		printf("Booting from %s (JSON)...\n", filename);
+		sdcardboot_from_json(filename);
+	} else {
+		/* Boot from boot.json */
+		printf("Booting from boot.json...\n");
+		sdcardboot_from_json("boot.json");
 
 #ifdef MAIN_RAM_BASE
-	/* Boot from boot.bin */
-	printf("Booting from boot.bin...\n");
-	sdcardboot_from_bin("boot.bin");
+		/* Boot from boot.bin */
+		printf("Booting from boot.bin...\n");
+		sdcardboot_from_bin("boot.bin");
 #endif
+	}
 
 	/* Boot failed if we are here... */
 	printf("SDCard boot failed.\n");
@@ -1089,20 +1099,30 @@ static void sataboot_from_bin(const char * filename)
 }
 #endif
 
-void sataboot(void)
+void sataboot(int nb_params, char **params)
 {
+	char * filename = NULL;
+
+	if (nb_params > 0)
+		filename = params[0];
+
 	printf("Booting from SATA...\n");
 	fatfs_set_ops_sata();		/* use sata disk access ops */
 
-	/* Boot from boot.json */
-	printf("Booting from boot.json...\n");
-	sataboot_from_json("boot.json");
+	if (filename) {
+		printf("Booting from %s (JSON)...\n", filename);
+		sataboot_from_json(filename);
+	} else {
+		/* Boot from boot.json */
+		printf("Booting from boot.json...\n");
+		sataboot_from_json("boot.json");
 
 #ifdef MAIN_RAM_BASE
-	/* Boot from boot.bin */
-	printf("Booting from boot.bin...\n");
-	sataboot_from_bin("boot.bin");
+		/* Boot from boot.bin */
+		printf("Booting from boot.bin...\n");
+		sataboot_from_bin("boot.bin");
 #endif
+	}
 
 	/* Boot failed if we are here... */
 	printf("SATA boot failed.\n");

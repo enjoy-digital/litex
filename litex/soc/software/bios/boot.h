@@ -37,7 +37,7 @@ int serialboot(void);
 void netboot(int nb_params, char **params);
 void flashboot(void);
 void romboot(void);
-void sdcardboot(void);
-void sataboot(void);
+void sdcardboot(int nb_params, char **params);
+void sataboot(int nb_params, char **params);
 
 #endif /* __BOOT_H */
