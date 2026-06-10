@@ -127,6 +127,11 @@ static void mdio_dump_handler(int nb_params, char **params)
 		printf("Error: invalid count\n");
 		return;
 	}
+	/* MDIO register space is 5-bit */
+	if (count > 32) {
+		printf("Clamping count to the 32-register MDIO space\n");
+		count = 32;
+	}
 
 	printf("MDIO dump @0x%x:\n", phyadr);
 	for (i = 0; i < count; i++) {
@@ -203,14 +208,14 @@ static void eth_ping_handler(int nb_params, char **params)
 		return;
 	}
 
-	// FIXME!!!
 	unsigned ip_[4];
 	unsigned ip = 0;
 	if (parse_ip(params[0], ip_) != 0)
 		return;
 	ip = IPTOINT(ip_[0], ip_[1], ip_[2], ip_[3]);
 
-	send_ping(ip, 32);
+	if (send_ping(ip, 32) < 0)
+		printf("Error: failed to send ping request\n");
 }
 define_command(ping, eth_ping_handler, "Ping the given IP address", LITEETH_CMDS);
 #endif

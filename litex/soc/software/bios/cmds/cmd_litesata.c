@@ -124,12 +124,10 @@ static void sata_write_handler(int nb_params, char **params)
 	}
 
 	c = params[1];
-	if (params[1] != NULL) {
-		for(i=0; i<512; i++) {
-			buf[i] = *c;
-			if(*(++c) == 0) {
-				c = params[1];
-			}
+	for(i=0; i<512; i++) {
+		buf[i] = *c;
+		if(*(++c) == 0) {
+			c = params[1];
 		}
 	}
 	dump_bytes((unsigned int *)buf, 512, (unsigned long) buf);
@@ -244,6 +242,8 @@ static void sata_rwtest_handler(int nb_params, char **params)
 
 	if (nb_params < 4) {
 		printf("sata_rwtest <sector> <address> <count> <str>\n");
+		printf("  Warning: overwrites <count> disk sectors starting at <sector>\n");
+		printf("  and 2*512*<count> bytes of memory at <address>.\n");
 		return;
 	}
 

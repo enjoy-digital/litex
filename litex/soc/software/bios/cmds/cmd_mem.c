@@ -158,7 +158,7 @@ static void mem_copy_handler(int nb_params, char **params)
 	unsigned int i;
 
 	if (nb_params < 2) {
-		printf("mem_copy <dst> <src> [count]\n");
+		printf("mem_copy <dst> <src> [count (32-bit words)]\n");
 		return;
 	}
 
@@ -294,7 +294,7 @@ static void mem_cmp_handler(int nb_params, char **params)
 	unsigned int i;
 	bool same = true;
 	if (nb_params < 3) {
-		printf("mem_cmp <addr1> <addr2> <count>\n");
+		printf("mem_cmp <addr1> <addr2> <count (32-bit words)>\n");
 		return;
 	}
 
