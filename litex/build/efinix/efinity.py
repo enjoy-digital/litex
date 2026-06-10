@@ -118,6 +118,20 @@ def _efinity_supports_unified_flow(efinity_path):
         "--peri_netlist"           in run_script_data
     )
 
+def _signal_name(signal):
+    if isinstance(signal, str):
+        return signal
+    name = getattr(signal, "name", None)
+    if name is not None:
+        return name
+    name = getattr(signal, "name_override", None)
+    if name is not None:
+        return name
+    backtrace = getattr(signal, "backtrace", None)
+    if backtrace:
+        return backtrace[-1][0]
+    return None
+
 
 # Efinity Toolchain --------------------------------------------------------------------------------
 
@@ -336,12 +350,8 @@ class EfinityToolchain(GenericToolchain):
 
     def _is_excluded_io(self, sig):
         for excluded_io in self.excluded_ios:
-            if isinstance(excluded_io, str):
-                if sig == excluded_io:
-                    return True
-            elif isinstance(excluded_io, Signal):
-                if sig == excluded_io.name:
-                    return True
+            if sig == _signal_name(excluded_io):
+                return True
         return False
 
     def _build_iface_resource_assignments(self):

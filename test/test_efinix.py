@@ -339,6 +339,7 @@ def test_unified_efinix_ddr_tristate_uses_family_gpio_primitive():
 def test_unified_io_constraints_write_isf_assignments(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
+    skip_signal = migen.Signal(name="skip_signal")
     toolchain = EfinityToolchain("/tmp/efinity")
     toolchain.unified = True
     toolchain._build_name = "top"
@@ -346,9 +347,10 @@ def test_unified_io_constraints_write_isf_assignments(tmp_path, monkeypatch):
         ("clk", ["P1"], [], ("clk", 0, None)),
         ("led", ["P2", "P3"], [], ("led", 0, None)),
         ("skip", ["P4"], [], ("skip", 0, None)),
+        ("skip_signal", ["P5"], [], ("skip_signal", 0, None)),
     ]
     toolchain.named_pc = []
-    toolchain.excluded_ios = ["skip"]
+    toolchain.excluded_ios = ["skip", skip_signal]
     toolchain.platform = SimpleNamespace(iobank_info=[("BANK0", "3.3_V_LVCMOS")], device="Ti60F225")
     toolchain.ifacewriter.blocks = []
 
@@ -360,6 +362,7 @@ def test_unified_io_constraints_write_isf_assignments(tmp_path, monkeypatch):
     assert 'design.assign_pkg_pin("led[0]","P2")' in isf
     assert 'design.assign_pkg_pin("led[1]","P3")' in isf
     assert "skip" not in isf
+    assert "skip_signal" not in isf
 
 
 def test_unified_io_constraints_write_mixed_iface_isf(tmp_path, monkeypatch):
