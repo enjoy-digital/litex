@@ -3325,6 +3325,16 @@ class SoCCore(LiteXSoC):
             irq_reserved_irqs    = {},
         )
 
+        # Warn on unknown arguments: they would otherwise be silently ignored (typos, unsupported
+        # options). l2_size is deliberately tolerated: soc_core_argdict passes it through for the
+        # targets to consume.
+        for kwarg in kwargs:
+            if kwarg in ["l2_size"]:
+                continue
+            self.logger.warning("SoCCore: unknown argument {} {}.".format(
+                colorer(kwarg, color="yellow"),
+                colorer("ignored", color="yellow")))
+
         # Parameters management --------------------------------------------------------------------
 
         # CPU.
