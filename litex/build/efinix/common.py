@@ -90,6 +90,12 @@ def get_oe_bit(oe, bit, nbits):
 def get_gpio_ddr_primitive(platform):
     return "EFX_GPIO_V2" if platform.family == "Trion" else "EFX_GPIO_V3"
 
+def get_lvds_tx_primitive(platform):
+    return "EFX_LVDS_TX_V1" if platform.family == "Trion" else "EFX_LVDS_TX_V2"
+
+def get_lvds_rx_primitive(platform):
+    return "EFX_LVDS_RX_V1" if platform.family == "Trion" else "EFX_LVDS_RX_V2"
+
 # Efinix AsyncResetSynchronizer --------------------------------------------------------------------
 
 class EfinixAsyncResetSynchronizerImpl(LiteXModule):
@@ -320,9 +326,49 @@ class EfinixDifferentialOutputImpl(LiteXModule):
         platform.toolchain.excluded_ios.append(platform.get_pin(o_p))
         platform.toolchain.excluded_ios.append(platform.get_pin(o_n))
 
+class EfinixUnifiedDifferentialOutputImpl(LiteXModule):
+    def __init__(self, i, o_p, o_n):
+        platform = LiteXContext.platform
+        primitive = get_lvds_tx_primitive(platform)
+
+        if primitive == "EFX_LVDS_TX_V1":
+            self.specials += Instance(primitive,
+                p_SERIALIZATION_WIDTH = 8,
+                p_SERIALIZATION_EN    = 0,
+                p_MODE                = "DATA",
+                p_OUTPUT_LOAD         = 7,
+                p_REDUCED_SWING       = 0,
+                i_O                   = Cat(i, Replicate(0, 7)),
+                i_OE                  = 1,
+                i_SLOWCLK             = 0,
+                i_FASTCLK             = 0,
+                o_P                   = o_p,
+                o_N                   = o_n,
+            )
+        else:
+            self.specials += Instance(primitive,
+                p_SERIALIZATION_WIDTH = 1,
+                p_HALF_RATE_EN        = 0,
+                p_SERIALIZATION_EN    = 0,
+                p_MODE                = "DATA",
+                p_PRE_EMPHASIS        = "MEDIUM_LOW",
+                p_DIFF_TYPE           = "LVDS",
+                p_VOD                 = "TYPICAL",
+                p_DELAY               = 0,
+                i_O                   = Cat(i, Replicate(0, 9)),
+                i_OE                  = 1,
+                i_RST                 = 0,
+                i_SLOWCLK             = 0,
+                i_FASTCLK             = 0,
+                o_P                   = o_p,
+                o_N                   = o_n,
+            )
+
 class EfinixDifferentialOutput:
     @staticmethod
     def lower(dr):
+        if use_unified_netlist_flow(LiteXContext.platform):
+            return EfinixUnifiedDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
         return EfinixDifferentialOutputImpl(dr.i, dr.o_p, dr.o_n)
 
 # Efinix DifferentialInput -------------------------------------------------------------------------
@@ -372,9 +418,65 @@ class EfinixDifferentialInputImpl(LiteXModule):
         platform.toolchain.excluded_ios.append(platform.get_pin(i_p))
         platform.toolchain.excluded_ios.append(platform.get_pin(i_n))
 
+class EfinixUnifiedDifferentialInputImpl(LiteXModule):
+    def __init__(self, i_p, i_n, o):
+        platform = LiteXContext.platform
+        primitive = get_lvds_rx_primitive(platform)
+
+        if primitive == "EFX_LVDS_RX_V1":
+            i_data = Signal(8)
+            self.specials += Instance(primitive,
+                p_DESERIALIZATION_WIDTH = 8,
+                p_DESERIALIZATION_EN    = 0,
+                p_TERMINATION_TYPE      = "ON",
+                p_CONNECTION_TYPE       = "NORMAL",
+                p_DELAY                 = 0,
+                i_P                     = i_p,
+                i_N                     = i_n,
+                i_SLOWCLK               = 0,
+                i_FASTCLK               = 0,
+                o_I                     = i_data,
+                o_ALT                   = Signal(),
+            )
+        else:
+            i_data = Signal(10)
+            self.specials += Instance(primitive,
+                p_DESERIALIZATION_WIDTH = 1,
+                p_HALF_RATE_EN          = 0,
+                p_DESERIALIZATION_EN    = 0,
+                p_FIFO_EN               = 0,
+                p_TERMINATION_TYPE      = "ON",
+                p_CONNECTION_TYPE       = "NORMAL",
+                p_DIFF_TYPE             = "LVDS",
+                p_DELAY_MODE            = "STATIC",
+                p_DELAY                 = 0,
+                p_VOC_DRIVER_EN         = 0,
+                i_P                     = i_p,
+                i_N                     = i_n,
+                i_SLOWCLK               = 0,
+                i_FASTCLK               = 0,
+                i_FIFOCLK               = 0,
+                i_FIFO_RD               = 0,
+                i_RST                   = 0,
+                i_ENA                   = 1,
+                i_TERM                  = 1,
+                i_DLY_ENA               = 0,
+                i_DLY_INC               = 0,
+                i_DLY_RST               = 0,
+                o_I                     = i_data,
+                o_ALT                   = Signal(),
+                o_FIFO_EMPTY            = Signal(),
+                o_LOCK                  = Signal(),
+                o_DBG                   = Signal(6),
+            )
+
+        self.comb += o.eq(i_data[0])
+
 class EfinixDifferentialInput:
     @staticmethod
     def lower(dr):
+        if use_unified_netlist_flow(LiteXContext.platform):
+            return EfinixUnifiedDifferentialInputImpl(dr.i_p, dr.i_n, dr.o)
         return EfinixDifferentialInputImpl(dr.i_p, dr.i_n, dr.o)
 
 # Efinix DDRTristate -------------------------------------------------------------------------------
