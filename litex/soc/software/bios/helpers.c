@@ -138,8 +138,10 @@ int get_param(char *buf, char **cmd, char **params)
 		if (*buf == 0)
 			return nb_param;
 
-		if (nb_param >= MAX_PARAM)
+		if (nb_param >= MAX_PARAM) {
+			printf("Warning: too many parameters (max %d), excess ignored\n", MAX_PARAM);
 			return nb_param;
+		}
 
 		params[nb_param++] = buf;
 

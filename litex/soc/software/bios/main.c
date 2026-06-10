@@ -285,8 +285,8 @@ __attribute__((__used__)) int main(int i, char **c)
 	/* Initialize and test SPIRAM */
 #ifdef CSR_SPIRAM_BASE
 	spiram_init();
-#endif
 	printf("\n");
+#endif
 
 	/* Initialize and test DRAM */
 #ifdef CSR_SDRAM_BASE
@@ -307,9 +307,8 @@ __attribute__((__used__)) int main(int i, char **c)
 	/* Initialize and test SPIFLASH */
 #ifdef CSR_SPIFLASH_BASE
 	spiflash_init();
-#endif
 	printf("\n");
-
+#endif
 
 	/* Initialize Video Framebuffer FIXME: Move */
 #ifdef CSR_VIDEO_FRAMEBUFFER_BASE
@@ -345,9 +344,12 @@ __attribute__((__used__)) int main(int i, char **c)
 		printf("\n");
 		if (buffer[0] != 0) {
 			nb_params = get_param(buffer, &command, params);
-			cmd = command_dispatcher(command, nb_params, params);
-			if (!cmd)
-				printf("Command not found\n");
+			/* Ignore whitespace-only lines */
+			if (*command != 0) {
+				cmd = command_dispatcher(command, nb_params, params);
+				if (!cmd)
+					printf("Command not found\n");
+			}
 		}
 		printf("%s", PROMPT);
 	}

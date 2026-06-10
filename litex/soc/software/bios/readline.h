@@ -49,7 +49,6 @@ struct esc_cmds {
 #define CTL_BACKSPACE		('\b')
 #define DEL			255
 #define DEL7			127
-#define CREAD_HIST_CHAR		('!')
 
 #define HIST_MAX		10
 

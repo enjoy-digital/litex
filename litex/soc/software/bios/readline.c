@@ -302,6 +302,14 @@ int readline(char *buf, int len)
 			BEGINNING_OF_LINE();
 			ERASE_TO_EOL();
 			break;
+		case KEY_CLEAR_SCREEN:
+			printf(ANSI_CLEAR_SCREEN "%s", PROMPT);
+			/* Redisplay the current line, cursor back at num */
+			putnstr(buf, eol_num);
+			wlen = eol_num - num;
+			while (wlen--)
+				getcmd_putch(CTL_BACKSPACE);
+			break;
 		case DEL:
 		case KEY_DEL7:
 		case 8:
@@ -372,7 +380,7 @@ int readline(char *buf, int len)
 	buf[eol_num] = '\0';
 
 #ifndef BIOS_CONSOLE_NO_HISTORY
-	if (buf[0] && buf[0] != CREAD_HIST_CHAR)
+	if (buf[0])
 		cread_add_to_hist(buf);
 	hist_cur = hist_add_idx;
 #endif
