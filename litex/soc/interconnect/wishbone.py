@@ -150,9 +150,11 @@ class Remapper(Module):
     - Region-based remapping from specified source regions to destination regions.
     This allows for an initial origin remap followed by more complex/specific region-based remapping.
     """
-    def __init__(self, master, slave, origin=0, size=None, src_regions=[], dst_regions=[]):
+    def __init__(self, master, slave, origin=0, size=None, src_regions=None, dst_regions=None):
         # Parameters.
         # -----------
+        src_regions = src_regions or []
+        dst_regions = dst_regions or []
         if master.addressing != slave.addressing:
             raise ValueError("Wishbone master/slave addressing mismatch.")
         if len(src_regions) != len(dst_regions):
@@ -185,8 +187,8 @@ class Remapper(Module):
         }[master.addressing]
         # Apply Address Regions Remapping.
         for src_region, dst_region in zip(src_regions, dst_regions):
-            src_adr = Signal.like(master.adr + adr_shift + 1)
-            dst_adr = Signal.like(master.adr + adr_shift + 1)
+            src_adr = Signal(len(master.adr) + adr_shift + 1)
+            dst_adr = Signal(len(master.adr) + adr_shift + 1)
             active  = Signal()
             self.comb += [
                 src_adr.eq(adr_remap << adr_shift),
@@ -244,9 +246,18 @@ def get_check_parameters(ports):
     data_width = ports[0].data_width
     if len(ports) > 1:
         for port in ports[1:]:
-            assert port.data_width == data_width
+            if port.data_width != data_width:
+                raise ValueError(f"Wishbone Interfaces with different Data-Widths connected to the same Interconnect ({port.data_width} vs {data_width}).")
 
-    return data_width
+    # Addressing. Arbiter/Decoder copy adr bit-for-bit, so mixing word/byte-addressed Interfaces
+    # would silently mis-route accesses.
+    addressing = ports[0].addressing
+    if len(ports) > 1:
+        for port in ports[1:]:
+            if port.addressing != addressing:
+                raise ValueError(f"Wishbone Interfaces with different Addressings connected to the same Interconnect ({port.addressing} vs {addressing}).")
+
+    return data_width, addressing
 
 class InterconnectPointToPoint(LiteXModule):
     def __init__(self, master, slave):
@@ -327,9 +338,9 @@ class Decoder(LiteXModule):
 
 class InterconnectShared(LiteXModule):
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
-        data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
+        data_width, addressing = get_check_parameters(ports=masters + [s for _, s in slaves])
         adr_width = max([m.adr_width for m in masters])
-        shared = Interface(data_width=data_width, adr_width=adr_width)
+        shared = Interface(data_width=data_width, adr_width=adr_width, addressing=addressing)
         self.arbiter = Arbiter(masters, shared)
         self.decoder = Decoder(shared, slaves, register)
         if timeout_cycles is not None:
@@ -338,10 +349,10 @@ class InterconnectShared(LiteXModule):
 
 class Crossbar(LiteXModule):
     def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
-        data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
+        data_width, addressing = get_check_parameters(ports=masters + [s for _, s in slaves])
         matches, busses = zip(*slaves)
         adr_width = max([m.adr_width for m in masters])
-        access = [[Interface(data_width=data_width, adr_width=adr_width) for j in slaves] for i in masters]
+        access = [[Interface(data_width=data_width, adr_width=adr_width, addressing=addressing) for j in slaves] for i in masters]
         # decode each master into its access row
         for row, master in zip(access, masters):
             row = list(zip(matches, row))
@@ -368,8 +379,11 @@ class DownConverter(LiteXModule):
     """
     def __init__(self, master, slave):
         # Parameters/Checks.
-        assert master.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
-        assert master.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
+        # FIXME: Test/Remove byte addressing limitation.
+        if master.addressing != "word":
+            raise ValueError("Master must be word-addressed (byte addressing not supported).")
+        if slave.addressing != "word":
+            raise ValueError("Slave must be word-addressed (byte addressing not supported).")
         dw_from = len(master.dat_w)
         dw_to   = len(slave.dat_w)
         ratio   = dw_from//dw_to
@@ -443,8 +457,11 @@ class UpConverter(LiteXModule):
     """UpConverter"""
     def __init__(self, master, slave):
         # Parameters/Checks.
-        assert master.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
-        assert master.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
+        # FIXME: Test/Remove byte addressing limitation.
+        if master.addressing != "word":
+            raise ValueError("Master must be word-addressed (byte addressing not supported).")
+        if slave.addressing != "word":
+            raise ValueError("Slave must be word-addressed (byte addressing not supported).")
         dw_from = len(master.dat_w)
         dw_to   = len(slave.dat_w)
         ratio   = dw_to//dw_from
@@ -479,8 +496,11 @@ class Converter(LiteXModule):
     def __init__(self, master, slave):
         self.master = master
         self.slave = slave
-        assert master.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
-        assert master.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
+        # FIXME: Test/Remove byte addressing limitation.
+        if master.addressing != "word":
+            raise ValueError("Master must be word-addressed (byte addressing not supported).")
+        if slave.addressing != "word":
+            raise ValueError("Slave must be word-addressed (byte addressing not supported).")
 
         # # #
 
@@ -505,6 +525,13 @@ class Converter(LiteXModule):
 class SRAM(LiteXModule):
     autocsr_exclude = {"mem"}
     def __init__(self, mem_or_size, read_only=None, write_only=None, init=None, bus=None, name=None):
+        # Resolve read_only first (it can be promoted from the Memory's bus_read_only attribute)
+        # so that the bus mode reflects the actual generated RTL.
+        if read_only is None:
+            if isinstance(mem_or_size, Memory) and hasattr(mem_or_size, "bus_read_only"):
+                read_only = mem_or_size.bus_read_only
+            else:
+                read_only = False
         if read_only:
             mode = "r"
         elif write_only:
@@ -515,7 +542,9 @@ class SRAM(LiteXModule):
             bus = Interface(data_width=32, address_width=32, addressing="word", mode=mode)
         else:
             bus.mode = mode
-            assert bus.addressing == "word" # FIXME: Test/Remove byte addressing limitation.
+            # FIXME: Test/Remove byte addressing limitation.
+            if bus.addressing != "word":
+                raise ValueError("Wishbone SRAM bus must be word-addressed (byte addressing not supported).")
         self.bus = bus
         bus_data_width = len(self.bus.dat_r)
         if isinstance(mem_or_size, Memory):
@@ -523,12 +552,6 @@ class SRAM(LiteXModule):
             self.mem = mem_or_size
         else:
             self.mem = Memory(bus_data_width, mem_or_size//(bus_data_width//8), init=init, name=name)
-
-        if read_only is None:
-            if hasattr(self.mem, "bus_read_only"):
-                read_only = self.mem.bus_read_only
-            else:
-                read_only = False
         if not read_only and (self.mem.width % 8):
             raise ValueError("Writable Wishbone SRAM memory width must be a multiple of 8 bits.")
 
@@ -722,10 +745,18 @@ class Cache(LiteXModule):
             raise ValueError("Slave data width must be a multiple of {dw}".format(dw=dw_from))
         if dw_to < dw_from and (dw_from % dw_to) != 0:
             raise ValueError("Master data width must be a multiple of {dw}".format(dw=dw_to))
+        # The address split below assumes word addressing on both sides.
+        if master.addressing != "word":
+            raise ValueError("Cache master must be word-addressed (byte addressing not supported).")
+        if slave.addressing != "word":
+            raise ValueError("Cache slave must be word-addressed (byte addressing not supported).")
 
         # Bypass.
         # -------
-        if (cachesize == 0) and (dw_to == dw_from):
+        if cachesize == 0:
+            if dw_to != dw_from:
+                raise ValueError("Cache bypass (cachesize=0) requires equal Master/Slave data widths "
+                                 "({} vs {}), use a Converter.".format(dw_from, dw_to))
             self.comb += master.connect(slave)
             return
 
