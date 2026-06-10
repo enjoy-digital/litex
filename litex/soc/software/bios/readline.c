@@ -58,7 +58,7 @@ void set_idle_hook(void (*fptr)(void)) {
 static int read_key(void)
 {
 	char c;
-	char esc[5];
+	char esc[8];
 
 	if (idle_hook_ptr != NULL) {
 		while (!uart_read_nonblock()) {
@@ -69,16 +69,20 @@ static int read_key(void)
 	c = getchar();
 
 	if (c == 27) {
-		int i = 0;
+		unsigned int i = 0;
 		esc[i++] = getchar();
 		esc[i++] = getchar();
 		if (isdigit(esc[1])) {
 			while(1) {
-				esc[i] = getchar();
-				if (esc[i++] == '~')
-					break;
-				if (i == ARRAY_SIZE(esc))
+				if (i == ARRAY_SIZE(esc) - 1)
 					return -1;
+				esc[i] = getchar();
+				/* CSI sequences terminate with a byte in the 0x40-0x7e range. */
+				if ((esc[i] >= 0x40) && (esc[i] <= 0x7e)) {
+					i++;
+					break;
+				}
+				i++;
 			}
 		}
 		esc[i] = 0;
