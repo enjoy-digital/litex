@@ -113,6 +113,9 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
 
     def iobank_info(self, iobank_info):
         cmd = "# ---------- IOBANK INFO ---------\n"
+        if iobank_info is None:
+            cmd += "# ---------- END IOBANK INFO ---------\n\n"
+            return cmd
         for name, iostd in iobank_info:
             cmd += 'design.set_iobank_voltage("{0}", "{1}")\n'.format(name, iostd[:3])
         cmd += "# ---------- END IOBANK INFO ---------\n\n"
@@ -691,6 +694,29 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
                 if block["type"] == "SEU":
                     output += self.generate_seu(block)
         return output
+
+    def generate_isf(self, partnumber):
+        supported_types = {
+            "HYPERRAM",
+            "SPI_FLASH",
+            "REMOTE_UPDATE",
+            "SEU",
+            "MIPI_TX_LANE",
+            "MIPI_RX_LANE",
+            "LVDS",
+        }
+        unsupported = []
+        for block in self.blocks:
+            if isinstance(block, InterfaceWriterBlock):
+                unsupported.append(type(block).__name__)
+            elif block["type"] not in supported_types:
+                unsupported.append(block["type"])
+        if unsupported:
+            raise NotImplementedError(
+                "Efinity unified netlist flow cannot import InterfaceWriter block(s) as ISF: "
+                + ", ".join(sorted(set(unsupported)))
+            )
+        return self.generate(partnumber)
 
     def footer(self):
         return """

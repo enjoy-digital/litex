@@ -258,16 +258,63 @@ def test_unified_io_constraints_write_isf_assignments(tmp_path, monkeypatch):
     toolchain.named_sc = [
         ("clk", ["P1"], [], ("clk", 0, None)),
         ("led", ["P2", "P3"], [], ("led", 0, None)),
+        ("skip", ["P4"], [], ("skip", 0, None)),
     ]
     toolchain.named_pc = []
+    toolchain.excluded_ios = ["skip"]
+    toolchain.platform = SimpleNamespace(iobank_info=[("BANK0", "3.3_V_LVCMOS")], device="Ti60F225")
     toolchain.ifacewriter.blocks = []
 
     assert toolchain.build_io_constraints() == ("top.isf", "ISF")
 
     isf = (tmp_path / "top.isf").read_text()
+    assert 'design.set_iobank_voltage("BANK0", "3.3")' in isf
     assert 'design.assign_pkg_pin("clk","P1")' in isf
     assert 'design.assign_pkg_pin("led[0]","P2")' in isf
     assert 'design.assign_pkg_pin("led[1]","P3")' in isf
+    assert "skip" not in isf
+
+
+def test_unified_io_constraints_write_mixed_iface_isf(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    toolchain = EfinityToolchain("/tmp/efinity")
+    toolchain.unified = True
+    toolchain._build_name = "top"
+    toolchain.named_sc = []
+    toolchain.named_pc = []
+    toolchain.platform = SimpleNamespace(iobank_info=None, device="Ti60F225")
+    toolchain.ifacewriter.blocks = [{
+        "type"   : "SEU",
+        "name"   : "seu",
+        "pins"   : SimpleNamespace(),
+        "enable" : False,
+        "mode"   : "auto",
+    }]
+
+    assert toolchain.build_io_constraints() == ("top.isf", "ISF")
+
+    assert toolchain._unified_iface_file == "iface.isf"
+    assert 'design.set_device_property("seu", "ENA_DETECT", "False", "SEU")' in (tmp_path / "iface.isf").read_text()
+
+
+def test_unified_io_constraints_reject_non_importable_iface_blocks(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    toolchain = EfinityToolchain("/tmp/efinity")
+    toolchain.unified = True
+    toolchain._build_name = "top"
+    toolchain.named_sc = []
+    toolchain.named_pc = []
+    toolchain.platform = SimpleNamespace(iobank_info=None, device="Ti60F225")
+    toolchain.ifacewriter.blocks = [{"type": "PLL", "name": "pll0"}]
+
+    try:
+        toolchain.build_io_constraints()
+    except NotImplementedError as e:
+        assert "PLL" in str(e)
+    else:
+        raise AssertionError("Expected non-importable InterfaceWriter block to be rejected")
 
 
 def test_unified_project_references_isf_and_litex_sdc(tmp_path, monkeypatch):
@@ -282,6 +329,7 @@ def test_unified_project_references_isf_and_litex_sdc(tmp_path, monkeypatch):
     toolchain.unified = True
     toolchain._build_name = "top"
     toolchain._unified_isf_file = "top.isf"
+    toolchain._unified_iface_file = "iface.isf"
     toolchain._efx_map_params = {
         "work_dir": "work_syn",
         "peri-syn-instantiation": ["1", "e_option"],
@@ -304,7 +352,7 @@ def test_unified_project_references_isf_and_litex_sdc(tmp_path, monkeypatch):
     ns = {"efx": "http://www.efinixinc.com/enf_proj"}
     root = et.parse(tmp_path / "top.xml").getroot()
     assert root.find("efx:constraint_info/efx:sdc_file", ns).get("name") == "top.sdc"
-    assert root.find("efx:isf_info/efx:isf_file", ns).get("name") == "top.isf"
+    assert [e.get("name") for e in root.findall("efx:isf_info/efx:isf_file", ns)] == ["top.isf", "iface.isf"]
     assert root.find("efx:synthesis/efx:param[@name='peri-syn-instantiation']", ns).get("value") == "1"
 
 
