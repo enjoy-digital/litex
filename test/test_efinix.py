@@ -385,6 +385,39 @@ def test_unified_io_constraints_write_mixed_iface_isf(tmp_path, monkeypatch):
     assert 'design.set_device_property("seu", "ENA_DETECT", "False", "SEU")' in (tmp_path / "iface.isf").read_text()
 
 
+def test_unified_io_constraints_write_importable_pll_isf(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    toolchain = EfinityToolchain("/tmp/efinity")
+    toolchain.unified = True
+    toolchain._build_name = "top"
+    toolchain.named_sc = []
+    toolchain.named_pc = []
+    toolchain.platform = SimpleNamespace(iobank_info=None, device="Ti60F225")
+    toolchain.ifacewriter.blocks = [{
+        "type"         : "PLL",
+        "name"         : "pll0",
+        "input_freq"   : 25e6,
+        "input_clock"  : "INTERNAL",
+        "input_signal" : "clk25",
+        "resource"     : "PLL_BL0",
+        "locked"       : "pll0_locked",
+        "rstn"         : "pll0_rstn",
+        "version"      : "V3",
+        "feedback"     : -1,
+        "clk_out"      : [["sys_clk", 100e6, 0, 0, False], None, None, None, None],
+    }]
+
+    assert toolchain.build_io_constraints() == ("top.isf", "ISF")
+
+    iface = (tmp_path / "iface.isf").read_text()
+    assert 'design.create_block("pll0", block_type="PLL")' in iface
+    assert 'design.auto_calc_pll_clock("pll0", {' in iface
+    assert "'CLKOUT0_FREQ': '100.0'" in iface
+    assert "target_freq = {" not in iface
+    assert "for c in calc_result" not in iface
+
+
 def test_unified_io_constraints_reject_non_importable_iface_blocks(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
@@ -394,12 +427,12 @@ def test_unified_io_constraints_reject_non_importable_iface_blocks(tmp_path, mon
     toolchain.named_sc = []
     toolchain.named_pc = []
     toolchain.platform = SimpleNamespace(iobank_info=None, device="Ti60F225")
-    toolchain.ifacewriter.blocks = [{"type": "PLL", "name": "pll0"}]
+    toolchain.ifacewriter.blocks = [{"type": "GPIO", "name": "gpio0"}]
 
     try:
         toolchain.build_io_constraints()
     except NotImplementedError as e:
-        assert "PLL" in str(e)
+        assert "GPIO" in str(e)
     else:
         raise AssertionError("Expected non-importable InterfaceWriter block to be rejected")
 
