@@ -43,11 +43,11 @@ void bios_print_status(const char *label, int success)
 	printf("%s: %s\n", label, success ? "OK" : "failed");
 }
 
-void dump_bytes(unsigned int *ptr, int count, unsigned long addr)
+void dump_bytes(unsigned int *ptr, unsigned int count, unsigned long addr)
 {
 	unsigned char *dptr = (unsigned char *)ptr;
 	unsigned char data[NUMBER_OF_BYTES_ON_A_LINE];
-	int line_bytes = 0, i = 0;
+	unsigned int line_bytes = 0, i = 0;
 
 
 	fputs("Memory dump:", stdout);

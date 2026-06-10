@@ -110,8 +110,18 @@ static void mem_write_handler(int nb_params, char **params)
 		}
 	}
 
-	if (nb_params == 4)
+	if (nb_params == 4) {
 		size = strtoul(params[3], &c, 0);
+		if (*c != 0) {
+			printf("Error: invalid size\n");
+			return;
+		}
+	}
+
+	if ((size != 1) && (size != 2) && (size != 4)) {
+		printf("Error: invalid size (1, 2 or 4)\n");
+		return;
+	}
 
 	for (i = 0; i < count; i++) {
 		switch (size) {
@@ -127,9 +137,6 @@ static void mem_write_handler(int nb_params, char **params)
 			*(uint32_t *)addr = value;
 			addr += 4;
 			break;
-		default:
-			printf("Error: invalid size\n");
-			return;
 		}
 	}
 }
@@ -193,7 +200,9 @@ static void mem_test_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned int *addr;
-	unsigned long maxsize = ~0uL;
+	/* Default to the same bounded size as the boot-time memtest: testing
+	   "everything" from addr would write over the BIOS data/stack. */
+	unsigned long maxsize = MEMTEST_DATA_SIZE;
 
 	if (nb_params < 1) {
 		printf("mem_test <addr> [maxsize]\n");
