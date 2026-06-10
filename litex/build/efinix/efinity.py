@@ -136,6 +136,7 @@ class EfinityToolchain(GenericToolchain):
         self.additional_iface_commands = []
         self.unified                   = False
         self._unified_isf_file         = None
+        self._unified_iface_file       = None
 
     def finalize(self):
         self.ifacewriter.set_build_params(self.platform, self._build_name)
@@ -347,6 +348,8 @@ class EfinityToolchain(GenericToolchain):
         conf = []
 
         for sig, pins, others, resname in self.named_sc:
+            if self._is_excluded_io(sig):
+                continue
             if len(pins) > 1:
                 for i, p in enumerate(pins):
                     conf.append(self._format_conf_constraint("{}[{}]".format(sig, i), p, others, resname))
@@ -385,7 +388,17 @@ class EfinityToolchain(GenericToolchain):
 
         if self.unified:
             self._unified_isf_file = f"{self._build_name}.isf"
-            tools.write_to_file(self._unified_isf_file, self._build_iface_resource_assignments())
+            isf = self.ifacewriter.iobank_info(self.platform.iobank_info)
+            isf += self._build_iface_resource_assignments()
+            tools.write_to_file(self._unified_isf_file, isf)
+
+            iface_isf = self.ifacewriter.generate_isf(self.platform.device)
+            iface_isf += "\n".join(self.additional_iface_commands)
+            if iface_isf.strip():
+                self._unified_iface_file = "iface.isf"
+                tools.write_to_file(self._unified_iface_file, iface_isf)
+            else:
+                self._unified_iface_file = None
             return (self._unified_isf_file, "ISF")
 
         header = self.ifacewriter.header(self._build_name, self.platform.device)
@@ -445,6 +458,8 @@ class EfinityToolchain(GenericToolchain):
         if self.unified and self._unified_isf_file is not None:
             isf_info = et.SubElement(root, "efx:isf_info")
             et.SubElement(isf_info, "efx:isf_file", name=self._unified_isf_file)
+            if self._unified_iface_file is not None:
+                et.SubElement(isf_info, "efx:isf_file", name=self._unified_iface_file)
 
         # Add Misc Info.
         misc_info  = et.SubElement(root, "efx:misc_info")
@@ -500,10 +515,9 @@ class EfinityToolchain(GenericToolchain):
             if tools.subprocess_call_filtered([self.efinity_path + "/bin/python3", "iface.py"], common.colors, env=self.env) != 0:
                 raise OSError("Error occurred during Efinity peri script execution.")
 
-        elif self.ifacewriter.blocks or self.ifacewriter.xml_blocks or self.ifacewriter.fix_xml or self.additional_iface_commands:
+        elif self.ifacewriter.xml_blocks or self.ifacewriter.fix_xml:
             raise NotImplementedError(
-                "Efinity unified netlist flow does not support legacy InterfaceWriter blocks yet. "
-                "Use the legacy Efinity flow or lower the block to HDL primitives."
+                "Efinity unified netlist flow does not support InterfaceWriter XML patch blocks yet."
             )
 
         if not self.unified:
