@@ -80,14 +80,12 @@ enum {
 #if defined(MAIN_RAM_BASE) || defined(SRAM_BASE)
 static int boot_region_max_size(unsigned long addr, unsigned long base, unsigned long size, size_t *max_size)
 {
-	unsigned long end = base + size;
-
-	if (end < base)
-		return 0;
-	if ((addr < base) || (addr >= end))
+	/* Compare offsets instead of region end so that regions ending exactly at
+	   the top of the address space (base + size wrapping to 0) are accepted. */
+	if ((addr < base) || ((addr - base) >= size))
 		return 0;
 
-	*max_size = end - addr;
+	*max_size = size - (addr - base);
 	return 1;
 }
 #endif
