@@ -9,7 +9,12 @@ from types import SimpleNamespace
 
 import migen
 
-from litex.build.efinix.efinity import EfinityToolchain, _get_design_file_library, build_argdict
+from litex.build.efinix.efinity import (
+    EfinityToolchain,
+    _efinity_supports_unified_flow,
+    _get_design_file_library,
+    build_argdict,
+)
 from litex.build.efinix.common import add_gpio_block, efinix_special_overrides, gpio_info
 from litex.build.efinix.ifacewriter import InterfaceWriter
 from litex.build.efinix.toolchain import find_efinity_path, load_efinity_env
@@ -75,6 +80,7 @@ def test_build_merges_default_efinity_params(monkeypatch):
         return sentinel
 
     monkeypatch.setattr(GenericToolchain, "build", fake_build)
+    monkeypatch.setattr("litex.build.efinix.efinity._efinity_supports_unified_flow", lambda path: True)
 
     toolchain = EfinityToolchain("/tmp/efinity")
     platform = SimpleNamespace(family="Titanium")
@@ -103,6 +109,21 @@ def test_build_merges_default_efinity_params(monkeypatch):
     assert toolchain._efx_pgm_params["generate_hexbin"] is False
 
 
+def test_build_rejects_unified_flow_without_efinity_support(monkeypatch):
+    monkeypatch.setattr("litex.build.efinix.efinity._efinity_supports_unified_flow", lambda path: False)
+
+    toolchain = EfinityToolchain("/tmp/efinity")
+    platform = SimpleNamespace(family="Titanium")
+    fragment = migen.Module().get_fragment()
+
+    try:
+        toolchain.build(platform, fragment, efx_unified=True, efx_full_memory_we=False)
+    except OSError as e:
+        assert "unified netlist flow" in str(e)
+    else:
+        raise AssertionError("Expected unsupported unified Efinity flow to be rejected")
+
+
 def test_design_file_library_preserves_non_header_libraries():
     assert _get_design_file_library("core.vhd", "worklib") == "worklib"
     assert _get_design_file_library("rtl/top.v", "mylib") == "mylib"
@@ -115,6 +136,29 @@ def test_design_file_library_uses_default_library_for_verilog_languages():
     assert _get_design_file_library("rtl/header.vh", "verilog", "mylib") == "default"
     assert _get_design_file_library("rtl/header.svh", "systemverilog", "mylib") == "default"
     assert _get_design_file_library("core.vhd", "vhdl", "worklib") == "worklib"
+
+
+def test_efinity_supports_unified_flow_detects_map_options(tmp_path):
+    efinity_root = tmp_path / "efinity"
+    (efinity_root / "bin").mkdir(parents=True)
+    (efinity_root / "scripts").mkdir()
+    (efinity_root / "bin" / "efx_map_options.xml").write_text(
+        '<efx:option name="--peri-syn-instantiation"/>\n'
+        '<efx:option name="--peri-syn-inference"/>\n'
+    )
+    (efinity_root / "scripts" / "efx_run.py").write_text("--un_flow\n--peri_netlist\n")
+
+    assert _efinity_supports_unified_flow(str(efinity_root)) is True
+
+
+def test_efinity_supports_unified_flow_rejects_old_map_options(tmp_path):
+    efinity_root = tmp_path / "efinity"
+    (efinity_root / "bin").mkdir(parents=True)
+    (efinity_root / "scripts").mkdir()
+    (efinity_root / "bin" / "efx_map_options.xml").write_text("")
+    (efinity_root / "scripts" / "efx_run.py").write_text("--un_flow\n")
+
+    assert _efinity_supports_unified_flow(str(efinity_root)) is False
 
 
 def test_unified_efinix_clock_io_lowers_to_hdl_primitives():
