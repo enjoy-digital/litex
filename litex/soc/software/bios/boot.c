@@ -427,15 +427,17 @@ static void boot_from_json_buffer(const char *json_buffer, int size,
 		memset(json_value,  0, sizeof(json_value));
 		/* Elements are JSON strings with 1 children */
 		if ((t[i].type == JSMN_STRING) && (t[i].size == 1)) {
-			/* Get Element's filename */
+			/* Get Element's filename. Abort instead of skipping the entry:
+			   booting with one of the listed images missing (e.g. a kernel
+			   without its device tree) would fail in harder-to-debug ways. */
 			if (!json_token_to_string(json_name, sizeof(json_name), json_buffer, &t[i])) {
 				printf("Error: boot JSON filename is too long\n");
-				continue;
+				return;
 			}
 			/* Get Element's address */
 			if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1])) {
 				printf("Error: boot JSON value for \"%s\" is too long\n", json_name);
-				continue;
+				return;
 			}
 			/* Skip bootargs (optional) */
 			if (strcmp(json_name, "bootargs") == 0) {
