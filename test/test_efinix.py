@@ -18,7 +18,12 @@ from litex.build.efinix.efinity import (
 from litex.build.efinix.common import add_gpio_block, efinix_special_overrides, gpio_info
 from litex.build.efinix.ifacewriter import InterfaceWriter
 from litex.build.efinix.toolchain import find_efinity_path, load_efinity_env
-from litex.build.io import DDRInput, DDROutput, DDRTristate, SDRInput, SDROutput, SDRTristate, ClkInput, ClkOutput
+from litex.build.io import (
+    ClkInput, ClkOutput,
+    DDRInput, DDROutput, DDRTristate,
+    DifferentialInput, DifferentialOutput,
+    SDRInput, SDROutput, SDRTristate,
+)
 from litex.build.generic_toolchain import GenericToolchain
 from litex.gen import LiteXContext
 from litex.gen.fhdl import verilog
@@ -175,6 +180,29 @@ def test_unified_efinix_clock_io_lowers_to_hdl_primitives():
 
     assert "EFX_IBUF" in v
     assert "EFX_OBUF" in v
+
+
+def test_unified_efinix_differential_io_lowers_to_lvds_primitives():
+    for family, tx_primitive, rx_primitive in [
+        ("Trion",    "EFX_LVDS_TX_V1", "EFX_LVDS_RX_V1"),
+        ("Titanium", "EFX_LVDS_TX_V2", "EFX_LVDS_RX_V2"),
+    ]:
+        dut = migen.Module()
+        tx_i = migen.Signal()
+        tx_p = migen.Signal()
+        tx_n = migen.Signal()
+        rx_p = migen.Signal()
+        rx_n = migen.Signal()
+        rx_o = migen.Signal()
+        dut.specials += [
+            DifferentialOutput(tx_i, tx_p, tx_n),
+            DifferentialInput(rx_p, rx_n, rx_o),
+        ]
+
+        v = _convert_unified_efinix(dut, {tx_i, tx_p, tx_n, rx_p, rx_n, rx_o}, family=family)
+
+        assert f"\n{tx_primitive} #(" in v
+        assert f"\n{rx_primitive} #(" in v
 
 
 def test_unified_efinix_tristate_lowers_to_hdl_io_buffers():
