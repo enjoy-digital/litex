@@ -253,7 +253,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         cmd = "# TODO: " + str(block) +"\n"
         return cmd
 
-    def generate_pll(self, block, partnumber, verbose=True):
+    def generate_pll(self, block, partnumber, verbose=True, isf=False):
         name = block["name"]
         cmd = "# ---------- PLL {} ---------\n".format(name)
         cmd += 'design.create_block("{}", block_type="PLL")\n'.format(name)
@@ -312,22 +312,28 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
 
         # auto_calc_pll_clock is always working with Titanium/Topaz and only working when feedback is unused for Trion
         if block["feedback"] == -1 or block["version"] == "V3":
-            cmd += "target_freq = {\n"
+            target_freq = {}
             for i, clock in enumerate(block["clk_out"]):
                 if clock is None:
                     continue
-                cmd += '    "CLKOUT{}_FREQ": "{}",\n'.format(i, clock[1] / 1e6)
-                cmd += '    "CLKOUT{}_PHASE": "{}",\n'.format(i, clock[2])
+                target_freq[f"CLKOUT{i}_FREQ"]  = str(clock[1] / 1e6)
+                target_freq[f"CLKOUT{i}_PHASE"] = str(clock[2])
                 if clock[4] == 1:
-                    cmd += '    "CLKOUT{}_DYNPHASE_EN": "1",\n'.format(i)
-            cmd += "}\n"
+                    target_freq[f"CLKOUT{i}_DYNPHASE_EN"] = "1"
 
             if block["version"] == "V1_V2":
                 cmd += 'design.set_property("{}","FEEDBACK_MODE","INTERNAL","PLL")\n'.format(name)
 
-            cmd += 'calc_result = design.auto_calc_pll_clock("{}", target_freq)\n'.format(name)
-            cmd += 'for c in calc_result:\n'
-            cmd += '    print(c)\n'
+            if isf:
+                cmd += 'design.auto_calc_pll_clock("{}", {})\n'.format(name, repr(target_freq))
+            else:
+                cmd += "target_freq = {\n"
+                for key, value in target_freq.items():
+                    cmd += '    "{}": "{}",\n'.format(key, value)
+                cmd += "}\n"
+                cmd += 'calc_result = design.auto_calc_pll_clock("{}", target_freq)\n'.format(name)
+                cmd += 'for c in calc_result:\n'
+                cmd += '    print(c)\n'
         else:
             cmd += 'design.set_property("{}","M","{}","PLL")\n'.format(name, block["M"])
             cmd += 'design.set_property("{}","N","{}","PLL")\n'.format(name, block["N"])
@@ -698,6 +704,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
     def generate_isf(self, partnumber):
         supported_types = {
             "HYPERRAM",
+            "PLL",
             "SPI_FLASH",
             "REMOTE_UPDATE",
             "SEU",
@@ -706,17 +713,39 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
             "LVDS",
         }
         unsupported = []
+        output = ""
         for block in self.blocks:
             if isinstance(block, InterfaceWriterBlock):
                 unsupported.append(type(block).__name__)
-            elif block["type"] not in supported_types:
-                unsupported.append(block["type"])
+                continue
+            block_type = block["type"]
+            if block_type not in supported_types:
+                unsupported.append(block_type)
+            elif block_type == "PLL":
+                if "extra" in block:
+                    unsupported.append("PLL with extra commands")
+                else:
+                    output += self.generate_pll(block, partnumber, verbose=False, isf=True)
+            elif block_type == "HYPERRAM":
+                output += self.generate_hyperram(block)
+            elif block_type == "SPI_FLASH":
+                output += self.generate_spiflash(block)
+            elif block_type == "REMOTE_UPDATE":
+                output += self.generate_remote_update(block)
+            elif block_type == "SEU":
+                output += self.generate_seu(block)
+            elif block_type == "MIPI_TX_LANE":
+                output += self.generate_mipi_tx(block)
+            elif block_type == "MIPI_RX_LANE":
+                output += self.generate_mipi_rx(block)
+            elif block_type == "LVDS":
+                output += self.generate_lvds(block)
         if unsupported:
             raise NotImplementedError(
                 "Efinity unified netlist flow cannot import InterfaceWriter block(s) as ISF: "
                 + ", ".join(sorted(set(unsupported)))
             )
-        return self.generate(partnumber)
+        return output
 
     def footer(self):
         return """
