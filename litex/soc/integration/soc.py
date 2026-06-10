@@ -283,6 +283,16 @@ class SoCBusHandler(LiteXModule):
             self.logger.error("{} already declared as Region:".format(colorer(name, color="red")))
             self.logger.error(self)
             raise SoCError()
+        # Check Region fits in the Bus Address Space (the decode extent for SoCRegions, since the
+        # decoder matches the full power-of-2 window).
+        if isinstance(region, SoCRegion) and (region.origin is not None):
+            if (region.origin < 0) or (self._region_overlap_end(region) > 2**self.address_width):
+                self.logger.error("{} Region {} {}-bit Bus Address Space:".format(
+                    colorer(name, color="red"),
+                    colorer("does not fit in", color="red"),
+                    colorer(self.address_width)))
+                self.logger.error(str(region))
+                raise SoCError()
         # Check if is SoCIORegion.
         if isinstance(region, SoCIORegion):
             io_regions = dict(self.io_regions)
@@ -297,6 +307,22 @@ class SoCBusHandler(LiteXModule):
                 self.logger.error(str(io_regions[overlap[0]]))
                 self.logger.error(str(io_regions[overlap[1]]))
                 raise SoCError()
+            # Re-check existing Bus Regions against the new IO Region: they were only validated
+            # against the IO Regions present when they were added (e.g. Regions reserved/allocated
+            # before the CPU adds its IO Regions). A cached Region must not lie in an IO Region and
+            # an overlapping Region must be fully contained.
+            if self.io_regions_check:
+                for r_name, r in self.regions.items():
+                    if self.check_regions_overlap({name: region, r_name: r}, check_linker=True) is None:
+                        continue
+                    if r.cached or (not self.check_region_is_in(r, region)):
+                        self.logger.error("{} Region overlaps new IO Region {}{}:".format(
+                            colorer(r_name, color="red"),
+                            colorer(name),
+                            " and is cached" if r.cached else " without being fully contained"))
+                        self.logger.error(str(r))
+                        self.logger.error(str(region))
+                        raise SoCError()
             self.io_regions[name] = region
             self.logger.info("{} Region {} at {}.".format(
                 colorer(name,    color="underline"),
@@ -716,8 +742,24 @@ class SoCBusHandler(LiteXModule):
                     colorer("not found", color="red")))
                 raise SoCError()
         else:
+            # SoCIORegions describe IO decode windows, not Slave mappings: accepting one here would
+            # only register it in io_regions and crash with a KeyError at finalize.
+            if isinstance(region, SoCIORegion):
+                self.logger.error("{} Bus Slave Region must be a {} (use SoCRegion(cached=False) for a Slave in an IO Region).".format(
+                    colorer(name, color="red"),
+                    colorer("SoCRegion")))
+                raise SoCError()
             self.add_region(name, region)
             region_added = True
+        # Check decoded Region origin alignment early, with the Slave's name (the decoder would
+        # only raise at finalize, without naming the offending Region).
+        if (region.origin is not None) and (region.origin & (region.size_pow2 - 1)):
+            self.logger.error("{} Region origin must be aligned on size:".format(
+                colorer(name, color="red")))
+            self.logger.error(str(region))
+            if region_added:
+                self.regions.pop(name, None)
+            raise SoCError()
         try:
             if strip_origin:
                 slave = self.add_offset(name, slave, self.regions[name].origin)
