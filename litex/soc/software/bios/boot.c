@@ -321,7 +321,7 @@ int serialboot(void)
 				uart_write(SFL_ACK_SUCCESS);
 				break;
 			}
-			/* On SFL_CMD_ABORT ... */
+			/* On SFL_CMD_JUMP ... */
 			case SFL_CMD_JUMP: {
 				uint32_t jump_addr;
 
