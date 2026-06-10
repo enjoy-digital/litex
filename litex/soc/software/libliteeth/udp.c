@@ -340,10 +340,13 @@ static uint16_t ip_checksum(uint32_t r, void *buffer, uint32_t length, int compl
 	uint32_t i;
 
 	ptr = (uint8_t *)buffer;
-	length >>= 1;
 
-	for(i=0;i<length;i++)
+	for(i=0;i<(length >> 1);i++)
 		r += ((uint32_t)(ptr[2*i]) << 8)|(uint32_t)(ptr[2*i+1]) ;
+
+	/* Odd length: pad the last byte with zero (RFC 1071). */
+	if(length & 1)
+		r += (uint32_t)(ptr[length-1]) << 8;
 
 	/* Add overflows */
 	while(r >> 16)
@@ -414,10 +417,6 @@ int udp_send(uint16_t src_port, uint16_t dst_port, uint32_t length)
 
 	h.zero = 0;
 	r = ip_checksum(0, &h, sizeof(struct pseudo_header), 0);
-	if(length & 1) {
-		txbuffer->frame.contents.udp.payload[length] = 0;
-		length++;
-	}
 	r = ip_checksum(r, &txbuffer->frame.contents.udp.udp,
 		sizeof(struct udp_header)+length, 1);
 	txbuffer->frame.contents.udp.udp.checksum = htons(r);
