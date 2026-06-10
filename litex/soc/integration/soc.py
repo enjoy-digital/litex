@@ -1896,6 +1896,16 @@ class LiteXSoC(SoC):
         # Imports.
         from litex.soc.cores import uart
 
+        # Checks.
+        if baudrate <= 0:
+            self.logger.error("UART {} {}: must be positive.".format(
+                colorer("baudrate"), colorer(baudrate, color="red")))
+            raise SoCError()
+        if fifo_depth <= 0:
+            self.logger.error("UART {} {}: must be positive.".format(
+                colorer("fifo_depth"), colorer(fifo_depth, color="red")))
+            raise SoCError()
+
         # Core.
         self.check_if_exists(name)
         supported_uarts = uart.get_uart_supported_names()
@@ -1912,10 +1922,8 @@ class LiteXSoC(SoC):
             raise SoCError()
 
         # UARTBone.
-        if uart_name in ["crossover+uartbone"]:
+        if uart_name in ["uartbone", "crossover+uartbone"]:
             self.add_uartbone(baudrate=baudrate, with_dynamic_baudrate=with_dynamic_baudrate)
-        elif uart_name in ["uartbone"]:
-            self.add_uartbone(baudrate=baudrate)
 
         uart_core = uart.get_uart_core(
             uart_name              = uart_name,
@@ -1928,9 +1936,13 @@ class LiteXSoC(SoC):
             rx_fifo_rx_we          = rx_fifo_rx_we,
         )
 
+        # No UART Core (e.g. pure "uartbone"): don't allocate an IRQ/Configs for a UART that does
+        # not exist.
+        if uart_core is None:
+            return
+
         # Add UART.
-        if uart_core is not None:
-            self.add_module(name=name, module=uart_core)
+        self.add_module(name=name, module=uart_core)
 
         if rx_fifo_rx_we:
             self.add_config(f"{name}_RX_FIFO_RX_WE", 1)
