@@ -237,10 +237,11 @@ int serialboot(void)
 			if (uart_read_nonblock()) {
 				unsigned char data;
 				data = uart_read();
-				if (i == 0) {
-					timer0_load(CMD_TIMEOUT_DELAY);
+				/* Reload the inter-byte timeout: a full frame can take longer
+				   than CMD_TIMEOUT_DELAY at low baudrates. */
+				timer0_load(CMD_TIMEOUT_DELAY);
+				if (i == 0)
 					frame.payload_length = data;
-				}
 				if (i == 1) frame.crc[0] = data;
 				if (i == 2) frame.crc[1] = data;
 				if (i == 3) frame.cmd    = data;
