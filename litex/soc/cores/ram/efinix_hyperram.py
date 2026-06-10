@@ -149,6 +149,7 @@ class EfinixHyperRAM(HyperRAM):
         platform.toolchain.excluded_ios.append(_io_pads.rstn)
         platform.toolchain.excluded_ios.append(self.cd_hp.clk)
         platform.toolchain.excluded_ios.append(self.cd_hp90.clk)
+        platform.toolchain.excluded_ios.append(self.cd_hpcal.clk)
 
         HyperRAM.__init__(self,
             pads          = _hp_pads,

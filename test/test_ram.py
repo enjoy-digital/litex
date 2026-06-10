@@ -446,6 +446,7 @@ class TestEfinixRAM(unittest.TestCase):
         self.assertIs(hyperram_blocks[0]["pads"], hyperram.io_pads)
         self.assertIn(platform.request("shift_ena"), platform.toolchain.excluded_ios)
         self.assertIn(hyperram.io_pads.csn, platform.toolchain.excluded_ios)
+        self.assertIn(hyperram.cd_hpcal.clk, platform.toolchain.excluded_ios)
 
 
 if __name__ == "__main__":
