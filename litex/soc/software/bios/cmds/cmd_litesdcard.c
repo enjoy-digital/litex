@@ -103,7 +103,10 @@ static void sdcard_read_handler(int nb_params, char **params)
 		dst = (uint8_t *)(uintptr_t)addr;
 	}
 
-	sdcard_read(block, 1, dst);
+	if (sdcard_read(block, 1, dst) != SD_OK) {
+		printf("Error: SDCard read failed\n");
+		return;
+	}
 	dump_bytes((unsigned int *)dst, 512, (unsigned long)dst);
 }
 
@@ -145,7 +148,8 @@ static void sdcard_write_handler(int nb_params, char **params)
 		}
 	}
 	dump_bytes((unsigned int *)buf, 512, (unsigned long) buf);
-	sdcard_write(block, 1, buf);
+	if (sdcard_write(block, 1, buf) != SD_OK)
+		printf("Error: SDCard write failed\n");
 }
 
 define_command(sdcard_write, sdcard_write_handler, "Write SDCard block", LITESDCARD_CMDS);

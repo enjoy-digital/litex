@@ -110,8 +110,8 @@ void sdcard_decode_csd(void);
 /*-----------------------------------------------------------------------*/
 
 int sdcard_init(void);
-void sdcard_read(uint32_t sector, uint32_t count, uint8_t* buf);
-void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf);
+int sdcard_read(uint32_t sector, uint32_t count, uint8_t* buf);
+int sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf);
 void fatfs_set_ops_sdcard(void);
 
 #endif /* CSR_SDCARD_BASE */
