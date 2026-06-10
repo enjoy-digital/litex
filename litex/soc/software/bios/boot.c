@@ -401,9 +401,11 @@ static void boot_from_json_buffer(const char *json_buffer, int size,
 	int i;
 	int count;
 
-	/* FIXME: modify/increase if too limiting */
-	char json_name[32];
-	char json_value[32];
+	/* Keep the larger parsing buffers static to limit stack pressure in the
+	   boot paths (see boot_json_buffer). json_name must accommodate long
+	   filenames (FatFs is built with LFN support). */
+	static char json_name[256];
+	static char json_value[64];
 
 	unsigned long boot_r1 = 0;
 	unsigned long boot_r2 = 0;
@@ -414,12 +416,16 @@ static void boot_from_json_buffer(const char *json_buffer, int size,
 	uint8_t boot_addr_found = 0;
 
 	/* Parse JSON file */
-	jsmntok_t t[32];
+	static jsmntok_t t[64];
 	jsmn_parser p;
 	jsmn_init(&p);
 	count = jsmn_parse(&p, json_buffer, size, t, sizeof(t)/sizeof(*t));
 	if (count < 0) {
-		printf("Error: failed to parse boot JSON (%d)\n", count);
+		if (count == JSMN_ERROR_NOMEM)
+			printf("Error: too many entries in boot JSON (max %d tokens)\n",
+				(int)(sizeof(t)/sizeof(*t)));
+		else
+			printf("Error: failed to parse boot JSON (%d)\n", count);
 		return;
 	}
 	for (i=0; i<count-1; i++) {
@@ -738,6 +744,17 @@ void netboot(int nb_params, char **params)
 
 #ifdef FLASH_BOOT_ADDRESS
 
+/* Sanity limit on the flash image length field (catches erased/garbage
+   flash). Defaults to the Main RAM size when available since the image has to
+   fit there anyway; override with FLASH_BOOT_MAX_SIZE if needed. */
+#ifndef FLASH_BOOT_MAX_SIZE
+#ifdef MAIN_RAM_SIZE
+#define FLASH_BOOT_MAX_SIZE MAIN_RAM_SIZE
+#else
+#define FLASH_BOOT_MAX_SIZE (16*1024*1024)
+#endif
+#endif
+
 static unsigned int check_image_in_flash(unsigned int base_address)
 {
 	uint32_t length;
@@ -745,7 +762,7 @@ static unsigned int check_image_in_flash(unsigned int base_address)
 	uint32_t got_crc;
 
 	length = MMPTR(base_address);
-	if((length < 32) || (length > 16*1024*1024)) {
+	if((length < 32) || (length > FLASH_BOOT_MAX_SIZE)) {
 		printf("Error: invalid image length 0x%08lx\n", (unsigned long)length);
 		return 0;
 	}
