@@ -830,6 +830,14 @@ class AXILiteDecoder(LiteXModule):
                 )
             ]
 
+        # Block new commands while responses are pending unless they target the already-selected
+        # slave: a new command presented through the held (old) selection would otherwise be
+        # offered to the wrong slave (mis-route with slaves that pipeline commands).
+        cmd_allowed = {}
+        for ch in locks.keys():
+            cmd_allowed[ch] = Signal()
+            self.comb += cmd_allowed[ch].eq(locks[ch].ready | (slave_sel_dec[ch] == slave_sel_reg[ch]))
+
         # Connect master->slaves signals except valid/ready.
         for i, (_, slave) in enumerate(slaves):
             for channel, name, direction in master.layout_flat():
@@ -842,6 +850,9 @@ class AXILiteDecoder(LiteXModule):
                     # Mask master control signals depending on slave selection.
                     if name in ["valid", "ready"]:
                         src = src & slave_sel[directions[channel]][i]
+                        # Hold off new commands while blocked on pending responses.
+                        if channel in ["aw", "ar"]:
+                            src = src & cmd_allowed[directions[channel]]
                     self.comb += dst.eq(src)
 
         # Connect slave->master signals masking not selected slaves.
@@ -855,6 +866,10 @@ class AXILiteDecoder(LiteXModule):
                     src = get_sig(slave, channel, name)
                     # Mask depending on channel.
                     mask = Replicate(slave_sel[directions[channel]][i], len(dst))
+                    # Hold off new commands while blocked on pending responses (the master must
+                    # not see aw/ar ready while its command is not presented to any slave).
+                    if channel in ["aw", "ar"]:
+                        mask = mask & Replicate(cmd_allowed[directions[channel]], len(dst))
                     masked.append(src & mask)
                 if len(masked) > 0:
                     self.comb += dst.eq(reduce(or_, masked))
