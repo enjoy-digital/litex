@@ -1187,6 +1187,7 @@ class SoC(LiteXModule):
         self.platform     = platform
         self.sys_clk_freq = int(sys_clk_freq) # Do conversion to int here to allow passing float to SoC.
         self.constants    = {}
+        self.config       = {}
         self.csr_regions  = {}
         self.mem_map      = dict(self.mem_map)
 
@@ -1682,6 +1683,7 @@ class SoC(LiteXModule):
 
         # Add Main CSRs to a "main" Sub-Module and delete it from Main Module.
         if main_csrs:
+            self.check_if_exists("main")
             self.main = LiteXModule()
             for name, csr in main_csrs.items():
                 setattr(self.main, name, csr)
@@ -1695,7 +1697,7 @@ class SoC(LiteXModule):
             alignment          = self.csr.alignment,
             paging             = self.csr.paging,
             ordering           = self.csr.ordering)
-        if len(self.csr.masters):
+        if len(self.csr.masters) and len(self.csr_bankarray.get_buses()):
             self.csr_interconnect = csr_bus.InterconnectShared(
                 masters = list(self.csr.masters.values()),
                 slaves  = self.csr_bankarray.get_buses())
@@ -3269,9 +3271,6 @@ class SoCCore(LiteXSoC):
             irq_n_irqs           = irq_n_irqs,
             irq_reserved_irqs    = {},
         )
-
-        # Attributes.
-        self.config = {}
 
         # Parameters management --------------------------------------------------------------------
 
