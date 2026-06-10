@@ -136,7 +136,7 @@ static uint8_t spisdcardreceive_block(uint8_t *buf) {
     spisdcard_mosi_write(0xff);
     for (i=0; i<512; i++) {
         spisdcard_control_write(8*SPI_LENGTH | SPI_START);
-        while (spisdcard_status_read() != SPI_DONE);
+        while ((spisdcard_status_read() & SPI_DONE) != SPI_DONE);
         *buf++ = spisdcard_miso_read();
     }
 
