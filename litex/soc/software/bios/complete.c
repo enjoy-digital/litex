@@ -87,6 +87,7 @@ static void string_list_print_by_column(void)
 	if (num == 0)
 		num = 1;
 
+	i = 0;
 	for (j = 0; j < HIST_DEPTH; j++) {
 		if (sl[j][0] != 0) {
 			if (!(++i % num))
@@ -142,9 +143,7 @@ int complete(char *instr, char **outstr)
 			changed = 0;
 			for (i = 0; i < HIST_DEPTH; i++) {
 				if (sl[i][0] != 0) {
-					if (!sl[i][pos])
-						break;
-					if (ch != sl[i][pos]) {
+					if ((!sl[i][pos]) || (ch != sl[i][pos])) {
 						changed = 1;
 						break;
 					}
