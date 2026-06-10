@@ -380,6 +380,9 @@ class DownConverter(LiteXModule):
         skip  = Signal()
         done  = Signal()
         count = Signal(max=ratio)
+        # Latch sub-access errors to report them on the final beat (a Wishbone err, with or
+        # without ack, previously hung the converter or was silently reported as a clean ack).
+        err   = Signal()
 
         # Control Path.
         self.comb += [
@@ -402,17 +405,25 @@ class DownConverter(LiteXModule):
                 slave.cyc.eq(~skip),
                 slave.stb.eq(~skip),
                 slave.we.eq(master.we),
-                If(slave.ack | skip,
-                    master.ack.eq(done)
+                If(slave.ack | slave.err | skip,
+                    If(err | slave.err,
+                        master.err.eq(done)
+                    ).Else(
+                        master.ack.eq(done)
+                    )
                 )
             )
         ]
         self.sync += [
-            If((slave.stb & slave.cyc & slave.ack) | skip,
-                count.eq(count + 1)
+            If((slave.stb & slave.cyc & (slave.ack | slave.err)) | skip,
+                count.eq(count + 1),
+                If(slave.err,
+                    err.eq(1)
+                )
             ),
-            If(master.ack | ~master.cyc,
-                count.eq(0)
+            If(master.ack | master.err | ~master.cyc,
+                count.eq(0),
+                err.eq(0)
             )
         ]
 
