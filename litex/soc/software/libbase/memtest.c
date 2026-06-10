@@ -125,21 +125,34 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 int memtest_addr(unsigned int *addr, unsigned long size, int random)
 {
 	volatile unsigned int *array = addr;
-	int i, errors;
+	unsigned long i, words;
+	int errors;
 	unsigned short seed_16;
-	unsigned short rdata;
+	unsigned int rdata;
 
-	/* Skip when size < 16KB */
-	if (size < 0x10000)
+	/* Skip when size < 4KB */
+	if (size < 0x1000)
 		return 0;
+
+	/* The index is derived from a 16-bit seed: limit the tested zone to its
+	   64K-word (256KB) span. */
+	if (size > 0x40000)
+		size = 0x40000;
+	words = size/4;
+
+	/* The LFSR sequence only visits each index once over a full 64K-word
+	   region; on smaller regions the modulo would alias different seeds to
+	   the same index and report false errors, so use sequential indexing. */
+	if (random && (words != 0x10000))
+		random = 0;
 
 	errors  = 0;
 	seed_16 = 1;
 
 	/* Write datas*/
-	for(i=0; i<size/4; i++) {
+	for(i=0; i<words; i++) {
 		seed_16 = seed_to_data_16(seed_16, random);
-		array[(unsigned int) seed_16] = i;
+		array[(unsigned long) seed_16 % words] = i;
 	}
 
 	/* Flush caches */
@@ -148,14 +161,14 @@ int memtest_addr(unsigned int *addr, unsigned long size, int random)
 
 	/* Read/Verify datas */
 	seed_16 = 1;
-	for(i=0; i<size/4; i++) {
+	for(i=0; i<words; i++) {
 		seed_16 = seed_to_data_16(seed_16, random);
-		rdata = array[(unsigned int) seed_16];
+		rdata = array[(unsigned long) seed_16 % words];
 		if(rdata != i) {
 			errors++;
 #ifdef MEMTEST_ADDR_DEBUG
 			if (MEMTEST_DEBUG_MAX_ERRORS < 0 || errors <= MEMTEST_DEBUG_MAX_ERRORS)
-				printf("memtest_addr error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, i);
+				printf("memtest_addr error @ %p: 0x%08x vs 0x%08lx\n", addr + i, rdata, i);
 #endif
 		}
 	}
