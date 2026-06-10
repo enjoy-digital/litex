@@ -10,7 +10,10 @@
 # Copyright (c) 2021 Jevin Sweval <jevinsweval@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
+from types import SimpleNamespace
+
 from migen import *
+from migen.fhdl.specials import Special, SPECIAL_INPUT, SPECIAL_OUTPUT
 from migen.genlib.cdc import AsyncResetSynchronizer, MultiReg
 from migen.genlib.fifo import AsyncFIFO
 
@@ -683,25 +686,66 @@ class ECP5JTAGPHY(LiteXModule):
 
 # Efinix / TRION -----------------------------------------------------------------------------------
 
-class EfinixJTAG(LiteXModule):
-    # id refer to the JTAG_USER{id}
-    def __init__(self, platform, id=1):
-        self.reset   = Signal()
-        self.capture = Signal()
-        self.shift   = Signal()
-        self.update  = Signal()
-
-        self.tck = Signal()
-        self.tms = Signal()
-        self.tdi = Signal()
-        self.tdo = Signal()
-
-        self.name     = f"jtag_{id}"
+class EfinixJTAGInstance(Special):
+    def __init__(self, platform, name, id, pins):
+        Special.__init__(self)
         self.platform = platform
+        self.name     = name
         self.id       = id
+        self.pins     = pins
 
+        self.capture = pins.CAPTURE
+        self.drck    = pins.DRCK
+        self.reset   = pins.RESET
+        self.runtest = pins.RUNTEST
+        self.sel     = pins.SEL
+        self.shift   = pins.SHIFT
+        self.tck     = pins.TCK
+        self.tdi     = pins.TDI
+        self.tms     = pins.TMS
+        self.update  = pins.UPDATE
+        self.tdo     = pins.TDO
+
+    def iter_expressions(self):
+        yield self, "capture", SPECIAL_OUTPUT
+        yield self, "drck",    SPECIAL_OUTPUT
+        yield self, "reset",   SPECIAL_OUTPUT
+        yield self, "runtest", SPECIAL_OUTPUT
+        yield self, "sel",     SPECIAL_OUTPUT
+        yield self, "shift",   SPECIAL_OUTPUT
+        yield self, "tck",     SPECIAL_OUTPUT
+        yield self, "tdi",     SPECIAL_OUTPUT
+        yield self, "tms",     SPECIAL_OUTPUT
+        yield self, "update",  SPECIAL_OUTPUT
+        yield self, "tdo",     SPECIAL_INPUT
+
+    @staticmethod
+    def lower(dr):
+        if getattr(dr.platform.toolchain, "unified", False):
+            return EfinixUnifiedJTAGImpl(dr.name, dr.id, dr.pins)
+        return EfinixLegacyJTAGImpl(dr.platform, dr.name, dr.id, dr.pins)
+
+class EfinixUnifiedJTAGImpl(LiteXModule):
+    def __init__(self, name, id, pins):
+        self.specials += Instance("EFX_JTAG_V1",
+            p_RESOURCE = f"JTAG_USER{id}",
+            o_CAPTURE  = pins.CAPTURE,
+            o_DRCK     = pins.DRCK,
+            o_RESET    = pins.RESET,
+            o_RUNTEST  = pins.RUNTEST,
+            o_SEL      = pins.SEL,
+            o_SHIFT    = pins.SHIFT,
+            o_TCK      = pins.TCK,
+            o_TDI      = pins.TDI,
+            o_TMS      = pins.TMS,
+            o_UPDATE   = pins.UPDATE,
+            i_TDO      = pins.TDO,
+        )
+
+class EfinixLegacyJTAGImpl(LiteXModule):
+    def __init__(self, platform, name, id, pins):
         _io = [
-            (self.name, 0,
+            (name, 0,
                 Subsignal("CAPTURE", Pins(1)),
                 Subsignal("DRCK",    Pins(1)),
                 Subsignal("RESET",   Pins(1)),
@@ -717,28 +761,67 @@ class EfinixJTAG(LiteXModule):
         ]
         platform.add_extension(_io)
 
-        self.pins = pins = platform.request(self.name)
-        for pin in pins.flatten():
-            self.platform.toolchain.excluded_ios.append(pin.backtrace[-1][0])
+        iface_pins = platform.request(name)
+        for pin in iface_pins.flatten():
+            platform.toolchain.excluded_ios.append(pin.backtrace[-1][0])
 
         block = {}
         block["type"] = "JTAG"
-        block["name"] = self.name
-        block["id"]   = self.id
-        block["pins"] = pins
-        self.platform.toolchain.ifacewriter.blocks.append(block)
+        block["name"] = name
+        block["id"]   = id
+        block["pins"] = iface_pins
+        platform.toolchain.ifacewriter.blocks.append(block)
 
         self.comb += [
-            self.reset.eq(pins.RESET),
-            self.capture.eq(pins.CAPTURE),
-            self.shift.eq(pins.SHIFT),
-            self.update.eq(pins.UPDATE),
+            pins.RESET.eq(iface_pins.RESET),
+            pins.CAPTURE.eq(iface_pins.CAPTURE),
+            pins.DRCK.eq(iface_pins.DRCK),
+            pins.RUNTEST.eq(iface_pins.RUNTEST),
+            pins.SEL.eq(iface_pins.SEL),
+            pins.SHIFT.eq(iface_pins.SHIFT),
+            pins.UPDATE.eq(iface_pins.UPDATE),
 
-            self.tck.eq(pins.TCK),
-            self.tms.eq(pins.TMS),
-            self.tdi.eq(pins.TDI),
-            pins.TDO.eq(self.tdo),
+            pins.TCK.eq(iface_pins.TCK),
+            pins.TMS.eq(iface_pins.TMS),
+            pins.TDI.eq(iface_pins.TDI),
+            iface_pins.TDO.eq(pins.TDO),
         ]
+
+class EfinixJTAG(LiteXModule):
+    # id refer to the JTAG_USER{id}
+    def __init__(self, platform, id=1):
+        self.reset   = reset   = Signal()
+        self.capture = capture = Signal()
+        self.shift   = shift   = Signal()
+        self.update  = update  = Signal()
+
+        self.runtest = runtest = Signal()
+        self.drck    = drck    = Signal()
+        self.sel     = sel     = Signal()
+
+        self.tck = tck = Signal()
+        self.tms = tms = Signal()
+        self.tdi = tdi = Signal()
+        self.tdo = tdo = Signal()
+
+        self.name     = f"jtag_{id}"
+        self.platform = platform
+        self.id       = id
+
+        self.pins = SimpleNamespace(
+            CAPTURE = capture,
+            DRCK    = drck,
+            RESET   = reset,
+            RUNTEST = runtest,
+            SEL     = sel,
+            SHIFT   = shift,
+            TCK     = tck,
+            TDI     = tdi,
+            TMS     = tms,
+            UPDATE  = update,
+            TDO     = tdo,
+        )
+        self.specials += EfinixJTAGInstance(platform, self.name, self.id, self.pins)
 
     def bind_vexriscv_smp(self, cpu):
         self.comb += [
