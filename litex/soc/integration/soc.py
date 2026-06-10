@@ -1346,9 +1346,9 @@ class SoC(LiteXModule):
             address_width = self.bus.address_width,
             bursting      = self.bus.bursting
         )
+        self.check_if_exists(name)
         ram = ram_cls(size, bus=ram_bus, init=contents, read_only=("w" not in mode), name=name)
         self.bus.add_slave(name=name, slave=ram.bus, region=SoCRegion(origin=origin, size=size, mode=mode))
-        self.check_if_exists(name)
         self.logger.info("RAM {} {} {}.".format(
             colorer(name),
             colorer("added", color="green"),
@@ -2347,7 +2347,7 @@ class LiteXSoC(SoC):
                 colorer("data_width"), colorer(data_width, color="red")))
             raise SoCError()
         with_sys_datapath = (data_width == 32)
-        self.check_if_exists(name + "_ethcore")
+        self.check_if_exists(f"ethcore_{name}")
         ethcore = LiteEthUDPIPCore(
             phy         = phy,
             mac_address = mac_address,
@@ -2611,12 +2611,11 @@ class LiteXSoC(SoC):
         # PHY.
         spiram_phy = phy
         if spiram_phy is None:
-            self.check_if_exists(f"{name}_phy")
             spiram_pads = self.platform.request(name if mode == "1x" else name + mode, number=number)
             spiram_phy = LiteSPIPHY(spiram_pads, module, device=self.platform.device, default_divisor=default_divisor, rate=rate, **kwargs)
 
         # Core.
-        self.check_if_exists(f"{name}_mmap")
+        self.check_if_exists(name)
         spiram = LiteSPI(spiram_phy, mmap_endianness=self.cpu.endianness, with_mmap_write=True, **kwargs)
         spiram.add_module(name="phy", module=spiram_phy)
         self.add_module(name=name, module=spiram)
