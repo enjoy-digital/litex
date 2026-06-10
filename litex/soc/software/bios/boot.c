@@ -839,8 +839,10 @@ static int copy_file_from_sdcard_to_ram(const char * filename, unsigned long ram
 	unsigned long length;
 
 	fr = f_mount(&fs, "", 1);
-	if (fr != FR_OK)
+	if (fr != FR_OK) {
+		printf("Error: filesystem mount failed (FatFs error %d)\n", fr);
 		return 0;
+	}
 	fr = f_open(&file, filename, FA_READ);
 	if (fr != FR_OK) {
 		printf("%s file not found.\n", filename);
@@ -900,8 +902,10 @@ static void sdcardboot_from_json(const char * filename)
 
 	/* Read JSON file */
 	fr = f_mount(&fs, "", 1);
-	if (fr != FR_OK)
+	if (fr != FR_OK) {
+		printf("Error: filesystem mount failed (FatFs error %d)\n", fr);
 		return;
+	}
 	fr = f_open(&file, filename, FA_READ);
 	if (fr != FR_OK) {
 		printf("%s file not found.\n", filename);
@@ -983,8 +987,10 @@ static int copy_file_from_sata_to_ram(const char * filename, unsigned long ram_a
 	unsigned long length;
 
 	fr = f_mount(&fs, "", 1);
-	if (fr != FR_OK)
+	if (fr != FR_OK) {
+		printf("Error: filesystem mount failed (FatFs error %d)\n", fr);
 		return 0;
+	}
 	fr = f_open(&file, filename, FA_READ);
 	if (fr != FR_OK) {
 		printf("%s file not found.\n", filename);
@@ -1044,8 +1050,10 @@ static void sataboot_from_json(const char * filename)
 
 	/* Read JSON file */
 	fr = f_mount(&fs, "", 1);
-	if (fr != FR_OK)
+	if (fr != FR_OK) {
+		printf("Error: filesystem mount failed (FatFs error %d)\n", fr);
 		return;
+	}
 	fr = f_open(&file, filename, FA_READ);
 	if (fr != FR_OK) {
 		printf("%s file not found.\n", filename);

@@ -76,8 +76,10 @@ static void flash_from_sdcard_handler(int nb_params, char **params)
 	char* filename = params[0];
 
 	fr = f_mount(&fs, "", 1);
-	if (fr != FR_OK)
+	if (fr != FR_OK) {
+		printf("Error: filesystem mount failed (FatFs error %d)\n", fr);
 		return;
+	}
 	fr = f_open(&file, filename, FA_READ);
 	if (fr != FR_OK) {
 		printf("%s file not found.\n", filename);
