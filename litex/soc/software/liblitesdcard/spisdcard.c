@@ -28,6 +28,10 @@
 #define SPISDCARD_CLK_FREQ 20000000
 #endif
 
+/* OCR CCS bit: 1 on high/extended capacity cards (block addressing), 0 on
+   ver2.00+ standard capacity cards (byte addressing). */
+static uint8_t spisdcard_ccs = 1;
+
 /*-----------------------------------------------------------------------*/
 /* SPI SDCard clocker functions                                          */
 /*-----------------------------------------------------------------------*/
@@ -248,6 +252,13 @@ uint8_t spisdcard_init(void) {
     if (timeout == 0)
         return 0;
 
+    /* Get the CCS bit from the OCR: standard capacity ver2.00+ cards (CCS=0)
+       take byte addresses in block commands instead of block addresses. */
+    if (spisdcardsend_cmd(CMD58, 0) != 0)
+        return 0;
+    spisdcardread_bytes(buf, 4); /* Get trailing bytes of R3 response (OCR) */
+    spisdcard_ccs = (buf[0] >> 6) & 0x1;
+
     /* Set SPI clk freq to operational frequency */
     spi_set_clk_freq(SPISDCARD_CLK_FREQ);
 
@@ -276,11 +287,15 @@ static DSTATUS spisd_disk_initialize(BYTE drv) {
 
 static DRESULT spisd_disk_read(BYTE drv, BYTE *buf, LBA_t block, UINT count) {
     uint8_t cmd;
+    uint32_t addr;
     if (count > 1)
         cmd = CMD18; /* READ_MULTIPLE_BLOCK */
     else
         cmd = CMD17; /* READ_SINGLE_BLOCK */
-    if (spisdcardsend_cmd(cmd, block) == 0) {
+    /* Standard capacity cards take byte addresses (cards <= 2GB, so the
+       byte address always fits in 32-bit). */
+    addr = spisdcard_ccs ? block : block * 512;
+    if (spisdcardsend_cmd(cmd, addr) == 0) {
         while(count > 0) {
             if (spisdcardreceive_block(buf) == 0)
                 break;

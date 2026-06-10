@@ -49,6 +49,14 @@ static unsigned int support_cmd23;
 #define support_cmd23 0
 #endif
 
+/* OCR CCS bit: 1 on high/extended capacity cards (block addressing), 0 on
+   ver2.00+ standard capacity cards (byte addressing). */
+static unsigned int sdcard_ccs = 1;
+
+static inline uint32_t sdcard_block_to_addr(uint32_t block) {
+	return sdcard_ccs ? block : block * 512;
+}
+
 /*-----------------------------------------------------------------------*/
 /* SDCard command helpers                                                */
 /*-----------------------------------------------------------------------*/
@@ -534,6 +542,10 @@ int sdcard_init(void) {
 	if (timeout == 0)
 		return 0;
 
+	/* Get the CCS bit from the OCR: standard capacity ver2.00+ cards (CCS=0)
+	   take byte addresses in block commands instead of block addresses. */
+	sdcard_ccs = (r[0] >> 30) & 0x1;
+
 	/* Send identification */
 	if (sdcard_all_send_cid() != SD_OK)
 		return 0;
@@ -617,7 +629,7 @@ int sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 			}
 
 			if (status == SD_OK)
-				status = sdcard_read_multiple_block(block, nblocks);
+				status = sdcard_read_multiple_block(sdcard_block_to_addr(block), nblocks);
 
 			if (support_cmd23 == 0) {
 				int stop_status = sdcard_stop_transmission();
@@ -626,7 +638,7 @@ int sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 			}
 		}
 		else {
-			status = sdcard_read_single_block(block);
+			status = sdcard_read_single_block(sdcard_block_to_addr(block));
 		}
 
 		/* On error, no data will arrive: don't wait for the DMA */
@@ -690,7 +702,7 @@ int sdcard_write(uint32_t block, uint32_t count, uint8_t* buf)
 			}
 
 			if (status == SD_OK)
-				status = sdcard_write_multiple_block(block, nblocks);
+				status = sdcard_write_multiple_block(sdcard_block_to_addr(block), nblocks);
 
 			if (support_cmd23 == 0) {
 				int stop_status = sdcard_stop_transmission();
@@ -698,7 +710,7 @@ int sdcard_write(uint32_t block, uint32_t count, uint8_t* buf)
 					status = stop_status;
 			}
 		} else {
-			status = sdcard_write_single_block(block);
+			status = sdcard_write_single_block(sdcard_block_to_addr(block));
 		}
 
 		/* On error, no data will be transferred: don't wait for the DMA */
