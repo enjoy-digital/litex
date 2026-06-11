@@ -45,6 +45,13 @@ class TestLiteXSetup(unittest.TestCase):
             stderr=subprocess.DEVNULL,
         )
 
+    def git_output(self, repo_path, *args):
+        return subprocess.check_output(
+            ["git"] + list(args),
+            cwd=repo_path,
+            stderr=subprocess.DEVNULL,
+        ).decode("utf-8").strip()
+
     def write_file(self, path, contents):
         with open(path, "w", encoding="utf-8") as f:
             f.write(contents)
@@ -90,6 +97,64 @@ class TestLiteXSetup(unittest.TestCase):
         litex_setup.install_configs = {"minimal": ["litex"]}
         return upstream_path, repo_path
 
+    def create_recursive_repo(self):
+        remotes_path = os.path.join(self.workspace, "remotes")
+        os.makedirs(remotes_path, exist_ok=True)
+
+        submodule_remote   = os.path.join(remotes_path, "submodule.git")
+        submodule_upstream = os.path.join(self.workspace, "submodule-upstream")
+        self.git(self.workspace, "init", "--bare", submodule_remote)
+        os.makedirs(submodule_upstream)
+        self.git(submodule_upstream, "init", "-b", "master")
+        self.configure_user(submodule_upstream)
+        self.git(submodule_upstream, "remote", "add", "origin", submodule_remote)
+        self.write_file(os.path.join(submodule_upstream, "value.txt"), "submodule-v1\n")
+        self.git(submodule_upstream, "add", "value.txt")
+        self.git(submodule_upstream, "commit", "-m", "Submodule v1")
+        submodule_v1 = self.git_output(submodule_upstream, "rev-parse", "HEAD")
+        self.git(submodule_upstream, "push", "-u", "origin", "master")
+        self.write_file(os.path.join(submodule_upstream, "value.txt"), "submodule-v2\n")
+        self.git(submodule_upstream, "commit", "-am", "Submodule v2")
+        submodule_v2 = self.git_output(submodule_upstream, "rev-parse", "HEAD")
+        self.git(submodule_upstream, "push")
+
+        main_remote   = os.path.join(remotes_path, "litex.git")
+        main_upstream = os.path.join(self.workspace, "main-upstream")
+        self.git(self.workspace, "init", "--bare", main_remote)
+        os.makedirs(main_upstream)
+        self.git(main_upstream, "init", "-b", "master")
+        self.configure_user(main_upstream)
+        self.git(main_upstream, "remote", "add", "origin", main_remote)
+        self.git(
+            main_upstream,
+            "-c", "protocol.file.allow=always",
+            "submodule", "add", submodule_remote, "deps/submodule",
+        )
+        submodule_path = os.path.join(main_upstream, "deps", "submodule")
+        self.git(submodule_path, "checkout", submodule_v1)
+        self.git(main_upstream, "add", ".gitmodules", "deps/submodule")
+        self.git(main_upstream, "commit", "-m", "Use submodule v1")
+        main_v1 = self.git_output(main_upstream, "rev-parse", "HEAD")
+        self.git(main_upstream, "push", "-u", "origin", "master")
+        self.git(submodule_path, "checkout", submodule_v2)
+        self.git(main_upstream, "add", "deps/submodule")
+        self.git(main_upstream, "commit", "-m", "Use submodule v2")
+        self.git(main_upstream, "push")
+
+        litex_setup.git_repos = {
+            "litex": SimpleNamespace(
+                url=os.path.join(remotes_path, ""),
+                branch="master",
+                clone="recursive",
+                tag=True,
+                sha1=int(main_v1, 16),
+                develop=True,
+                editable=True,
+            ),
+        }
+        litex_setup.install_configs = {"minimal": ["litex"]}
+        return main_remote, main_v1, submodule_v1
+
     def assert_update_error(self):
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
@@ -134,6 +199,30 @@ class TestLiteXSetup(unittest.TestCase):
         self.assertIn("LiteX only performs fast-forward updates", output)
         self.assertIn("git pull --ff-only", output)
         self.assertNotIn("Traceback", output)
+
+    def test_init_updates_submodules_after_frozen_sha_checkout(self):
+        _main_remote, _main_v1, submodule_v1 = self.create_recursive_repo()
+
+        with mock.patch.dict(os.environ, {"GIT_ALLOW_PROTOCOL": "file"}):
+            litex_setup.litex_setup_init_repos(config="minimal")
+
+        submodule_path = os.path.join(self.workspace, "litex", "deps", "submodule")
+        self.assertEqual(self.git_output(submodule_path, "rev-parse", "HEAD"), submodule_v1)
+
+    def test_update_updates_submodules_after_frozen_sha_checkout(self):
+        main_remote, _main_v1, submodule_v1 = self.create_recursive_repo()
+        repo_path = os.path.join(self.workspace, "litex")
+
+        with mock.patch.dict(os.environ, {"GIT_ALLOW_PROTOCOL": "file"}):
+            self.git(
+                self.workspace,
+                "-c", "protocol.file.allow=always",
+                "clone", "--recursive", main_remote, repo_path,
+            )
+            litex_setup.litex_setup_update_repos(config="minimal")
+
+        submodule_path = os.path.join(repo_path, "deps", "submodule")
+        self.assertEqual(self.git_output(submodule_path, "rev-parse", "HEAD"), submodule_v1)
 
     def test_init_rejects_existing_non_git_directory(self):
         os.makedirs(os.path.join(self.workspace, "litex"))

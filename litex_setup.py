@@ -229,6 +229,20 @@ def git_checkout(sha1=None, tag=None, quiet=False, cwd=None):
         sha1_tag     = subprocess_check_output(sha1_tag_cmd, cwd=cwd).strip()
         subprocess_check_output(checkout_cmd + [sha1_tag], cwd=cwd)
 
+def git_update_submodules(name, repo_path, error):
+    submodule_cmds = [
+        (["git", "submodule", "sync", "--recursive"], "sync submodules in"),
+        (["git", "submodule", "update", "--init", "--recursive"], "update submodules in"),
+    ]
+    for cmd, action in submodule_cmds:
+        try:
+            output = subprocess_check_output(cmd, cwd=repo_path).strip()
+        except subprocess.CalledProcessError:
+            error(name, repo_path, action)
+            raise SetupError
+        if output:
+            print(output)
+
 def git_pull(repo_path):
     color  = "always" if sys.stdout.isatty() else "never"
     pull_cmd = ["git", "-c", f"color.ui={color}", "pull", "--ff-only", "--stat"]
@@ -338,6 +352,7 @@ def litex_setup_init_repos(config="standard", tag=None, dev_mode=False):
                 git_init_error(name, repo_path, f"checkout branch {repo.branch} in")
                 raise SetupError
             # Use specific Tag (Optional).
+            checked_out = False
             if repo.tag is not None:
                 # Priority to passed tag (if specified).
                 if tag is not None:
@@ -346,22 +361,25 @@ def litex_setup_init_repos(config="standard", tag=None, dev_mode=False):
                     except subprocess.CalledProcessError:
                         git_init_error(name, repo_path, f"checkout tag {tag} in")
                         raise SetupError
-                    continue
+                    checked_out = True
                 # Else fallback to repo tag (if specified).
-                if isinstance(repo.tag, str):
+                elif isinstance(repo.tag, str):
                     try:
                         git_checkout(tag=repo.tag, cwd=repo_path)
                     except subprocess.CalledProcessError:
                         git_init_error(name, repo_path, f"checkout tag {repo.tag} in")
                         raise SetupError
-                    continue
+                    checked_out = True
             # Use specific SHA1 (Optional).
-            if repo.sha1 is not None:
+            if not checked_out and repo.sha1 is not None:
                 try:
                     git_checkout(sha1=repo.sha1, cwd=repo_path)
                 except subprocess.CalledProcessError:
                     git_init_error(name, repo_path, f"checkout SHA1 {repo.sha1:07x} in")
                     raise SetupError
+            # Recursive Update (Optional).
+            if repo.clone == "recursive":
+                git_update_submodules(name, repo_path, git_init_error)
         else:
             if not git_is_repository(repo_path):
                 print_error(f"{name} directory already exists but is not a Git repository.")
@@ -396,17 +414,8 @@ def litex_setup_update_repos(config="standard", tag=None):
         except subprocess.CalledProcessError:
             git_update_error(name, repo_path, "fast-forward")
             raise SetupError
-        # Recursive Update (Optional).
-        if repo.clone == "recursive":
-            submodule_cmd = ["git", "submodule", "update", "--init", "--recursive"]
-            try:
-                output = subprocess_check_output(submodule_cmd, cwd=repo_path).strip()
-            except subprocess.CalledProcessError:
-                git_update_error(name, repo_path, "update submodules in")
-                raise SetupError
-            if output:
-                print(output)
         # Use specific Tag (Optional).
+        checked_out = False
         if repo.tag is not None:
             # Priority to passed tag (if specified).
             if tag is not None:
@@ -415,22 +424,25 @@ def litex_setup_update_repos(config="standard", tag=None):
                 except subprocess.CalledProcessError:
                     git_update_error(name, repo_path, f"checkout tag {tag} in")
                     raise SetupError
-                continue
+                checked_out = True
             # Else fallback to repo tag (if specified).
-            if isinstance(repo.tag, str):
+            elif isinstance(repo.tag, str):
                 try:
                     git_checkout(tag=repo.tag, quiet=True, cwd=repo_path)
                 except subprocess.CalledProcessError:
                     git_update_error(name, repo_path, f"checkout tag {repo.tag} in")
                     raise SetupError
-                continue
+                checked_out = True
         # Use specific SHA1 (Optional).
-        if repo.sha1 is not None:
+        if not checked_out and repo.sha1 is not None:
             try:
                 git_checkout(sha1=repo.sha1, quiet=True, cwd=repo_path)
             except subprocess.CalledProcessError:
                 git_update_error(name, repo_path, f"checkout SHA1 {repo.sha1:07x} in")
                 raise SetupError
+        # Recursive Update (Optional).
+        if repo.clone == "recursive":
+            git_update_submodules(name, repo_path, git_update_error)
 
 # Git repositories install -------------------------------------------------------------------------
 
