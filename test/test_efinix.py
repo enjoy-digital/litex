@@ -16,7 +16,7 @@ from litex.build.efinix.efinity import (
     build_argdict,
 )
 from litex.build.efinix.common import add_gpio_block, efinix_special_overrides, gpio_info
-from litex.build.efinix.ifacewriter import InterfaceWriter
+from litex.build.efinix.ifacewriter import InterfaceWriter, InterfaceWriterBlock
 from litex.build.efinix.toolchain import find_efinity_path, load_efinity_env
 from litex.build.io import (
     ClkInput, ClkOutput,
@@ -629,6 +629,34 @@ def test_unified_io_constraints_reject_non_importable_iface_blocks(tmp_path, mon
         assert "GPIO" in str(e)
     else:
         raise AssertionError("Expected non-importable InterfaceWriter block to be rejected")
+
+
+def test_unified_io_constraints_imports_ifacewriter_blocks(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    class DDRBlock(InterfaceWriterBlock):
+        @staticmethod
+        def generate():
+            return (
+                'design.create_block("ddr_inst1", "DDR")\n'
+                'design.set_property("ddr_inst1","MEMORY_TYPE","LPDDR4x", "DDR")\n'
+                'design.assign_resource("ddr_inst1", "DDR_0","DDR")\n'
+            )
+
+    toolchain = EfinityToolchain("/tmp/efinity")
+    toolchain.unified = True
+    toolchain._build_name = "top"
+    toolchain.named_sc = []
+    toolchain.named_pc = []
+    toolchain.platform = SimpleNamespace(iobank_info=None, device="Ti375C529")
+    toolchain.ifacewriter.blocks = [DDRBlock()]
+
+    assert toolchain.build_io_constraints() == ("top.isf", "ISF")
+
+    iface = (tmp_path / "iface.isf").read_text()
+    assert 'design.create_block("ddr_inst1", "DDR")' in iface
+    assert 'design.set_property("ddr_inst1","MEMORY_TYPE","LPDDR4x", "DDR")' in iface
+    assert 'design.assign_resource("ddr_inst1", "DDR_0","DDR")' in iface
 
 
 def test_unified_project_references_isf_and_litex_sdc(tmp_path, monkeypatch):

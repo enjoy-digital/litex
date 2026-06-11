@@ -730,7 +730,7 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         output = ""
         for block in self.blocks:
             if isinstance(block, InterfaceWriterBlock):
-                unsupported.append(type(block).__name__)
+                output += block.generate()
                 continue
             block_type = block["type"]
             if block_type not in supported_types:
