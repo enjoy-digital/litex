@@ -716,50 +716,55 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         return output
 
     def generate_isf(self, partnumber):
-        supported_types = {
-            "HYPERRAM",
-            "PLL",
-            "SPI_FLASH",
-            "REMOTE_UPDATE",
-            "SEU",
-            "MIPI_TX_LANE",
-            "MIPI_RX_LANE",
-            "LVDS",
-        }
-        unsupported = []
         output = ""
         for block in self.blocks:
             if isinstance(block, InterfaceWriterBlock):
                 output += block.generate()
                 continue
-            block_type = block["type"]
-            if block_type not in supported_types:
-                unsupported.append(block_type)
-            elif block_type == "PLL":
-                if "extra" in block:
-                    unsupported.append("PLL with extra commands")
-                else:
-                    output += self.generate_pll(block, partnumber, verbose=False, isf=True)
-            elif block_type == "HYPERRAM":
-                output += self.generate_hyperram(block)
-            elif block_type == "SPI_FLASH":
-                output += self.generate_spiflash(block)
-            elif block_type == "REMOTE_UPDATE":
-                output += self.generate_remote_update(block)
-            elif block_type == "SEU":
-                output += self.generate_seu(block)
-            elif block_type == "MIPI_TX_LANE":
-                output += self.generate_mipi_tx(block)
-            elif block_type == "MIPI_RX_LANE":
-                output += self.generate_mipi_rx(block)
-            elif block_type == "LVDS":
-                output += self.generate_lvds(block)
-        if unsupported:
-            raise NotImplementedError(
-                "Efinity unified netlist flow cannot import InterfaceWriter block(s) as ISF: "
-                + ", ".join(sorted(set(unsupported)))
-            )
+            output += self.generate_isf_block(block, partnumber)
         return output
+
+    def generate_peri_script_isf(self, partnumber):
+        # LVDS blocks are already reconstructed from HDL primitives by the unified
+        # mapper. Replaying them as peri_scripts creates duplicate generated pins.
+        skipped_types = {"LVDS"}
+        output = ""
+        for block in self.blocks:
+            if isinstance(block, InterfaceWriterBlock):
+                output += block.generate()
+                continue
+            if block["type"] in skipped_types:
+                continue
+            output += self.generate_isf_block(block, partnumber)
+        return output
+
+    def generate_isf_block(self, block, partnumber):
+        block_type = block["type"]
+        if block_type == "PLL":
+            if "extra" in block:
+                raise NotImplementedError(
+                    "Efinity unified netlist flow cannot import InterfaceWriter block(s) as ISF: "
+                    "PLL with extra commands"
+                )
+            return self.generate_pll(block, partnumber, verbose=False, isf=True)
+        if block_type == "HYPERRAM":
+            return self.generate_hyperram(block)
+        if block_type == "SPI_FLASH":
+            return self.generate_spiflash(block)
+        if block_type == "REMOTE_UPDATE":
+            return self.generate_remote_update(block)
+        if block_type == "SEU":
+            return self.generate_seu(block)
+        if block_type == "MIPI_TX_LANE":
+            return self.generate_mipi_tx(block)
+        if block_type == "MIPI_RX_LANE":
+            return self.generate_mipi_rx(block)
+        if block_type == "LVDS":
+            return self.generate_lvds(block)
+        raise NotImplementedError(
+            "Efinity unified netlist flow cannot import InterfaceWriter block(s) as ISF: "
+            + block_type
+        )
 
     def footer(self):
         return """

@@ -151,6 +151,7 @@ class EfinityToolchain(GenericToolchain):
         self.unified                   = False
         self._unified_isf_file         = None
         self._unified_iface_file       = None
+        self._unified_peri_script_file = None
 
     def finalize(self):
         self.ifacewriter.set_build_params(self.platform, self._build_name)
@@ -444,6 +445,17 @@ class EfinityToolchain(GenericToolchain):
                 tools.write_to_file(self._unified_iface_file, iface_isf)
             else:
                 self._unified_iface_file = None
+
+            peri_script_isf = self.ifacewriter.generate_peri_script_isf(self.platform.device)
+            peri_script_isf += "\n".join(self.additional_iface_commands)
+            if peri_script_isf.strip():
+                if peri_script_isf == iface_isf and self._unified_iface_file is not None:
+                    self._unified_peri_script_file = self._unified_iface_file
+                else:
+                    self._unified_peri_script_file = "iface_peri.isf"
+                    tools.write_to_file(self._unified_peri_script_file, peri_script_isf)
+            else:
+                self._unified_peri_script_file = None
             return (self._unified_isf_file, "ISF")
 
         header = self.ifacewriter.header(self._build_name, self.platform.device)
@@ -608,8 +620,8 @@ class EfinityToolchain(GenericToolchain):
         ]
         if self.unified:
             cmd.append("--un_flow")
-            if self._unified_iface_file is not None:
-                cmd += ["--pt_opts", f"peri_scripts={self._unified_iface_file}"]
+            if self._unified_peri_script_file is not None:
+                cmd += ["--pt_opts", f"peri_scripts={self._unified_peri_script_file}"]
         r = tools.subprocess_call_filtered(cmd, common.colors, env=self.env, tail_log=log_file)
         if r != 0:
            raise OSError("Error occurred during efx_run execution.")

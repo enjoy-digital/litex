@@ -482,6 +482,7 @@ def test_unified_io_constraints_write_mixed_iface_isf(tmp_path, monkeypatch):
     assert toolchain.build_io_constraints() == ("top.isf", "ISF")
 
     assert toolchain._unified_iface_file == "iface.isf"
+    assert toolchain._unified_peri_script_file == "iface.isf"
     assert 'design.set_device_property("seu", "ENA_DETECT", "False", "SEU")' in (tmp_path / "iface.isf").read_text()
 
 
@@ -511,6 +512,7 @@ def test_unified_io_constraints_write_importable_pll_isf(tmp_path, monkeypatch):
     assert toolchain.build_io_constraints() == ("top.isf", "ISF")
 
     iface = (tmp_path / "iface.isf").read_text()
+    assert toolchain._unified_peri_script_file == "iface.isf"
     assert 'design.create_block("pll0", block_type="PLL")' in iface
     assert 'design.auto_calc_pll_clock("pll0", {' in iface
     assert "'CLKOUT0_FREQ': '100.0'" in iface
@@ -654,9 +656,54 @@ def test_unified_io_constraints_imports_ifacewriter_blocks(tmp_path, monkeypatch
     assert toolchain.build_io_constraints() == ("top.isf", "ISF")
 
     iface = (tmp_path / "iface.isf").read_text()
+    assert toolchain._unified_peri_script_file == "iface.isf"
     assert 'design.create_block("ddr_inst1", "DDR")' in iface
     assert 'design.set_property("ddr_inst1","MEMORY_TYPE","LPDDR4x", "DDR")' in iface
     assert 'design.assign_resource("ddr_inst1", "DDR_0","DDR")' in iface
+
+
+def test_unified_io_constraints_filters_hdl_lvds_from_peri_script(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    class DDRBlock(InterfaceWriterBlock):
+        @staticmethod
+        def generate():
+            return 'design.create_block("ddr_inst1", "DDR")\n'
+
+    toolchain = EfinityToolchain("/tmp/efinity")
+    toolchain.unified = True
+    toolchain._build_name = "top"
+    toolchain.named_sc = []
+    toolchain.named_pc = []
+    toolchain.platform = SimpleNamespace(iobank_info=None, device="Ti375C529")
+    toolchain.ifacewriter.platform = SimpleNamespace(family="Titanium")
+    toolchain.ifacewriter.blocks = [
+        DDRBlock(),
+        {
+            "type"     : "LVDS",
+            "name"     : "lvds_tx",
+            "mode"     : "OUTPUT",
+            "location" : "GPIOB_PN_00",
+            "size"     : 10,
+            "sig"      : migen.Signal(10, name="lvds_tx_data"),
+            "tx_mode"  : "DATA",
+            "fast_clk" : "fast_clk",
+            "slow_clk" : "slow_clk",
+            "rst"      : "lvds_rst",
+            "oe"       : "lvds_oe",
+        },
+    ]
+
+    assert toolchain.build_io_constraints() == ("top.isf", "ISF")
+    assert toolchain._unified_iface_file == "iface.isf"
+    assert toolchain._unified_peri_script_file == "iface_peri.isf"
+
+    iface = (tmp_path / "iface.isf").read_text()
+    peri_script = (tmp_path / "iface_peri.isf").read_text()
+    assert 'design.create_block("ddr_inst1", "DDR")' in iface
+    assert 'design.create_block("ddr_inst1", "DDR")' in peri_script
+    assert 'design.create_block("lvds_tx", block_type="LVDS_TX"' in iface
+    assert "lvds_tx" not in peri_script
 
 
 def test_unified_project_references_isf_and_litex_sdc(tmp_path, monkeypatch):
@@ -718,6 +765,7 @@ def test_unified_run_script_passes_un_flow(tmp_path, monkeypatch):
     toolchain._build_dir = str(tmp_path)
     toolchain._unified_isf_file = "top.isf"
     toolchain._unified_iface_file = "iface.isf"
+    toolchain._unified_peri_script_file = "iface_peri.isf"
 
     toolchain.run_script(None)
 
@@ -725,7 +773,8 @@ def test_unified_run_script_passes_un_flow(tmp_path, monkeypatch):
     assert "--un_flow" in calls[0]
     assert calls[0].count("--pt_opts") == 1
     assert "peri_scripts=top.isf" not in calls[0]
-    assert "peri_scripts=iface.isf" in calls[0]
+    assert "peri_scripts=iface.isf" not in calls[0]
+    assert "peri_scripts=iface_peri.isf" in calls[0]
     assert not (tmp_path / "top_merged.sdc").exists()
 
 
