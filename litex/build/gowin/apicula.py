@@ -65,8 +65,3 @@ class GowinApiculaToolchain(YosysNextPNRToolchain):
                     self._packer_opts += " --" + option[4:]
 
         YosysNextPNRToolchain.finalize(self)
-
-    def build(self, platform, fragment, **kwargs):
-        self.platform = platform
-
-        return YosysNextPNRToolchain.build(self, platform, fragment, **kwargs)

@@ -184,7 +184,7 @@ class EfinixPlatform(GenericPlatform):
         sc = self.constraint_manager.get_sig_constraints()
         for s, pins, others, resource in sc:
             if s == sig:
-                return sc
+                return (s, pins, others, resource)
         return None
 
     def add_iface_io(self, name, size=1):

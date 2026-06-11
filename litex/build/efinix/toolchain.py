@@ -18,7 +18,10 @@ EFINITY_TOOLCHAIN_ERROR += "- Or add Efinity toolchain to your $PATH."
 def find_efinity_path():
     efinity_path = os.getenv("LITEX_ENV_EFINITY")
     if efinity_path:
-        return efinity_path.rstrip("/")
+        efinity_path = efinity_path.rstrip("/")
+        if (Path(efinity_path) / "bin" / "setup.sh").is_file():
+            return efinity_path
+        raise OSError(f"LITEX_ENV_EFINITY is set to {efinity_path} but bin/setup.sh was not found there.\n" + EFINITY_TOOLCHAIN_ERROR)
 
     for tool in ("efx_map", "efx_pnr", "efx_run.py"):
         tool_path = which(tool)

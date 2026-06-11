@@ -51,7 +51,7 @@ class GowinProgrammer(GenericProgrammer):
         self.cable = cable
 
         # Ref: Gowin Programmer User Guide https://cdn.gowinsemi.com.cn/SUG502E.pdf
-        self.has_embflash = self.device.startswith("GN1N")
+        self.has_embflash = self.device.startswith("GW1N")
 
         # windows/powershell or msys2
         self.is_win32 = True if sys.platform == "win32" else False
@@ -96,8 +96,17 @@ class GowinProgrammer(GenericProgrammer):
                 external = True
 
         if bitstream_file is None and fifile is None and mcufile is None:
-            print("GowinProgrammer: fsFile, fiFile or mcuFile should be given!")
-            exit(1)
+            raise OSError("GowinProgrammer: fsFile, fiFile or mcuFile should be given!")
+
+        # Use absolute paths since _call() runs the programmer from its install directory.
+        if bitstream_file is not None:
+            bitstream_file = os.path.abspath(bitstream_file)
+
+        if fifile is not None:
+            fifile = os.path.abspath(fifile)
+
+        if mcufile is not None:
+            mcufile = os.path.abspath(mcufile)
 
         if self.is_wsl is True and bitstream_file is not None:
             bitstream_file = _wslpath(bitstream_file)
@@ -113,7 +122,7 @@ class GowinProgrammer(GenericProgrammer):
             "--device", str(self.device)]
 
         if external:
-            # accepts 0xXXX, at least 3 hex digits. Here we use 6 digits.
+            # accepts 0xXXX, at least 3 hex digits. Here we use 5 digits.
             spiaddr = "0x{:05X}".format(address)
             cmd_line += ["--spiaddr", spiaddr]
 
@@ -131,9 +140,10 @@ class GowinProgrammer(GenericProgrammer):
 
     def load_bitstream(self, bitstream_file):
         pmode = GOWIN_PMODE_SRAM
-        bitfile = bitstream_file
+        # Use absolute path since _call() runs the programmer from its install directory.
+        bitfile = os.path.abspath(bitstream_file)
         if self.is_wsl is True:
-            bitfile = _wslpath(bitstream_file)
+            bitfile = _wslpath(bitfile)
 
         cmd_line = [self.programmer,
             "--device", str(self.device),

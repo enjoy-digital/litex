@@ -128,7 +128,15 @@ class GowinToolchain(GenericToolchain):
             clk_sig = self._vns.get_name(clk)
             if name is None:
                 name = clk_sig
-            sdc.append(f"create_clock -name {name} -period {str(period)} [get_ports {{{clk_sig}}}]")
+            # Constrain IO clocks with get_ports and internal clocks (ex: PLL outputs) with get_nets.
+            is_port = False
+            for sig, pins, others, resname in self.named_sc:
+                if sig == clk_sig:
+                    is_port = True
+            if is_port:
+                sdc.append(f"create_clock -name {name} -period {str(period)} [get_ports {{{clk_sig}}}]")
+            else:
+                sdc.append(f"create_clock -name {name} -period {str(period)} [get_nets {{{clk_sig}}}]")
         tools.write_to_file(f"{self._build_name}.sdc", "\n".join(sdc))
         return (f"{self._build_name}.sdc", "SDC")
 
@@ -147,7 +155,7 @@ class GowinToolchain(GenericToolchain):
         tcl.append(f"add_file {self._build_name}.sdc")
 
         # Add Sources.
-        for f, typ, lib in self.platform.sources:
+        for f, typ, lib, *_ in self.platform.sources:
             # Support windows/powershell
             if sys.platform == "win32":
                 f = f.replace("\\", "\\\\")
@@ -197,7 +205,7 @@ class GowinToolchain(GenericToolchain):
         # Based on gw_sh path gowin_lib is 1 directory before
         # So split path, removes binary name and bin directory
         # Before rebuilding the path
-        gowin_lib = os.path.join("/".join(gw_sh_path.split("/")[:-2]), "lib")
+        gowin_lib = os.path.join(os.path.dirname(os.path.dirname(gw_sh_path)), "lib")
 
         if os.path.isdir(gowin_lib):
             for value in export_values:

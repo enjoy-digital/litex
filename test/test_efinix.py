@@ -6,6 +6,7 @@
 from types import SimpleNamespace
 
 import migen
+import pytest
 
 from litex.build.efinix.efinity import EfinityToolchain, _get_design_file_library, build_argdict
 from litex.build.efinix.common import add_gpio_block, gpio_info
@@ -156,9 +157,20 @@ def test_generate_seu_emits_wait_interval_for_auto_mode():
 
 def test_find_efinity_path_prefers_env(monkeypatch, tmp_path):
     efinity_root = tmp_path / "efinity"
+    bin_dir = efinity_root / "bin"
+    bin_dir.mkdir(parents=True)
+    (bin_dir / "setup.sh").write_text("export TEST_EFINITY_ENV=from_env\n")
     monkeypatch.setenv("LITEX_ENV_EFINITY", str(efinity_root) + "/")
 
     assert find_efinity_path() == str(efinity_root)
+
+
+def test_find_efinity_path_rejects_invalid_env(monkeypatch, tmp_path):
+    efinity_root = tmp_path / "efinity"
+    monkeypatch.setenv("LITEX_ENV_EFINITY", str(efinity_root) + "/")
+
+    with pytest.raises(OSError):
+        find_efinity_path()
 
 
 def test_find_efinity_path_falls_back_to_path(monkeypatch, tmp_path):
