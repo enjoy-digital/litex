@@ -2514,9 +2514,11 @@ class LiteXSoC(SoC):
                 cached = False,
             )
             self.bus.add_slave(name=f"ethmac_rx", slave=ethmac.bus_rx, region=ethmac_rx_region)
+            # Modes match add_ethernet()'s defaults (rxslots_read_only=True/txslots_write_only=False).
             ethmac_tx_region = SoCRegion(
                 origin = self.bus.regions["ethmac"].origin + ethmac_rx_region_size,
                 size   = ethmac_tx_region_size,
+                mode   = "rw",
                 linker = False,
                 cached = False,
             )
