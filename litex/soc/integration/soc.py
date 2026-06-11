@@ -3480,8 +3480,9 @@ class SoCCore(LiteXSoC):
         if with_ctrl:
             self.add_controller(name="ctrl")
 
-        # Add CPU.
-        self.add_cpu(name=cpu_type,
+        # Add CPU (normalize the no-CPU case to the "None" registry name rather than relying on
+        # cpu.CPUS also exposing a NoneType key).
+        self.add_cpu(name="None" if cpu_type is None else cpu_type,
             variant       = "standard" if cpu_variant is None else cpu_variant,
             reset_address = cpu_reset_address,
             cfu           = cpu_cfu)
