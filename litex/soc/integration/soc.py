@@ -2217,6 +2217,9 @@ class LiteXSoC(SoC):
                     reverse   = l2_cache_reverse)
                 if l2_cache_full_memory_we:
                     l2_cache = FullMemoryWE()(l2_cache)
+                # CONFIG_L2_SIZE/l2_cache are the BIOS contract for the main_ram L2 Cache (used by
+                # flush_l2_cache()), so keep these names but error out cleanly on collision.
+                self.check_if_exists("l2_cache")
                 self.l2_cache = l2_cache
                 litedram_wb = self.l2_cache.slave
                 self.add_config("L2_SIZE", l2_cache_size)
@@ -2680,8 +2683,11 @@ class LiteXSoC(SoC):
                 reverse   = l2_cache_reverse)
             if l2_cache_full_memory_we:
                 l2_cache = FullMemoryWE()(l2_cache)
-            self.l2_cache = l2_cache
-            self.add_config("L2_SIZE", l2_cache_size)
+            # Use per-instance names: l2_cache/CONFIG_L2_SIZE are the BIOS contract for the main_ram
+            # L2 Cache (flush_l2_cache() reads 2*CONFIG_L2_SIZE from MAIN_RAM_BASE), so reusing them
+            # here would collide with add_sdram() and mis-size the main_ram flush.
+            self.add_module(name=f"{name}_l2_cache", module=l2_cache)
+            self.add_config(f"{name}_L2_SIZE", l2_cache_size)
         else:
             self.submodules += wishbone.Converter(wb_spiram, spiram.bus)
 
