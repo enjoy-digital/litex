@@ -267,6 +267,7 @@ def test_unified_efinix_pll_clkout_does_not_drive_its_core_input():
     dut.specials += ClkInput(rx_pad, rx_clk)
     dut.submodules.pll = pll = TITANIUMPLL(platform)
     pll.register_clkin(rx_clk, 125e6)
+    pll.clkin = migen.Signal(name=rx_clk.name_override)
     pll.create_clkout(dut.cd_eth_rx, 125e6, with_reset=False)
 
     v = _convert_unified_efinix(dut, {rx_pad}, platform=platform)
