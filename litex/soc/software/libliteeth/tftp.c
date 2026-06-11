@@ -186,8 +186,10 @@ static void rx_callback(uint32_t src_ip, uint16_t src_port,
 		/* Block numbers are 16-bit and wrap on transfers > 64MB, so compare
 		   them modulo 2^16 and track the write offset separately. */
 		if(block == (uint16_t)(next_data_block - 1)) {
-			/* Duplicate of the previous block: re-acknowledge. */
-			send_ack(block);
+			/* Duplicate of the previous block: re-acknowledge (only when a block has
+			   actually been received; a spurious block 0 at transfer start is dropped). */
+			if((current_offset != 0) || (next_data_block != 1))
+				send_ack(block);
 			return;
 		}
 		if(block != next_data_block)
