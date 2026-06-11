@@ -23,6 +23,7 @@ VerilatedVcdC *tfp;
 #endif
 uint64_t tfp_start;
 uint64_t tfp_end;
+uint64_t tfp_timescale_ps = 1;
 Vsim *g_sim = nullptr;
 #endif
 
@@ -85,29 +86,36 @@ extern "C" void litex_sim_init_runtime(long load_start, long save_start)
   printf("MDEBUG: Save time: %ld, load_time: %ld\n", save_time, load_time);
 }
 
-extern "C" void litex_sim_init_tracer(void *vsim, long start, long end)
+extern "C" void litex_sim_init_tracer(void *vsim, long start, long end,
+                                      const char *timescale, uint64_t timescale_ps)
 {
 #if VM_TRACE
   Vsim *sim = (Vsim *)vsim;
   tfp_start = start;
   tfp_end = end >= 0 ? end : UINT64_MAX;
+  tfp_timescale_ps = timescale_ps == 0 ? 1 : timescale_ps;
   Verilated::traceEverOn(true);
 #ifdef TRACE_FST
   tfp = new VerilatedFstC;
   sim->trace(tfp, 99);
-  tfp->open("sim.fst");
 #else
   tfp = new VerilatedVcdC;
   sim->trace(tfp, 99);
+#endif
+  tfp->set_time_unit(timescale);
+  tfp->set_time_resolution(timescale);
+#ifdef TRACE_FST
+  tfp->open("sim.fst");
+#else
   tfp->open("sim.vcd");
 #endif
-  tfp->set_time_unit("1ps");
-  tfp->set_time_resolution("1ps");
   g_sim = sim;
 #else
   (void)vsim;
   (void)start;
   (void)end;
+  (void)timescale;
+  (void)timescale_ps;
 #endif
 }
 
@@ -152,7 +160,7 @@ extern "C" void litex_sim_tracer_dump()
   }
 
   if (dump_enabled && tfp != nullptr && tfp_start <= main_time && main_time <= tfp_end) {
-    tfp->dump((vluint64_t) main_time);
+    tfp->dump((vluint64_t)(main_time / tfp_timescale_ps));
   }
 #endif
 }

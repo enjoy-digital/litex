@@ -5,7 +5,9 @@
 # Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import argparse
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -20,6 +22,45 @@ from litex.build.generic_platform import *
 
 sim_directory = os.path.abspath(os.path.dirname(__file__))
 core_directory = os.path.join(sim_directory, "core")
+
+_trace_timescale_units = {
+    "ps" : 1,
+    "ns" : 1_000,
+    "us" : 1_000_000,
+    "ms" : 1_000_000_000,
+    "s"  : 1_000_000_000_000,
+}
+
+
+def _parse_trace_timescale(timescale):
+    timescale = timescale.strip().lower()
+    match = re.fullmatch(r"(1|10|100)(ps|ns|us|ms|s)", timescale)
+    if match is None:
+        raise ValueError(
+            "Trace timescale must be 1/10/100 followed by ps/ns/us/ms/s "
+            "(ex: 1ps, 100ps, 1ns)."
+        )
+    scale, unit = match.groups()
+    return timescale, int(scale) * _trace_timescale_units[unit]
+
+
+def _trace_timescale_arg(timescale):
+    try:
+        return _parse_trace_timescale(timescale)[0]
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(str(e))
+
+
+def _validate_trace_timescale(timescale, timescale_ps, sim_config):
+    if sim_config is None:
+        return
+    timebase_ps = sim_config.get_timebase_ps()
+    if timebase_ps % timescale_ps:
+        raise ValueError(
+            "Trace timescale {} cannot represent simulation timebase {}ps; "
+            "use a trace timescale that divides the simulation timebase.".format(
+                timescale, timebase_ps)
+        )
 
 
 def _generate_sim_h_struct(name, index, siglist):
@@ -67,11 +108,12 @@ def _generate_sim_cpp_struct(name, index, siglist):
 
 
 def _generate_sim_cpp(platform, trace=False, trace_start=0, trace_end=-1,
-        load_start=0, save_start=-1):
+        trace_timescale="1ps", trace_timescale_ps=1, load_start=0, save_start=-1):
     content = """\
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include "Vsim.h"
 #include <verilated.h>
 #include "sim_header.h"
@@ -80,7 +122,8 @@ extern "C" void litex_sim_init_runtime(long load_start, long save_start);
 """
     if trace:
         content += """\
-extern "C" void litex_sim_init_tracer(void *vsim, long start, long end);
+extern "C" void litex_sim_init_tracer(void *vsim, long start, long end,
+                                      const char *timescale, uint64_t timescale_ps);
 extern "C" void litex_sim_tracer_dump();
 
 """
@@ -105,9 +148,9 @@ extern "C" void litex_sim_init(void **out)
 """.format(load_start, save_start)
     if trace:
         content += """\
-    litex_sim_init_tracer(sim, {}, {});
+    litex_sim_init_tracer(sim, {}, {}, "{}", {});
 
-""".format(trace_start, trace_end)
+""".format(trace_start, trace_end, trace_timescale, trace_timescale_ps)
     for args in platform.sim_requested:
         content += _generate_sim_cpp_struct(*args)
 
@@ -246,6 +289,7 @@ class SimVerilatorToolchain:
             trace_fst        = False,
             trace_start      = 0,
             trace_end        = -1,
+            trace_timescale  = "1ps",
             regular_comb     = False,
             hierarchical     = False,
             interactive      = True,
@@ -281,7 +325,19 @@ class SimVerilatorToolchain:
                 # Generate cpp header/main/variables
                 _generate_sim_h(platform)
                 trace_enabled = trace or trace_fst
-                _generate_sim_cpp(platform, trace_enabled, trace_start, trace_end, load_start, save_start)
+                trace_timescale, trace_timescale_ps = _parse_trace_timescale(trace_timescale)
+                if trace_enabled:
+                    _validate_trace_timescale(trace_timescale, trace_timescale_ps, sim_config)
+                _generate_sim_cpp(
+                    platform,
+                    trace             = trace_enabled,
+                    trace_start       = trace_start,
+                    trace_end         = trace_end,
+                    trace_timescale   = trace_timescale,
+                    trace_timescale_ps = trace_timescale_ps,
+                    load_start        = load_start,
+                    save_start        = save_start,
+                )
 
                 _generate_sim_variables(platform.verilog_include_paths,
                                         extra_mods,
@@ -347,6 +403,8 @@ def verilator_build_args(parser):
     toolchain_group.add_argument("--trace-fst",    action="store_true", help="Enable FST tracing.")
     toolchain_group.add_argument("--trace-start",  default="0",         help="Time to start tracing (ps).")
     toolchain_group.add_argument("--trace-end",    default="-1",        help="Time to end tracing (ps).")
+    toolchain_group.add_argument("--trace-timescale", default="1ps", type=_trace_timescale_arg,
+                                 help="VCD/FST trace timescale (default: 1ps).")
     toolchain_group.add_argument("--opt-level",    default="O3",        help="Compilation optimization level.")
     toolchain_group.add_argument("--load-start",   default="0",         help="Time to restore simulation state (ps).")
     toolchain_group.add_argument("--save-start",   default="-1",        help="Time to save simulation state (ps).")
@@ -360,6 +418,7 @@ def verilator_build_argdict(args):
         "trace_fst"   : args.trace_fst,
         "trace_start" : int(float(args.trace_start)),
         "trace_end"   : int(float(args.trace_end)),
+        "trace_timescale" : args.trace_timescale,
         "opt_level"   : args.opt_level,
         "load_start"  : int(float(args.load_start)),
         "save_start"  : int(float(args.save_start)),
