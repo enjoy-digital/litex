@@ -419,9 +419,11 @@ class SoCBusHandler(LiteXModule):
                     candidate, self.io_regions, check_linker=True):
                     origin += size
                     continue
-                # Check Candidate does not overlap with allocated existing regions.
+                # Check Candidate does not overlap with allocated existing regions. check_linker is
+                # set since the Candidate may itself be a linker region (which would otherwise skip
+                # the check entirely and allocate on top of existing regions).
                 for _, allocated in self.regions.items():
-                    if self.check_regions_overlap({"0": allocated, "1": candidate}) is not None:
+                    if self.check_regions_overlap({"0": allocated, "1": candidate}, check_linker=True) is not None:
                         origin += size
                         overlap = True
                         break
