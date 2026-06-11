@@ -16,9 +16,9 @@ def _run_td(cmds):
         msg += "- Add Tang Dinasty toolchain to your $PATH."
         raise OSError(msg)
 
-    with subprocess.Popen("td", stdin=subprocess.PIPE, shell=True) as process:
-        process.stdin.write(cmds.encode("ASCII"))
-        process.communicate()
+    process = subprocess.run(["td"], input=cmds.encode("ASCII"))
+    if process.returncode != 0:
+        raise OSError("Error occured during Tang Dinasty's execution.")
 
 class TangDynastyProgrammer(GenericProgrammer):
     def __init__(self):

@@ -19,7 +19,7 @@ class PeppercornToolchain(YosysNextPNRToolchain):
 
     def __init__(self):
         super().__init__()
-        self._synth_opts = "-luttree -nomx8"
+        self._synth_opts = "-luttree -nomx8 "
         self._force_die  = None
         self._strategy   = "full"
 
@@ -60,7 +60,10 @@ class PeppercornToolchain(YosysNextPNRToolchain):
 
         # FIXME: NextPNRWrapper is constructed at finalize level, too early
         # to update self._pnr_opts. The solution is to update _nextpnr instance.
-        self._nextpnr._pnr_opts += f" --freq {max_freq}"
+        if max_freq > 0:
+            self._nextpnr._pnr_opts += f" --freq {max_freq}"
+
+        return (f"{self._build_name}.sdc", "SDC")
 
     # IO Constraints (.ccf) ------------------------------------------------------------------------
 

@@ -131,10 +131,12 @@ TAPCFG_DIRECTORY = {}
 """.format(core_directory, include, tapcfg_dir, "VIDEO = 1" if video else "")
 
     if extra_mods:
+        if not extra_mods_path:
+            raise ValueError("extra_mods_path must be set when extra_mods is used.")
         modlist = " ".join(extra_mods)
         content += "EXTRA_MOD_LIST = " + modlist + "\n"
         content += "EXTRA_MOD_BASE_DIR = " + extra_mods_path + "\n"
-        tools.write_to_file(extra_mods_path + "/variables.mak", content)
+        tools.write_to_file(os.path.join(extra_mods_path, "variables.mak"), content)
 
     tools.write_to_file("variables.mak", content)
 
@@ -193,7 +195,8 @@ def _run_sim(build_name, as_root=False, interactive=True):
     run_script_contents += "obj_dir/Vsim"
     run_script_file = "run_" + build_name + ".sh"
     tools.write_to_file(run_script_file, run_script_contents, force_unix=True)
-    if sys.platform != "win32" and interactive:
+    termios_settings = None
+    if sys.platform != "win32" and interactive and sys.stdin.isatty():
         import termios
         termios_settings = termios.tcgetattr(sys.stdin.fileno())
     try:
@@ -218,7 +221,7 @@ def _run_sim(build_name, as_root=False, interactive=True):
         if r != 0:
             raise OSError("Subprocess failed")
     finally:
-        if sys.platform != "win32" and interactive:
+        if termios_settings is not None:
             termios.tcsetattr(sys.stdin.fileno(), termios.TCSAFLUSH, termios_settings)
 
 
@@ -257,75 +260,83 @@ class SimVerilatorToolchain:
         os.makedirs(build_dir, exist_ok=True)
         cwd = os.getcwd()
         os.chdir(build_dir)
+        try:
+            if build:
+                # Finalize design
+                if not isinstance(fragment, _Fragment):
+                    fragment = fragment.get_fragment()
+                platform.finalize(fragment)
 
-        if build:
-            # Finalize design
-            if not isinstance(fragment, _Fragment):
-                fragment = fragment.get_fragment()
-            platform.finalize(fragment)
+                # Generate verilog
+                v_output = platform.get_verilog(fragment,
+                    name         = build_name,
+                    regular_comb = regular_comb,
+                    hierarchical = hierarchical,
+                )
+                named_sc, named_pc = platform.resolve_signals(v_output.ns)
+                v_file = build_name + ".v"
+                v_output.write(v_file)
+                platform.add_source(v_file)
 
-            # Generate verilog
-            v_output = platform.get_verilog(fragment,
-                name         = build_name,
-                regular_comb = regular_comb,
-                hierarchical = hierarchical,
-            )
-            named_sc, named_pc = platform.resolve_signals(v_output.ns)
-            v_file = build_name + ".v"
-            v_output.write(v_file)
-            platform.add_source(v_file)
+                # Generate cpp header/main/variables
+                _generate_sim_h(platform)
+                trace_enabled = trace or trace_fst
+                _generate_sim_cpp(platform, trace_enabled, trace_start, trace_end, load_start, save_start)
 
-            # Generate cpp header/main/variables
-            _generate_sim_h(platform)
-            trace_enabled = trace or trace_fst
-            _generate_sim_cpp(platform, trace_enabled, trace_start, trace_end, load_start, save_start)
+                _generate_sim_variables(platform.verilog_include_paths,
+                                        extra_mods,
+                                        extra_mods_path,
+                                        video)
 
-            _generate_sim_variables(platform.verilog_include_paths,
-                                    extra_mods,
-                                    extra_mods_path,
-                                    video)
+                # Generate sim config
+                if sim_config:
+                    _generate_sim_config(sim_config)
 
-            # Generate sim config
-            if sim_config:
-                _generate_sim_config(sim_config)
+                # Build
+                # Set SAVABLE=1 if load_start != 0 and save_start != -1
+                savable = (load_start != 0 or save_start != -1)
+                _build_sim(
+                    build_name = build_name,
+                    sources    = platform.sources,
+                    jobs       = jobs,
+                    threads    = threads,
+                    coverage   = coverage,
+                    opt_level  = opt_level,
+                    trace      = trace_enabled,
+                    trace_fst  = trace_fst,
+                    video      = video,
+                    savable    = savable,
+                )
 
-            # Build
-            # Set SAVABLE=1 if load_start != 0 and save_start != -1
-            savable = (load_start != 0 or save_start != -1)
-            _build_sim(
-                build_name = build_name,
-                sources    = platform.sources,
-                jobs       = jobs,
-                threads    = threads,
-                coverage   = coverage,
-                opt_level  = opt_level,
-                trace      = trace_enabled,
-                trace_fst  = trace_fst,
-                video      = video,
-                savable    = savable,
-            )
-
-        # Run
-        if run:
-            if pre_run_callback is not None:
-                pre_run_callback(v_output.ns)
-            if which("verilator") is None:
-                msg = "Unable to find Verilator toolchain, please either:\n"
-                msg += "- Install Verilator.\n"
-                msg += "- Add Verilator toolchain to your $PATH."
-                raise OSError(msg)
-            _compile_sim(build_name, verbose)
-            run_as_root = False
-            if sim_config.has_module("ethernet") \
-               or sim_config.has_module("xgmii_ethernet") \
-               or sim_config.has_module("gmii_ethernet"):
-                run_as_root = True
-            _run_sim(build_name, as_root=run_as_root, interactive=interactive)
-
-        os.chdir(cwd)
+            # Run
+            if run:
+                if pre_run_callback is not None:
+                    if not build:
+                        raise ValueError("pre_run_callback requires build=True (signal namespace is only available after build).")
+                    pre_run_callback(v_output.ns)
+                if which("verilator") is None:
+                    msg = "Unable to find Verilator toolchain, please either:\n"
+                    msg += "- Install Verilator.\n"
+                    msg += "- Add Verilator toolchain to your $PATH."
+                    raise OSError(msg)
+                _compile_sim(build_name, verbose)
+                run_as_root = False
+                if sim_config is not None and (sim_config.has_module("ethernet")
+                   or sim_config.has_module("xgmii_ethernet")
+                   or sim_config.has_module("gmii_ethernet")):
+                    run_as_root = True
+                _run_sim(build_name, as_root=run_as_root, interactive=interactive)
+        finally:
+            os.chdir(cwd)
 
         if build:
             return v_output.ns
+
+    def add_period_constraint(self, platform, clk, period, keep=True, name=None):
+        pass
+
+    def add_false_path_constraint(self, platform, from_, to):
+        pass
 
 
 def verilator_build_args(parser):

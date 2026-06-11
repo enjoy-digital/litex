@@ -65,15 +65,25 @@ class F4PGAToolchain(GenericToolchain):
 
     def build_script(self):
         part = {"ql-eos-s3": "PU64"}.get(self.platform.device)
+        if part is None:
+            raise ValueError(f"Unsupported device {self.platform.device}.")
+
+        # Add Sources.
+        sources = [f"{self._build_name}.v"]
+        for f, language, *_ in self.platform.sources:
+            if language not in ["verilog", "systemverilog"]:
+                continue
+            if os.path.basename(f) == f"{self._build_name}.v":
+                continue
+            sources.append(f)
+
         flow = {
             "default_part": "EOS3FF512-PDN64",
             "values": {
                 "top": self._build_name
             },
             "dependencies": {
-                "sources": [
-                    f"{self._build_name}.v"
-                ],
+                "sources": sources,
                 "synth_log": "synth.log",
                 "pack_log": "pack.log",
                 "analysis_log": "analysis.log"
@@ -96,6 +106,12 @@ class F4PGAToolchain(GenericToolchain):
         return "flow.json"
 
     def run_script(self, script):
+        if which("f4pga") is None:
+            msg = "Unable to find F4PGA toolchain, please:\n"
+            msg += "- Install F4PGA: https://f4pga-examples.readthedocs.io/en/latest/getting.html\n"
+            msg += "- Add F4PGA toolchain to your $PATH."
+            raise OSError(msg)
+
         make_cmd = ["f4pga", "-vvv", "build", "--flow", "flow.json"]
 
         if subprocess.call(make_cmd) != 0:
