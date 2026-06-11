@@ -52,7 +52,10 @@ class LatticeOxideToolchain(YosysNextPNRToolchain):
         return YosysNextPNRToolchain.build(self, platform, fragment, **kwargs)
 
     def finalize(self):
-        self._packer_opts += f" pack {self._build_name}.fasm {self._build_name}.bit"
+        # Snapshot base options on first finalize to keep finalize idempotent.
+        if not hasattr(self, "_base_packer_opts"):
+            self._base_packer_opts = self._packer_opts
+        self._packer_opts = self._base_packer_opts + f" pack {self._build_name}.fasm {self._build_name}.bit"
         YosysNextPNRToolchain.finalize(self)
 
     # Constraints (.ldc) ---------------------------------------------------------------------------
