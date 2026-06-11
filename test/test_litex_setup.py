@@ -211,7 +211,9 @@ class TestLiteXSetup(unittest.TestCase):
         with mock.patch(
             "litex_setup._pip_install",
             side_effect=subprocess.CalledProcessError(1, [sys.executable, "-m", "pip"]),
-        ), mock.patch("litex_setup.pip_install_externally_managed", return_value=False):
+        ), mock.patch("litex_setup.pip_install_build_dependencies"), \
+           mock.patch("litex_setup.pip_install_in_virtualenv", return_value=False), \
+           mock.patch("litex_setup.pip_install_externally_managed", return_value=False):
             output, stderr = self.assert_setup_error(
                 litex_setup.litex_setup_install_repos,
                 config="minimal",
@@ -226,7 +228,8 @@ class TestLiteXSetup(unittest.TestCase):
     def test_install_externally_managed_python_has_actionable_error(self):
         self.create_repo()
 
-        with mock.patch("litex_setup.pip_install_externally_managed", return_value=True):
+        with mock.patch("litex_setup.pip_install_in_virtualenv", return_value=False), \
+             mock.patch("litex_setup.pip_install_externally_managed", return_value=True):
             output, stderr = self.assert_setup_error(
                 litex_setup.litex_setup_install_repos,
                 config="minimal",
@@ -251,6 +254,48 @@ class TestLiteXSetup(unittest.TestCase):
 
         cmd, _kwargs = check_call.call_args
         self.assertIn("--break-system-packages", cmd[0])
+
+    def test_install_ignores_user_mode_inside_virtualenv(self):
+        self.create_repo()
+
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), \
+             mock.patch("subprocess.check_call") as check_call, \
+             mock.patch("litex_setup.pip_install_in_virtualenv", return_value=True):
+            litex_setup.litex_setup_install_repos(config="minimal", user_mode=True)
+
+        self.assertIn("--user ignored", output.getvalue())
+        for call in check_call.call_args_list:
+            cmd = call.args[0]
+            self.assertNotIn("--user", cmd)
+
+    def test_install_bootstraps_python_build_dependencies(self):
+        self.create_repo()
+
+        with mock.patch("subprocess.check_call") as check_call, \
+             mock.patch("litex_setup.pip_install_externally_managed", return_value=False):
+            litex_setup.litex_setup_install_repos(config="minimal")
+
+        cmd = check_call.call_args_list[0].args[0]
+        self.assertIn("setuptools>=65.5", cmd)
+        self.assertIn("wheel", cmd)
+
+    def test_build_dependencies_failure_has_actionable_error(self):
+        self.create_repo()
+
+        with mock.patch(
+            "subprocess.check_call",
+            side_effect=subprocess.CalledProcessError(1, [sys.executable, "-m", "pip"]),
+        ), mock.patch("litex_setup.pip_install_externally_managed", return_value=False):
+            output, stderr = self.assert_setup_error(
+                litex_setup.litex_setup_install_repos,
+                config="minimal",
+            )
+
+        self.assertIn("Python build dependencies could not be installed.", output)
+        self.assertIn("setuptools>=65.5", output)
+        self.assertIn("wheel", output)
+        self.assertNotIn("Traceback", output + stderr)
 
     def test_local_install_exposes_repo_to_pep517_backend(self):
         self.create_repo()

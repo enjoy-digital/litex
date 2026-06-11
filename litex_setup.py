@@ -470,6 +470,12 @@ def pip_install_externally_managed_check(user_mode=False, break_system_packages=
         pip_install_externally_managed_error(user_mode=user_mode)
         raise SetupError
 
+def pip_install_user_mode_check(user_mode=False):
+    if user_mode and pip_install_in_virtualenv():
+        print_warning("--user ignored since LiteX Setup is running inside a virtual environment.")
+        return False
+    return user_mode
+
 def pip_install_pythonpath(source_path=None):
     if source_path is None:
         return None
@@ -547,9 +553,39 @@ def pip_install_error(
     )
     print_status(f"  {pip_cmd}")
 
+def pip_install_build_dependencies(user_mode=False, break_system_packages=False):
+    build_packages = [
+        "setuptools>=65.5",
+        "wheel",
+    ]
+    print_status("Installing Python build dependencies...")
+    try:
+        _pip_install(
+            build_packages,
+            user_mode             = user_mode,
+            break_system_packages = break_system_packages,
+        )
+    except subprocess.CalledProcessError:
+        pip_install_error(
+            "Python build dependencies",
+            build_packages,
+            user_mode             = user_mode,
+            break_system_packages = break_system_packages,
+        )
+        raise SetupError
+
 def litex_setup_install_repos(config="standard", user_mode=False, break_system_packages=False):
     print_status("Installing Git repositories...", underline=True)
+    user_mode = pip_install_user_mode_check(user_mode)
     litex_setup_check_initialized_repos(config=config, develop_only=True, retry="install")
+    pip_install_externally_managed_check(
+        user_mode             = user_mode,
+        break_system_packages = break_system_packages,
+    )
+    pip_install_build_dependencies(
+        user_mode             = user_mode,
+        break_system_packages = break_system_packages,
+    )
     for name in install_configs[config]:
         repo = git_repos[name]
         os.chdir(os.path.join(current_path))
