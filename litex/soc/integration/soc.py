@@ -694,7 +694,7 @@ class SoCBusHandler(LiteXModule):
         ))
 
         return adapted_interface
-    
+
     # Add Offset ---------------------------------------------------------------------------------
     def add_offset(self, name, interface, offset):
         interface_cls = type(interface)
@@ -2370,7 +2370,7 @@ class LiteXSoC(SoC):
             add_ip_address_constants(self, "REMOTEIP", remote_ip)
         if mac_address:
             add_mac_address_constants(self, "MACADDR", mac_address)
-        
+
 
         # Software Debug
         if software_debug:
@@ -2703,11 +2703,11 @@ class LiteXSoC(SoC):
         spiram.add_module(name="phy", module=spiram_phy)
         self.add_module(name=name, module=spiram)
         spiram_region = SoCRegion(origin=self.mem_map.get(name, None), size=module.total_size, mode="rwx")
-        
+
         # Create Wishbone Slave.
         wb_spiram = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.bus.add_slave(name=name, slave=wb_spiram, region=spiram_region, strip_origin=True)
-        
+
         # L2 Cache
         if l2_cache_size != 0:
             # Insert L2 cache inbetween Wishbone bus and LiteSPI
