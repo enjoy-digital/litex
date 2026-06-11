@@ -110,7 +110,7 @@ class Wishbone2AXILite(LiteXModule):
         _cmd_done  = Signal()
         _data_done = Signal()
         _addr      = Signal(len(wishbone.adr))
-        self.comb += _addr.eq(wishbone.adr - base_address//4)
+        self.comb += _addr.eq(wishbone.adr - (base_address >> wishbone_adr_shift))
 
         # FSM.
         self.fsm = fsm = FSM(reset_state="IDLE")

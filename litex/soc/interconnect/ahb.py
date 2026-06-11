@@ -123,26 +123,49 @@ class AHB2Wishbone(LiteXModule):
                 })
                 return wishbone_sel
 
+        # Second cycle of the two-cycle AHB ERROR response (signaled while back in ADDRESS-PHASE so
+        # that the next Transfer can be accepted in the same cycle, as the AHB pipeline requires).
+        ahb_error_resp = Signal()
+
         # FSM.
         self.fsm = fsm = FSM()
         fsm.act("ADDRESS-PHASE",
             ahb.readyout.eq(1),
-            If(ahb.sel &
-              (ahb.size  <= log2_int(ahb.data_width//8)) &
-              (ahb.trans == AHBTransferType.NONSEQUENTIAL),
-                NextValue(wishbone.adr, ahb.addr[wishbone_adr_shift:]),
-                NextValue(wishbone.we,  ahb.write),
-                NextValue(wishbone.sel, wishbone_sel_decoder(ahb.size, ahb.addr)),
-                NextState("DATA-PHASE"),
+            ahb.resp.eq(ahb_error_resp),
+            NextValue(ahb_error_resp, 0),
+            # Accept both NONSEQUENTIAL and SEQUENTIAL Transfers: each AHB beat carries its full
+            # address, so burst beats can be converted as independent Wishbone accesses (SEQUENTIAL
+            # beats were previously OKAY-ed without generating an access: silent data loss).
+            If(ahb.sel & ahb.trans[1],
+                # Respond with an AHB ERROR to unsupported Transfer sizes (previously silently
+                # OKAY-ed without generating an access).
+                If(ahb.size > log2_int(ahb.data_width//8),
+                    NextState("ERROR-RESPONSE")
+                ).Else(
+                    NextValue(wishbone.adr, ahb.addr[wishbone_adr_shift:]),
+                    NextValue(wishbone.we,  ahb.write),
+                    NextValue(wishbone.sel, wishbone_sel_decoder(ahb.size, ahb.addr)),
+                    NextState("DATA-PHASE"),
+                )
             )
         )
         fsm.act("DATA-PHASE",
             wishbone.stb.eq(1),
             wishbone.cyc.eq(1),
             wishbone.dat_w.eq(ahb.wdata),
-            ahb.resp.eq(wishbone.err),
-            If(wishbone.ack,
+            # On Wishbone Error, respond with an AHB ERROR (a Wishbone err, with or without ack,
+            # was previously reported as OKAY since resp was only driven while readyout was low).
+            If(wishbone.err,
+                NextState("ERROR-RESPONSE")
+            ).Elif(wishbone.ack,
                 NextValue(ahb.rdata, wishbone.dat_r),
                 NextState("ADDRESS-PHASE")
             )
+        )
+        fsm.act("ERROR-RESPONSE",
+            # First cycle of the two-cycle AHB ERROR response (readyout low); the second cycle
+            # (readyout high) is signaled in ADDRESS-PHASE through ahb_error_resp.
+            ahb.resp.eq(1),
+            NextValue(ahb_error_resp, 1),
+            NextState("ADDRESS-PHASE"),
         )

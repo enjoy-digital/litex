@@ -52,7 +52,7 @@ class Arbiter(LiteXModule):
                 status = Status(master)
                 self.submodules += status
                 self.comb += self.rr.request[i].eq(status.ongoing)
-                cases[i] = [master.connect(slave)]
+                cases[i] = [master.connect(slave, **kwargs)]
             self.comb += Case(self.grant, cases)
 
 # Dispatcher ---------------------------------------------------------------------------------------
@@ -175,6 +175,8 @@ class Packetizer(LiteXModule):
         header_words    = (header.length*8)//data_width
         header_leftover = header.length%bytes_per_clk
         aligned         = header_leftover == 0
+        if header_words == 0:
+            raise ValueError(f"Header length ({header.length} bytes) must be >= data width ({data_width} bits).")
 
         # Signals.
         sr       = Signal(header.length*8, reset_less=True)
@@ -242,8 +244,19 @@ class Packetizer(LiteXModule):
         )
         if not aligned:
             header_offset_multiplier = 1 if header_words == 1 else 2
-            # Keep the previous beat for the unaligned boundary.
-            self.sync += If(source.ready, sink_d.eq(sink))
+            # Keep the previous *accepted* beat for the unaligned boundary: capturing on
+            # source.ready alone latched don't-care data during bubbles/IDLE (payload corruption)
+            # and pre-captured last during IDLE (livelock on single-beat packets). Clear last once
+            # the packet's final beat has been emitted (the Packetizer does not consume a sink
+            # beat in IDLE, so the stale last would leak into the next packet).
+            self.sync += [
+                If(sink.valid & sink.ready,
+                    sink_d.eq(sink)
+                ),
+                If(source.valid & source.ready & source.last,
+                    sink_d.last.eq(0)
+                )
+            ]
             fsm.act("UNALIGNED-DATA-COPY",
                 source.valid.eq(sink.valid | sink_d.last),
                 source.first.eq(0),
@@ -286,6 +299,8 @@ class Depacketizer(LiteXModule):
         header_words    = (header.length*8)//data_width
         header_leftover = header.length%bytes_per_clk
         aligned         = header_leftover == 0
+        if header_words == 0:
+            raise ValueError(f"Header length ({header.length} bytes) must be >= data width ({data_width} bits).")
 
         # Signals.
         sr                = Signal(header.length*8, reset_less=True)
@@ -320,7 +335,11 @@ class Depacketizer(LiteXModule):
                     NextState("ALIGNED-DATA-COPY" if aligned else "UNALIGNED-DATA-COPY"),
                 ).Else(
                     NextState("HEADER-RECEIVE")
-                )
+                ),
+                # Drop packets that end within the header (header-only/truncated): falling through
+                # would emit the *next* packet's header as payload of the previous one. (With a
+                # single-word unaligned header, last on the first beat is a valid 1-beat packet.)
+                *([If(sink.last, NextState("IDLE"))] if (aligned or (header_words > 1)) else []),
             )
         )
         fsm.act("HEADER-RECEIVE",
@@ -332,7 +351,9 @@ class Depacketizer(LiteXModule):
                     NextValue(data_copy_first, 1),
                     NextState("ALIGNED-DATA-COPY" if aligned else "UNALIGNED-DATA-COPY"),
                     NextValue(count, count + 1),
-                )
+                ),
+                # Drop packets that end within the header (see IDLE).
+                If(sink.last, NextState("IDLE")),
             )
         )
         fsm.act("ALIGNED-DATA-COPY",
@@ -413,7 +434,10 @@ class PacketFIFO(LiteXModule):
         self.comb += [
             sink.connect(param_fifo.sink,   keep=set([e[0] for e in param_layout])),
             sink.connect(payload_fifo.sink, keep=set([e[0] for e in payload_layout] + ["first", "last"])),
-            param_fifo.sink.valid.eq(sink.valid & sink.last),
+            # Qualify with payload_fifo.sink.ready: with the last beat stalled on a full payload
+            # FIFO, the params would otherwise be (re-)enqueued every cycle, later replaying as
+            # phantom packets with stale payload.
+            param_fifo.sink.valid.eq(sink.valid & sink.last & payload_fifo.sink.ready),
             payload_fifo.sink.valid.eq(sink.valid & param_fifo.sink.ready),
             sink.ready.eq(param_fifo.sink.ready & payload_fifo.sink.ready),
         ]

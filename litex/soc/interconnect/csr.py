@@ -479,11 +479,20 @@ class CSRStorage(_CompoundCSR):
 
     def do_finalize(self, busword, ordering):
         nwords = (self.size + busword - 1)//busword
+        # The CPU writes ascending addresses: with big ordering, word 0 (LSBs) is at the highest
+        # address and thus written last; with little ordering, word nwords-1 (MSBs) is written
+        # last. Commit the storage atomically on that last-written word.
+        commit_word = 0 if (ordering == "big") else (nwords - 1)
         if nwords > 1 and self.atomic_write:
-            backstore = Signal(self.size - busword, name=self.name + "_backstore")
+            # The backstore holds all the words but the commit one.
+            backstore_width = {
+                "big"    : self.size - busword,         # Words 1..nwords-1.
+                "little" : (nwords - 1)*busword,        # Words 0..nwords-2.
+            }[ordering]
+            backstore = Signal(backstore_width, name=self.name + "_backstore")
         for i in reversed(range(nwords)) if ordering == "big" else range(nwords):
             nbits = min(self.size - i*busword, busword)
-            sc    = CSR(nbits, self.name + str(i) if nwords else self.name)
+            sc    = CSR(nbits, self.name + str(i) if nwords > 1 else self.name)
             self.simple_csrs.append(sc)
             lo = i*busword
             hi = lo+nbits
@@ -491,11 +500,17 @@ class CSRStorage(_CompoundCSR):
             self.comb += sc.rd_data.eq(self.storage[lo:hi])
             # write
             if nwords > 1 and self.atomic_write:
-                if i:
+                if i != commit_word:
+                    backstore_lo = lo - (busword if ordering == "big" else 0)
+                    backstore_hi = hi - (busword if ordering == "big" else 0)
                     self.sync += If(sc.wr_stb,
-                        backstore[lo-busword:hi-busword].eq(sc.wr_data))
+                        backstore[backstore_lo:backstore_hi].eq(sc.wr_data))
                 else:
-                    self.sync += If(sc.wr_stb, self.storage.eq(Cat(sc.wr_data, backstore)))
+                    commit_value = {
+                        "big"    : Cat(sc.wr_data, backstore),
+                        "little" : Cat(backstore, sc.wr_data),
+                    }[ordering]
+                    self.sync += If(sc.wr_stb, self.storage.eq(commit_value))
             else:
                 self.sync += If(sc.wr_stb, self.storage[lo:hi].eq(sc.wr_data))
         self.sync += self.wr_stb.eq(sc.wr_stb)

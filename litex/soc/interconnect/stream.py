@@ -900,8 +900,11 @@ class Cast(CombinatorialActor):
 class Unpack(LiteXModule):
     def __init__(self, n, layout_to, reverse=False):
         self.source = source = Endpoint(layout_to)
-        description_from = Endpoint(layout_to).description
-        description_from.payload_layout = pack_layout(description_from.payload_layout, n)
+        # Build a fresh description: layout_to can be the caller's EndpointDescription (Endpoint
+        # stores it without copying), which must not be mutated.
+        description_from = EndpointDescription(
+            payload_layout = pack_layout(source.description.payload_layout, n),
+            param_layout   = source.description.param_layout)
         self.sink = sink = Endpoint(description_from)
 
         # # #
@@ -944,8 +947,11 @@ class Unpack(LiteXModule):
 class Pack(LiteXModule):
     def __init__(self, layout_from, n, reverse=False):
         self.sink = sink = Endpoint(layout_from)
-        description_to = Endpoint(layout_from).description
-        description_to.payload_layout = pack_layout(description_to.payload_layout, n)
+        # Build a fresh description: layout_from can be the caller's EndpointDescription (Endpoint
+        # stores it without copying), which must not be mutated.
+        description_to = EndpointDescription(
+            payload_layout = pack_layout(sink.description.payload_layout, n),
+            param_layout   = sink.description.param_layout)
         self.source = source = Endpoint(description_to)
 
         # # #

@@ -490,25 +490,32 @@ class AXIDownConverter(LiteXModule):
         b_collected_resp = Signal(2)
         w_subbeat_count  = Signal(max=max(ratio, 2))
 
+        cap_aw_incr   = Signal()    # Captured burst advances address (INCR) in the slow path.
+
         fixed_aw_active = Signal()  # asserted while AW FSM is in any FIXED-* state.
 
-        is_aw_fixed = (axi_from.aw.burst == BURST_FIXED) & (axi_from.aw.len != 0)
+        # Maximum wide len convertible to a single narrow burst (AXI len is 8-bit: 256 beats max).
+        # Longer INCR bursts are routed through the per-wide-beat slow path; note that WRAP bursts
+        # (len <= 15 per spec) can only overflow for ratio > 16, which is not supported.
+        max_fast_len = (256 >> log2_int(ratio)) - 1
+
+        is_aw_slow = ((axi_from.aw.burst == BURST_FIXED) & (axi_from.aw.len != 0)) | \
+                     (axi_from.aw.len > max_fast_len)
 
         aw_fsm = FSM(reset_state="IDLE")
         self.aw_fsm = aw_fsm
 
         aw_fsm.act("IDLE",
-            If(~is_aw_fixed,
-                # Fast path: combinational forward with len/size/burst conversion.
+            If(~is_aw_slow,
+                # Fast path: combinational forward with len/size/burst conversion. The narrow side
+                # always runs full-width beats: each wide beat maps to exactly ratio narrow beats
+                # (sub-width transfers are handled through the byte strobes; passing a sub-width
+                # size through with a ratio-multiplied len generated mismatched narrow addresses).
                 axi_to.aw.valid.eq(axi_from.aw.valid),
                 axi_to.aw.addr.eq(axi_from.aw.addr),
                 axi_to.aw.addr[:wide_size_log2].eq(0),
                 axi_to.aw.len.eq(((axi_from.aw.len + 1) << log2_int(ratio)) - 1),
-                If(axi_from.aw.size <= narrow_size_log2,
-                    axi_to.aw.size.eq(axi_from.aw.size),
-                ).Else(
-                    axi_to.aw.size.eq(narrow_size_log2),
-                ),
+                axi_to.aw.size.eq(narrow_size_log2),
                 Case(axi_from.aw.burst, {
                     BURST_FIXED:    axi_to.aw.burst.eq(BURST_INCR),  # FIXED-1 = single beat = INCR.
                     BURST_INCR:     axi_to.aw.burst.eq(BURST_INCR),
@@ -537,6 +544,7 @@ class AXIDownConverter(LiteXModule):
                     NextValue(cap_aw_cache,  axi_from.aw.cache),
                     NextValue(cap_aw_qos,    axi_from.aw.qos),
                     NextValue(cap_aw_region, axi_from.aw.region),
+                    NextValue(cap_aw_incr,      axi_from.aw.burst == BURST_INCR),
                     NextValue(aw_emit_count,    0),
                     NextValue(b_collect_count,  0),
                     NextValue(b_collected_resp, RESP_OKAY),
@@ -547,15 +555,13 @@ class AXIDownConverter(LiteXModule):
         aw_fsm.act("FIXED-EMIT-AW",
             fixed_aw_active.eq(1),
             axi_to.aw.valid.eq(1),
-            axi_to.aw.addr.eq(cap_aw_addr),
+            # One narrow sub-burst per wide beat: constant address for FIXED, advancing by the
+            # wide width for (long) INCR bursts.
+            axi_to.aw.addr.eq(cap_aw_addr + Mux(cap_aw_incr, aw_emit_count << wide_size_log2, 0)),
             axi_to.aw.addr[:wide_size_log2].eq(0),
             axi_to.aw.len.eq(ratio - 1),
             axi_to.aw.burst.eq(BURST_INCR),
-            If(cap_aw_size <= narrow_size_log2,
-                axi_to.aw.size.eq(cap_aw_size),
-            ).Else(
-                axi_to.aw.size.eq(narrow_size_log2),
-            ),
+            axi_to.aw.size.eq(narrow_size_log2),
             axi_to.aw.id.eq(cap_aw_id),
             axi_to.aw.lock.eq(cap_aw_lock),
             axi_to.aw.prot.eq(cap_aw_prot),
@@ -652,25 +658,24 @@ class AXIDownConverter(LiteXModule):
         ar_emit_count = Signal.like(axi_from.ar.len)
         r_wide_count  = Signal.like(axi_from.ar.len)
 
+        cap_ar_incr   = Signal()
+
         fixed_ar_active = Signal()
 
-        is_ar_fixed = (axi_from.ar.burst == BURST_FIXED) & (axi_from.ar.len != 0)
+        is_ar_slow = ((axi_from.ar.burst == BURST_FIXED) & (axi_from.ar.len != 0)) | \
+                     (axi_from.ar.len > max_fast_len)
 
         ar_fsm = FSM(reset_state="IDLE")
         self.ar_fsm = ar_fsm
 
         ar_fsm.act("IDLE",
-            If(~is_ar_fixed,
-                # Fast path.
+            If(~is_ar_slow,
+                # Fast path (see AW fast path: full-width narrow beats).
                 axi_to.ar.valid.eq(axi_from.ar.valid),
                 axi_to.ar.addr.eq(axi_from.ar.addr),
                 axi_to.ar.addr[:wide_size_log2].eq(0),
                 axi_to.ar.len.eq(((axi_from.ar.len + 1) << log2_int(ratio)) - 1),
-                If(axi_from.ar.size <= narrow_size_log2,
-                    axi_to.ar.size.eq(axi_from.ar.size),
-                ).Else(
-                    axi_to.ar.size.eq(narrow_size_log2),
-                ),
+                axi_to.ar.size.eq(narrow_size_log2),
                 Case(axi_from.ar.burst, {
                     BURST_FIXED:    axi_to.ar.burst.eq(BURST_INCR),
                     BURST_INCR:     axi_to.ar.burst.eq(BURST_INCR),
@@ -698,6 +703,7 @@ class AXIDownConverter(LiteXModule):
                     NextValue(cap_ar_cache,  axi_from.ar.cache),
                     NextValue(cap_ar_qos,    axi_from.ar.qos),
                     NextValue(cap_ar_region, axi_from.ar.region),
+                    NextValue(cap_ar_incr,   axi_from.ar.burst == BURST_INCR),
                     NextValue(ar_emit_count, 0),
                     NextValue(r_wide_count,  0),
                     NextState("FIXED-EMIT-AR"),
@@ -707,15 +713,11 @@ class AXIDownConverter(LiteXModule):
         ar_fsm.act("FIXED-EMIT-AR",
             fixed_ar_active.eq(1),
             axi_to.ar.valid.eq(1),
-            axi_to.ar.addr.eq(cap_ar_addr),
+            axi_to.ar.addr.eq(cap_ar_addr + Mux(cap_ar_incr, ar_emit_count << wide_size_log2, 0)),
             axi_to.ar.addr[:wide_size_log2].eq(0),
             axi_to.ar.len.eq(ratio - 1),
             axi_to.ar.burst.eq(BURST_INCR),
-            If(cap_ar_size <= narrow_size_log2,
-                axi_to.ar.size.eq(cap_ar_size),
-            ).Else(
-                axi_to.ar.size.eq(narrow_size_log2),
-            ),
+            axi_to.ar.size.eq(narrow_size_log2),
             axi_to.ar.id.eq(cap_ar_id),
             axi_to.ar.lock.eq(cap_ar_lock),
             axi_to.ar.prot.eq(cap_ar_prot),
@@ -771,13 +773,30 @@ class AXIDownConverter(LiteXModule):
             )
         ]
 
-        # ID/Resp/User from narrow side: clocked-through (matches the existing 1-cycle
-        # StrideConverter latency). Tracks the most recent narrow beat — same id within a burst,
-        # so the wide value is correct when r.valid fires.
-        self.sync += axi_from.r.resp.eq(axi_to.r.resp)
-        self.sync += axi_from.r.user.eq(axi_to.r.user)
-        self.sync += axi_from.r.dest.eq(axi_to.r.dest)
-        self.sync += axi_from.r.id.eq(axi_to.r.id)
+        # ID/Resp/User from narrow side: capture id/user/dest on the first narrow sub-beat of
+        # each wide beat and accumulate the worst-of resp across the ratio sub-beats. Registering
+        # the pass-through unconditionally violated AXI stability (id/resp changed while the wide
+        # r.valid was held and the master stalled) and lost errors on non-final sub-beats. The
+        # values are stable while the wide beat is pending since the StrideConverter only accepts
+        # new narrow beats once the wide beat is consumed.
+        r_sub_count = Signal(max=max(ratio, 2))
+        self.sync += [
+            If(axi_to.r.valid & axi_to.r.ready,
+                If(r_sub_count == 0,
+                    axi_from.r.id.eq(  axi_to.r.id),
+                    axi_from.r.user.eq(axi_to.r.user),
+                    axi_from.r.dest.eq(axi_to.r.dest),
+                    axi_from.r.resp.eq(axi_to.r.resp),
+                ).Elif(axi_to.r.resp > axi_from.r.resp,
+                    axi_from.r.resp.eq(axi_to.r.resp),
+                ),
+                If(r_sub_count == (ratio - 1),
+                    r_sub_count.eq(0),
+                ).Else(
+                    r_sub_count.eq(r_sub_count + 1),
+                )
+            )
+        ]
 
 class AXIConverter(LiteXModule):
     """AXI data width converter"""
@@ -1017,6 +1036,14 @@ class AXIDecoder(LiteXModule):
                 )
             ]
 
+        # Block new commands while responses are pending unless they target the already-selected
+        # slave: a new command presented through the held (old) selection would otherwise be
+        # offered to the wrong slave (mis-route with slaves that pipeline commands).
+        cmd_allowed = {}
+        for ch in locks.keys():
+            cmd_allowed[ch] = Signal()
+            self.comb += cmd_allowed[ch].eq(locks[ch].ready | (slave_sel_dec[ch] == slave_sel_reg[ch]))
+
         # Connect master->slaves signals except valid/ready.
         for i, (_, slave) in enumerate(slaves):
             for channel, name, direction in master.layout_flat():
@@ -1029,6 +1056,9 @@ class AXIDecoder(LiteXModule):
                     # Mask master control signals depending on slave selection.
                     if name in ["valid", "ready"]:
                         src = src & slave_sel[directions[channel]][i]
+                        # Hold off new commands while blocked on pending responses.
+                        if channel in ["aw", "ar"]:
+                            src = src & cmd_allowed[directions[channel]]
                     self.comb += dst.eq(src)
 
         # Connect slave->master signals masking not selected slaves.
@@ -1042,6 +1072,10 @@ class AXIDecoder(LiteXModule):
                     src = get_sig(slave, channel, name)
                     # Mask depending on channel.
                     mask = Replicate(slave_sel[directions[channel]][i], len(dst))
+                    # Hold off new commands while blocked on pending responses (the master must
+                    # not see aw/ar ready while its command is not presented to any slave).
+                    if channel in ["aw", "ar"]:
+                        mask = mask & Replicate(cmd_allowed[directions[channel]], len(dst))
                     masked.append(src & mask)
                 if len(masked) > 0:
                     self.comb += dst.eq(reduce(or_, masked))
