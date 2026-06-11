@@ -23,9 +23,14 @@ int spiflash_freq_init(void)
 
 #ifdef CSR_SPIFLASH_PHY_CLK_DIVISOR_ADDR
 
-	unsigned int lowest_div, crc, crc_test;
+	unsigned int lowest_div;
+#ifdef SPIFLASH_BASE
+	unsigned int crc, crc_test;
+#endif
 
 	lowest_div = spiflash_phy_clk_divisor_read();
+
+#ifdef SPIFLASH_BASE
 	invd_cpu_dcache_range((void *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
 	flush_l2_cache();
 	crc        = crc32((unsigned char *)SPIFLASH_BASE, SPI_FLASH_BLOCK_SIZE);
@@ -58,14 +63,17 @@ int spiflash_freq_init(void)
 #else
 	lowest_div += 2;
 #endif
+#endif
 	printf("SPI Flash clk configured to %d MHz (div: %d)\n", CONFIG_CLOCK_FREQUENCY/(lowest_div*1000000), lowest_div);
 
 	spiflash_phy_clk_divisor_write(lowest_div);
+#ifdef CSR_SPIFLASH_MMAP_CLK_DIVISOR_ADDR
 	spiflash_mmap_clk_divisor_write(lowest_div);
+#endif
 
 #else
 
-	printf("SPI Flash clk configured to %ld MHz\n", SPIFLASH_PHY_FREQUENCY/1000000);
+	printf("SPI Flash clk configured to %d MHz\n", (int)(SPIFLASH_PHY_FREQUENCY/1000000));
 
 #endif
 
@@ -74,9 +82,13 @@ int spiflash_freq_init(void)
 
 void spiflash_dummy_bits_setup(unsigned int dummy_bits)
 {
+#ifdef CSR_SPIFLASH_MMAP_DUMMY_BITS_ADDR
 	spiflash_mmap_dummy_bits_write((uint32_t)dummy_bits);
 #ifdef SPIFLASH_DEBUG
 	printf("Dummy bits set to: %" PRIx32 "\n\r", spiflash_mmap_dummy_bits_read());
+#endif
+#else
+	(void)dummy_bits;
 #endif
 }
 
@@ -278,7 +290,7 @@ static void spiflash_sector_erase(uint32_t addr)
 void spiflash_erase_range(uint32_t addr, uint32_t len)
 {
 	uint32_t i = 0;
-	uint32_t j = 0;
+
 	for (i=0; i<len; i+=SPI_FLASH_ERASE_SIZE) {
 		printf("Erase SPI Flash @0x%08lx", ((uint32_t)addr+i));
 		spiflash_write_enable();
@@ -290,15 +302,17 @@ void spiflash_erase_range(uint32_t addr, uint32_t len)
 		}
 		printf("\n");
 
+#ifdef SPIFLASH_BASE
 		invd_cpu_dcache_range((void *)SPIFLASH_BASE + addr + i, SPI_FLASH_ERASE_SIZE);
 
 		/* check if region was really erased */
-		for (j = 0; j < SPI_FLASH_ERASE_SIZE; j++) {
+		for (uint32_t j = 0; j < SPI_FLASH_ERASE_SIZE; j++) {
 			uint8_t* peek = (((uint8_t*)SPIFLASH_BASE)+addr+i+j);
 			if (*peek != 0xff) {
 				printf("Error: location 0x%08lx not erased (%0x2x)\n", addr+i+j, *peek);
 			}
 		}
+#endif
 	}
 }
 
@@ -319,7 +333,6 @@ int spiflash_write_stream(uint32_t addr, uint8_t *stream, uint32_t len)
 	uint32_t errors = 0;
 	uint32_t w_len = min(len, SPI_FLASH_BLOCK_SIZE);
 	uint32_t offset = 0;
-	uint32_t j = 0;
 
 #ifdef SPIFLASH_DEBUG
 	printf("Write SPI Flash @0x%08lx", ((uint32_t)addr));
@@ -335,15 +348,17 @@ int spiflash_write_stream(uint32_t addr, uint8_t *stream, uint32_t len)
 #endif
 		}
 
+#ifdef SPIFLASH_BASE
 		invd_cpu_dcache_range((void *)SPIFLASH_BASE + addr + offset, w_len);
 
-		for (j = 0; j < w_len; j++) {
+		for (uint32_t j = 0; j < w_len; j++) {
 			uint8_t* peek = (((uint8_t*)SPIFLASH_BASE)+addr+offset+j);
 			if (*peek != stream[offset+j]) {
 				printf("Error: verify failed at 0x%08lx (0x%02x should be 0x%02x)\n", (uint32_t)peek, *peek, stream[offset+j]);
 				errors++;
 			}
 		}
+#endif
 
 		offset += w_len;
 		w_len = min(len-offset, SPI_FLASH_BLOCK_SIZE);
@@ -360,16 +375,22 @@ int spiflash_write_stream(uint32_t addr, uint8_t *stream, uint32_t len)
 #endif
 
 void spiflash_memspeed(void) {
+#ifdef SPIFLASH_BASE
 	/* Test Sequential Read accesses */
 	memspeed((unsigned int *) SPIFLASH_BASE, 4096, 1, 0);
 
 	/* Test Random Read accesses */
 	memspeed((unsigned int *) SPIFLASH_BASE, 4096, 1, 1);
+#endif
 }
 
 void spiflash_init(void)
 {
+#ifdef SPIFLASH_BASE
 	printf("\nInitializing %s SPI Flash @0x%08lx...\n", SPIFLASH_MODULE_NAME, SPIFLASH_BASE);
+#else
+	printf("\nInitializing %s SPI Flash...\n", SPIFLASH_MODULE_NAME);
+#endif
 
 #ifdef SPIFLASH_MODULE_DUMMY_BITS
 	spiflash_dummy_bits_setup(SPIFLASH_MODULE_DUMMY_BITS);
