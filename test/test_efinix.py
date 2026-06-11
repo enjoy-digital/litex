@@ -27,6 +27,7 @@ from litex.build.io import (
 from litex.build.generic_toolchain import GenericToolchain
 from litex.gen import LiteXContext
 from litex.gen.fhdl import verilog
+from litex.soc.cores.clock.efinix import TITANIUMPLL
 from litex.soc.cores.jtag import EfinixJTAG
 from migen.fhdl.specials import Tristate
 
@@ -42,6 +43,29 @@ class _UnifiedEfinixPlatform:
 
     def get_pin_properties(self, sig):
         return [("PULL_OPTION", "WEAK_PULLUP")]
+
+
+class _UnifiedEfinixPLLPlatform(_UnifiedEfinixPlatform):
+    def __init__(self):
+        super().__init__("Titanium")
+        self.toolchain.ifacewriter = InterfaceWriter("/tmp/efinity")
+        self.toolchain.excluded_ios = []
+        self.pll_available = ["PLL_BL0"]
+        self.pll_used = []
+
+    def add_iface_io(self, name, size=1):
+        sig = migen.Signal(size, name=name)
+        self.toolchain.excluded_ios.append(name)
+        return sig
+
+    def get_pin_location(self, sig):
+        return None
+
+    def get_free_pll_resource(self):
+        pll = self.pll_available[0]
+        self.pll_available.remove(pll)
+        self.pll_used.append(pll)
+        return pll
 
 
 class _JTAGPins(SimpleNamespace):
@@ -231,6 +255,24 @@ def test_unified_efinix_clock_input_preserves_existing_clock_mapping():
     _convert_unified_efinix(dut, {clk_i, clk_o}, platform=platform)
 
     assert platform.clks["eth0_rx"] == "eth0_rx_pll1_clk"
+
+
+def test_unified_efinix_pll_clkout_does_not_drive_its_core_input():
+    platform = _UnifiedEfinixPLLPlatform()
+
+    dut = migen.Module()
+    dut.clock_domains.cd_eth_rx = migen.ClockDomain("eth_rx")
+    rx_clk = dut.cd_eth_rx.clk
+    rx_pad = migen.Signal(name="eth_clocks0_rx")
+    dut.specials += ClkInput(rx_pad, rx_clk)
+    dut.submodules.pll = pll = TITANIUMPLL(platform)
+    pll.register_clkin(rx_clk, 125e6)
+    pll.create_clkout(dut.cd_eth_rx, 125e6, with_reset=False)
+
+    v = _convert_unified_efinix(dut, {rx_pad}, platform=platform)
+
+    assert "EFX_IBUF" in v
+    assert "assign eth_rx_clk =" not in v
 
 
 def test_unified_efinix_differential_io_lowers_to_lvds_primitives():
