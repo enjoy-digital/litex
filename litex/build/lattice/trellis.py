@@ -73,7 +73,10 @@ class LatticeTrellisToolchain(YosysNextPNRToolchain):
         (family, size, self._speed_grade, self._package) = self.nextpnr_ecp5_parse_device(self.platform.device)
         self._architecture = self.nextpnr_ecp5_architectures[(family + "-" + size)]
 
-        self._packer_opts += " {build_name}.config --svf {build_name}.svf --bit {build_name}.bit".format(
+        # Snapshot base options on first finalize to keep finalize idempotent.
+        if not hasattr(self, "_base_packer_opts"):
+            self._base_packer_opts = self._packer_opts
+        self._packer_opts = self._base_packer_opts + " {build_name}.config --svf {build_name}.svf --bit {build_name}.bit".format(
                 build_name = self._build_name,
         )
         return YosysNextPNRToolchain.finalize(self)
@@ -108,6 +111,19 @@ class LatticeTrellisToolchain(YosysNextPNRToolchain):
                 lpf.append(self._format_lpf(sig, pins[0], others, resname))
         if self.named_pc:
             lpf.append("\n\n".join(self.named_pc))
+
+        # Clock constraints
+        for clk, [period, _] in self.clocks.items():
+            clk_name = self._vns.get_name(clk)
+            lpf.append("FREQUENCY {} \"{}\" {} MHz;".format(
+                "PORT" if hasattr(clk, "port") else "NET",
+                clk_name,
+                str(1e3/period)))
+
+        # False path constraints are not supported by nextpnr-ecp5.
+        if self.false_paths:
+            print("Warning: nextpnr-ecp5 does not support false path constraints, they will be ignored.")
+
         tools.write_to_file(self._build_name + ".lpf", "\n".join(lpf))
 
     # NextPnr Helpers/Templates --------------------------------------------------------------------
@@ -148,14 +164,6 @@ class LatticeTrellisToolchain(YosysNextPNRToolchain):
         "lfe5um5g-45f": "um5g-45k",
         "lfe5um5g-85f": "um5g-85k",
     }
-
-    def add_period_constraint(self, platform, clk, period, keep=True, name=None):
-        if clk is None:
-            return
-        if hasattr(clk, "p"):
-            clk = clk.p
-        platform.add_platform_command("""FREQUENCY PORT "{clk}" {freq} MHz;""".format(
-            freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)
 
 def trellis_args(parser):
     toolchain_group = parser.add_argument_group(title="Trellis toolchain options")

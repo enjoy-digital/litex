@@ -33,7 +33,9 @@ def _unwrap(value):
 # YosysNextpnrToolchain ----------------------------------------------------------------------------
 
 class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
-    attr_translate = {}
+    attr_translate = {
+        "keep": ("keep", "true"),
+    }
 
     family     = "xilinx"
     synth_fmt  = "json"
@@ -69,6 +71,8 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
     def _check_properties(self):
         pattern = re.compile("xc7([aksz])([0-9]+)(.*)-([0-9])")
         g = pattern.search(self.platform.device)
+        if g is None:
+            raise OSError(f"Unsupported device {self.platform.device}")
         if not self.dbpart:
             self.dbpart = f"xc7{g.group(1)}{g.group(2)}{g.group(3)}"
 
@@ -84,18 +88,20 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
         for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             clk_sig = self._vns.get_name(clk)
             # Search for the highest frequency.
-            freq = int(1e3 / period)
+            freq = 1e3 / period
             if freq > max_freq:
                 max_freq = freq
             if name is None:
                 name = clk_sig
-            xdc.append(
-                "create_clock -name {name} -period " + str(period) +
-                " [get_ports {clk}]".format(name=name, clk=clk_sig))
+            xdc.append("create_clock -name {name} -period {period} [get_ports {clk}]".format(
+                name   = name,
+                period = period,
+                clk    = clk_sig))
 
         # FIXME: NextPNRWrapper is constructed at finalize level, too early
         # to update self._pnr_opts. The solution is to update _nextpnr instance.
-        self._nextpnr._pnr_opts += f" --freq {max_freq}"
+        if max_freq > 0:
+            self._nextpnr._pnr_opts += f" --freq {round(max_freq, 3)}"
         # generate sdc
         xdc += self.additional_xdc_commands
         self._clock_constraints = "\n".join(xdc)
@@ -116,8 +122,7 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
         if self.is_openxc7:
             chipdb_dir = os.environ.get('CHIPDB')
             if chipdb_dir is None or chipdb_dir == "":
-                print("Error: please specify the directory, where you store your nextpnr-xilinx chipdb files in the environment variable CHIPDB (directory may be empty)")
-                exit(1)
+                raise OSError("Error: please specify the directory, where you store your nextpnr-xilinx chipdb files in the environment variable CHIPDB (directory may be empty)")
         else:
             chipdb_dir = "/usr/share/nextpnr/xilinx-chipdb"
 
@@ -137,12 +142,13 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
                 bba = self.dbpart + ".bba"
                 bbaexport = [pypy3, os.path.join(nextpnr_xilinx_python_dir, "bbaexport.py"), "--device", self.device, "--bba", bba]
                 print(str(bbaexport))
-                subprocess.run(bbaexport)
-                subprocess.run(["bbasm", "-l", bba, chipdb])
+                if subprocess.run(bbaexport).returncode != 0:
+                    raise OSError(f"Error occured during bbaexport's execution for '{chipdb}'.")
+                if subprocess.run(["bbasm", "-l", bba, chipdb]).returncode != 0:
+                    raise OSError(f"Error occured during bbasm's execution for '{chipdb}'.")
                 os.remove(bba)
             else:
-                print(f"Chip database file '{chipdb}' not found. Please check your toolchain installation!")
-                exit(1)
+                raise OSError(f"Chip database file '{chipdb}' not found. Please check your toolchain installation!")
 
         # pnr options
         self._pnr_opts += "--chipdb {chipdb} --write {top}_routed.json".format(
@@ -158,10 +164,9 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
             prjxray_db_dir = "/usr/share/nextpnr/prjxray-db/"
 
         if not os.path.isdir(prjxray_db_dir):
-            print(f"{prjxray_db_dir} does not exist on your system. \n" + \
+            raise OSError(f"{prjxray_db_dir} does not exist on your system. \n" + \
                     "Do you have the openXC7 toolchain installed? \n" + \
                     "You can get it here: https://github.com/openXC7/toolchain-installer")
-            exit(1)
 
         # pre packer options
         self._pre_packer_opts[self._pre_packer_cmd[0]] = "--part {part} --db-root {db_root} {top}.fasm > {top}.frames".format(
@@ -199,6 +204,7 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
 
     def add_false_path_constraint(self, platform, from_, to):
         # FIXME: false path constraints are currently not supported by the toolchain
+        print("WARNING: false path constraints are not supported by the yosys+nextpnr toolchain and are ignored.")
         return
 
 

@@ -137,7 +137,7 @@ class LatticeDiamondToolchain(GenericToolchain):
 
         # Add IPs
         for filename in self.platform.ips:
-            tcl.append("prj_src add \"{}\" -work {}".format(tcl_path(filename), library))
+            tcl.append("prj_src add \"{}\" -work work".format(tcl_path(filename)))
 
         # Add SDCs
         for filename in self.platform.sdcs:

@@ -66,6 +66,10 @@ class _ANSIPlainTextFilter:
 
         return _strip_ansi_bytes(data)
 
+    def flush(self):
+        data, self._pending = self._pending, b""
+        return _strip_ansi_bytes(data)
+
 
 class _PlainTextFormatter(logging.Formatter):
     def format(self, record):
@@ -190,6 +194,10 @@ class BuildLogTee:
                     data = log_filter.feed(data)
                     if data:
                         os.write(self._log_fd, data)
+            with self._lock:
+                data = log_filter.flush()
+                if data:
+                    os.write(self._log_fd, data)
         finally:
             os.close(read_fd)
 
@@ -220,7 +228,9 @@ class BuildLogTee:
         for fd, saved_fd in self._fds:
             os.dup2(saved_fd, fd)
         for thread in self._threads:
-            thread.join()
+            thread.join(timeout=5)
+            if thread.is_alive():
+                print("Warning: Build log tee thread still alive (pipe still in use by a child process?), log may be incomplete.", file=sys.stderr)
         for _, saved_fd in self._fds:
             os.close(saved_fd)
         self._fds = []

@@ -498,7 +498,7 @@ def _build_yosys_project(platform, synth_opts="", build_name=""):
         target       = "xilinx",
         template     = [],
         yosys_cmds   = yosys_cmd,
-        yosys_opts   = f"-family {family}",
+        yosys_opts   = f"{synth_opts}-family {family}",
         synth_format = "edif"
     )
     yosys.build_script()

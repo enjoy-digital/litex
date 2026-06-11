@@ -155,9 +155,9 @@ class SDROutput(SDRIO): pass
 
 class InferredSDRTristate(Module):
     def __init__(self, io, o, oe, i, clk):
-        _o  = Signal().like(o)
-        _oe = Signal().like(oe)
-        _i  = Signal().like(i) if i is not None else None
+        _o  = Signal.like(o)
+        _oe = Signal.like(oe)
+        _i  = Signal.like(i) if i is not None else None
         self.specials   += SDROutput(o, _o, clk)
         if _i is not None:
             self.specials   += SDRInput(_i, i, clk)
@@ -238,9 +238,9 @@ class DDROutput(Special):
 
 class InferredDDRTristate(Module):
     def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, i_async):
-        _o  = Signal().like(o1)
-        _oe = Signal().like(oe1)
-        _i  = Signal().like(_o) if i1 is not None and i2 is not None else None
+        _o  = Signal.like(o1)
+        _oe = Signal.like(oe1)
+        _i  = Signal.like(_o) if i1 is not None and i2 is not None else None
         self.specials += DDROutput(o1, o2, _o, clk)
         self.specials += DDROutput(oe1, oe2, _oe, clk) if oe2 is not None else SDROutput(oe1, _oe, clk)
         if _i is not None:

@@ -85,7 +85,14 @@ def apply_aliases_with_conflict_checks(values, *, alias_map):
             continue
         ref = result[provided[0]]
         for p in provided[1:]:
-            if result[p] != ref:
+            if result[p] is ref:
+                continue
+            try:
+                equal = bool(result[p] == ref)
+            except TypeError:
+                # Comparison not meaningful (e.g Migen/Amaranth values) -> treat as conflict.
+                equal = False
+            if not equal:
                 raise ValueError(
                     f"Conflicting values for '{canonical}': "
                     + ", ".join([f"{n}={result[n]!r}" for n in provided]))
@@ -100,7 +107,9 @@ def write_text_if_different(path, content):
             old = f.read()
     if old == content:
         return False
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    dirname = os.path.dirname(path)
+    if dirname:
+        os.makedirs(dirname, exist_ok=True)
     with open(path, "w") as f:
         f.write(content)
     return True

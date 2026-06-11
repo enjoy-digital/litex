@@ -174,9 +174,16 @@ class ConnectorManager:
                 if isinstance(conn_entry, dict):
                     assert pn in conn_entry, f"There is no pin '{pn}' on connector '{conn}'"
                 else:
+                    if not isinstance(pn, int):
+                        raise ConstraintError(f"Pin '{pn}' on connector '{conn}' must be a number")
                     assert pn < len(conn_entry), f"There is no pin with number '{pn}' on connector '{conn}', maximum is {len(conn_entry)-1}"
                 conn_pn = self.connector_table[conn][pn]
-                if conn_pn is not None and ":" in conn_pn:
+                if conn_pn is None:
+                    # Unconnected (None) connector pins are preserved; backends decide how to
+                    # handle them.
+                    r.append(conn_pn)
+                    continue
+                if ":" in conn_pn:
                     conn_pn = self.resolve_identifiers([conn_pn])[0]
                 r.append(conn_pn)
             else:
@@ -482,12 +489,6 @@ class GenericPlatform:
 
     def get_verilog(self, fragment, **kwargs):
         return verilog.convert(fragment, platform=self, **kwargs)
-
-    def get_edif(self, fragment, cell_library, vendor, device, **kwargs):
-        return edif.convert(
-            fragment,
-            self.constraint_manager.get_io_signals(),
-            cell_library, vendor, device, **kwargs)
 
     def build(self, fragment):
         raise NotImplementedError("GenericPlatform.build must be overloaded")

@@ -24,27 +24,27 @@ class LiberoProgrammer(GenericProgrammer):
         self._impl_path  = os.path.join(self._build_dir, "impl")
         self._prj_path   = os.path.join(self._impl_path, f"{self._build_name}.prjx")
 
-    def load_bitstream(self):
-        raise Error("Load bitstream not supported.")
+    def load_bitstream(self, bitstream_file):
+        raise NotImplementedError("Load bitstream not supported.")
 
-    def flash(self):
+    def flash(self, address, data_file):
         if which("libero") is None:
            msg = "Unable to find or source Libero SoC toolchain, please make sure libero has been installed corectly.\n"
            raise OSError(msg)
 
         cwd = os.getcwd()
         os.chdir(self._build_dir)
+        try:
+            tcl = [
+                f"open_project -file {{{self._prj_path}}} -do_backup_on_convert 1 -backup_file {{{self._impl_path}.zip}}",
+                "run_tool -name {PROGRAMDEVICE}",
+            ]
 
-        tcl = [
-            f"open_project -file {{{self._prj_path}}} -do_backup_on_convert 1 -backup_file {{{self._impl_path}.zip}}",
-            "run_tool -name {PROGRAMDEVICE}",
-        ]
+            tools.write_to_file(f"{self._build_name}_prog.tcl", "\n".join(tcl))
 
-        tools.write_to_file(f"{self._build_name}_prog.tcl", "\n".join(tcl))
+            libero_cmd = f"libero script:{self._build_name}_prog.tcl"
 
-        libero_cmd = f"libero script:{self._build_name}_prog.tcl"
-
-        if subprocess.call(libero_cmd.split(" ")) != 0:
-           raise OSError("Subprocess failed")
-
-        os.chdir(cwd)
+            if subprocess.call(libero_cmd.split(" ")) != 0:
+               raise OSError("Subprocess failed")
+        finally:
+            os.chdir(cwd)

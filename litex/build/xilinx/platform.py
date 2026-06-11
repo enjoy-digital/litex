@@ -37,20 +37,18 @@ class XilinxPlatform(GenericPlatform):
         self.edifs = set()
         self.ips   = {}
         if toolchain == "ise":
-            from litex.build.xilinx import ise
             self.toolchain = ise.XilinxISEToolchain()
         elif toolchain == "vivado":
-            from litex.build.xilinx import vivado
             self.toolchain = vivado.XilinxVivadoToolchain(device_image_arch=device_image_arch)
         elif toolchain == "symbiflow" or toolchain == "f4pga":
             from litex.build.xilinx import f4pga
             self.toolchain = f4pga.F4PGAToolchain()
         elif toolchain in ["yosys+nextpnr", "openxc7"]:
-            from litex.build.xilinx import yosys_nextpnr
             self.toolchain = yosys_nextpnr.XilinxYosysNextpnrToolchain(toolchain)
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
         if device_image_arch is not None:
+            self._bitstream_ext = dict(self._bitstream_ext)
             self._bitstream_ext["sram"] = ".pdi"
 
     def add_edif(self, filename):
@@ -61,7 +59,6 @@ class XilinxPlatform(GenericPlatform):
 
     def add_platform_command(self, command, **signals):
         skip = False
-        from litex.build.xilinx import yosys_nextpnr
         if isinstance(self.toolchain, yosys_nextpnr.XilinxYosysNextpnrToolchain):
             # FIXME: Add support for INTERNAL_VREF to yosys+nextpnr flow.
             if "set_property INTERNAL_VREF" in command:

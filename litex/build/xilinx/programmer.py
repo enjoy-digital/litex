@@ -19,6 +19,8 @@ def _run_urjtag(cmds):
     with subprocess.Popen("jtag", stdin=subprocess.PIPE) as process:
         process.stdin.write(cmds.encode("ASCII"))
         process.communicate()
+        if process.returncode != 0:
+            raise OSError("Error occured during UrJTAG's execution.")
 
 
 class UrJTAG(GenericProgrammer):
@@ -92,6 +94,8 @@ def _run_impact(cmds):
     with subprocess.Popen("impact -batch", stdin=subprocess.PIPE, shell=True) as process:
         process.stdin.write(cmds.encode("ASCII"))
         process.communicate()
+        if process.returncode != 0:
+            raise OSError("Error occured during iMPACT's execution.")
         return process.returncode
 
 
@@ -123,10 +127,17 @@ quit
 # Vivado -------------------------------------------------------------------------------------------
 
 def _run_vivado(path, ver, cmds):
-    vivado_cmd = "vivado -mode tcl"
+    vivado = "vivado"
+    if path is not None:
+        vivado_bin = os.path.join(path, ver if ver is not None else "", "bin", "vivado")
+        if os.path.exists(vivado_bin):
+            vivado = vivado_bin
+    vivado_cmd = vivado + " -mode tcl"
     with subprocess.Popen(vivado_cmd, stdin=subprocess.PIPE, shell=True) as process:
         process.stdin.write(cmds.encode("ASCII"))
         process.communicate()
+        if process.returncode != 0:
+            raise OSError("Error occured during Vivado's execution.")
 
 
 class VivadoProgrammer(GenericProgrammer):

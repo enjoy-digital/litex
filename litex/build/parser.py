@@ -100,7 +100,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
                 choices = self.toolchains,
                 help    = "FPGA toolchain ({}).".format(" or ".join(self.toolchains)))
         else:
-            self.add_target_argument("-toolchain", help="FPGA toolchain")
+            self.add_target_argument("--toolchain", help="FPGA toolchain")
         self.add_target_argument("--build", action="store_true", help="Build design.")
         self.add_target_argument("--load",  action="store_true", help="Load bitstream.")
 
@@ -242,7 +242,8 @@ class LiteXArgumentParser(argparse.ArgumentParser):
                 if action.dest in remaining:
                     remaining.remove(action.dest)
             if len(remaining) > 0:
-                raise ValueError(f"set_default() for invalid argument(s): {remaining}")
+                # argparse supports set_defaults for dests without arguments, so only warn.
+                print(f"Warning: set_defaults() for argument(s) without matching option(s): {remaining}.")
 
         # Parse args.
         self._args = argparse.ArgumentParser.parse_args(self, args, namespace)

@@ -55,21 +55,31 @@ def _build_pdc(named_sc, named_pc, clocks, vns, false_paths, build_name):
     if named_pc:
         pdc.append("\n".join(named_pc))
 
+    def _get_constraint_name(signal):
+        return signal if isinstance(signal, str) else vns.get_name(signal)
+
+    def _false_path_sort_key(false_path):
+        return tuple(
+            (0, signal.duid) if hasattr(signal, "duid") else (1, str(signal))
+            for signal in false_path
+        )
+
+    # Build clk->name map (use user-provided name when set, fallback to netlist name).
+    clk_names = {clk: (clk_name if clk_name is not None else vns.get_name(clk)) for clk, [period, clk_name] in clocks.items()}
+
     # Note: .pdc is only used post-synthesis, Synplify constraints clocks by default to 200MHz.
     for clk, [period, clk_name] in clocks.items():
         clk_sig = vns.get_name(clk)
-        if clk_name is None:
-            clk_name = clk_sig
         pdc.append("create_clock -period {} -name {} [{} {}];".format(
             str(period),
-            clk_name,
+            clk_names[clk],
             "get_ports" if clk_sig in [name for name, _, _, _ in named_sc] else "get_nets",
             clk_sig
             ))
 
-    for (from_, to) in false_paths:
-        from_name = vns.get_name(from_)
-        to_name = vns.get_name(to)
+    for (from_, to) in sorted(false_paths, key=_false_path_sort_key):
+        from_name = clk_names.get(from_, _get_constraint_name(from_))
+        to_name   = clk_names.get(to,   _get_constraint_name(to))
 
         pdc.append(f"set_clock_groups -asynchronous -group [get_clocks {from_name}] -group [get_clocks {to_name}]")
 
@@ -82,6 +92,7 @@ class LatticeRadiantToolchain(GenericToolchain):
     attr_translate = {
         "keep":             ("syn_keep", "true"),
         "no_retiming":      ("syn_no_retiming", "true"),
+        "syn_useioff":      ("syn_useioff", 1),
     }
 
     special_overrides = common.lattice_NX_special_overrides
@@ -173,12 +184,11 @@ class LatticeRadiantToolchain(GenericToolchain):
             # with the structural netlist from Yosys, but this would be harder to do in a cross
             # platform way.
             tcl.append("prj_add_source \"{}_yosys.vm\" -work work".format(self._build_name))
-            library = "work"
         else:
             for filename, language, library, *copy in self.platform.sources:
                 tcl.append("prj_add_source \"{}\" -work {}".format(tcl_path(filename), library))
 
-        tcl.append("prj_add_source \"{}\" -work {}".format(tcl_path(pdc_file), library))
+        tcl.append("prj_add_source \"{}\" -work work".format(tcl_path(pdc_file)))
 
         # Set top level
         tcl.append("prj_set_impl_opt top \"{}\"".format(self._build_name))
@@ -221,7 +231,7 @@ class LatticeRadiantToolchain(GenericToolchain):
             script_contents += self._yosys.get_yosys_call(target="script") + "\n"
 
         # Radiant installed on Windows, executed from WSL2
-        if "microsoft-standard" in os.uname().release and which("pnmainc.exe") is not None:
+        if hasattr(os, "uname") and "microsoft-standard" in os.uname().release and which("pnmainc.exe") is not None:
             tool = "pnmainc.exe"
 
         script_contents += "{tool} {tcl_script}{fail_stmt}\n".format(
@@ -248,7 +258,7 @@ class LatticeRadiantToolchain(GenericToolchain):
             tool  = "radiantc"
 
         # Radiant installed on Windows, executed from WSL2
-        if "microsoft-standard" in os.uname().release and which("pnmainc.exe") is not None:
+        if hasattr(os, "uname") and "microsoft-standard" in os.uname().release and which("pnmainc.exe") is not None:
             tool = "pnmainc.exe"
 
         if which(tool) is None:

@@ -40,9 +40,9 @@ class CologneChipPlatform(GenericPlatform):
     def build(self, *args, **kwargs):
         return self.toolchain.build(self, *args, **kwargs)
 
-    def add_period_constraint(self, clk, period):
+    def add_period_constraint(self, clk, period, keep=True, name=None):
         if clk is None: return
-        self.toolchain.add_period_constraint(self, clk, period)
+        self.toolchain.add_period_constraint(self, clk, period, keep=keep, name=name)
 
     def add_false_path_constraint(self, from_, to):
         if hasattr(from_, "p"):

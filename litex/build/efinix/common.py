@@ -320,6 +320,7 @@ class EfinixTrionDDRTristateImpl(LiteXModule):
         self.comb += io_data_i_l.eq(o2)
         self.comb += io_data_e.eq(oe1)
         if i1 is not None:
+            assert isinstance(clk, ClockSignal), f"Efinix Trion DDRTristate requires a ClockSignal clk for registered inputs (got {clk})."
             sync = getattr(self.sync, clk.cd)
             io_data_o_h  = platform.add_iface_io(io_name + "_IN_HI", len(io))
             sync += i1.eq(io_data_o_h)
@@ -607,7 +608,7 @@ class EfinixSDRInput:
 
 class EfinixTrionDDRInputImpl(LiteXModule):
     def __init__(self, i, o1, o2, clk):
-        assert_is_signal_or_clocksignal(clk)
+        assert isinstance(clk, ClockSignal), f"Efinix Trion DDRInput requires a ClockSignal clk (got {clk})."
         platform  = LiteXContext.platform
         io_name, io_pad, io_prop = gpio_info(platform, i)
         io_data_h = platform.add_iface_io(io_name + "_HI", len(i))

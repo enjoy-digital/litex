@@ -5,9 +5,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
-import csv
-import re
-import datetime
 
 from xml.dom import expatbuilder
 import xml.etree.ElementTree as et
@@ -106,12 +103,14 @@ is_verbose = {1}
 design = DesignAPI(is_verbose)
 device = DeviceAPI(is_verbose)
 
-design.create("{2}", "{3}", "./../gateware", overwrite=True)
+design.create("{2}", "{3}", "./", overwrite=True)
 
 """
         return header.format(self.efinity_path, "True", build_name, partnumber)
 
     def iobank_info(self, iobank_info):
+        if not iobank_info:
+            return ""
         cmd = "# ---------- IOBANK INFO ---------\n"
         for name, iostd in iobank_info:
             cmd += 'design.set_iobank_voltage("{0}", "{1}")\n'.format(name, iostd[:3])
@@ -592,16 +591,6 @@ design.create("{2}", "{3}", "./../gateware", overwrite=True)
         cmd.append('design.set_property("{}", "MISO_IN_PIN",    "{}", "SPI_FLASH")'.format(name, dq1))
         cmd.append('design.set_property("{}", "WP_N_OUT_PIN",   "{}", "SPI_FLASH")'.format(name, dq2))
         cmd.append('design.set_property("{}", "HOLD_N_OUT_PIN", "{}", "SPI_FLASH")'.format(name, dq3))
-
-        if mode == "x4":
-            cmd.append('design.set_property("{}", "HOLD_N_IN_PIN", "{}", "SPI_FLASH")'.format(name, dq3_i))
-            cmd.append('design.set_property("{}", "HOLD_N_OE_PIN", "{}", "SPI_FLASH")'.format(name, dq3_oe))
-            cmd.append('design.set_property("{}", "MISO_OUT_PIN",  "{}", "SPI_FLASH")'.format(name, dq1_o))
-            cmd.append('design.set_property("{}", "MISO_OE_PIN",   "{}", "SPI_FLASH")'.format(name, dq1_oe))
-            cmd.append('design.set_property("{}", "MOSI_IN_PIN",   "{}", "SPI_FLASH")'.format(name, dq0_i))
-            cmd.append('design.set_property("{}", "MOSI_OE_PIN",   "{}", "SPI_FLASH")'.format(name, dq0_oe))
-            cmd.append('design.set_property("{}", "WP_N_IN_PIN",   "{}", "SPI_FLASH")'.format(name, dq2_i))
-            cmd.append('design.set_property("{}", "WP_N_OE_PIN",   "{}", "SPI_FLASH")'.format(name, dq2_oe))
 
         # mult ctrl en only
         #cmd.append('design.set_property("{}", "CS_N_OE_PIN","{}","SPI_FLASH")'.format(name, cs_n_oe))

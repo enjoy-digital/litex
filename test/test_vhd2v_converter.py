@@ -121,9 +121,12 @@ def test_do_finalize_mixed_language_with_ports():
 def test_sanitize_ghdl_escaped_identifiers():
     text = "module top; wire \\foo.bar ; wire \\baz$1\t; endmodule\n"
     out = VHD2VConverter._sanitize_ghdl_escaped_identifiers(text)
-    assert "\\foo.bar" not in out
+    # \foo.bar cannot be a plain identifier (would parse as a hierarchical
+    # reference); it must be kept escaped.
+    assert "\\foo.bar " in out
+    assert "ghdl_foo" not in out
+    # \baz$1 has a valid plain identifier body and is rewritten.
     assert "\\baz$1" not in out
-    assert "ghdl_foo.bar " in out
     assert "ghdl_baz$1\t" in out
 
 

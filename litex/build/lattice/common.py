@@ -577,6 +577,7 @@ class LatticeiCE40SDRTristateImpl(Module):
             self.specials += Instance("SB_IO",
                 p_PIN_TYPE      = C(0b110100, 6), # PIN_OUTPUT_REGISTERED_ENABLE_REGISTERED + PIN_INPUT_REGISTERED
                 io_PACKAGE_PIN  = io[j],
+                i_CLOCK_ENABLE  = 1,
                 i_INPUT_CLK     = clk,
                 i_OUTPUT_CLK    = clk,
                 i_OUTPUT_ENABLE = oe[j],

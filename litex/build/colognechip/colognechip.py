@@ -30,9 +30,9 @@ def _build_ccf(named_sc, named_pc):
             flat_sc.append((name, pins[0], other))
 
     for name, pin, other in flat_sc:
-        pin_cst = ""
-        if pin != "X":
-            pin_cst = f"Net \"{name}\" Loc = \"{pin}\""
+        if pin == "X":
+            continue
+        pin_cst = f"Net \"{name}\" Loc = \"{pin}\""
 
         for c in other:
             if isinstance(c, Misc):
@@ -57,7 +57,7 @@ def _check_cfg_io_used(named_sc):
 
 class CologneChipToolchain(GenericToolchain):
     attr_translate = {}
-    supported_build_backend = ["litex", "edalize"]
+    supported_build_backend = ["litex"]
 
     def __init__(self):
         super().__init__()
@@ -99,7 +99,7 @@ class CologneChipToolchain(GenericToolchain):
         if which("p_r"):
             p_r_path              = which("p_r")
             cc_worst_spd_dly_path = os.path.join(os.path.dirname(p_r_path), "cc_worst_spd_dly.dly")
-            copyfile(cc_worst_spd_dly_path, os.path.join(self._build_dir, "cc_worst_spd_dly.dly"))
+            copyfile(cc_worst_spd_dly_path, "cc_worst_spd_dly.dly")
  
     # Script ---------------------------------------------------------------------------------------
 
@@ -154,7 +154,7 @@ class CologneChipToolchain(GenericToolchain):
             raise OSError("Error occured during Yosys/p_r's script execution.")
 
 
-    def add_period_constraint(self, platform, clk, period):
+    def add_period_constraint(self, platform, clk, period, keep=True, name=None):
         pass
 
 def colognechip_args(parser):

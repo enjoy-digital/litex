@@ -5,13 +5,9 @@
 # Copyright (c) 2015-2021 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import os
-import math
 import subprocess
 import datetime
 from shutil import which
-
-from migen.fhdl.structure import _Fragment
 
 from litex.build.generic_platform import *
 from litex.build.generic_toolchain import GenericToolchain
@@ -49,6 +45,8 @@ class TangDynastyToolchain(GenericToolchain):
             for c in other:
                 if isinstance(c, IOStandard):
                     line += f" IOSTANDARD = {c.name}; "
+                elif isinstance(c, Misc):
+                    line += f" {c.misc}; "
             line += f"}}"
             adc.append(line)
 
@@ -92,7 +90,7 @@ class TangDynastyToolchain(GenericToolchain):
         xml.append(f"        <Verilog>")
 
         # Add Sources.
-        for f, typ, lib in self.platform.sources:
+        for f, typ, lib, *_ in self.platform.sources:
             xml.append(f"            <File Path=\"{f}\">")
             xml.append(f"                <FileInfo>")
             xml.append(f"                    <Attr Name=\"UsedInSyn\" Val=\"true\"/>")

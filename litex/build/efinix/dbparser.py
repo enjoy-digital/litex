@@ -34,7 +34,7 @@ class EfinixDbParser:
             if d[0] == device:
                 return d
 
-        return None
+        raise ValueError(f"Device {device} not found in devicemap.csv")
 
     def get_package_file_path(self, dmap):
         packetname = dmap[2].split('_', 1)[1]
@@ -60,6 +60,8 @@ class EfinixDbParser:
 
     def get_pad_name_xml(self, dmap, pin):
         package = self.get_package_file_path(dmap)
+        if package is None:
+            raise ValueError(f"Unable to find package file for device {self.device} in Efinity database.")
         tree = et.parse(package)
         root = tree.getroot()
 
@@ -72,6 +74,8 @@ class EfinixDbParser:
 
     def get_instance_name_xml(self, dmap, pad):
         die = self.get_die_file_path(dmap)
+        if die is None:
+            raise ValueError(f"Unable to find die file for device {self.device} in Efinity database.")
         tree = et.parse(die)
         root = tree.getroot()
 
@@ -86,6 +90,8 @@ class EfinixDbParser:
     def get_block_instance_names(self, block):
         dmap = self.get_device_map(self.device)
         die = self.get_die_file_path(dmap)
+        if die is None:
+            raise ValueError(f"Unable to find die file for device {self.device} in Efinity database.")
         tree = et.parse(die)
         root = tree.getroot()
 
@@ -99,11 +105,12 @@ class EfinixDbParser:
         if block == "pll" and self.device == "Ti60F100S3F2":
             names.remove("PLL_BL0")
 
-        print(f"block {block}: names:{names}")
         return names
 
     def get_pll_inst_from_gpio_inst(self, dmap, inst):
         die = self.get_die_file_path(dmap)
+        if die is None:
+            raise ValueError(f"Unable to find die file for device {self.device} in Efinity database.")
         tree = et.parse(die)
         root = tree.getroot()
 

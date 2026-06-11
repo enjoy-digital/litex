@@ -22,9 +22,8 @@ class EfinixProgrammer(GenericProgrammer):
         self.efinity_path = find_efinity_path()
         self.env = load_efinity_env(self.efinity_path)
 
-        if family is None:
-            from litex.gen.context import LiteXContext
-            family = LiteXContext.platform.family
+        # Family is only required for flash(), so defer its lookup to allow load_bitstream use
+        # without a platform.
         self.family = family
 
     def load_bitstream(self, bitstream_file, cable_suffix=""):
@@ -42,6 +41,12 @@ class EfinixProgrammer(GenericProgrammer):
         if mode not in ["jtag_bridge"]:
             raise ValueError("Unsupported Efinix flash mode: {}.".format(mode))
         if device_id is not None or bridge_image_name is not None:
+            if self.family is None:
+                from litex.gen.context import LiteXContext
+                if LiteXContext.platform is not None:
+                    self.family = LiteXContext.platform.family
+            if self.family is None:
+                raise ValueError("Unable to determine Efinix family, please pass it explicitly to EfinixProgrammer (family=...).")
             if bridge_image_name is None:
                 if self.family == "Trion":
                     raise ValueError("Trion devices require a bridge image name.")
