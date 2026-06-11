@@ -2537,8 +2537,11 @@ class LiteXSoC(SoC):
         # Imports.
         from litei2c import LiteI2C
 
+        # Auto-enable the core's IRQ support only when an IRQ Location was reserved for this name
+        # beforehand (e.g. via SoCCore.interrupt_map); otherwise the core is created without an
+        # EventManager and the irq.add() below is skipped (no ev attribute), leaving the SoC in
+        # polling mode. Pass with_irq explicitly to override.
         if "with_irq" not in kwargs and self.irq.enabled and name in self.irq.locs.keys():
-            # If IRQ is enabled, use with_irq.
             kwargs["with_irq"] = True
 
         # Core.
@@ -2601,8 +2604,11 @@ class LiteXSoC(SoC):
             default_divisor += default_divisor % 2 # Round up to nearest even number.
         clk_freq        = int(self.sys_clk_freq/default_divisor)
 
+        # Auto-enable the LiteSPI master's IRQ support only when an IRQ Location was reserved for
+        # this name beforehand (e.g. via SoCCore.interrupt_map); otherwise the core is created
+        # without an EventManager and the irq.add() below is skipped (no ev attribute), leaving the
+        # SoC in polling mode. Pass master_with_irq explicitly to override.
         if "master_with_irq" not in kwargs and self.irq.enabled and name in self.irq.locs.keys():
-            # If IRQ is enabled, use master_with_irq.
             kwargs["master_with_irq"] = True
 
         # PHY.
@@ -2678,8 +2684,11 @@ class LiteXSoC(SoC):
             default_divisor += default_divisor % 2 # Round up to nearest even number.
         clk_freq        = int(self.sys_clk_freq/default_divisor)
 
+        # Auto-enable the LiteSPI master's IRQ support only when an IRQ Location was reserved for
+        # this name beforehand (e.g. via SoCCore.interrupt_map); otherwise the core is created
+        # without an EventManager and the irq.add() below is skipped (no ev attribute), leaving the
+        # SoC in polling mode. Pass master_with_irq explicitly to override.
         if "master_with_irq" not in kwargs and self.irq.enabled and name in self.irq.locs.keys():
-            # If IRQ is enabled, use master_with_irq.
             kwargs["master_with_irq"] = True
 
         # PHY.
