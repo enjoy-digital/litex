@@ -1947,7 +1947,15 @@ class LiteXSoC(SoC):
             uart_pads_name = "serial" if uart_name == "sim" else uart_name
             uart_pads      = self.platform.request(uart_pads_name, loose=True)
             if (uart_pads is None) and (uart_name == "usb_acm"):
-                uart_pads = self.platform.request("usb")
+                # USB ACM needs pads; request "usb" loosely and raise a clean SoCError when absent
+                # (the supported-UARTs check below would not catch it since usb_acm is supported).
+                uart_pads = self.platform.request("usb", loose=True)
+                if uart_pads is None:
+                    self.logger.error("{} UART requires {} or {} pads on board.".format(
+                        colorer(uart_name),
+                        colorer("usb_acm", color="red"),
+                        colorer("usb",     color="red")))
+                    raise SoCError()
         if (uart_pads is None) and (uart_name not in supported_uarts):
             self.logger.error("{} UART {}, supported are: \n{}.".format(
                 colorer(uart_name),
