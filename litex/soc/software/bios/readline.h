@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define CMD_LINE_BUFFER_SIZE	64
+#define CMD_LINE_BUFFER_SIZE	128
 
 #ifdef BIOS_CONSOLE_NO_ANSI
 #define ANSI_BOLD		""
@@ -24,7 +24,7 @@
 
 struct esc_cmds {
 	const char *seq;
-	char val;
+	int val;
 };
 
 #define CTL_CH(c)		((c) - 'a' + 1)
@@ -46,12 +46,9 @@ struct esc_cmds {
 #define KEY_PAGEDOWN		136		/* Cursor Key Page Down	*/
 #define KEY_DEL			137		/* Cursor Key Del	*/
 
-#define MAX_CMDBUF_SIZE		256
-
 #define CTL_BACKSPACE		('\b')
 #define DEL			255
 #define DEL7			127
-#define CREAD_HIST_CHAR		('!')
 
 #define HIST_MAX		10
 

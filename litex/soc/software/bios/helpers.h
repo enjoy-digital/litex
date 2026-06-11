@@ -3,7 +3,7 @@
 
 struct command_struct;
 
-void dump_bytes(unsigned int *ptr, int count, unsigned long addr);
+void dump_bytes(unsigned int *ptr, unsigned int count, unsigned long addr);
 void crcbios(void);
 void bios_print_section(const char *name);
 void bios_print_status(const char *label, int success);

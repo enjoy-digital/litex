@@ -23,13 +23,13 @@ void fatfs_set_ops_sata(void);
 
 #ifdef CSR_SATA_SECTOR2MEM_BASE
 
-void sata_read(uint32_t sector, uint32_t count, uint8_t* buf);
+int sata_read(uint32_t sector, uint32_t count, uint8_t* buf);
 
 #endif
 
 #ifdef CSR_SATA_MEM2SECTOR_BASE
 
-void sata_write(uint32_t sector, uint32_t count, uint8_t* buf);
+int sata_write(uint32_t sector, uint32_t count, uint8_t* buf);
 
 #endif
 

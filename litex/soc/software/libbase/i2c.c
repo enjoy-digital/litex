@@ -16,6 +16,12 @@
 #define I2C_PERIOD	(U_SECOND / I2C_FREQ_HZ)
 #define I2C_DELAY(n)	busy_wait_us(n * I2C_PERIOD / 4)
 
+/* Maximum time (in us) a slave may stretch the clock before we give up
+   waiting (SMBus specifies 35ms as the limit). */
+#ifndef I2C_SCL_STRETCH_TIMEOUT_US
+#define I2C_SCL_STRETCH_TIMEOUT_US 35000
+#endif
+
 int current_i2c_dev = DEFAULT_I2C_DEV;
 
 struct i2c_dev *get_i2c_devs(void) { return i2c_devs; }
@@ -71,6 +77,28 @@ static inline void i2c_oe_scl_sda(bool oe, bool scl, bool sda)
 	);
 }
 
+static inline int i2c_read_sda(void)
+{
+	struct i2c_ops ops = i2c_devs[current_i2c_dev].ops;
+
+	return (ops.read() >> ops.r_sda_offset) & 1;
+}
+
+/* Call after releasing SCL: a slave may hold SCL low to stretch the clock
+   until it is ready. Bounded so a stuck line cannot hang the BIOS; on timeout
+   we proceed (and the transaction will fail with a NACK/bad data as before). */
+static void i2c_wait_scl_high(void)
+{
+	struct i2c_ops ops = i2c_devs[current_i2c_dev].ops;
+	int timeout;
+
+	for (timeout = 0; timeout < I2C_SCL_STRETCH_TIMEOUT_US; timeout++) {
+		if ((ops.read() >> ops.r_scl_offset) & 1)
+			return;
+		busy_wait_us(1);
+	}
+}
+
 // START condition: 1-to-0 transition of SDA when SCL is 1
 static void i2c_start(void)
 {
@@ -100,6 +128,7 @@ static void i2c_transmit_bit(int value)
 	i2c_oe_scl_sda(1, 0, value);
 	I2C_DELAY(1);
 	i2c_oe_scl_sda(1, 1, value);
+	i2c_wait_scl_high();
 	I2C_DELAY(2);
 	i2c_oe_scl_sda(1, 0, value);
 	I2C_DELAY(1);
@@ -112,9 +141,10 @@ static int i2c_receive_bit(void)
 	i2c_oe_scl_sda(0, 0, 0);
 	I2C_DELAY(1);
 	i2c_oe_scl_sda(0, 1, 0);
+	i2c_wait_scl_high();
 	I2C_DELAY(1);
 	// read in the middle of SCL high
-	value = i2c_devs[current_i2c_dev].ops.read() & 1;
+	value = i2c_read_sda();
 	I2C_DELAY(1);
 	i2c_oe_scl_sda(0, 0, 0);
 	I2C_DELAY(1);

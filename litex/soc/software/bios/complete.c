@@ -14,70 +14,39 @@
 #include "command.h"
 #include "complete.h"
 
+/* Maximum number of completion candidates: must cover all registered
+   commands so that the common prefix is computed over the full match set. */
+#define COMPLETE_MAX_MATCHES 128
+
 static int tab_pressed = 0;
 
-char sl[HIST_DEPTH][CMD_LINE_BUFFER_SIZE];
-int sl_idx = 0;
+/* Candidates are pointers to the (static) command names, no copies needed. */
+static const char *sl[COMPLETE_MAX_MATCHES];
+static int sl_count = 0;
 
 char out[CMD_LINE_BUFFER_SIZE];
 
 static void string_list_init(void)
 {
-	int i;
-	for (i = 0; i < HIST_DEPTH; i++)
-		sl[i][0] = 0;
+	sl_count = 0;
 }
 
 static int string_list_add(const char *string)
 {
-	int i;
-	for (i = 0; i < HIST_DEPTH; i++) {
-		if (sl[i][0] == 0) {
-			strncpy(&sl[i][0], string, CMD_LINE_BUFFER_SIZE - 1);
-			sl[i][CMD_LINE_BUFFER_SIZE - 1] = 0;
-			return 0;
-		}
-	}
-	return -1;
-}
-
-static int string_list_empty(void)
-{
-	int i;
-	for (i = 0; i < HIST_DEPTH; i++)
-		if (sl[i][0] != 0)
-			return 0;
-	return 1;
-}
-
-static int string_list_count(void)
-{
-	int i, count = 0;
-	for (i = 0; i < HIST_DEPTH; i++)
-		if (sl[i][0] != 0)
-			count++;
-	return count;
-}
-
-static char *list_first_entry(void)
-{
-	int i;
-	for (i = 0; i < HIST_DEPTH; i++)
-		if (sl[i][0] != 0)
-			return &sl[i][0];
-	return NULL;
+	if (sl_count >= COMPLETE_MAX_MATCHES)
+		return -1;
+	sl[sl_count++] = string;
+	return 0;
 }
 
 static void string_list_print_by_column(void)
 {
-	int len = 0, num, i = 0, j;
+	int len = 0, num, i, j;
 
-	for (i = 0; i < HIST_DEPTH; i++) {
-		if (sl[i][0] != 0) {
-			int l = strlen(&sl[i][0]) + 4;
-			if (l > len)
-				len = l;
-		}
+	for (i = 0; i < sl_count; i++) {
+		int l = strlen(sl[i]) + 4;
+		if (l > len)
+			len = l;
 	}
 
 	if (!len)
@@ -87,13 +56,12 @@ static void string_list_print_by_column(void)
 	if (num == 0)
 		num = 1;
 
-	for (j = 0; j < HIST_DEPTH; j++) {
-		if (sl[j][0] != 0) {
-			if (!(++i % num))
-				printf("%s\n", &sl[j][0]);
-			else
-				printf("%-*s", len, &sl[j][0]);
-		}
+	i = 0;
+	for (j = 0; j < sl_count; j++) {
+		if (!(++i % num))
+			printf("%s\n", sl[j]);
+		else
+			printf("%-*s", len, sl[j]);
 	}
 	if (i % num)
 		printf("\n");
@@ -115,8 +83,8 @@ int complete(char *instr, char **outstr)
 	int changed;
 	int outpos = 0;
 	int reprint = 0;
-	char *first_entry;
-	char *entry;
+	const char *first_entry;
+	const char *entry;
 	int i;
 
 	string_list_init();
@@ -125,13 +93,13 @@ int complete(char *instr, char **outstr)
 	pos = strlen(instr);
 
 	*outstr = "";
-	if (string_list_empty())
+	if (sl_count == 0)
 		reprint = 0;
 	else
 	{
 		out[0] = 0;
 
-		first_entry = list_first_entry();
+		first_entry = sl[0];
 
 		while (outpos < CMD_LINE_BUFFER_SIZE - 1) {
 			entry = first_entry;
@@ -140,14 +108,10 @@ int complete(char *instr, char **outstr)
 				break;
 
 			changed = 0;
-			for (i = 0; i < HIST_DEPTH; i++) {
-				if (sl[i][0] != 0) {
-					if (!sl[i][pos])
-						break;
-					if (ch != sl[i][pos]) {
-						changed = 1;
-						break;
-					}
+			for (i = 0; i < sl_count; i++) {
+				if ((!sl[i][pos]) || (ch != sl[i][pos])) {
+					changed = 1;
+					break;
 				}
 			}
 
@@ -157,7 +121,7 @@ int complete(char *instr, char **outstr)
 			pos++;
 		}
 
-		if ((string_list_count() != 1) && !outpos && tab_pressed) {
+		if ((sl_count != 1) && !outpos && tab_pressed) {
 			printf("\n");
 			string_list_print_by_column();
 			reprint = 1;

@@ -94,6 +94,8 @@ def test_liteeth_tftp_receive_bounds_host_coverage(tmp_path):
             server_ip = 0;
             data_port = 0;
             next_data_block = 1;
+            current_offset = 0;
+            block_size = 0;
             tftp_write = 0;
         }}
 

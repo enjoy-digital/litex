@@ -96,47 +96,76 @@ int sata_init(int show) {
 
 #endif
 
+/* Bound retries and completion waits: a missing or failing disk must not hang
+   the BIOS forever. */
+#ifndef SATA_OP_RETRIES
+#define SATA_OP_RETRIES 8
+#endif
+#ifndef SATA_OP_TIMEOUT_US
+#define SATA_OP_TIMEOUT_US 100000
+#endif
+
 #ifdef CSR_SATA_SECTOR2MEM_BASE
 
-void sata_read(uint32_t sector, uint32_t count, uint8_t* buf)
+int sata_read(uint32_t sector, uint32_t count, uint8_t* buf)
 {
-	uint8_t done = 0;
+	unsigned int retries;
+	unsigned int timeout;
 
-	while (done == 0) {
+	for (retries = 0; retries < SATA_OP_RETRIES; retries++) {
 		sata_sector2mem_base_write((uint64_t)(uintptr_t) buf);
 		sata_sector2mem_sector_write(sector);
 		sata_sector2mem_nsectors_write(count);
 		sata_sector2mem_start_write(1);
-		while ((sata_sector2mem_done_read() & 0x1) == 0);
-		done = ((sata_sector2mem_error_read() & 0x1) == 0);
+		for (timeout = SATA_OP_TIMEOUT_US; timeout > 0; timeout--) {
+			if ((sata_sector2mem_done_read() & 0x1) != 0) {
+				if ((sata_sector2mem_error_read() & 0x1) == 0) {
+#ifndef CONFIG_CPU_HAS_DMA_BUS
+					/* Flush caches */
+					flush_cpu_dcache();
+					flush_l2_cache();
+#endif
+					return 0;
+				}
+				/* Error: retry */
+				break;
+			}
+			busy_wait_us(1);
+		}
 		busy_wait_us(10);
 	}
 
-#ifndef CONFIG_CPU_HAS_DMA_BUS
-	/* Flush caches */
-	flush_cpu_dcache();
-	flush_l2_cache();
-#endif
+	return -1;
 }
 
 #endif
 
 #ifdef CSR_SATA_MEM2SECTOR_BASE
 
-void sata_write(uint32_t sector, uint32_t count, uint8_t* buf)
+int sata_write(uint32_t sector, uint32_t count, uint8_t* buf)
 {
-	uint8_t done = 0;
+	unsigned int retries;
+	unsigned int timeout;
 
 	/* Write sectors */
-	while (done == 0) {
+	for (retries = 0; retries < SATA_OP_RETRIES; retries++) {
 		sata_mem2sector_base_write((uint64_t)(uintptr_t) buf);
 		sata_mem2sector_sector_write(sector);
 		sata_mem2sector_nsectors_write(count);
 		sata_mem2sector_start_write(1);
-		while ((sata_mem2sector_done_read() & 0x1) == 0);
-		done = ((sata_mem2sector_error_read() & 0x1) == 0);
+		for (timeout = SATA_OP_TIMEOUT_US; timeout > 0; timeout--) {
+			if ((sata_mem2sector_done_read() & 0x1) != 0) {
+				if ((sata_mem2sector_error_read() & 0x1) == 0)
+					return 0;
+				/* Error: retry */
+				break;
+			}
+			busy_wait_us(1);
+		}
 		busy_wait_us(10);
 	}
+
+	return -1;
 }
 
 #endif
@@ -162,7 +191,8 @@ static DSTATUS sata_disk_initialize(BYTE drv) {
 }
 
 static DRESULT sata_disk_read(BYTE drv, BYTE *buf, LBA_t sector, UINT count) {
-	sata_read(sector, count, buf);
+	if (sata_read(sector, count, buf) != 0)
+		return RES_ERROR;
 	return RES_OK;
 }
 

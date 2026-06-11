@@ -44,8 +44,8 @@ static void i2c_write_handler(int nb_params, char **params)
 		return;
 	}
 
-	if (nb_params - 1 > sizeof(write_params)) {
-		printf("Error: maximum data length is %zu\n", sizeof(write_params));
+	if (nb_params > (int)sizeof(write_params)) {
+		printf("Error: maximum data length is %zu\n", sizeof(write_params) - 3);
 		return;
 	}
 
@@ -55,6 +55,11 @@ static void i2c_write_handler(int nb_params, char **params)
 			printf("Error: invalid parameter %d\n", i);
 			return;
 		}
+	}
+
+	if ((write_params[2] < 1) || (write_params[2] > 4)) {
+		printf("Error: addr_size needs to be between 1 and 4\n");
+		return;
 	}
 
 	if (!i2c_write(write_params[0], addr, &write_params[3], nb_params - 3, write_params[2])) {

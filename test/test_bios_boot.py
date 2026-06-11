@@ -413,12 +413,20 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             return 0;
         }}
 
-        static int test_manifest_ignores_oversized_tokens_and_malformed_json(void)
+        static int test_manifest_rejects_oversized_tokens_and_malformed_json(void)
         {{
-            const char *long_name =
-                "{{\\"this-filename-is-far-too-long-for-the-buffer.bin\\": \\"0x1000\\"}}";
+            /* Name longer than the 256-byte json_name buffer: the manifest must be rejected
+               without any load (a partial boot would fail in harder-to-debug ways). */
+            static char long_name[512];
             const char *malformed = "{{\\"image.bin\\": \\"0x1000\\"";
             struct load_ctx ctx = {{ .fail_after = -1 }};
+            int n = 0;
+
+            long_name[n++] = '{{';
+            long_name[n++] = '"';
+            for (int i = 0; i < 300; i++)
+                long_name[n++] = 'a';
+            n += sprintf(&long_name[n], "\\": \\"0x1000\\"}}");
 
             boot_from_json_buffer(long_name, strlen(long_name), record_load, &ctx);
             REQUIRE(ctx.count == 0);
@@ -430,15 +438,17 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
 
         static int test_manifest_rejects_token_pressure_and_bad_registers(void)
         {{
-            const char *too_many_tokens =
-                "{{\\"a\\":\\"0x1000\\",\\"b\\":\\"0x1000\\",\\"c\\":\\"0x1000\\","
-                "\\"d\\":\\"0x1000\\",\\"e\\":\\"0x1000\\",\\"f\\":\\"0x1000\\","
-                "\\"g\\":\\"0x1000\\",\\"h\\":\\"0x1000\\",\\"i\\":\\"0x1000\\","
-                "\\"j\\":\\"0x1000\\",\\"k\\":\\"0x1000\\",\\"l\\":\\"0x1000\\","
-                "\\"m\\":\\"0x1000\\",\\"n\\":\\"0x1000\\",\\"o\\":\\"0x1000\\","
-                "\\"p\\":\\"0x1000\\"}}";
+            /* 33 entries = 67 jsmn tokens, exceeding the 64-token budget: the manifest must
+               be rejected (JSMN_ERROR_NOMEM) without any load. */
+            static char too_many_tokens[1024];
             const char *bad_r1 = "{{\\"r1\\": \\"bad\\", \\"image.bin\\": \\"0x1000\\"}}";
             struct load_ctx ctx = {{ .fail_after = -1 }};
+            int n = 0;
+
+            n += sprintf(&too_many_tokens[n], "{{");
+            for (int i = 0; i < 33; i++)
+                n += sprintf(&too_many_tokens[n], "%s\\"k%02d\\": \\"0x1000\\"", i ? "," : "", i);
+            n += sprintf(&too_many_tokens[n], "}}");
 
             boot_from_json_buffer(too_many_tokens, strlen(too_many_tokens), record_load, &ctx);
             REQUIRE(ctx.count == 0);
@@ -567,7 +577,7 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
                 return 1;
             if (test_manifest_rejects_bad_addresses_and_load_failures())
                 return 1;
-            if (test_manifest_ignores_oversized_tokens_and_malformed_json())
+            if (test_manifest_rejects_oversized_tokens_and_malformed_json())
                 return 1;
             if (test_manifest_rejects_token_pressure_and_bad_registers())
                 return 1;

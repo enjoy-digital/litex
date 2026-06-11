@@ -7,8 +7,6 @@
 
 #define MAX_PARAM	8
 
-#define HIST_DEPTH	10	/* Used in string list, complete.c */
-
 #define SYSTEM_CMDS		0
 #define BOOT_CMDS		1
 #define MEM_CMDS		2

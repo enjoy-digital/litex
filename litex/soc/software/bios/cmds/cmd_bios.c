@@ -55,6 +55,8 @@ static void ident_handler(int nb_params, char **params)
 	int i;
 	for(i=0;i<IDENT_SIZE;i++)
 		buffer[i] = MMPTR(CSR_IDENTIFIER_MEM_BASE + CONFIG_CSR_ALIGNMENT/8*i);
+	/* Identifier memory may be smaller than IDENT_SIZE: force termination. */
+	buffer[IDENT_SIZE-1] = 0;
 #else
 	buffer[0] = 0;
 #endif
@@ -77,7 +79,7 @@ static void uptime_handler(int nb_params, char **params)
 
 	timer0_uptime_latch_write(1);
 	uptime = timer0_uptime_cycles_read();
-	printf("Uptime: %lld sys_clk cycles - %lld seconds\n",
+	printf("Uptime: %llu sys_clk cycles - %llu seconds\n",
 		uptime,
 		uptime / CONFIG_CLOCK_FREQUENCY
 	);

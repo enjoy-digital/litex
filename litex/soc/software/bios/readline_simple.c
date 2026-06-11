@@ -62,6 +62,11 @@ int readline(char *s, int size)
 			fputs("\n", stdout);
 			return 0;
 		default:
+			/* Only store printable characters: escape sequences (arrow/
+			   function keys) and control characters would end up as garbage
+			   in the command buffer. */
+			if (!isascii(c[0]) || !isprint(c[0]))
+				break;
 			if (ptr < (size - 1)) {
 				fputs(c, stdout);
 				s[ptr] = c[0];

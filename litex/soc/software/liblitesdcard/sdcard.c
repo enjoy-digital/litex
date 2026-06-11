@@ -49,6 +49,14 @@ static unsigned int support_cmd23;
 #define support_cmd23 0
 #endif
 
+/* OCR CCS bit: 1 on high/extended capacity cards (block addressing), 0 on
+   ver2.00+ standard capacity cards (byte addressing). */
+static unsigned int sdcard_ccs = 1;
+
+static inline uint32_t sdcard_block_to_addr(uint32_t block) {
+	return sdcard_ccs ? block : block * 512;
+}
+
 /*-----------------------------------------------------------------------*/
 /* SDCard command helpers                                                */
 /*-----------------------------------------------------------------------*/
@@ -132,6 +140,29 @@ static inline int sdcard_send_command(uint32_t arg, uint8_t cmd, uint8_t rsp) {
 	sdcard_core_cmd_send_write(1);
 	return sdcard_wait_cmd_done();
 }
+
+/* Retry a command a bounded number of times instead of forever: a removed or
+   failing card must not hang the BIOS. */
+#ifndef SDCARD_CMD_RETRIES
+#define SDCARD_CMD_RETRIES 16
+#endif
+
+static int sdcard_send_command_retry(uint32_t arg, uint8_t cmd, uint8_t rsp) {
+	int status;
+	int retries;
+	for (retries = 0; retries < SDCARD_CMD_RETRIES; retries++) {
+		status = sdcard_send_command(arg, cmd, rsp);
+		if (status == SD_OK)
+			return SD_OK;
+	}
+	return status;
+}
+
+/* Bounded wait (in us) on SDCard DMAs: no data arrives when the data command
+   failed, so the done bit may never rise. */
+#ifndef SDCARD_DMA_TIMEOUT_US
+#define SDCARD_DMA_TIMEOUT_US 1000000
+#endif
 
 int sdcard_go_idle(void) {
 #ifdef SDCARD_DEBUG
@@ -217,9 +248,10 @@ int sdcard_switch(unsigned int mode, unsigned int group, unsigned int value) {
 #endif
 	sdcard_core_block_length_write(64);
 	sdcard_core_block_count_write(1);
-	while (sdcard_send_command(arg, 6,
+	if (sdcard_send_command_retry(arg, 6,
 		(SDCARD_CTRL_DATA_TRANSFER_READ << 5) |
-		SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC) != SD_OK);
+		SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC) != SD_OK)
+		return SD_TIMEOUT;
 	return sdcard_wait_data_done();
 }
 
@@ -229,9 +261,10 @@ int sdcard_app_send_scr(void) {
 #endif
 	sdcard_core_block_length_write(8);
 	sdcard_core_block_count_write(1);
-	while (sdcard_send_command(0, 51,
+	if (sdcard_send_command_retry(0, 51,
 		(SDCARD_CTRL_DATA_TRANSFER_READ << 5) |
-		SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC) != SD_OK);
+		SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC) != SD_OK)
+		return SD_TIMEOUT;
 	return sdcard_wait_data_done();
 }
 
@@ -248,9 +281,10 @@ int sdcard_write_single_block(unsigned int blockaddr) {
 #endif
 	sdcard_core_block_length_write(512);
 	sdcard_core_block_count_write(1);
-	while (sdcard_send_command(blockaddr, 24,
+	if (sdcard_send_command_retry(blockaddr, 24,
 	    (SDCARD_CTRL_DATA_TRANSFER_WRITE << 5) |
-	    SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC) != SD_OK);
+	    SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC) != SD_OK)
+		return SD_TIMEOUT;
 	return sdcard_wait_data_done();
 }
 
@@ -260,9 +294,10 @@ int sdcard_write_multiple_block(unsigned int blockaddr, unsigned int blockcnt) {
 #endif
 	sdcard_core_block_length_write(512);
 	sdcard_core_block_count_write(blockcnt);
-	while (sdcard_send_command(blockaddr, 25,
+	if (sdcard_send_command_retry(blockaddr, 25,
 	    (SDCARD_CTRL_DATA_TRANSFER_WRITE << 5) |
-	    SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC) != SD_OK);
+	    SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC) != SD_OK)
+		return SD_TIMEOUT;
 	return sdcard_wait_data_done();
 }
 
@@ -272,9 +307,10 @@ int sdcard_read_single_block(unsigned int blockaddr) {
 #endif
 	sdcard_core_block_length_write(512);
 	sdcard_core_block_count_write(1);
-	while (sdcard_send_command(blockaddr, 17,
+	if (sdcard_send_command_retry(blockaddr, 17,
 	    (SDCARD_CTRL_DATA_TRANSFER_READ << 5) |
-	    SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC) != SD_OK);
+	    SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC) != SD_OK)
+		return SD_TIMEOUT;
 	return sdcard_wait_data_done();
 }
 
@@ -284,9 +320,10 @@ int sdcard_read_multiple_block(unsigned int blockaddr, unsigned int blockcnt) {
 #endif
 	sdcard_core_block_length_write(512);
 	sdcard_core_block_count_write(blockcnt);
-	while (sdcard_send_command(blockaddr, 18,
+	if (sdcard_send_command_retry(blockaddr, 18,
 	    (SDCARD_CTRL_DATA_TRANSFER_READ << 5) |
-	    SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC) != SD_OK);
+	    SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC) != SD_OK)
+		return SD_TIMEOUT;
 	return sdcard_wait_data_done();
 }
 
@@ -415,6 +452,8 @@ static void sdcard_decode_scr(const uint32_t *scr, bool *support_4bit)
 static int sdcard_get_scr(uint32_t *buf, uint16_t rca)
 {
 #ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
+	unsigned int timeout;
+
 	sdcard_block2mem_dma_enable_write(0);
 	sdcard_block2mem_dma_base_write((uint64_t)(uintptr_t)buf);
 	sdcard_block2mem_dma_length_write(8);
@@ -430,7 +469,14 @@ static int sdcard_get_scr(uint32_t *buf, uint16_t rca)
 
 #ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
 	/* Wait for DMA Writer to complete */
-	while ((sdcard_block2mem_dma_done_read() & 0x1) == 0);
+	timeout = SDCARD_DMA_TIMEOUT_US;
+	while ((sdcard_block2mem_dma_done_read() & 0x1) == 0) {
+		if (timeout-- == 0) {
+			sdcard_block2mem_dma_enable_write(0);
+			return 0;
+		}
+		busy_wait_us(1);
+	}
 
 #ifndef CONFIG_CPU_HAS_DMA_BUS
 	/* Flush caches */
@@ -496,6 +542,10 @@ int sdcard_init(void) {
 	if (timeout == 0)
 		return 0;
 
+	/* Get the CCS bit from the OCR: standard capacity ver2.00+ cards (CCS=0)
+	   take byte addresses in block commands instead of block addresses. */
+	sdcard_ccs = (r[0] >> 30) & 0x1;
+
 	/* Send identification */
 	if (sdcard_all_send_cid() != SD_OK)
 		return 0;
@@ -553,8 +603,11 @@ int sdcard_init(void) {
 
 #ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
 
-void sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
+int sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 {
+	int status;
+	unsigned int timeout;
+
 	while (count) {
 		uint32_t nblocks;
 #ifdef SDCARD_CMD18_SUPPORT
@@ -570,22 +623,39 @@ void sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 
 		/* Read Block(s) from SDCard */
 		if (nblocks > 1) {
+			status = SD_OK;
 			if (support_cmd23 != 0) {
-				sdcard_set_block_count(nblocks);
+				status = sdcard_set_block_count(nblocks);
 			}
 
-			sdcard_read_multiple_block(block, nblocks);
+			if (status == SD_OK)
+				status = sdcard_read_multiple_block(sdcard_block_to_addr(block), nblocks);
 
 			if (support_cmd23 == 0) {
-				sdcard_stop_transmission();
+				int stop_status = sdcard_stop_transmission();
+				if (status == SD_OK)
+					status = stop_status;
 			}
 		}
 		else {
-			sdcard_read_single_block(block);
+			status = sdcard_read_single_block(sdcard_block_to_addr(block));
+		}
+
+		/* On error, no data will arrive: don't wait for the DMA */
+		if (status != SD_OK) {
+			sdcard_block2mem_dma_enable_write(0);
+			return status;
 		}
 
 		/* Wait for DMA Writer to complete */
-		while ((sdcard_block2mem_dma_done_read() & 0x1) == 0);
+		timeout = SDCARD_DMA_TIMEOUT_US;
+		while ((sdcard_block2mem_dma_done_read() & 0x1) == 0) {
+			if (timeout-- == 0) {
+				sdcard_block2mem_dma_enable_write(0);
+				return SD_TIMEOUT;
+			}
+			busy_wait_us(1);
+		}
 
 		/* Update Block/Buffer/Count */
 		block += nblocks;
@@ -598,14 +668,19 @@ void sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 	flush_cpu_dcache();
 	flush_l2_cache();
 #endif
+
+	return SD_OK;
 }
 
 #endif
 
 #ifdef CSR_SDCARD_MEM2BLOCK_DMA_BASE_ADDR
 
-void sdcard_write(uint32_t block, uint32_t count, uint8_t* buf)
+int sdcard_write(uint32_t block, uint32_t count, uint8_t* buf)
 {
+	int status;
+	unsigned int timeout;
+
 	while (count) {
 		uint32_t nblocks;
 #ifdef SDCARD_CMD25_SUPPORT
@@ -621,27 +696,46 @@ void sdcard_write(uint32_t block, uint32_t count, uint8_t* buf)
 
 		/* Write Block(s) to SDCard */
 		if (nblocks > 1) {
+			status = SD_OK;
 			if (support_cmd23 != 0) {
-				sdcard_set_block_count(nblocks);
+				status = sdcard_set_block_count(nblocks);
 			}
 
-			sdcard_write_multiple_block(block, nblocks);
+			if (status == SD_OK)
+				status = sdcard_write_multiple_block(sdcard_block_to_addr(block), nblocks);
 
 			if (support_cmd23 == 0) {
-				sdcard_stop_transmission();
+				int stop_status = sdcard_stop_transmission();
+				if (status == SD_OK)
+					status = stop_status;
 			}
 		} else {
-			sdcard_write_single_block(block);
+			status = sdcard_write_single_block(sdcard_block_to_addr(block));
+		}
+
+		/* On error, no data will be transferred: don't wait for the DMA */
+		if (status != SD_OK) {
+			sdcard_mem2block_dma_enable_write(0);
+			return status;
 		}
 
 		/* Wait for DMA Reader to complete */
-		while ((sdcard_mem2block_dma_done_read() & 0x1) == 0);
+		timeout = SDCARD_DMA_TIMEOUT_US;
+		while ((sdcard_mem2block_dma_done_read() & 0x1) == 0) {
+			if (timeout-- == 0) {
+				sdcard_mem2block_dma_enable_write(0);
+				return SD_TIMEOUT;
+			}
+			busy_wait_us(1);
+		}
 
 		/* Update Block/Buffer/Count */
 		block += nblocks;
 		buf   += 512*nblocks;
 		count -= nblocks;
 	}
+
+	return SD_OK;
 }
 #endif
 
@@ -664,7 +758,8 @@ static DSTATUS sd_disk_initialize(BYTE drv) {
 }
 
 static DRESULT sd_disk_read(BYTE drv, BYTE *buf, LBA_t block, UINT count) {
-	sdcard_read(block, count, buf);
+	if (sdcard_read(block, count, buf) != SD_OK)
+		return RES_ERROR;
 	return RES_OK;
 }
 

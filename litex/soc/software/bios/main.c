@@ -99,7 +99,7 @@ define_boot_method(rom, rom_boot_method, ROM_BOOT_PRIORITY);
 #endif
 static int sdcard_boot_method(void)
 {
-	sdcardboot();
+	sdcardboot(0, NULL);
 	return BOOT_METHOD_CONTINUE;
 }
 define_boot_method(sdcard, sdcard_boot_method, SDCARD_BOOT_PRIORITY);
@@ -111,7 +111,7 @@ define_boot_method(sdcard, sdcard_boot_method, SDCARD_BOOT_PRIORITY);
 #endif
 static int sata_boot_method(void)
 {
-	sataboot();
+	sataboot(0, NULL);
 	return BOOT_METHOD_CONTINUE;
 }
 define_boot_method(sata, sata_boot_method, SATA_BOOT_PRIORITY);
@@ -285,8 +285,8 @@ __attribute__((__used__)) int main(int i, char **c)
 	/* Initialize and test SPIRAM */
 #ifdef CSR_SPIRAM_BASE
 	spiram_init();
-#endif
 	printf("\n");
+#endif
 
 	/* Initialize and test DRAM */
 #ifdef CSR_SDRAM_BASE
@@ -307,9 +307,8 @@ __attribute__((__used__)) int main(int i, char **c)
 	/* Initialize and test SPIFLASH */
 #ifdef CSR_SPIFLASH_BASE
 	spiflash_init();
-#endif
 	printf("\n");
-
+#endif
 
 	/* Initialize Video Framebuffer FIXME: Move */
 #ifdef CSR_VIDEO_FRAMEBUFFER_BASE
@@ -345,9 +344,12 @@ __attribute__((__used__)) int main(int i, char **c)
 		printf("\n");
 		if (buffer[0] != 0) {
 			nb_params = get_param(buffer, &command, params);
-			cmd = command_dispatcher(command, nb_params, params);
-			if (!cmd)
-				printf("Command not found\n");
+			/* Ignore whitespace-only lines */
+			if (*command != 0) {
+				cmd = command_dispatcher(command, nb_params, params);
+				if (!cmd)
+					printf("Command not found\n");
+			}
 		}
 		printf("%s", PROMPT);
 	}

@@ -79,13 +79,14 @@ define_command(sdcard_freq, sdcard_freq_handler, "Set SDCard clock freq", LITESD
 static void sdcard_read_handler(int nb_params, char **params)
 {
 	unsigned int block;
+	unsigned int count = 1;
 	unsigned long addr;
 	char *c;
 	uint8_t buf[512];
 	uint8_t *dst = buf;
 
 	if (nb_params < 1) {
-		printf("sdcard_read <block> [addr]\n");
+		printf("sdcard_read <block> [addr] [count]\n");
 		return;
 	}
 
@@ -102,16 +103,28 @@ static void sdcard_read_handler(int nb_params, char **params)
 		}
 		dst = (uint8_t *)(uintptr_t)addr;
 	}
+	if (nb_params >= 3) {
+		count = strtoul(params[2], &c, 0);
+		if (*c != 0) {
+			printf("Error: invalid count\n");
+			return;
+		}
+	}
 
-	sdcard_read(block, 1, dst);
-	dump_bytes((unsigned int *)dst, 512, (unsigned long)dst);
+	if (sdcard_read(block, count, dst) != SD_OK) {
+		printf("Error: SDCard read failed\n");
+		return;
+	}
+	/* Only dump single-block reads (multi-block reads are memory loads) */
+	if (count == 1)
+		dump_bytes((unsigned int *)dst, 512, (unsigned long)dst);
 }
 
 define_command(sdcard_read, sdcard_read_handler, "Read SDCard block", LITESDCARD_CMDS);
 #endif
 
 /**
- * Command "sdwrite"
+ * Command "sdcard_write"
  *
  * Perform SDCard block write
  *
@@ -136,16 +149,15 @@ static void sdcard_write_handler(int nb_params, char **params)
 	}
 
 	c = params[1];
-	if (params[1] != NULL) {
-		for(i=0; i<512; i++) {
-			buf[i] = *c;
-			if(*(++c) == 0) {
-				c = params[1];
-			}
+	for(i=0; i<512; i++) {
+		buf[i] = *c;
+		if(*(++c) == 0) {
+			c = params[1];
 		}
 	}
 	dump_bytes((unsigned int *)buf, 512, (unsigned long) buf);
-	sdcard_write(block, 1, buf);
+	if (sdcard_write(block, 1, buf) != SD_OK)
+		printf("Error: SDCard write failed\n");
 }
 
 define_command(sdcard_write, sdcard_write_handler, "Write SDCard block", LITESDCARD_CMDS);

@@ -53,7 +53,8 @@ static void flash_write_handler(int nb_params, char **params)
 		}
 	}
 
-	spiflash_write_stream(addr, (unsigned char *)mem_addr, count);
+	if (spiflash_write_stream(addr, (unsigned char *)mem_addr, count) != (int)count)
+		printf("Error: flash write failed (is the region erased? see flash_erase_range)\n");
 }
 
 define_command(flash_write, flash_write_handler, "Write to flash", SPIFLASH_CMDS);
@@ -76,8 +77,10 @@ static void flash_from_sdcard_handler(int nb_params, char **params)
 	char* filename = params[0];
 
 	fr = f_mount(&fs, "", 1);
-	if (fr != FR_OK)
+	if (fr != FR_OK) {
+		printf("Error: filesystem mount failed (FatFs error %d)\n", fr);
 		return;
+	}
 	fr = f_open(&file, filename, FA_READ);
 	if (fr != FR_OK) {
 		printf("%s file not found.\n", filename);
@@ -100,7 +103,12 @@ static void flash_from_sdcard_handler(int nb_params, char **params)
 		if (br == 0) {
 			break;
 		} else {
-			spiflash_write_stream(offset, buf, br);
+			if (spiflash_write_stream(offset, buf, br) != (int)br) {
+				printf("Error: flash write failed (is the region erased? see flash_erase_range)\n");
+				f_close(&file);
+				f_mount(0, "", 0);
+				return;
+			}
 		}
 
 		offset += br;

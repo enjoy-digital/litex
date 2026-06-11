@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <stddef.h>
 #include <limits.h>
 #include <string.h>
@@ -94,6 +95,8 @@ static int last_ack; /* signed, so we can use -1 */
 static uint32_t server_ip;
 static uint16_t data_port;
 static uint16_t next_data_block;
+static size_t current_offset;
+static size_t block_size; /* negotiated block size, 0 while unknown */
 static int tftp_write;
 
 static int check_server(uint32_t src_ip, uint16_t src_port)
@@ -130,51 +133,88 @@ static void rx_callback(uint32_t src_ip, uint16_t src_port,
 		return;
 	}
 	if (opcode == TFTP_OACK) { /* Option Acknowledgement */
+		size_t pos;
+		size_t start;
+		const char *name = NULL;
+
 		if(!check_server(src_ip, src_port)) return;
+		/* RFC 2348: the server may grant a smaller block size than the one
+		   requested or omit the option entirely (512-byte default). Parse
+		   the granted value instead of assuming our request was honored.
+		   The payload is a sequence of NUL-terminated name/value strings. */
+		block_size = 512;
+		start = 2;
+		for(pos = 2; pos < length; pos++) {
+			if(data[pos] != 0)
+				continue;
+			if(name == NULL) {
+				name = (const char *)&data[start];
+			} else {
+				if(strcmp(name, "blksize") == 0) {
+					unsigned long value = strtoul((const char *)&data[start], NULL, 10);
+					if((value >= 8) && (value <= BLOCK_SIZE))
+						block_size = value;
+				}
+				name = NULL;
+			}
+			start = pos + 1;
+		}
 		if(!tftp_write)
 			send_ack(0);
 		last_ack = 0;
 		return;
 	}
-	if(block < 1) return;
+	if(opcode == TFTP_ERROR) { /* Error */
+		if(!check_server(src_ip, src_port)) return;
+		/* For ERROR packets, bytes 2-3 are the error code and a NetASCII
+		   message follows; report them instead of failing silently. */
+		if(length > 4)
+			printf("TFTP error %d: %.*s\n", block, (int)(length - 4), (char *)&data[4]);
+		else
+			printf("TFTP error %d\n", block);
+		total_length = -1;
+		transfer_finished = 1;
+		return;
+	}
 	if(opcode == TFTP_DATA) { /* Data */
-		size_t write_offset;
-
 		if(tftp_write) return;
 		if(!check_server(src_ip, src_port)) return;
+		/* No OACK seen: server without option support, RFC default size. */
+		if(block_size == 0)
+			block_size = 512;
 		length -= 4;
+		/* Block numbers are 16-bit and wrap on transfers > 64MB, so compare
+		   them modulo 2^16 and track the write offset separately. */
 		if(block == (uint16_t)(next_data_block - 1)) {
-			send_ack(block);
+			/* Duplicate of the previous block: re-acknowledge (only when a block has
+			   actually been received; a spurious block 0 at transfer start is dropped). */
+			if((current_offset != 0) || (next_data_block != 1))
+				send_ack(block);
 			return;
 		}
 		if(block != next_data_block)
 			return;
-		write_offset = ((size_t)block - 1)*BLOCK_SIZE;
-		if ((length > dst_buffer_size) || (write_offset > (dst_buffer_size - length))) {
+		if ((length > dst_buffer_size) || (current_offset > (dst_buffer_size - length))) {
 			total_length = -1;
 			transfer_finished = 1;
 			return;
 		}
-		if((write_offset + length) > INT_MAX) {
+		if((current_offset + length) > INT_MAX) {
 			total_length = -1;
 			transfer_finished = 1;
 			return;
 		}
 
-		offset = write_offset;
+		offset = current_offset;
 		for(i=0;i<length;i++)
 			dst_buffer[offset+i] = data[i+4];
-		total_length = write_offset + length;
+		current_offset += length;
+		total_length = current_offset;
 		next_data_block++;
-		if(length < BLOCK_SIZE)
+		if(length < block_size)
 			transfer_finished = 1;
 
 		send_ack(block);
-	}
-	if(opcode == TFTP_ERROR) { /* Error */
-		if(!check_server(src_ip, src_port)) return;
-		total_length = -1;
-		transfer_finished = 1;
 	}
 }
 
@@ -194,6 +234,8 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 	server_ip = ip;
 	data_port = 0;
 	next_data_block = 1;
+	current_offset = 0;
+	block_size = 0;
 	last_ack = -1;
 	tftp_write = 0;
 
@@ -228,6 +270,9 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 		if(length_before != total_length) {
 			i = 12000000;
 			length_before = total_length;
+			/* TFTP does not know the file size up front: print one '#' per
+			   downloaded MB, plus a spinner for intra-MB activity. */
+			show_progress(total_length >> 20);
 			if ((total_length & (0x8000 - 1)) == 0)
 				show_progress(-1);
 		}
@@ -257,6 +302,8 @@ int tftp_put(uint32_t ip, uint16_t server_port, const char *filename,
 	server_ip = ip;
 	data_port = 0;
 	next_data_block = 1;
+	current_offset = 0;
+	block_size = 0;
 	last_ack = -1;
 	tftp_write = 1;
 
@@ -285,9 +332,13 @@ int tftp_put(uint32_t ip, uint16_t server_port, const char *filename,
 	}
 
 send_data:
+	/* A plain ACK 0 (no OACK) means the server does not support options
+	   and expects the RFC default block size. */
+	if(block_size == 0)
+		block_size = 512;
 	do {
 		block++;
-		send = sent+BLOCK_SIZE > size ? size-sent : BLOCK_SIZE;
+		send = sent+block_size > size ? size-sent : block_size;
 		tries = 5;
 		while(1) {
 			packet_data = udp_get_tx_buffer();
@@ -297,7 +348,8 @@ send_data:
 				udp_service();
 				if(transfer_finished)
 					goto fail;
-				if(last_ack == block)
+				/* Block numbers wrap modulo 2^16 on transfers > 64MB. */
+				if(last_ack == (uint16_t)block)
 					goto next;
 			}
 			if (!--tries)
@@ -306,7 +358,7 @@ send_data:
 next:
 		sent += send;
 		buffer += send;
-	} while (send == BLOCK_SIZE);
+	} while (send == block_size);
 
 	udp_set_callback(NULL);
 

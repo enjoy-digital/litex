@@ -543,6 +543,8 @@ def get_i2c_header(i2c_init_values):
         r += "\t\t.ops.w_scl_offset   = CSR_{}_W_SCL_OFFSET,\n".format(name.upper())
         r += "\t\t.ops.w_sda_offset   = CSR_{}_W_SDA_OFFSET,\n".format(name.upper())
         r += "\t\t.ops.w_oe_offset    = CSR_{}_W_OE_OFFSET,\n".format(name.upper())
+        r += "\t\t.ops.r_sda_offset   = CSR_{}_R_SDA_OFFSET,\n".format(name.upper())
+        r += "\t\t.ops.r_scl_offset   = CSR_{}_R_SCL_OFFSET,\n".format(name.upper())
         r += "\t\t.name               = \"{}\"\n".format(name)
         r += "\t},\n"
     r += "};\n\n"
