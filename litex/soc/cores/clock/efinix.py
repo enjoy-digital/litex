@@ -35,6 +35,7 @@ class EFINIXPLL(LiteXModule):
         self.reset      = Signal()
         self.locked     = Signal()
         self.name       = f"pll{self.n}"
+        self.clkin      = None
         EFINIXPLL.n += 1 # FIXME: Improve.
 
         # Create PLL block.
@@ -61,6 +62,7 @@ class EFINIXPLL(LiteXModule):
 
     def register_clkin(self, clkin, freq, name="", refclk_name="", lvds_input=False):
         check_freq_positive(freq, "Input clock frequency")
+        self.clkin = clkin
 
         block = self.platform.toolchain.ifacewriter.get_block(self.name)
 
@@ -146,7 +148,11 @@ class EFINIXPLL(LiteXModule):
             clk_name = f"{cd.name}_{self.name}_clk"
             clk_out_name = clk_name # To unify constraints names
             clk_out = self.platform.add_iface_io(clk_out_name)
-            self.comb += cd.clk.eq(clk_out)
+            if not (
+                getattr(self.platform.toolchain, "unified", False) and
+                (cd.clk is self.clkin)
+            ):
+                self.comb += cd.clk.eq(clk_out)
             # Efinity will generate xxx.pt.sdc constraints automaticaly,
             # so, the user realy need to use the toplevel pin from the pll instead of an intermediate signal
             # This is a dirty workaround. But i don't have any better
