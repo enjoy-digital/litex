@@ -30,7 +30,17 @@ from litex.soc.integration import export, soc
 # Helpers ------------------------------------------------------------------------------------------
 
 def _makefile_escape(s):
-    return s.replace("\\", "\\\\")
+    return s.replace("\\", "\\\\").replace("$", "$$")
+
+def _check_makefile_path(p):
+    # Make cannot represent spaces in its space-separated path lists (PACKAGE_DIRS etc.) and "#"
+    # starts a comment: fail loudly instead of generating a corrupt variables.mak that breaks the
+    # software build with confusing errors.
+    if any(c in p for c in " \t\n#"):
+        raise ValueError(
+            f"Unsupported character in build path {p!r}: "
+            "Make cannot handle spaces/'#' in paths, use a path without them.")
+    return p
 
 def _create_dir(d, remove_if_exists=False):
     dir_path = os.path.realpath(d)
@@ -144,7 +154,8 @@ class Builder:
             self.add_software_library(name)
 
         # JSONs.
-        self.jsons = []
+        self.jsons         = []
+        self._jsons_merged = False
 
     def add_software_package(self, name, src_dir=None):
         if src_dir is None:
@@ -164,25 +175,30 @@ class Builder:
             exclude_constants = ["_INTERRUPT"]
         self.jsons.append((filename, origin, name, exclude_constants))
 
+    def _load_jsons(self):
+        # Parse each JSON file only once for the mem_regions/constants/csr_regions getters.
+        if not hasattr(self, "_jsons_cache"):
+            self._jsons_cache = [
+                (export.load_csr_json(filename, origin, name), exclude)
+                for filename, origin, name, exclude in self.jsons]
+        return self._jsons_cache
+
     def _get_json_mem_regions(self):
         mem_regions = {}
-        for filename, origin, name, _ in self.jsons:
-            _, _, _mem_regions = export.load_csr_json(filename, origin, name)
+        for (_, _, _mem_regions), _ in self._load_jsons():
             mem_regions.update(_mem_regions)
         return mem_regions
 
     def _get_json_constants(self):
         constants = {}
-        for filename, origin, name, exclude in self.jsons:
-            _, _constants, _ = export.load_csr_json(filename, origin, name)
+        for (_, _constants, _), exclude in self._load_jsons():
             _constants = {k: v for k, v in _constants.items() if not any(ex in k for ex in exclude)}
             constants.update(_constants)
         return constants
 
     def _get_json_csr_regions(self):
         csr_regions = {}
-        for filename, origin, name, _ in self.jsons:
-            _csr_regions, _, _ = export.load_csr_json(filename, origin, name)
+        for (_csr_regions, _, _), _ in self._load_jsons():
             csr_regions.update(_csr_regions)
         return csr_regions
 
@@ -207,7 +223,7 @@ class Builder:
 
         # Define packages and libraries.
         define("PACKAGES",     " ".join(name    for name, src_dir in self.software_packages))
-        define("PACKAGE_DIRS", " ".join(src_dir for name, src_dir in self.software_packages))
+        define("PACKAGE_DIRS", " ".join(_check_makefile_path(src_dir) for name, src_dir in self.software_packages))
         define("LIBS",         " ".join(self.software_libraries))
         define("ALWAYS_LINK_LIBS", " ".join(self.software_always_link_libraries))
 
@@ -219,15 +235,15 @@ class Builder:
         picolibc_directory    = get_data_mod("software", "picolibc").data_location
         compiler_rt_directory = get_data_mod("software", "compiler_rt").data_location
 
-        define("SOC_DIRECTORY",         soc_directory)
-        define("PICOLIBC_DIRECTORY",    picolibc_directory)
+        define("SOC_DIRECTORY",         _check_makefile_path(soc_directory))
+        define("PICOLIBC_DIRECTORY",    _check_makefile_path(picolibc_directory))
         define("PICOLIBC_FORMAT",       self.bios_format)
         define("LIBC_MODE",             self.libc_mode)
-        define("COMPILER_RT_DIRECTORY", compiler_rt_directory)
+        define("COMPILER_RT_DIRECTORY", _check_makefile_path(compiler_rt_directory))
         variables_contents.append("export BUILDINC_DIRECTORY")
-        define("BUILDINC_DIRECTORY", self.include_dir)
+        define("BUILDINC_DIRECTORY", _check_makefile_path(self.include_dir))
         for name, src_dir in self.software_packages:
-            define(name.upper() + "_DIRECTORY", src_dir)
+            define(name.upper() + "_DIRECTORY", _check_makefile_path(src_dir))
 
         # Define BIOS variables.
         define("LTO", f"{self.bios_lto:d}")
@@ -244,10 +260,13 @@ class Builder:
         _create_dir(self.include_dir)
         _create_dir(self.generated_dir)
 
-        # Integrate JSON files.
-        self._merge_json_items(self.soc.mem_regions,  self._get_json_mem_regions(), "memory region")
-        self._merge_json_items(self.soc.constants,    self._get_json_constants(),    "constant")
-        self._merge_json_items(self.soc.csr_regions,  self._get_json_csr_regions(),  "CSR region")
+        # Integrate JSON files (only once: the items are merged into the SoC's dicts in place, so a
+        # second build() on the same Builder would raise spurious collision errors).
+        if not self._jsons_merged:
+            self._merge_json_items(self.soc.mem_regions,  self._get_json_mem_regions(), "memory region")
+            self._merge_json_items(self.soc.constants,    self._get_json_constants(),    "constant")
+            self._merge_json_items(self.soc.csr_regions,  self._get_json_csr_regions(),  "CSR region")
+            self._jsons_merged = True
 
         # Generate BIOS files when the SoC uses it.
         if with_bios:
@@ -277,7 +296,7 @@ class Builder:
         # Generate Memory Regions to memory.x if specified.
         if self.memory_x is not None:
             memory_x_contents = export.get_memory_x(self.soc)
-            write_to_file(os.path.realpath(self.memory_x), memory_x_contents)
+            self._export_write(self.memory_x, memory_x_contents)
 
         # Generate SoC Config/Constants to soc.h.
         soc_contents = export.get_soc_header(self.soc.constants)
@@ -307,6 +326,13 @@ class Builder:
                 self.soc.sdram.controller.settings.geom)
             write_to_file(os.path.join(self.generated_dir, "sdram_phy.h"), sdram_contents)
 
+    @staticmethod
+    def _export_write(path, contents):
+        # User-specified export paths may point to not-yet-existing directories.
+        path = os.path.realpath(path)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        write_to_file(path, contents)
+
     def _generate_csr_map(self):
         # JSON Export.
         if self.csr_json is not None:
@@ -315,7 +341,7 @@ class Builder:
                 csr_regions = self.soc.csr_regions,
                 constants   = self.soc.constants,
                 mem_regions = self.soc.mem_regions)
-            write_to_file(os.path.realpath(self.csr_json), csr_json_contents)
+            self._export_write(self.csr_json, csr_json_contents)
 
         # CSV Export.
         if self.csr_csv is not None:
@@ -324,12 +350,12 @@ class Builder:
                 csr_regions = self.soc.csr_regions,
                 constants   = self.soc.constants,
                 mem_regions = self.soc.mem_regions)
-            write_to_file(os.path.realpath(self.csr_csv), csr_csv_contents)
+            self._export_write(self.csr_csv, csr_csv_contents)
 
         # SVD Export.
         if self.csr_svd is not None:
             csr_svd_contents = export.get_csr_svd(self.soc)
-            write_to_file(os.path.realpath(self.csr_svd), csr_svd_contents)
+            self._export_write(self.csr_svd, csr_svd_contents)
 
     def _check_meson(self):
         # Check Meson install/version.
@@ -521,8 +547,8 @@ def builder_args(parser):
     builder_group.add_argument("--no-compile",            action="store_true", help="Disable software and gateware compilation.")
     builder_group.add_argument("--no-compile-software",   action="store_true", help="Disable software compilation only.")
     builder_group.add_argument("--no-compile-gateware",   action="store_true", help="Disable gateware compilation only.")
-    builder_group.add_argument("--soc-csv", "--csr-csv",  default=None,        help=f"Write SoC mapping to the specified CSV file. {export_help}")
-    builder_group.add_argument("--soc-json", "--csr-json", default=None,       help=f"Write SoC mapping to the specified JSON file. {export_help}")
+    builder_group.add_argument("--soc-csv", "--csr-csv",  default=None,        help=f"Write SoC mapping to the specified CSV file (always generated, default: <output-dir>/csr.csv). {export_help}")
+    builder_group.add_argument("--soc-json", "--csr-json", default=None,       help=f"Write SoC mapping to the specified JSON file (always generated, default: <output-dir>/csr.json). {export_help}")
     builder_group.add_argument("--soc-svd", "--csr-svd",  default=None,        help=f"Write SoC mapping to the specified SVD file. {export_help}")
     builder_group.add_argument("--memory-x",              default=None,        help=f"Write SoC memory regions to the specified Memory-X file. {export_help}")
     builder_group.add_argument("--doc",                   action="store_true", help="Generate SoC documentation.")

@@ -213,10 +213,12 @@ class TestSoCRegion(unittest.TestCase):
         self.assertFalse(region.is_rom)
 
     def test_invalid_region_size_is_rejected(self):
-        with self.assertRaisesRegex(ValueError, "integer"):
+        with self.assertRaises(SoCError):
             SoCRegion(origin=0, size="0x1000")
-        with self.assertRaisesRegex(ValueError, "positive"):
+        with self.assertRaises(SoCError):
             SoCRegion(origin=0, size=0)
+        with self.assertRaises(SoCError):
+            SoCRegion(origin=0, size=True)
 
 
 class TestSoCBusHandler(unittest.TestCase):
