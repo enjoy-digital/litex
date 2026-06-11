@@ -350,7 +350,10 @@ class EfinityToolchain(GenericToolchain):
         fmt_r = "{}:{}".format(*resname[:2])
         if resname[2] is not None:
             fmt_r += "." + resname[2]
-        fmt_c = [self._format_constraint(c, signame, fmt_r) for c in ([Pins(pin)] + others)]
+        fmt_c = [
+            self._format_constraint(c, signame, fmt_r)
+            for c in ([Pins(pin)] + others)
+        ]
         return "".join(fmt_c)
 
     def _build_iface_gpio(self):
@@ -605,6 +608,8 @@ class EfinityToolchain(GenericToolchain):
         ]
         if self.unified:
             cmd.append("--un_flow")
+            if self._unified_iface_file is not None:
+                cmd += ["--pt_opts", f"peri_scripts={self._unified_iface_file}"]
         r = tools.subprocess_call_filtered(cmd, common.colors, env=self.env, tail_log=log_file)
         if r != 0:
            raise OSError("Error occurred during efx_run execution.")

@@ -716,11 +716,16 @@ def test_unified_run_script_passes_un_flow(tmp_path, monkeypatch):
     toolchain.env = {}
     toolchain._build_name = "top"
     toolchain._build_dir = str(tmp_path)
+    toolchain._unified_isf_file = "top.isf"
+    toolchain._unified_iface_file = "iface.isf"
 
     toolchain.run_script(None)
 
     assert calls
     assert "--un_flow" in calls[0]
+    assert calls[0].count("--pt_opts") == 1
+    assert "peri_scripts=top.isf" not in calls[0]
+    assert "peri_scripts=iface.isf" in calls[0]
     assert not (tmp_path / "top_merged.sdc").exists()
 
 
