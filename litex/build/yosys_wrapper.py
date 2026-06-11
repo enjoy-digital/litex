@@ -84,7 +84,7 @@ class YosysWrapper():
                 language = "verilog -sv"
             if language is None:
                 continue
-            reads.append(f"read_{language}{includes} {filename}")
+            reads.append(f'read_{language}{includes} "{filename}"')
         return "\n".join(reads)
 
     _default_template = [

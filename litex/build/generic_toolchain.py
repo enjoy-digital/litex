@@ -24,7 +24,7 @@ class GenericToolchain:
 
     def __init__(self):
         self.clocks      = dict()
-        self.false_paths = set() # FIXME: use it
+        self.false_paths = set()
         self.named_pc    = []
         self.named_sc    = []
         self._vns        = None
@@ -54,6 +54,9 @@ class GenericToolchain:
 
     def build_script(self):
         raise NotImplementedError("GenericToolchain.build_script must be overloaded.")
+
+    def run_script(self, script):
+        raise NotImplementedError("GenericToolchain.run_script must be overloaded.")
 
     def get_tool_options(self):
         return ("",{}) # empty since optional.
@@ -132,6 +135,8 @@ class GenericToolchain:
                 # Files list
                 files = []
                 for filename, language, library, *copy in self.platform.sources:
+                    if language is None:
+                        continue
                     ext = {
                         "verilog"      : "verilogSource",
                         "systemverilog": "systemVerilogSource",
@@ -182,5 +187,4 @@ class GenericToolchain:
                 from_.attr.add("keep")
             if isinstance(to, Signal):
                 to.attr.add("keep")
-        if (from_, to) not in self.false_paths:
-            self.false_paths.add((from_, to))
+        self.false_paths.add((from_, to))
