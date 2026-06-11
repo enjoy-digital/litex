@@ -472,7 +472,10 @@ class SoCBusHandler(LiteXModule):
         is_in = True
         if not (region.origin >= container.origin):
             is_in = False
-        if not ((region.origin + region.size) <= (container.origin + container.size)):
+        # Use the decode extent (size_pow2 for SoCRegions, via _region_overlap_end): a region with a
+        # non-power-of-2 size decodes over its full power-of-2 window, which must not extend past
+        # the container.
+        if not (self._region_overlap_end(region) <= (container.origin + container.size)):
             is_in = False
         return is_in
 
