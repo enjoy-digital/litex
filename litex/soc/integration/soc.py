@@ -3653,9 +3653,10 @@ def soc_core_argdict(args):
         # Exclude specific arguments.
         if a in ["self", "platform"]:
             continue
-        # Handle specific with_xy case (--no_xy is exposed).
+        # Handle specific with_xy case (--no_xy is exposed). Default to False (feature enabled,
+        # matching SoCCore's defaults) when a custom parser does not expose the flag.
         if a in ["with_uart", "with_timer", "with_ctrl"]:
-            arg = not getattr(args, a.replace("with", "no"), True)
+            arg = not getattr(args, a.replace("with", "no"), False)
         # Handle specific ident_version case (--no-ident-version is exposed).
         elif a in ["ident_version"]:
             arg = not getattr(args, "no_ident_version", True)
