@@ -163,7 +163,7 @@ class EfinixUnifiedClkInputImpl(LiteXModule):
             raise NotImplementedError("Efinity unified netlist flow requires ClkInput output to be a Signal")
         platform = LiteXContext.platform
         if isinstance(o, Signal):
-            platform.clks[o.name_override] = platform.get_pin_name(i)
+            platform.clks.setdefault(o.name_override, platform.get_pin_name(i))
         self.specials += Instance("EFX_IBUF",
             p_PULL_OPTION = get_pull_option(platform, i),
             i_I           = i,

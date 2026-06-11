@@ -80,9 +80,9 @@ class _LegacyEfinixJTAGPlatform:
         return self._pins
 
 
-def _convert_unified_efinix(dut, ios, family="Titanium"):
+def _convert_unified_efinix(dut, ios, family="Titanium", platform=None):
     old_platform = LiteXContext.platform
-    LiteXContext.platform = _UnifiedEfinixPlatform(family)
+    LiteXContext.platform = platform or _UnifiedEfinixPlatform(family)
     try:
         return str(verilog.convert(dut, ios=ios, special_overrides=efinix_special_overrides))
     finally:
@@ -217,6 +217,20 @@ def test_unified_efinix_clock_io_lowers_to_hdl_primitives():
 
     assert "EFX_IBUF" in v
     assert "EFX_OBUF" in v
+
+
+def test_unified_efinix_clock_input_preserves_existing_clock_mapping():
+    platform = _UnifiedEfinixPlatform()
+    platform.clks["eth0_rx"] = "eth0_rx_pll1_clk"
+
+    dut = migen.Module()
+    clk_i = migen.Signal()
+    clk_o = migen.Signal(name="eth0_rx")
+    dut.specials += ClkInput(clk_i, clk_o)
+
+    _convert_unified_efinix(dut, {clk_i, clk_o}, platform=platform)
+
+    assert platform.clks["eth0_rx"] == "eth0_rx_pll1_clk"
 
 
 def test_unified_efinix_differential_io_lowers_to_lvds_primitives():
