@@ -86,12 +86,17 @@ def add_mac_address_constants(soc, name, mac_address, check_duplicate=True):
         for n in range(6):
             soc.add_constant(f"{name}{n+1}", (mac_address >> ((5 - n) * 8)) & 0xff, check_duplicate=check_duplicate)
 
-def mem_decoder(address, size=0x10000000):
+def mem_decoder(address, size=0x10000000, data_width=32, addressing="word"):
+    # Legacy helper, kept for external users; SoCRegion.decoder() should be preferred as it derives
+    # the address conversion from the bus parameters.
+    if addressing not in ["word", "byte"]:
+        raise ValueError("addressing must be word or byte.")
     size = 2**log2_int(size, False)
     if (address & (size - 1)) != 0:
         raise ValueError("address must be aligned on size.")
-    address >>= 2 # bytes to words aligned
-    size    >>= 2 # bytes to words aligned
+    if addressing == "word":
+        address >>= log2_int(data_width//8) # bytes to words aligned
+        size    >>= log2_int(data_width//8) # bytes to words aligned
     return lambda a: (a[log2_int(size):] == (address >> log2_int(size)))
 
 # SoCError -----------------------------------------------------------------------------------------
