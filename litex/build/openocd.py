@@ -7,8 +7,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import tempfile
 
-from litex.build.tools import write_to_file
 from litex.build.generic_programmer import GenericProgrammer
 
 # OpenOCD ------------------------------------------------------------------------------------------
@@ -55,37 +55,50 @@ class OpenOCD(GenericProgrammer):
 
     def get_ir(self, chain, config):
         cfg_str = open(config).read()
+
+        def lookup_ir(family, irs):
+            if chain not in irs:
+                raise ValueError(
+                    f"Unsupported chain {chain} for {family}, supported chain(s): {sorted(irs.keys())}.")
+            return irs[chain]
+
+        def warn_ignored(family, ir):
+            if chain != 1:
+                print(f"Warning: chain={chain} ignored on {family} (hardcoded IR 0x{ir:x}).")
+
         # Lattice ECP5.
         if "ecp5" in cfg_str:
-            chain = 0x32
+            warn_ignored("Lattice ECP5", 0x32)
+            return 0x32
         # Intel Max10.
         elif "10m50" in cfg_str:
-            chain = 0xc
+            warn_ignored("Intel Max10", 0xc)
+            return 0xc
         # Intel Arria10.
         elif "10ax" in cfg_str:
-            chain = 0xc
+            warn_ignored("Intel Arria10", 0xc)
+            return 0xc
         # Xilinx ZynqMP.
         elif "zynqmp" in cfg_str:
-            chain = {
+            return lookup_ir("Xilinx ZynqMP", {
                 1: 0x902, # USER1.
                 2: 0x903, # USER2.
                 3: 0x922, # USER3.
                 4: 0x923, # USER4.
-            }[chain]
+            })
         # Efinix titanium
         elif "titanium" in cfg_str:
-            chain = {
+            return lookup_ir("Efinix Titanium", {
                 1: 0x08,
-            }[chain]
+            })
         # Xilinx 7-Series.
         else:
-            chain = {
+            return lookup_ir("Xilinx 7-Series", {
                 1: 0x02, # USER1.
                 2: 0x03, # USER2.
                 3: 0x22, # USER3.
                 4: 0x23, # USER4.
-            }[chain]
-        return chain
+            })
 
     def get_endstate(self, config):
         cfg_str = open(config).read()
@@ -211,12 +224,18 @@ proc jtagstream_serve {tap port} {
     $sock close
 }
 """
-        write_to_file("stream.cfg", cfg)
-        script = "; ".join([
-            "init",
-            #"poll off", # FIXME: not supported for ECP5
-            "irscan {} {:d}".format(tap_name, ir),
-            "jtagstream_serve {} {:d}".format(tap_name, port),
-            "exit",
-        ])
-        self.call([get_openocd_cmd(), "-f", config, "-f", "stream.cfg", "-c", script])
+        # Write Tcl helpers to a unique temporary file to avoid clobbering files in CWD.
+        cfg_fd, cfg_file = tempfile.mkstemp(suffix=".cfg", prefix="litex_openocd_stream_")
+        try:
+            with os.fdopen(cfg_fd, "w") as f:
+                f.write(cfg)
+            script = "; ".join([
+                "init",
+                #"poll off", # FIXME: not supported for ECP5
+                "irscan {} {:d}".format(tap_name, ir),
+                "jtagstream_serve {} {:d}".format(tap_name, port),
+                "exit",
+            ])
+            self.call([get_openocd_cmd(), "-f", config, "-f", cfg_file, "-c", script])
+        finally:
+            os.remove(cfg_file)

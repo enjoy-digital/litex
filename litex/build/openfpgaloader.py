@@ -13,6 +13,8 @@ class OpenFPGALoader(GenericProgrammer):
     needs_bitreverse = False
 
     def __init__(self, board="", cable="", freq=0, fpga_part="", index_chain=None, ftdi_serial=None):
+        GenericProgrammer.__init__(self)
+
         # openFPGALoader base command.
         self.cmd = ["openFPGALoader"]
 
@@ -70,17 +72,18 @@ class OpenFPGALoader(GenericProgrammer):
 
         # Handle kwargs for specific, less common cases.
         for key, value in kwargs.items():
+            # Booleans are flags: emit just --key for True and skip for False.
+            if isinstance(value, bool):
+                if value:
+                    cmd.append(f"--{key.replace('_', '-')}")
+                continue
             cmd.append(f"--{key.replace('_', '-')}")
             if value is not None:
                 cmd.append(str(value))
 
         # Execute Command.
-        try:
-            print(" ".join(cmd))
-            self.call(cmd)
-        except OSError as e:
-            print(' '.join(cmd))
-            raise
+        print(" ".join(cmd))
+        self.call(cmd)
 
     def reset(self):
         # Reset base command.

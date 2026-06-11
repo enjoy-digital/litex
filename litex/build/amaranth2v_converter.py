@@ -309,9 +309,6 @@ class Amaranth2VConverter(LiteXModule):
         obj : object
             Current object being inspected.
 
-        name : str or None
-            Unused legacy parameter (kept for compatibility).
-
         rem_lst : list[str]
             Remaining path components.
 
@@ -364,9 +361,14 @@ class Amaranth2VConverter(LiteXModule):
         for kw, v in self.ports.items():
             d, parts = self._parse_port_keyword(kw)
 
-            # Wrapper-level resolution.
+            # Wrapper-level resolution: only accept a direct signal attribute
+            # (avoid matching Module built-ins like `d`/`domains` and partial paths).
             wrapper_head = parts[0]
-            am_sig       = getattr(self.m, wrapper_head, None)
+            am_sig       = None
+            if len(parts) == 1:
+                candidate = getattr(self.m, wrapper_head, None)
+                if _SIGNAL_TYPE is not None and isinstance(candidate, _SIGNAL_TYPE):
+                    am_sig = candidate
 
             # Recursive submodule resolution
             if am_sig is None and hasattr(self, "_module"):

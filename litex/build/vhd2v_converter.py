@@ -43,7 +43,8 @@ class VHD2VConverter(Module):
     _instance: class Instance
         Another instance to convert
     _add_instance: bool
-        add if True an Instance()
+        add if True an Instance() (defaults to None: automatically set to
+        True when params is provided without instance)
     _force_convert: bool
         force use of GHDL even if the platform supports VHDL
     _flatten_source: bool
@@ -57,7 +58,7 @@ class VHD2VConverter(Module):
         work_package   = None,
         force_convert  = False,
         flatten_source = True,
-        add_instance   = False,
+        add_instance   = None,
         ports          = None,
         sources        = None,
         library        = None,
@@ -108,8 +109,10 @@ class VHD2VConverter(Module):
         work_package = normalized["work_package"]
         if files is None:
             files = []
-        if (params is not None) and (instance is None):
-            add_instance = True
+        # add_instance=None means auto: add an Instance when params is provided without instance.
+        # An explicit add_instance=False is honored (params then treated as plain generics).
+        if add_instance is None:
+            add_instance = (params is not None) and (instance is None)
 
         self._top_entity     = top_entity
         self._build_dir      = build_dir
@@ -121,7 +124,6 @@ class VHD2VConverter(Module):
         self._force_convert  = force_convert
         self._flatten_source = flatten_source
         self._add_instance   = add_instance
-        self._work_package   = work_package
         self._libraries      = list()
 
         # Params and instance can't be provided at the same time.
@@ -176,7 +178,7 @@ class VHD2VConverter(Module):
                 work_pkg = os.path.splitext(os.path.basename(lib))[0]
                 lib      = (work_pkg, lib)
             elif type(lib) != tuple:
-                raise OSError(f"{lib} must a string or a set")
+                raise TypeError(f"{lib} must be a string or a tuple")
             self._libraries.append(lib)
 
     def _normalize_instance_ports(self, params):
@@ -190,7 +192,10 @@ class VHD2VConverter(Module):
     def _sanitize_ghdl_escaped_identifiers(content):
         # Convert Verilog escaped identifiers (\name<ws>) to plain identifiers
         # with a stable prefix. Keep the terminating whitespace untouched.
-        return re.sub(r"\\([^ \t\r\n]+)([ \t\r\n])", r"ghdl_\1\2", content)
+        # Only rewrite escaped identifiers whose body is already a valid plain
+        # identifier; genuinely-special escaped identifiers (e.g. \sig[1]) are
+        # left untouched.
+        return re.sub(r"\\([A-Za-z_][A-Za-z0-9_$]*)([ \t\r\n])", r"ghdl_\1\2", content)
 
     @staticmethod
     def _is_vhdl_source(filename, language):
@@ -233,11 +238,13 @@ class VHD2VConverter(Module):
         if self._build_dir is None:
             self._build_dir = os.path.join(os.path.abspath(self._platform.output_dir), "vhd2v")
 
+        ip_params = dict()
+
         # platform able to synthesis verilog and vhdl -> no conversion
         if self._platform.support_mixed_language and not self._force_convert:
-            if self._params:
+            if (self._params is not None) and self._add_instance:
                 ip_params = self._normalize_instance_ports(self._params)
-            elif self._instance:
+            elif self._instance is not None:
                 ip_params = self._instance.items
             for file in sources:
                 self._platform.add_source(file, library=self._work_package)
@@ -257,7 +264,7 @@ class VHD2VConverter(Module):
             # if so -> append with _X
             # FIXME: better solution ?
             v_list = []
-            for file, _, _ in self._platform.sources:
+            for file, *_ in self._platform.sources:
                 if self._top_entity in file:
                     v_list.append(file)
             if len(v_list) != 0:
@@ -271,10 +278,14 @@ class VHD2VConverter(Module):
             verilog_out = os.path.join(self._build_dir, f"{inst_name}.v")
 
             generics = []
-            if self._params:
-                generics = self._extract_generics(self._params)
-                ip_params = self._normalize_instance_ports(self._params)
-            elif self._instance:
+            if self._params is not None:
+                if self._add_instance:
+                    generics  = self._extract_generics(self._params)
+                    ip_params = self._normalize_instance_ports(self._params)
+                else:
+                    # Without Instance, params are plain generics (without prefix).
+                    generics = extract_prefixed_generics(self._params, prefix="")
+            elif self._instance is not None:
                 ip_params = list()
                 for item in self._instance.items:
                     if isinstance(item, Instance.Parameter):
@@ -303,13 +314,15 @@ class VHD2VConverter(Module):
             if which("yosys") is not None and self._flatten_source:
                 s = subprocess.run(["yosys", "-V"], capture_output=True)
                 if not s.returncode:
-                    # yosys version is the second word in the answer
-                    ret = str(s.stdout).split(" ")[1]
-                    # case a -yy is added too (ubuntu sub-version)
-                    version = float(ret.split("+")[0].split("-")[0])
-                    # yosys 0.9 is too old and can't support following command
-                    if version != 0.9:
-                        flatten_source = True
+                    # yosys version is the second word in the answer (e.g 0.38+92, 0.9-yy, 1.2.3).
+                    m = re.search(r"(\d+)\.(\d+)(?:\.(\d+))?", s.stdout.decode(errors="replace"))
+                    if m is None:
+                        print("Warning: unable to parse yosys version, disabling flatten_source.")
+                    else:
+                        version = tuple(int(v) if v is not None else 0 for v in m.groups())
+                        # yosys 0.9 is too old and can't support following command
+                        if version[:2] != (0, 9):
+                            flatten_source = True
 
             # Flatten and rename verilog entity to avoid conflicts
             if flatten_source:
@@ -332,7 +345,7 @@ class VHD2VConverter(Module):
             self._platform.add_source(verilog_out)
 
         if self._add_instance:
-            if self._instance:
+            if self._instance is not None:
                 # remove current instance to avoid multiple definition
                 delattr(self, "_instance")
                 self.specials += Instance(inst_name, *ip_params)
