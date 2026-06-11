@@ -1577,7 +1577,7 @@ class SoC(LiteXModule):
                 "sram"     : 0x01000000,
                 "main_ram" : 0x40000000,
             }
-            for n, origin in self.cpu.mem_map.items():
+            for n in self.cpu.mem_map.keys():
                 if n in self.mem_map.keys() and self.mem_map[n] != self.cpu.mem_map[n]:
                     log = self.logger.info if self.mem_map[n] == soc_core_mem_map.get(n, None) else self.logger.warning
                     log("CPU {} {} {} mapping from {} to {}.".format(
