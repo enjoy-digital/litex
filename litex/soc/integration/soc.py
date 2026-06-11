@@ -1907,7 +1907,10 @@ class LiteXSoC(SoC):
 
     # Add _phy -> .phy compatibility ---------------------------------------------------------------
     def __getattr__(self, name):
-        if name.endswith("_phy"):
+        # Resolve soc.x_phy to soc.x.phy for back-compat. Note: this makes hasattr(soc, "x_phy")
+        # True whenever soc.x.phy exists, so check_if_exists()/add_module() can reject "*_phy"
+        # names already reachable through the alias; pick another name for such modules.
+        if name.endswith("_phy") and (name != "_phy"):
             try:
                 return object.__getattribute__(self, name[:-4]).phy
             except AttributeError:
