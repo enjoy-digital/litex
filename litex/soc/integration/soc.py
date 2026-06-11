@@ -2100,9 +2100,18 @@ class LiteXSoC(SoC):
         if size is not None:
             sdram_size = min(sdram_size, size)
 
-        # Add SDRAM region.
+        # Add SDRAM region. An explicit origin argument takes precedence over the mem_map entry
+        # (SoCCore always defines "main_ram", which would otherwise make the argument a no-op).
+        main_ram_origin = self.mem_map.get("main_ram", None)
+        if origin is not None:
+            if (main_ram_origin is not None) and (main_ram_origin != origin):
+                self.logger.warning("SDRAM {} main_ram mapping from {} to {}.".format(
+                    colorer("overriding", color="cyan"),
+                    colorer(f"0x{main_ram_origin:08x}"),
+                    colorer(f"0x{origin:08x}")))
+            main_ram_origin = origin
         main_ram_region = SoCRegion(
-            origin = self.mem_map.get("main_ram", origin),
+            origin = main_ram_origin,
             size   = sdram_size,
             mode   = "rwx")
         self.bus.add_region("main_ram", main_ram_region)
