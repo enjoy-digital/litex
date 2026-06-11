@@ -83,8 +83,9 @@ def _litex_boards_target(filename):
 
 def boot_test(cpu_type="vexriscv", cpu_variant="standard", args="", output_dir=None):
     output_arg = f' --output-dir={output_dir}' if output_dir else ''
+    litex_sim = f"{sys.executable} -m litex.tools.litex_sim"
     cmd = (
-        f'litex_sim --cpu-type={cpu_type} --cpu-variant={cpu_variant} {args}'
+        f'{litex_sim} --cpu-type={cpu_type} --cpu-variant={cpu_variant} {args}'
         f'{output_arg} --opt-level=O0 --jobs {_sim_jobs()}'
     )
     litex_prompt = [r'\033\[[0-9;]+mlitex\033\[[0-9;]+m>']
@@ -278,6 +279,20 @@ UNTESTED_CPUS = [
 def test_cpu(cpu, request, tmp_path):
     variant = TESTED_CPU_VARIANTS.get(cpu, "standard")
     assert boot_test(cpu_type=cpu, cpu_variant=variant, output_dir=str(tmp_path))
+
+@pytest.mark.skipif(
+    os.environ.get("LITEX_QEMU_COSIM_TEST") != "1",
+    reason="QEMU co-simulation test requires a patched QEMU binary.",
+)
+@pytest.mark.parametrize("bus_standard", ["wishbone", "axi-lite", "axi"])
+def test_qemu_cpu(tmp_path, bus_standard):
+    port = _get_free_tcp_port()
+    assert boot_test(
+        cpu_type="qemu",
+        cpu_variant="rv32",
+        args=f"--bus-standard={bus_standard} --integrated-main-ram-size=0x100000 --qemu-port={port}",
+        output_dir=str(tmp_path),
+    )
 
 BUS_OPTIONS = [
     ("--bus-standard", ["wishbone", "axi-lite", "axi"]),

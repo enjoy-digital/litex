@@ -1,0 +1,692 @@
+diff --git a/configs/devices/riscv32-softmmu/litex-sim.mak b/configs/devices/riscv32-softmmu/litex-sim.mak
+new file mode 100644
+index 0000000..eb69046
+--- /dev/null
++++ b/configs/devices/riscv32-softmmu/litex-sim.mak
+@@ -0,0 +1,4 @@
++CONFIG_SEMIHOSTING=y
++CONFIG_ARM_COMPATIBLE_SEMIHOSTING=y
++CONFIG_RISCV_ACLINT=y
++CONFIG_SIFIVE_PLIC=y
+diff --git a/configs/devices/riscv64-softmmu/litex-sim.mak b/configs/devices/riscv64-softmmu/litex-sim.mak
+new file mode 100644
+index 0000000..eb69046
+--- /dev/null
++++ b/configs/devices/riscv64-softmmu/litex-sim.mak
+@@ -0,0 +1,4 @@
++CONFIG_SEMIHOSTING=y
++CONFIG_ARM_COMPATIBLE_SEMIHOSTING=y
++CONFIG_RISCV_ACLINT=y
++CONFIG_SIFIVE_PLIC=y
+diff --git a/hw/riscv/litex_sim.c b/hw/riscv/litex_sim.c
+new file mode 100644
+index 0000000..f0188c9
+--- /dev/null
++++ b/hw/riscv/litex_sim.c
+@@ -0,0 +1,637 @@
++/*
++ * QEMU RISC-V LiteX SIM co-simulation machine
++ *
++ * This machine is intentionally small: QEMU owns the CPU and local memories,
++ * while LiteX/Verilator owns the CSR/peripheral window reached through a
++ * blocking TCP request/response bridge.
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ */
++
++#include "qemu/osdep.h"
++#include "qapi/error.h"
++#include "exec/address-spaces.h"
++#include "exec/memory.h"
++#include "hw/boards.h"
++#include "hw/hw.h"
++#include "hw/intc/riscv_aclint.h"
++#include "hw/intc/sifive_plic.h"
++#include "hw/irq.h"
++#include "hw/loader.h"
++#include "hw/qdev-properties.h"
++#include "hw/riscv/boot.h"
++#include "hw/riscv/riscv_hart.h"
++#include "hw/sysbus.h"
++#include "sysemu/device_tree.h"
++#include "qemu/error-report.h"
++#include "qemu/module.h"
++#include "qemu/sockets.h"
++#include "qemu/timer.h"
++#include "qemu/units.h"
++#include "qom/object.h"
++#include "sysemu/runstate.h"
++#include "target/riscv/cpu.h"
++
++#define TYPE_LITEX_SIM_MACHINE MACHINE_TYPE_NAME("litex-sim")
++typedef struct LiteXSimMachineState LiteXSimMachineState;
++DECLARE_INSTANCE_CHECKER(LiteXSimMachineState, LITEX_SIM_MACHINE,
++                         TYPE_LITEX_SIM_MACHINE)
++
++#define LITEX_SIM_REQ_MAGIC 0x3051584c /* LXQ0 */
++#define LITEX_SIM_RSP_MAGIC 0x3052584c /* LXR0 */
++#define LITEX_SIM_VERSION   1
++#define LITEX_SIM_OP_READ   0
++#define LITEX_SIM_OP_WRITE  1
++#define LITEX_SIM_OP_IRQ    2
++#define LITEX_SIM_IRQ_BASE  0
++
++#define LITEX_SIM_PLIC_PRIORITY_BASE  0x000000
++#define LITEX_SIM_PLIC_PENDING_BASE   0x001000
++#define LITEX_SIM_PLIC_ENABLE_BASE    0x002000
++#define LITEX_SIM_PLIC_ENABLE_STRIDE  0x000080
++#define LITEX_SIM_PLIC_CONTEXT_BASE   0x200000
++#define LITEX_SIM_PLIC_CONTEXT_STRIDE 0x001000
++#define LITEX_SIM_PLIC_NUM_SOURCES    33
++#define LITEX_SIM_PLIC_NUM_PRIORITIES 7
++
++struct LiteXSimMachineState {
++    MachineState parent;
++
++    RISCVHartArrayState cpus;
++    DeviceState *plic;
++    MemoryRegion rom;
++    MemoryRegion sram;
++    MemoryRegion bridge;
++    QEMUTimer *irq_poll_timer;
++
++    char *bridge_host;
++    uint32_t bridge_port;
++    uint32_t xlen;
++    uint32_t timebase_freq;
++    uint32_t irq_poll_us;
++    uint64_t reset_addr;
++    uint64_t rom_base;
++    uint64_t rom_size;
++    uint64_t sram_base;
++    uint64_t sram_size;
++    uint64_t main_ram_base;
++    uint64_t bridge_base;
++    uint64_t bridge_size;
++    uint64_t clint_base;
++    uint64_t clint_size;
++    uint64_t plic_base;
++    uint64_t plic_size;
++    uint64_t csr_base;
++    uint64_t csr_size;
++
++    int bridge_fd;
++    bool bridge_busy;
++    uint32_t irq_mask;
++};
++
++static bool litex_sim_read_full(int fd, void *buf, size_t len)
++{
++    uint8_t *p = buf;
++
++    while (len) {
++        ssize_t ret = recv(fd, p, len, 0);
++
++        if (ret < 0 && errno == EINTR) {
++            continue;
++        }
++        if (ret <= 0) {
++            return false;
++        }
++        p   += ret;
++        len -= ret;
++    }
++
++    return true;
++}
++
++static void litex_sim_close_bridge(LiteXSimMachineState *s)
++{
++    if (s->bridge_fd >= 0) {
++        qemu_close(s->bridge_fd);
++        s->bridge_fd = -1;
++    }
++}
++
++static bool litex_sim_connect_bridge(LiteXSimMachineState *s, Error **errp)
++{
++    g_autofree char *addr = g_strdup_printf("%s:%u",
++                                            s->bridge_host,
++                                            s->bridge_port);
++
++    if (s->bridge_fd >= 0) {
++        return true;
++    }
++
++    s->bridge_fd = inet_connect(addr, errp);
++    if (s->bridge_fd < 0) {
++        return false;
++    }
++
++    qemu_socket_set_block(s->bridge_fd);
++    return true;
++}
++
++static void litex_sim_update_irq(LiteXSimMachineState *s, uint32_t irq_mask)
++{
++    uint32_t changed = s->irq_mask ^ irq_mask;
++    int irq;
++
++    if (s->plic) {
++        for (irq = 0; irq < 32; irq++) {
++            uint32_t mask = 1u << irq;
++
++            if (changed & mask) {
++                qemu_set_irq(qdev_get_gpio_in(s->plic,
++                                              LITEX_SIM_IRQ_BASE + irq),
++                             !!(irq_mask & mask));
++            }
++        }
++    } else {
++        bool level = irq_mask != 0;
++
++        riscv_cpu_update_mip(&s->cpus.harts[0].env, MIP_MEIP,
++                             BOOL_TO_MASK(level));
++    }
++    s->irq_mask = irq_mask;
++}
++
++static void litex_sim_update_reset(LiteXSimMachineState *s,
++                                   uint64_t reset_status)
++{
++    if (reset_status & 1) {
++        s->irq_mask = 0;
++        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
++    }
++}
++
++static bool litex_sim_bridge_xfer_once(LiteXSimMachineState *s,
++                                       uint16_t op,
++                                       hwaddr addr,
++                                       unsigned size,
++                                       uint64_t wdata,
++                                       uint64_t *rdata,
++                                       uint16_t *status,
++                                       Error **errp)
++{
++    uint8_t req[32] = {0};
++    uint8_t rsp[32];
++
++    stl_le_p(req + 0, LITEX_SIM_REQ_MAGIC);
++    stw_le_p(req + 4, LITEX_SIM_VERSION);
++    stw_le_p(req + 6, op);
++    stl_le_p(req + 8, size);
++    stq_le_p(req + 16, addr);
++    stq_le_p(req + 24, wdata);
++
++    if (!litex_sim_connect_bridge(s, errp)) {
++        return false;
++    }
++
++    if (qemu_send_full(s->bridge_fd, req, sizeof(req)) != sizeof(req)) {
++        error_setg_errno(errp, errno, "LiteX bridge send failed");
++        return false;
++    }
++
++    if (!litex_sim_read_full(s->bridge_fd, rsp, sizeof(rsp))) {
++        error_setg_errno(errp, errno, "LiteX bridge receive failed");
++        return false;
++    }
++
++    if (ldl_le_p(rsp + 0) != LITEX_SIM_RSP_MAGIC ||
++        lduw_le_p(rsp + 4) != LITEX_SIM_VERSION) {
++        error_setg(errp, "LiteX bridge returned an invalid response");
++        return false;
++    }
++
++    *status = lduw_le_p(rsp + 6);
++    litex_sim_update_irq(s, ldl_le_p(rsp + 8));
++    if (rdata) {
++        *rdata = ldq_le_p(rsp + 16);
++    }
++
++    return true;
++}
++
++static uint64_t litex_sim_bridge_xfer(LiteXSimMachineState *s,
++                                      uint16_t op,
++                                      hwaddr addr,
++                                      unsigned size,
++                                      uint64_t wdata)
++{
++    Error *err = NULL;
++    uint64_t rdata = 0;
++    uint16_t status = 0;
++
++    s->bridge_busy = true;
++    if (!litex_sim_bridge_xfer_once(s, op, addr, size, wdata,
++                                    &rdata, &status, &err)) {
++        error_free_or_abort(&err);
++        litex_sim_close_bridge(s);
++        if (!litex_sim_bridge_xfer_once(s, op, addr, size, wdata,
++                                        &rdata, &status, &err)) {
++            error_report_err(err);
++            hw_error("LiteX bridge transaction failed");
++        }
++    }
++
++    if (status != 0) {
++        hw_error("LiteX bridge returned status %u for %s at 0x%" HWADDR_PRIx,
++                 status, op == LITEX_SIM_OP_READ ? "read" : "write", addr);
++    }
++
++    s->bridge_busy = false;
++    return rdata;
++}
++
++static uint64_t litex_sim_mmio_read(void *opaque, hwaddr addr, unsigned size)
++{
++    LiteXSimMachineState *s = opaque;
++
++    return litex_sim_bridge_xfer(s, LITEX_SIM_OP_READ,
++                                 s->bridge_base + addr, size, 0);
++}
++
++static void litex_sim_mmio_write(void *opaque, hwaddr addr,
++                                 uint64_t value, unsigned size)
++{
++    LiteXSimMachineState *s = opaque;
++
++    litex_sim_bridge_xfer(s, LITEX_SIM_OP_WRITE,
++                          s->bridge_base + addr, size, value);
++}
++
++static const MemoryRegionOps litex_sim_mmio_ops = {
++    .read = litex_sim_mmio_read,
++    .write = litex_sim_mmio_write,
++    .endianness = DEVICE_LITTLE_ENDIAN,
++    .valid = {
++        .min_access_size = 1,
++        .max_access_size = 8,
++        .unaligned = true,
++    },
++    .impl = {
++        .min_access_size = 1,
++        .max_access_size = 8,
++        .unaligned = true,
++    },
++};
++
++static char *litex_sim_get_bridge_host(Object *obj, Error **errp)
++{
++    LiteXSimMachineState *s = LITEX_SIM_MACHINE(obj);
++
++    return g_strdup(s->bridge_host);
++}
++
++static void litex_sim_set_bridge_host(Object *obj, const char *value,
++                                      Error **errp)
++{
++    LiteXSimMachineState *s = LITEX_SIM_MACHINE(obj);
++
++    g_free(s->bridge_host);
++    s->bridge_host = g_strdup(value);
++}
++
++static void litex_sim_schedule_irq_poll(LiteXSimMachineState *s)
++{
++    if (s->irq_poll_timer && s->irq_poll_us) {
++        timer_mod(s->irq_poll_timer,
++                  qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
++                  (int64_t)s->irq_poll_us * 1000);
++    }
++}
++
++static void litex_sim_irq_poll_cb(void *opaque)
++{
++    LiteXSimMachineState *s = opaque;
++    Error *err = NULL;
++    uint64_t rdata = 0;
++    uint16_t status = 0;
++
++    if (!s->bridge_busy) {
++        s->bridge_busy = true;
++        if (!litex_sim_bridge_xfer_once(s, LITEX_SIM_OP_IRQ, 0, 0, 0,
++                                        &rdata, &status, &err)) {
++            if (err) {
++                error_free(err);
++            }
++            litex_sim_close_bridge(s);
++        } else if (status == 0) {
++            litex_sim_update_reset(s, rdata);
++        }
++        s->bridge_busy = false;
++    }
++
++    litex_sim_schedule_irq_poll(s);
++}
++
++static DeviceState *litex_sim_create_plic(LiteXSimMachineState *s)
++{
++    char *hart_config = g_strdup("MS");
++    DeviceState *plic;
++
++    plic = sifive_plic_create(
++        s->plic_base,
++        hart_config,
++        1,
++        0,
++        LITEX_SIM_PLIC_NUM_SOURCES,
++        LITEX_SIM_PLIC_NUM_PRIORITIES,
++        LITEX_SIM_PLIC_PRIORITY_BASE,
++        LITEX_SIM_PLIC_PENDING_BASE,
++        LITEX_SIM_PLIC_ENABLE_BASE,
++        LITEX_SIM_PLIC_ENABLE_STRIDE,
++        LITEX_SIM_PLIC_CONTEXT_BASE,
++        LITEX_SIM_PLIC_CONTEXT_STRIDE,
++        s->plic_size);
++    g_free(hart_config);
++    return plic;
++}
++
++static void litex_sim_create_local_interrupts(LiteXSimMachineState *s)
++{
++    riscv_aclint_swi_create(s->clint_base, 0, 1, false);
++    riscv_aclint_mtimer_create(
++        s->clint_base + RISCV_ACLINT_SWI_SIZE,
++        RISCV_ACLINT_DEFAULT_MTIMER_SIZE,
++        0,
++        1,
++        RISCV_ACLINT_DEFAULT_MTIMECMP,
++        RISCV_ACLINT_DEFAULT_MTIME,
++        s->timebase_freq,
++        true);
++
++    s->plic = litex_sim_create_plic(s);
++
++    if (s->irq_poll_us) {
++        s->irq_poll_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
++                                         litex_sim_irq_poll_cb, s);
++        litex_sim_schedule_irq_poll(s);
++    }
++}
++
++static void litex_sim_board_init(MachineState *machine)
++{
++    LiteXSimMachineState *s = LITEX_SIM_MACHINE(machine);
++    MemoryRegion *system_memory = get_system_memory();
++    const char *firmware = machine->firmware;
++    ssize_t firmware_size;
++    bool linux_boot = (machine->kernel_filename != NULL);
++
++#if defined(TARGET_RISCV32)
++    if (s->xlen != 32) {
++        error_report("qemu-system-riscv32 requires litex-sim,xlen=32");
++        exit(1);
++    }
++#elif defined(TARGET_RISCV64)
++    if (s->xlen != 64) {
++        error_report("qemu-system-riscv64 requires litex-sim,xlen=64");
++        exit(1);
++    }
++#endif
++
++    if (machine->smp.cpus != 1) {
++        error_report("litex-sim currently supports exactly one CPU");
++        exit(1);
++    }
++
++    object_initialize_child(OBJECT(machine), "cpus", &s->cpus,
++                            TYPE_RISCV_HART_ARRAY);
++    object_property_set_str(OBJECT(&s->cpus), "cpu-type",
++                            machine->cpu_type, &error_abort);
++    object_property_set_int(OBJECT(&s->cpus), "hartid-base", 0, &error_abort);
++    object_property_set_int(OBJECT(&s->cpus), "num-harts", 1, &error_abort);
++    object_property_set_int(OBJECT(&s->cpus), "resetvec",
++                            s->reset_addr, &error_abort);
++    sysbus_realize(SYS_BUS_DEVICE(&s->cpus), &error_fatal);
++
++    litex_sim_create_local_interrupts(s);
++
++    /*
++     * Executable ROM at rom_base. For a bare-metal / LiteX BIOS boot it holds
++     * the firmware passed via -bios. For a Linux (-kernel) boot it is populated
++     * below by riscv_setup_rom_reset_vec with the reset vector that jumps to the
++     * S-mode firmware; the region must exist first since that helper writes into
++     * it rather than creating it.
++     */
++    memory_region_init_rom(&s->rom, NULL, "litex.rom",
++                           s->rom_size, &error_fatal);
++    memory_region_add_subregion(system_memory, s->rom_base, &s->rom);
++
++    if (!linux_boot && firmware && strcmp(firmware, "none")) {
++        firmware_size = load_image_mr(firmware, &s->rom);
++        if (firmware_size < 0) {
++            error_report("unable to load LiteX BIOS '%s'", firmware);
++            exit(1);
++        }
++    }
++
++    memory_region_init_ram(&s->sram, NULL, "litex.sram",
++                           s->sram_size, &error_fatal);
++    memory_region_add_subregion(system_memory, s->sram_base, &s->sram);
++
++    memory_region_add_subregion(system_memory, s->main_ram_base, machine->ram);
++
++    memory_region_init_io(&s->bridge, NULL, &litex_sim_mmio_ops, s,
++                          "litex.bridge", s->bridge_size);
++    memory_region_add_subregion_overlap(system_memory, s->bridge_base,
++                                        &s->bridge, -1);
++
++    /*
++     * Linux boot: QEMU owns the CPU, ROM/RAM, ACLINT/CLINT and PLIC. S-mode
++     * firmware (OpenSBI, -bios; defaults to QEMU's bundled generic) is loaded at
++     * the start of main RAM, the kernel right after it, and the LiteX-aware
++     * device tree (-dtb) high in RAM. A small reset vector in the LiteX ROM
++     * jumps to the firmware with the fdt pointer in a1. The kernel reaches its
++     * console (liteuart) and the other LiteX peripherals over the bridge.
++     */
++    if (linux_boot) {
++        int fdt_size;
++        uint64_t kernel_entry, fdt_load_addr;
++        target_ulong firmware_end_addr, kernel_start_addr;
++
++        if (!machine->dtb) {
++            error_report("litex-sim Linux boot (-kernel) requires a device tree (-dtb)");
++            exit(1);
++        }
++        machine->fdt = load_device_tree(machine->dtb, &fdt_size);
++        if (!machine->fdt) {
++            error_report("unable to load device tree '%s'", machine->dtb);
++            exit(1);
++        }
++
++        firmware_end_addr = riscv_find_and_load_firmware(machine,
++            riscv_default_firmware_name(&s->cpus), s->main_ram_base, NULL);
++
++        kernel_start_addr = riscv_calc_kernel_start_addr(&s->cpus,
++                                                         firmware_end_addr);
++        kernel_entry = riscv_load_kernel(machine, &s->cpus, kernel_start_addr,
++                                         true, NULL);
++
++        fdt_load_addr = riscv_compute_fdt_addr(s->main_ram_base,
++                                               machine->ram_size, machine);
++        riscv_load_fdt(fdt_load_addr, machine->fdt);
++
++        riscv_setup_rom_reset_vec(machine, &s->cpus, s->main_ram_base,
++                                  s->rom_base, s->rom_size,
++                                  kernel_entry, fdt_load_addr);
++    }
++}
++
++static void litex_sim_machine_instance_init(Object *obj)
++{
++    LiteXSimMachineState *s = LITEX_SIM_MACHINE(obj);
++
++    s->bridge_host  = g_strdup("127.0.0.1");
++    s->bridge_port  = 1235;
++    s->bridge_fd    = -1;
++    s->xlen         = sizeof(target_ulong) == 8 ? 64 : 32;
++    s->timebase_freq = RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ;
++    s->irq_poll_us  = 1000;
++
++#if defined(TARGET_RISCV64)
++    s->reset_addr   = 0x10000000;
++    s->rom_base     = 0x10000000;
++    s->rom_size     = 0x00020000;
++    s->sram_base    = 0x11000000;
++    s->sram_size    = 0x00002000;
++    s->main_ram_base = 0x80000000;
++    s->bridge_base  = 0x12000000;
++    s->bridge_size  = 0x6e000000;
++    s->clint_base   = 0x02000000;
++    s->clint_size   = 0x00010000;
++    s->plic_base    = 0x0c000000;
++    s->plic_size    = 0x00400000;
++    s->csr_base     = 0x12000000;
++    s->csr_size     = 0x00010000;
++#else
++    s->reset_addr   = 0x00000000;
++    s->rom_base     = 0x00000000;
++    s->rom_size     = 0x00020000;
++    s->sram_base    = 0x10000000;
++    s->sram_size    = 0x00002000;
++    s->main_ram_base = 0x40000000;
++    s->bridge_base  = 0x80000000;
++    s->bridge_size  = 0x80000000;
++    s->clint_base   = 0xf0010000;
++    s->clint_size   = 0x00010000;
++    s->plic_base    = 0xf0c00000;
++    s->plic_size    = 0x00400000;
++    s->csr_base     = 0xf0000000;
++    s->csr_size     = 0x00010000;
++#endif
++
++    object_property_add_str(obj, "bridge-host",
++                            litex_sim_get_bridge_host,
++                            litex_sim_set_bridge_host);
++    object_property_set_description(obj, "bridge-host",
++                                    "LiteX bridge TCP host");
++    object_property_add_uint32_ptr(obj, "bridge-port",
++                                   &s->bridge_port,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_set_description(obj, "bridge-port",
++                                    "LiteX bridge TCP port");
++    object_property_add_uint32_ptr(obj, "irq-poll-us",
++                                   &s->irq_poll_us,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_set_description(obj, "irq-poll-us",
++                                    "LiteX IRQ bridge polling interval in us");
++    object_property_add_uint32_ptr(obj, "xlen",
++                                   &s->xlen,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_add_uint32_ptr(obj, "timebase-freq",
++                                   &s->timebase_freq,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_add_uint64_ptr(obj, "reset-addr",
++                                   &s->reset_addr,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_add_uint64_ptr(obj, "rom-base",
++                                   &s->rom_base,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_add_uint64_ptr(obj, "rom-size",
++                                   &s->rom_size,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_add_uint64_ptr(obj, "sram-base",
++                                   &s->sram_base,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_add_uint64_ptr(obj, "sram-size",
++                                   &s->sram_size,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_add_uint64_ptr(obj, "main-ram-base",
++                                   &s->main_ram_base,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_add_uint64_ptr(obj, "bridge-base",
++                                   &s->bridge_base,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_add_uint64_ptr(obj, "bridge-size",
++                                   &s->bridge_size,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_add_uint64_ptr(obj, "clint-base",
++                                   &s->clint_base,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_add_uint64_ptr(obj, "clint-size",
++                                   &s->clint_size,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_add_uint64_ptr(obj, "plic-base",
++                                   &s->plic_base,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_add_uint64_ptr(obj, "plic-size",
++                                   &s->plic_size,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_add_uint64_ptr(obj, "csr-base",
++                                   &s->csr_base,
++                                   OBJ_PROP_FLAG_READWRITE);
++    object_property_add_uint64_ptr(obj, "csr-size",
++                                   &s->csr_size,
++                                   OBJ_PROP_FLAG_READWRITE);
++}
++
++static void litex_sim_machine_finalize(Object *obj)
++{
++    LiteXSimMachineState *s = LITEX_SIM_MACHINE(obj);
++
++    if (s->irq_poll_timer) {
++        timer_del(s->irq_poll_timer);
++        timer_free(s->irq_poll_timer);
++    }
++    litex_sim_close_bridge(s);
++    g_free(s->bridge_host);
++}
++
++static void litex_sim_machine_class_init(ObjectClass *oc, void *data)
++{
++    MachineClass *mc = MACHINE_CLASS(oc);
++
++    mc->desc = "LiteX SIM co-simulation machine";
++    mc->init = litex_sim_board_init;
++    mc->max_cpus = 1;
++    mc->default_cpus = 1;
++    mc->default_cpu_type = TYPE_RISCV_CPU_BASE;
++    mc->default_ram_size = 64 * MiB;
++    mc->default_ram_id = "litex.main_ram";
++}
++
++static const TypeInfo litex_sim_machine_typeinfo = {
++    .name          = TYPE_LITEX_SIM_MACHINE,
++    .parent        = TYPE_MACHINE,
++    .class_init    = litex_sim_machine_class_init,
++    .instance_init = litex_sim_machine_instance_init,
++    .instance_finalize = litex_sim_machine_finalize,
++    .instance_size = sizeof(LiteXSimMachineState),
++};
++
++void litex_sim_machine_init_register_types(void);
++
++void litex_sim_machine_init_register_types(void)
++{
++    if (object_class_by_name(TYPE_LITEX_SIM_MACHINE)) {
++        return;
++    }
++
++    type_register_static(&litex_sim_machine_typeinfo);
++}
+diff --git a/hw/riscv/meson.build b/hw/riscv/meson.build
+index 2f7ee81..694ac5a 100644
+--- a/hw/riscv/meson.build
++++ b/hw/riscv/meson.build
+@@ -9,4 +9,5 @@ riscv_ss.add(when: 'CONFIG_SIFIVE_E', if_true: files('sifive_e.c'))
+ riscv_ss.add(when: 'CONFIG_SIFIVE_U', if_true: files('sifive_u.c'))
+ riscv_ss.add(when: 'CONFIG_SPIKE', if_true: files('spike.c'))
+ riscv_ss.add(when: 'CONFIG_MICROCHIP_PFSOC', if_true: files('microchip_pfsoc.c'))
++riscv_ss.add(files('litex_sim.c'))
+ riscv_ss.add(when: 'CONFIG_ACPI', if_true: files('virt-acpi-build.c'))
+diff --git a/system/runstate.c b/system/runstate.c
+index ea9d6c2..4989683 100644
+--- a/system/runstate.c
++++ b/system/runstate.c
+@@ -70,4 +70,5 @@ static RunState current_run_state = RUN_STATE_PRELAUNCH;
+ static RunState vmstop_requested = RUN_STATE__MAX;
+ static QemuMutex vmstop_lock;
+-
++void litex_sim_machine_init_register_types(void);
++
+ typedef struct {
+@@ -817,2 +817,7 @@ void qemu_init_subsystems(void)
+     module_call_init(MODULE_INIT_QOM);
++    /*
++     * LiteX SIM is an out-of-tree RISC-V machine. Register it directly after
++     * QOM init so minimal-device builds do not depend on default machine lists.
++     */
++    litex_sim_machine_init_register_types();
+     module_call_init(MODULE_INIT_MIGRATION);
