@@ -15,6 +15,16 @@ from litex.soc.cores.clock.common import *
 
 # Efinix / TRIONPLL ----------------------------------------------------------------------------------
 
+def _signal_names(sig):
+    names = []
+    name_override = getattr(sig, "name_override", None)
+    if name_override is not None:
+        names.append(name_override)
+    backtrace = getattr(sig, "backtrace", None)
+    if backtrace:
+        names.append(backtrace[-1][0])
+    return names
+
 class EFINIXPLL(LiteXModule):
     n            = 0
     nclkouts_max = 3
@@ -59,6 +69,11 @@ class EFINIXPLL(LiteXModule):
         # Connect PLL's rstn/locked.
         self.comb += self.platform.add_iface_io(self.name + "_rstn").eq(~self.reset)
         self.comb += self.locked.eq(self.platform.add_iface_io(self.name + "_locked"))
+
+    def _is_clkin_signal(self, sig):
+        if sig is self.clkin:
+            return True
+        return bool(set(_signal_names(sig)) & set(_signal_names(self.clkin)))
 
     def register_clkin(self, clkin, freq, name="", refclk_name="", lvds_input=False):
         check_freq_positive(freq, "Input clock frequency")
@@ -148,10 +163,7 @@ class EFINIXPLL(LiteXModule):
             clk_name = f"{cd.name}_{self.name}_clk"
             clk_out_name = clk_name # To unify constraints names
             clk_out = self.platform.add_iface_io(clk_out_name)
-            if not (
-                getattr(self.platform.toolchain, "unified", False) and
-                (cd.clk is self.clkin)
-            ):
+            if not self._is_clkin_signal(cd.clk):
                 self.comb += cd.clk.eq(clk_out)
             # Efinity will generate xxx.pt.sdc constraints automaticaly,
             # so, the user realy need to use the toplevel pin from the pll instead of an intermediate signal
