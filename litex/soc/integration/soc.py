@@ -2407,7 +2407,7 @@ class LiteXSoC(SoC):
             phy         = phy,
             mac_address = mac_address,
             ip_address  = ip_address,
-            clk_freq    = self.clk_freq,
+            clk_freq    = self.sys_clk_freq,
             arp_entries = arp_entries,
             dw          = data_width,
             with_ip_broadcast = with_ip_broadcast,
@@ -2875,9 +2875,9 @@ class LiteXSoC(SoC):
         # sata_clk_freq/2, matching the prior hardcoded check.
         sata_clk_freq    = sata_clk_freqs[phy.gen]
         required_sys_clk = sata_clk_freq * 16 / self.bus.data_width
-        if self.clk_freq < required_sys_clk:
+        if self.sys_clk_freq < required_sys_clk:
             self.logger.error("SATA {} requires sys_clk_freq ({:.1f}MHz) >= {:.1f}MHz on a {}-bit bus.".format(
-                colorer(phy.gen, color="red"), self.clk_freq/1e6, required_sys_clk/1e6,
+                colorer(phy.gen, color="red"), self.sys_clk_freq/1e6, required_sys_clk/1e6,
                 self.bus.data_width))
             raise SoCError()
 
