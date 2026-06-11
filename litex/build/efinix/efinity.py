@@ -100,6 +100,38 @@ def _add_custom_params(parent, params):
             "value_type": value_type,
         })
 
+def _efinity_supports_unified_flow(efinity_path):
+    map_options = os.path.join(efinity_path, "bin", "efx_map_options.xml")
+    run_script  = os.path.join(efinity_path, "scripts", "efx_run.py")
+    try:
+        with open(map_options, "r") as f:
+            map_options_data = f.read()
+        with open(run_script, "r") as f:
+            run_script_data = f.read()
+    except OSError:
+        return False
+
+    return (
+        "--peri-syn-instantiation" in map_options_data and
+        "--peri-syn-inference"     in map_options_data and
+        "--un_flow"                in run_script_data and
+        "--peri_netlist"           in run_script_data
+    )
+
+def _signal_name(signal):
+    if isinstance(signal, str):
+        return signal
+    name = getattr(signal, "name", None)
+    if name is not None:
+        return name
+    name = getattr(signal, "name_override", None)
+    if name is not None:
+        return name
+    backtrace = getattr(signal, "backtrace", None)
+    if backtrace:
+        return backtrace[-1][0]
+    return None
+
 
 # Efinity Toolchain --------------------------------------------------------------------------------
 
@@ -116,6 +148,10 @@ class EfinityToolchain(GenericToolchain):
         self.excluded_ios              = []
         self.additional_sdc_commands   = []
         self.additional_iface_commands = []
+        self.unified                   = False
+        self._unified_isf_file         = None
+        self._unified_iface_file       = None
+        self._unified_peri_script_file = None
 
     def finalize(self):
         self.ifacewriter.set_build_params(self.platform, self._build_name)
@@ -129,9 +165,16 @@ class EfinityToolchain(GenericToolchain):
         efx_pgm_params           = None,
         efx_security_params      = None,
         efx_debugger_params      = None,
+        efx_unified              = False,
         efx_full_memory_we       = True,
         **kwargs):
 
+        self.unified                   = efx_unified
+        if self.unified and not _efinity_supports_unified_flow(self.efinity_path):
+            raise OSError(
+                "Efinity unified netlist flow requires an Efinity installation with "
+                "periphery synthesis support (--peri-syn-instantiation/--peri-syn-inference)."
+            )
         self._efx_map_params           = _default_efx_map_params()
         self._efx_pnr_params           = _default_efx_pnr_params()
         self._efx_pgm_params           = _default_efx_pgm_params()
@@ -143,6 +186,15 @@ class EfinityToolchain(GenericToolchain):
             self._efx_pnr_params.update(efx_pnr_params)
         if efx_pgm_params is not None:
             self._efx_pgm_params.update(efx_pgm_params)
+        if self.unified:
+            unified_map_params = {
+                "write_efx_verilog"               : True,
+                "peri-syn-instantiation"          : ["1", "e_option"],
+                "peri-syn-inference"              : ["1", "e_option"],
+                "peri-syn-modify-vdb-module-name" : ["1", "e_option"],
+            }
+            for key, value in unified_map_params.items():
+                self._efx_map_params.setdefault(key, value)
 
         if platform.family != "Trion":
             self._efx_map_params.pop("mult_input_regs_packing", None)
@@ -160,6 +212,7 @@ class EfinityToolchain(GenericToolchain):
 
     def build_timing_constraints(self, vns):
         sdc = []
+        constrained_clock_names = set()
 
         # Clock constraints
         for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
@@ -169,6 +222,8 @@ class EfinityToolchain(GenericToolchain):
                     is_port = True
 
             clk_sig = self._vns.get_name(clk)
+            if self.unified and self._is_excluded_io(clk_sig):
+                continue
             if name is None:
                 name = clk_sig
 
@@ -178,6 +233,29 @@ class EfinityToolchain(GenericToolchain):
             else:
                 tpl = "create_clock -name {name} -period {period} [get_nets {{{clk}}}]"
                 sdc.append(tpl.format(name=name, clk=clk_sig, period=str(period)))
+            constrained_clock_names.add(name)
+
+        if self.unified:
+            port_names = {sig for sig, pins, others, resname in self.named_sc}
+            for block in self.ifacewriter.blocks:
+                if not isinstance(block, dict):
+                    continue
+                if block.get("type") != "PLL":
+                    continue
+                for clock in block["clk_out"]:
+                    if clock is None:
+                        continue
+                    clk_sig = clock[0]
+                    if clk_sig not in port_names:
+                        continue
+                    if self._is_excluded_signal_io(clk_sig):
+                        continue
+                    if clk_sig in constrained_clock_names:
+                        continue
+                    period = 1e9/clock[1]
+                    tpl = "create_clock -name {name} -period {period} [get_ports {{{clk}}}]"
+                    sdc.append(tpl.format(name=clk_sig, clk=clk_sig, period=str(period)))
+                    constrained_clock_names.add(clk_sig)
 
         # False path constraints
         for from_, to in sorted(self.false_paths, key=lambda x: (x[0].duid, x[1].duid)):
@@ -273,7 +351,10 @@ class EfinityToolchain(GenericToolchain):
         fmt_r = "{}:{}".format(*resname[:2])
         if resname[2] is not None:
             fmt_r += "." + resname[2]
-        fmt_c = [self._format_constraint(c, signame, fmt_r) for c in ([Pins(pin)] + others)]
+        fmt_c = [
+            self._format_constraint(c, signame, fmt_r)
+            for c in ([Pins(pin)] + others)
+        ]
         return "".join(fmt_c)
 
     def _build_iface_gpio(self):
@@ -282,15 +363,7 @@ class EfinityToolchain(GenericToolchain):
 
         # GPIO
         for sig, pins, others, resname in self.named_sc:
-            excluded = False
-            for excluded_io in self.excluded_ios:
-                if isinstance(excluded_io, str):
-                    if sig == excluded_io:
-                        excluded = True
-                elif isinstance(excluded_io, Signal):
-                    if sig == excluded_io.name:
-                        excluded = True
-            if excluded:
+            if self._is_excluded_io(sig):
                 continue
             inst.append(self._create_gpio_instance(sig, pins))
             if len(pins) > 1:
@@ -305,9 +378,38 @@ class EfinityToolchain(GenericToolchain):
 
         return "\n".join(conf)
 
+    def _is_excluded_io(self, sig):
+        for excluded_io in self.excluded_ios:
+            if sig == _signal_name(excluded_io):
+                return True
+        return False
+
+    def _is_excluded_signal_io(self, sig):
+        for excluded_io in self.excluded_ios:
+            if isinstance(excluded_io, Signal) and sig == _signal_name(excluded_io):
+                return True
+        return False
+
+    def _build_iface_resource_assignments(self):
+        conf = []
+
+        for sig, pins, others, resname in self.named_sc:
+            if self._is_excluded_io(sig):
+                continue
+            if len(pins) > 1:
+                for i, p in enumerate(pins):
+                    conf.append(self._format_conf_constraint("{}[{}]".format(sig, i), p, others, resname))
+            else:
+                conf.append(self._format_conf_constraint(sig, pins[0], others, resname))
+
+        if self.named_pc:
+            conf.append("\n\n".join(self.named_pc))
+
+        return "".join(conf)
+
     def resolve_iface_signal_names(self):
         # Iterate over each block
-        for block in self.platform.toolchain.ifacewriter.blocks:
+        for block in self.ifacewriter.blocks:
 
             # Iterate over each key-value pair in the block
             for key, value in block.items():
@@ -328,9 +430,33 @@ class EfinityToolchain(GenericToolchain):
                     block[key] = signal_name  # Replace with the resolved name
 
     def build_io_constraints(self):
-        pythonpath = ""
-
         self.resolve_iface_signal_names()
+
+        if self.unified:
+            self._unified_isf_file = f"{self._build_name}.isf"
+            isf = self.ifacewriter.iobank_info(self.platform.iobank_info)
+            isf += self._build_iface_resource_assignments()
+            tools.write_to_file(self._unified_isf_file, isf)
+
+            iface_isf = self.ifacewriter.generate_isf(self.platform.device)
+            iface_isf += "\n".join(self.additional_iface_commands)
+            if iface_isf.strip():
+                self._unified_iface_file = "iface.isf"
+                tools.write_to_file(self._unified_iface_file, iface_isf)
+            else:
+                self._unified_iface_file = None
+
+            peri_script_isf = self.ifacewriter.generate_peri_script_isf(self.platform.device)
+            peri_script_isf += "\n".join(self.additional_iface_commands)
+            if peri_script_isf.strip():
+                if peri_script_isf == iface_isf and self._unified_iface_file is not None:
+                    self._unified_peri_script_file = self._unified_iface_file
+                else:
+                    self._unified_peri_script_file = "iface_peri.isf"
+                    tools.write_to_file(self._unified_peri_script_file, peri_script_isf)
+            else:
+                self._unified_peri_script_file = None
+            return (self._unified_isf_file, "ISF")
 
         header = self.ifacewriter.header(self._build_name, self.platform.device)
         iobank = self.ifacewriter.iobank_info(self.platform.iobank_info)
@@ -381,7 +507,16 @@ class EfinityToolchain(GenericToolchain):
 
         # Add Timing Constraints.
         constraint_info  = et.SubElement(root, "efx:constraint_info")
-        et.SubElement(constraint_info, "efx:sdc_file", name=f"{self._build_name}_merged.sdc")
+        sdc_file = f"{self._build_name}.sdc" if self.unified else f"{self._build_name}_merged.sdc"
+        et.SubElement(constraint_info, "efx:sdc_file", name=sdc_file)
+
+        # Unified netlist flow imports the periphery netlist generated by
+        # synthesis, then applies LiteX's package pin/property assignments.
+        if self.unified and self._unified_isf_file is not None:
+            isf_info = et.SubElement(root, "efx:isf_info")
+            et.SubElement(isf_info, "efx:isf_file", name=self._unified_isf_file)
+            if self._unified_iface_file is not None:
+                et.SubElement(isf_info, "efx:isf_file", name=self._unified_iface_file)
 
         # Add Misc Info.
         misc_info  = et.SubElement(root, "efx:misc_info")
@@ -433,35 +568,44 @@ class EfinityToolchain(GenericToolchain):
             if tools.subprocess_call_filtered([self.efinity_path + "/bin/python3", "ipm.py"], common.colors, env=self.env) != 0:
                 raise OSError("Error occurred during Efinity ip script execution.")
 
-        if tools.subprocess_call_filtered([self.efinity_path + "/bin/python3", "iface.py"], common.colors, env=self.env) != 0:
-            raise OSError("Error occurred during Efinity peri script execution.")
+        if not self.unified:
+            if tools.subprocess_call_filtered([self.efinity_path + "/bin/python3", "iface.py"], common.colors, env=self.env) != 0:
+                raise OSError("Error occurred during Efinity peri script execution.")
 
-        # Some IO blocks don't have Python API so we need to configure them
-        # directly in the peri.xml file
-        if self.ifacewriter.xml_blocks:
-            self.ifacewriter.generate_xml_blocks()
+        elif self.ifacewriter.xml_blocks or self.ifacewriter.fix_xml:
+            raise NotImplementedError(
+                "Efinity unified netlist flow does not support InterfaceWriter XML patch blocks yet."
+            )
 
-        # Because the Python API is sometimes bugged, we need to tweak the generated xml
-        if self.ifacewriter.fix_xml:
-            self.ifacewriter.fix_xml_values()
+        if not self.unified:
+            # Some IO blocks don't have Python API so we need to configure them
+            # directly in the peri.xml file
+            if self.ifacewriter.xml_blocks:
+                self.ifacewriter.generate_xml_blocks()
 
-        # FIXME: peri.xml is generated from Efinity, why does it require patching?
-        tools.replace_in_file(f"{self._build_name}.peri.xml", 'adv_out_phase_shift="0.0"', 'adv_out_phase_shift="0"')
-        tools.replace_in_file(f"{self._build_name}.peri.xml", 'adv_out_phase_shift="90.0"', 'adv_out_phase_shift="90"')
+            # Because the Python API is sometimes bugged, we need to tweak the generated xml
+            if self.ifacewriter.fix_xml:
+                self.ifacewriter.fix_xml_values()
+
+        if not self.unified:
+            # FIXME: peri.xml is generated from Efinity, why does it require patching?
+            tools.replace_in_file(f"{self._build_name}.peri.xml", 'adv_out_phase_shift="0.0"', 'adv_out_phase_shift="0"')
+            tools.replace_in_file(f"{self._build_name}.peri.xml", 'adv_out_phase_shift="90.0"', 'adv_out_phase_shift="90"')
 
     def build_script(self):
         return "" # not used
 
     def run_script(self, script):
-        # Merge SDC.
-        with open(f"{self._build_name}_merged.sdc", 'w') as outfile:
-            with open(f"outflow/{self._build_name}.pt.sdc") as infile:
-                outfile.write(infile.read())
-            outfile.write("\n")
-            outfile.write("#########################\n")
-            outfile.write("\n")
-            with open(f"{self._build_name}.sdc") as infile:
-                outfile.write(infile.read())
+        if not self.unified:
+            # Merge SDC.
+            with open(f"{self._build_name}_merged.sdc", 'w') as outfile:
+                with open(f"outflow/{self._build_name}.pt.sdc") as infile:
+                    outfile.write(infile.read())
+                outfile.write("\n")
+                outfile.write("#########################\n")
+                outfile.write("\n")
+                with open(f"{self._build_name}.sdc") as infile:
+                    outfile.write(infile.read())
 
         # Define / Remove .log file.
         log_file = f"outflow/{self._build_name}.log"
@@ -469,11 +613,16 @@ class EfinityToolchain(GenericToolchain):
             os.remove(log_file)
 
         # Call efx_run script.
-        r = tools.subprocess_call_filtered([self.efinity_path + "/bin/python3",
+        cmd = [self.efinity_path + "/bin/python3",
             self.efinity_path + "/scripts/efx_run.py",
             f"{self._build_name}.xml",
             "--flow", "compile",
-        ], common.colors, env=self.env, tail_log=log_file)
+        ]
+        if self.unified:
+            cmd.append("--un_flow")
+            if self._unified_peri_script_file is not None:
+                cmd += ["--pt_opts", f"peri_scripts={self._unified_peri_script_file}"]
+        r = tools.subprocess_call_filtered(cmd, common.colors, env=self.env, tail_log=log_file)
         if r != 0:
            raise OSError("Error occurred during efx_run execution.")
 
@@ -497,6 +646,7 @@ def build_args(parser):
     toolchain.add_argument("--mult-output-regs-packing", default="1",     help="Allow packing of multiplier output registers.", choices=["0", "1"])
     toolchain.add_argument("--generate-bitbin",          action="store_true", help="Generate bitbin file (default: False).")
     toolchain.add_argument("--generate-hexbin",          action="store_true", help="Generate hexbin file (default: False).")
+    toolchain.add_argument("--efinity-unified",          action="store_true", help="Enable Efinity unified netlist flow.")
 
 def build_argdict(args):
     return{
@@ -515,4 +665,5 @@ def build_argdict(args):
             generate_bitbin = args.generate_bitbin,
             generate_hexbin = args.generate_hexbin,
         ),
+        "efx_unified"              : getattr(args, "efinity_unified", False),
     }
