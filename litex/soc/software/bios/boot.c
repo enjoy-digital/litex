@@ -401,11 +401,10 @@ static void boot_from_json_buffer(const char *json_buffer, int size,
 	int i;
 	int count;
 
-	/* Keep the larger parsing buffers static to limit stack pressure in the
-	   boot paths (see boot_json_buffer). json_name must accommodate long
-	   filenames (FatFs is built with LFN support). */
-	static char json_name[256];
-	static char json_value[64];
+	/* json_name must accommodate long filenames (FatFs is built with LFN
+	   support), but keep these scratch buffers off .bss. */
+	char json_name[256];
+	char json_value[64];
 
 	unsigned long boot_r1 = 0;
 	unsigned long boot_r2 = 0;
@@ -429,8 +428,6 @@ static void boot_from_json_buffer(const char *json_buffer, int size,
 		return;
 	}
 	for (i=0; i<count-1; i++) {
-		memset(json_name,   0, sizeof(json_name));
-		memset(json_value,  0, sizeof(json_value));
 		/* Elements are JSON strings with 1 children */
 		if ((t[i].type == JSMN_STRING) && (t[i].size == 1)) {
 			/* Get Element's filename. Abort instead of skipping the entry:

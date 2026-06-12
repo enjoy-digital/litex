@@ -212,7 +212,7 @@ int readline(char *buf, int len)
 #ifndef BIOS_CONSOLE_NO_AUTOCOMPLETE
 	char tmp;
 	int reprint, i;
-	char *completestr;
+	char completestr[CMD_LINE_BUFFER_SIZE];
 #endif
 
 	if (len <= 0)
@@ -236,7 +236,7 @@ int readline(char *buf, int len)
 			tmp = buf[num];
 
 			buf[num] = 0;
-			reprint = complete(buf, &completestr);
+			reprint = complete(buf, completestr, sizeof(completestr));
 			buf[num] = tmp;
 
 			if (reprint) {

@@ -14,39 +14,58 @@
 #include "command.h"
 #include "complete.h"
 
-/* Maximum number of completion candidates: must cover all registered
-   commands so that the common prefix is computed over the full match set. */
-#define COMPLETE_MAX_MATCHES 128
-
 static int tab_pressed = 0;
 
-/* Candidates are pointers to the (static) command names, no copies needed. */
-static const char *sl[COMPLETE_MAX_MATCHES];
-static int sl_count = 0;
-
-char out[CMD_LINE_BUFFER_SIZE];
-
-static void string_list_init(void)
+static int command_match(const char *instr, const char *name)
 {
-	sl_count = 0;
+	return !strncmp(instr, name, strlen(instr));
 }
 
-static int string_list_add(const char *string)
+static int command_complete_suffix(char *instr, char *outstr, int outlen)
 {
-	if (sl_count >= COMPLETE_MAX_MATCHES)
-		return -1;
-	sl[sl_count++] = string;
-	return 0;
+	struct command_struct * const *cmd;
+	const char *name;
+	int pos = strlen(instr);
+	int outpos = 0;
+	int count = 0;
+
+	outstr[0] = 0;
+	for (cmd = __bios_cmd_start; cmd != __bios_cmd_end; cmd++) {
+		name = (*cmd)->name;
+		if (!command_match(instr, name))
+			continue;
+		count++;
+		if (count == 1) {
+			while ((outpos < outlen - 1) && name[pos + outpos]) {
+				outstr[outpos] = name[pos + outpos];
+				outpos++;
+			}
+			outstr[outpos] = 0;
+		} else {
+			int common = 0;
+			while ((common < outpos) && name[pos + common] &&
+			       (outstr[common] == name[pos + common]))
+				common++;
+			outpos = common;
+			outstr[outpos] = 0;
+		}
+	}
+
+	return count;
 }
 
-static void string_list_print_by_column(void)
+static void command_matches_print_by_column(char *instr)
 {
-	int len = 0, num, i, j;
+	struct command_struct * const *cmd;
+	int len = 0, num, i = 0;
 
-	for (i = 0; i < sl_count; i++) {
-		int l = strlen(sl[i]) + 4;
-		if (l > len)
-			len = l;
+	for (cmd = __bios_cmd_start; cmd != __bios_cmd_end; cmd++) {
+		const char *name = (*cmd)->name;
+		if (command_match(instr, name)) {
+			int l = strlen(name) + 4;
+			if (l > len)
+				len = l;
+		}
 	}
 
 	if (!len)
@@ -56,82 +75,41 @@ static void string_list_print_by_column(void)
 	if (num == 0)
 		num = 1;
 
-	i = 0;
-	for (j = 0; j < sl_count; j++) {
-		if (!(++i % num))
-			printf("%s\n", sl[j]);
-		else
-			printf("%-*s", len, sl[j]);
+	for (cmd = __bios_cmd_start; cmd != __bios_cmd_end; cmd++) {
+		const char *name = (*cmd)->name;
+		if (command_match(instr, name)) {
+			if (!(++i % num))
+				printf("%s\n", name);
+			else
+				printf("%-*s", len, name);
+		}
 	}
 	if (i % num)
 		printf("\n");
 }
 
-static void command_complete(char *instr)
+int complete(char *instr, char *outstr, int outlen)
 {
-	struct command_struct * const *cmd;
-
-	for (cmd = __bios_cmd_start; cmd != __bios_cmd_end; cmd++)
-		if (!strncmp(instr, (*cmd)->name, strlen(instr)))
-			string_list_add((*cmd)->name);
-}
-
-int complete(char *instr, char **outstr)
-{
-	int pos;
-	char ch;
-	int changed;
-	int outpos = 0;
 	int reprint = 0;
-	const char *first_entry;
-	const char *entry;
-	int i;
+	int count;
 
-	string_list_init();
-	command_complete(instr);
+	if (outlen <= 0)
+		return 0;
 
-	pos = strlen(instr);
-
-	*outstr = "";
-	if (sl_count == 0)
+	outstr[0] = 0;
+	count = command_complete_suffix(instr, outstr, outlen);
+	if (count == 0)
 		reprint = 0;
 	else
 	{
-		out[0] = 0;
-
-		first_entry = sl[0];
-
-		while (outpos < CMD_LINE_BUFFER_SIZE - 1) {
-			entry = first_entry;
-			ch = entry[pos];
-			if (!ch)
-				break;
-
-			changed = 0;
-			for (i = 0; i < sl_count; i++) {
-				if ((!sl[i][pos]) || (ch != sl[i][pos])) {
-					changed = 1;
-					break;
-				}
-			}
-
-			if (changed)
-				break;
-			out[outpos++] = ch;
-			pos++;
-		}
-
-		if ((sl_count != 1) && !outpos && tab_pressed) {
+		if ((count != 1) && !outstr[0] && tab_pressed) {
 			printf("\n");
-			string_list_print_by_column();
+			command_matches_print_by_column(instr);
 			reprint = 1;
 			tab_pressed = 0;
 		}
 
-		out[outpos++] = 0;
-		*outstr = out;
-
-		if (*out == 0)
+		if (outstr[0] == 0)
 			tab_pressed = 1;
 		else
 			tab_pressed = 0;

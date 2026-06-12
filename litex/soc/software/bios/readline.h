@@ -50,7 +50,9 @@ struct esc_cmds {
 #define DEL			255
 #define DEL7			127
 
-#define HIST_MAX		10
+#ifndef HIST_MAX
+#define HIST_MAX		5
+#endif
 
 #define putnstr(str,n)	do {			\
 		printf ("%.*s", n, str);	\
