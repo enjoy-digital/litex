@@ -4,11 +4,13 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from types import SimpleNamespace
+import xml.etree.ElementTree as et
 
 import migen
 import pytest
 
-from litex.build.efinix.efinity import EfinityToolchain, _get_design_file_library, build_argdict
+from litex.build.efinix.efinity import EfinityToolchain, _add_verilog_include_paths
+from litex.build.efinix.efinity import _get_design_file_library, build_argdict
 from litex.build.efinix.common import add_gpio_block, gpio_info
 from litex.build.efinix.ifacewriter import InterfaceWriter
 from litex.build.efinix.toolchain import find_efinity_path, load_efinity_env
@@ -67,6 +69,22 @@ def test_build_merges_default_efinity_params(monkeypatch):
     assert toolchain._efx_pnr_params["work_dir"] == "work_pnr"
     assert toolchain._efx_pgm_params["generate_bitbin"] is True
     assert toolchain._efx_pgm_params["generate_hexbin"] is False
+
+
+def test_verilog_include_paths_emit_efx_include_params():
+    efx_map = et.Element("efx:synthesis", {"tool_name": "efx_map"})
+
+    _add_verilog_include_paths(efx_map, ["/rtl/include0", "/rtl/include1"])
+
+    params = [
+        (param.get("name"), param.get("value"), param.get("value_type"))
+        for param in efx_map.findall("efx:param")
+    ]
+
+    assert params == [
+        ("include", "/rtl/include0", "e_string"),
+        ("include", "/rtl/include1", "e_string"),
+    ]
 
 
 def test_design_file_library_preserves_non_header_libraries():

@@ -97,6 +97,15 @@ def _add_custom_params(parent, params):
         })
 
 
+def _add_verilog_include_paths(parent, paths):
+    for path in paths:
+        et.SubElement(parent, "efx:param", {
+            "name"       : "include",
+            "value"      : str(path),
+            "value_type" : "e_string",
+        })
+
+
 # Efinity Toolchain --------------------------------------------------------------------------------
 
 class EfinityToolchain(GenericToolchain):
@@ -104,7 +113,6 @@ class EfinityToolchain(GenericToolchain):
 
     def __init__(self, efinity_path):
         super().__init__()
-        self.options                   = {}
         self.efinity_path              = efinity_path
         # Note: EFXPT_HOME must be set before load_efinity_env is called, as the bash sourcing
         # bin/setup.sh inherits it (implicit ordering dependency).
@@ -117,9 +125,6 @@ class EfinityToolchain(GenericToolchain):
 
     def finalize(self):
         self.ifacewriter.set_build_params(self.platform, self._build_name)
-        # Add Include Paths.
-        if self.platform.verilog_include_paths:
-            self.options["includ_path"] = "{" + ";".join(self.platform.verilog_include_paths) + "}"
 
     def build(self, platform, fragment,
         efx_map_params           = None,
@@ -400,6 +405,7 @@ class EfinityToolchain(GenericToolchain):
 
         efx_map  = et.SubElement(root, "efx:synthesis", {"tool_name": "efx_map"})      
         _add_custom_params(efx_map, self._efx_map_params)
+        _add_verilog_include_paths(efx_map, self.platform.verilog_include_paths)
 
         efx_pnr = et.SubElement(root, "efx:place_and_route", {"tool_name": "efx_pnr"})
         _add_custom_params(efx_pnr, self._efx_pnr_params)
