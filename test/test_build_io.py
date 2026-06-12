@@ -230,22 +230,27 @@ class TestBuildIO(unittest.TestCase):
         self.assertEqual(v.count("\nODDR ODDR"), 4)
 
     def test_gowin_inout_slices_are_normalized(self):
-        dut  = Module()
-        pads = Signal(16)
-        o    = Signal(8)
-        oe   = Signal()
-        i    = Signal(8)
+        for name, overrides in {
+            "gowin": gowin_special_overrides,
+            "gw5a" : _merge_overrides(gowin_special_overrides, gw5a_special_overrides),
+        }.items():
+            with self.subTest(name=name):
+                dut  = Module()
+                pads = Signal(16)
+                o    = Signal(8)
+                oe   = Signal()
+                i    = Signal(8)
 
-        dut.specials += Tristate(pads[0:8], o, oe, i)
+                dut.specials += Tristate(pads[0:8], o, oe, i)
 
-        v = str(verilog.convert(
-            dut,
-            ios               = {pads, o, oe, i},
-            special_overrides = _merge_overrides(gowin_special_overrides, gw5a_special_overrides),
-        ))
-        self.assertNotIn("[7:0][", v)
-        self.assertIn(".IO  (pads[0])", v)
-        self.assertIn(".IO  (pads[7])", v)
+                v = str(verilog.convert(
+                    dut,
+                    ios               = {pads, o, oe, i},
+                    special_overrides = overrides,
+                ))
+                self.assertNotIn("[7:0][", v)
+                self.assertIn(".IO  (pads[0])", v)
+                self.assertIn(".IO  (pads[7])", v)
 
     def test_lattice_nx_ddr_tristate_preserves_i_async(self):
         dut = Module()
