@@ -159,6 +159,70 @@ class FemtoRV(CPU):
         self.cpu_params.update(p_RESET_ADDR=Constant(reset_address, 32))
 
     @staticmethod
+    def fixup_petitbateau_source(filename):
+        if (
+            not os.path.exists(filename) or
+            os.path.basename(filename) != "femtorv32_petitbateau.v"
+        ):
+            return filename
+
+        # Vivado treats the early state[EXECUTE_bit] use as an implicit wire
+        # when the localparam is declared later, then errors on redeclaration.
+        state_bits = [
+            "FETCH_INSTR_bit",
+            "WAIT_INSTR_bit",
+            "DECOMPRESS_GETREGS_bit",
+            "EXECUTE_bit",
+            "WAIT_ALU_OR_MEM_bit",
+            "WAIT_ALU_OR_MEM_SKIP_bit",
+        ]
+        with open(filename, "r") as f:
+            contents = f.read()
+
+        execute_use_pos = contents.find("state[EXECUTE_bit]")
+        execute_decl_pos = contents.find("localparam EXECUTE_bit")
+        if (
+            execute_use_pos == -1 or
+            execute_decl_pos == -1 or
+            execute_decl_pos < execute_use_pos
+        ):
+            return filename
+
+        lines = contents.splitlines(keepends=True)
+        block_start = None
+        for i in range(len(lines) - len(state_bits) + 1):
+            if all(
+                lines[i + n].strip().startswith(f"localparam {bit}")
+                for n, bit in enumerate(state_bits)
+            ):
+                block_start = i
+                break
+        if block_start is None:
+            return filename
+
+        block_end = block_start + len(state_bits)
+        if block_end < len(lines) and lines[block_end].strip() == "":
+            block_end += 1
+        state_block = lines[block_start:block_end]
+        del lines[block_start:block_end]
+
+        insert_at = None
+        for i, line in enumerate(lines):
+            if "// Registers read-write" in line:
+                insert_at = max(i - 1, 0)
+                break
+        if insert_at is None:
+            return filename
+
+        lines[insert_at:insert_at] = state_block
+
+        root, ext = os.path.splitext(filename)
+        fixed_filename = f"{root}_litex{ext}"
+        with open(fixed_filename, "w") as f:
+            f.write("".join(lines))
+        return fixed_filename
+
+    @staticmethod
     def add_sources(platform, variant):
         platform.add_verilog_include_path(os.getcwd())
         cpu_files = [f"{CPU_VARIANTS[variant]}.v"]
@@ -167,7 +231,10 @@ class FemtoRV(CPU):
         for cpu_file in cpu_files:
             if not os.path.exists(cpu_file):
                 os.system(f"wget https://raw.githubusercontent.com/BrunoLevy/learn-fpga/master/FemtoRV/RTL/PROCESSOR/{cpu_file}")
-            platform.add_source(cpu_file)
+            source_file = cpu_file
+            if variant == "petitbateau":
+                source_file = FemtoRV.fixup_petitbateau_source(cpu_file)
+            platform.add_source(source_file)
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
