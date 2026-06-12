@@ -59,8 +59,12 @@ COMMA = ,
 REGULAR_LIBS = $(filter-out $(ALWAYS_LINK_LIBS),$(LIBS))
 ALWAYS_LINK_LIBFLAGS = $(if $(ALWAYS_LINK_LIBS),-Wl$(COMMA)--whole-archive $(ALWAYS_LINK_LIBS:lib%=-l%) -Wl$(COMMA)--no-whole-archive)
 
+ifneq ($(BIOS_STACK_MARGIN),)
+MEMUSAGE_ARGS += --fail-stack-margin $(BIOS_STACK_MARGIN)
+endif
+
 all: bios.bin
-	$(PYTHON) -m litex.soc.software.memusage bios.elf $(CURDIR)/../include/generated/regions.ld $(TRIPLE)
+	$(PYTHON) -m litex.soc.software.memusage $(MEMUSAGE_ARGS) bios.elf $(CURDIR)/../include/generated/regions.ld $(TRIPLE)
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@

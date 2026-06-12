@@ -3,11 +3,16 @@
 # This file is Copyright (c) 2020 Franck Jullien <franck.jullien@gmail.com>
 # License: BSD
 
-import subprocess
 import argparse
 import re
+import subprocess
+import sys
 
 STACK_MARGIN_WARN_SIZE = 2*1024
+
+
+def format_size(size):
+    return "{:.2f}KiB".format(size/1024.0)
 
 
 def parse_regions(regions):
@@ -77,14 +82,15 @@ def section_in_region(section, region):
 
 def print_size(name, size, total=None):
     if total is None:
-        print("{}: {:.2f}KiB".format(name, size/1024.0))
+        print("{}: {}".format(name, format_size(size)))
     else:
-        print("{}: {:.2f}KiB \t({:.2f}%)".format(name, size/1024.0, size/total*100.0))
+        print("{}: {} \t({:.2f}%)".format(name, format_size(size), size/total*100.0))
 
 
-def print_usage(bios, regions, triple):
+def print_usage(bios, regions, triple, fail_stack_margin=None):
     linker_regions = parse_regions(regions)
     sections       = parse_sections(bios, triple)
+    failed         = False
 
     rom_region  = linker_regions.get("rom",  None)
     sram_region = linker_regions.get("sram", None)
@@ -137,20 +143,33 @@ def print_usage(bios, regions, triple):
         print_size("  .bss", bss_usage)
         if stack_usage:
             print_size("  .stack", stack_usage)
+            stack_available = stack_usage
+            stack_name      = ".stack"
         else:
+            stack_available = stack_margin
+            stack_name      = "stack margin"
             print_size("  stack margin", stack_margin)
             if stack_margin < STACK_MARGIN_WARN_SIZE:
                 print("WARNING: SRAM stack margin is very small; consider increasing integrated SRAM")
                 print("         or reducing BIOS features.")
+        if (fail_stack_margin is not None) and (stack_available < fail_stack_margin):
+            print("ERROR: SRAM {} is below required minimum ({} < {}).".format(
+                stack_name,
+                format_size(stack_available),
+                format_size(fail_stack_margin)))
+            failed = True
     print("")
+    return 1 if failed else 0
 
 def main():
     parser = argparse.ArgumentParser(description="Print bios memory usage")
+    parser.add_argument("--fail-stack-margin", type=lambda x: int(x, 0), default=None,
+        help="Fail when available BIOS stack space is below this byte count.")
     parser.add_argument("input", help="input file")
     parser.add_argument("regions", help="regions definitions")
     parser.add_argument("triple", help="toolchain triple")
     args = parser.parse_args()
-    print_usage(args.input, args.regions, args.triple)
+    sys.exit(print_usage(args.input, args.regions, args.triple, args.fail_stack_margin))
 
 
 if __name__ == "__main__":

@@ -162,6 +162,7 @@ class TestBuilderArguments(unittest.TestCase):
             "--bios-format", "float",
             "--bios-console", "lite",
             "--bios-no-ansi",
+            "--bios-stack-margin", "0x400",
             "--libc-mode", "full",
             "--no-integrated-rom-auto-size",
             "--hierarchical-verilog",
@@ -175,6 +176,7 @@ class TestBuilderArguments(unittest.TestCase):
         self.assertEqual(argdict["bios_format"],  "float")
         self.assertEqual(argdict["bios_console"], "lite")
         self.assertTrue(argdict["bios_no_ansi"])
+        self.assertEqual(argdict["bios_stack_margin"], 0x400)
         self.assertEqual(argdict["libc_mode"],    "full")
         self.assertFalse(argdict["integrated_rom_auto_size"])
         self.assertTrue(argdict["hierarchical"])
@@ -394,6 +396,7 @@ class TestBuilderGeneratedFiles(unittest.TestCase):
             builder = _make_builder(tmp_dir, soc=_IncludeFakeSoC(), compile_software=False)
             builder.add_software_package("custom", r"C:\liteX\custom")
             builder.add_software_library("libcustom", always_link=True)
+            builder.bios_stack_margin = 0x400
 
             with patch("litex.soc.integration.builder.export.get_cpu_mak", return_value=[
                 ("TRIPLE",        "--not-found--"),
@@ -416,6 +419,7 @@ class TestBuilderGeneratedFiles(unittest.TestCase):
 
             self.assertIn(r"CUSTOM_DIRECTORY=C:\\liteX\\custom", variables)
             self.assertIn("BIOS_CONSOLE_FULL=1", variables)
+            self.assertIn("BIOS_STACK_MARGIN=1024", variables)
             self.assertIn("ALWAYS_LINK_LIBS=libcustom", variables)
             self.assertIn("BIOS_CONSOLE_NO_ANSI=1", variables_no_ansi)
 

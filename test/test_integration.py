@@ -197,7 +197,8 @@ def _run_linux_on_litex_rocket_generation(target_filename, output_dir, target_ar
         sys.executable,
         target,
         "--build",
-        "--no-compile",
+        "--no-compile-gateware",
+        "--bios-stack-margin", "0x400",
         "--output-dir", str(output_dir),
         *target_args,
     ]

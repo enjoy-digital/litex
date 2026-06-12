@@ -255,7 +255,7 @@ jobs:
                   "::test_linux_on_litex_rocket_ecpix5_generation",
                   "::test_linux_on_litex_rocket_nexys_video_generation",
               )):
-                  d[t] = 30.0   # no-compile gateware/software generation smoke test
+                  d[t] = 30.0   # software compile + no-gateware-compile generation smoke test
               else:
                   d[t] = 1.0    # in-process Migen sims are near-instant
           with open(".test_durations", "w") as f:
