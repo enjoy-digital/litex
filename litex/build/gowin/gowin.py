@@ -20,6 +20,16 @@ from litex.build import tools
 
 # Constraints (.cst) -------------------------------------------------------------------------------
 
+def _is_differential_iostandard(iostandard):
+    name = iostandard.name.upper()
+    return name.endswith("D") or "LVDS" in name
+
+def _use_differential_constraint(other):
+    iostandards = [c for c in other if isinstance(c, IOStandard)]
+    if not iostandards:
+        return True
+    return any(_is_differential_iostandard(iostandard) for iostandard in iostandards)
+
 def _build_cst(named_sc, named_pc, additional_cst_commands, build_name):
     cst = []
 
@@ -41,7 +51,7 @@ def _build_cst(named_sc, named_pc, additional_cst_commands, build_name):
         if pin != "X":
             t_name = name.split('[') # avoid index pins
             tmp_name = t_name[0]
-            if tmp_name[-2:] == "_p":
+            if tmp_name[-2:] == "_p" and _use_differential_constraint(other):
                 pn = tmp_name[:-2] + "_n"
                 if len(t_name) > 1:
                     pn += '[' + t_name[1]
@@ -52,8 +62,8 @@ def _build_cst(named_sc, named_pc, additional_cst_commands, build_name):
                 pp = tmp_name[:-2] + "_p"
                 if len(t_name) > 1:
                     pp += '[' + t_name[1]
-                (p_name, _, _) = _search_pin_entry(flat_sc, pp)
-                if p_name is not None:
+                (p_name, _, p_other) = _search_pin_entry(flat_sc, pp)
+                if p_name is not None and _use_differential_constraint(p_other):
                     continue
             cst.append(f"IO_LOC \"{name}\" {pin};")
 

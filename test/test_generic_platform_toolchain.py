@@ -23,6 +23,7 @@ from litex.build.generic_platform import (
     PlatformInfo,
     Subsignal,
 )
+from litex.build.gowin.gowin import _build_cst
 from litex.build.generic_toolchain import GenericToolchain
 
 
@@ -712,6 +713,46 @@ class TestGenericToolchain(unittest.TestCase):
                     )
 
             self._assert_cwd_restored()
+
+
+class TestGowinCST(unittest.TestCase):
+    def _build_cst(self, named_sc):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            build_name = os.path.join(tmp_dir, "top")
+            _build_cst(named_sc, [], [], build_name)
+            with open(build_name + ".cst") as f:
+                return f.read()
+
+    def test_lvcmos_pn_pins_are_constrained_separately(self):
+        cst = self._build_cst([
+            ("hdmi_clk_p", ["G16"], [Misc("PULL_MODE=NONE"), IOStandard("LVCMOS33")], None),
+            ("hdmi_clk_n", ["H15"], [Misc("PULL_MODE=NONE"), IOStandard("LVCMOS33")], None),
+        ])
+
+        self.assertIn('IO_LOC "hdmi_clk_p" G16;', cst)
+        self.assertIn('IO_PORT "hdmi_clk_p" PULL_MODE=NONE IO_TYPE=LVCMOS33;', cst)
+        self.assertIn('IO_LOC "hdmi_clk_n" H15;', cst)
+        self.assertIn('IO_PORT "hdmi_clk_n" PULL_MODE=NONE IO_TYPE=LVCMOS33;', cst)
+        self.assertNotIn("G16,H15", cst)
+
+    def test_differential_pn_pins_stay_paired(self):
+        cst = self._build_cst([
+            ("ddram_dqs_p[0]", ["G2"], [IOStandard("SSTL15D")], None),
+            ("ddram_dqs_n[0]", ["G3"], [IOStandard("SSTL15D")], None),
+        ])
+
+        self.assertIn('IO_LOC "ddram_dqs_p[0]" G2,G3;', cst)
+        self.assertIn('IO_PORT "ddram_dqs_p[0]" IO_TYPE=SSTL15D;', cst)
+        self.assertNotIn('IO_LOC "ddram_dqs_n[0]"', cst)
+
+    def test_unspecified_pn_pins_keep_existing_pairing(self):
+        cst = self._build_cst([
+            ("rx_p", ["A1"], [], None),
+            ("rx_n", ["A2"], [], None),
+        ])
+
+        self.assertIn('IO_LOC "rx_p" A1,A2;', cst)
+        self.assertNotIn('IO_LOC "rx_n"', cst)
 
 
 if __name__ == "__main__":
