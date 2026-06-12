@@ -133,8 +133,16 @@ static int serial2console_add_pads(void *sess, struct pad_list_s *plist)
     litex_sim_module_pads_get(pads, "source_ready", (void**)&s->tx_ready);
   }
 
-  if(!strcmp(plist->name, "sys_clk"))
-    litex_sim_module_pads_get(pads, "sys_clk", (void**) &s->sys_clk);
+  if(strcmp(plist->name, "serial")) {
+    ret = litex_sim_module_pads_get(pads, plist->name, (void**) &s->sys_clk);
+    if(ret != RC_OK)
+      goto out;
+    if(!s->sys_clk) {
+      eprintf("Could not find clock pad %s\n", plist->name);
+      ret = RC_ERROR;
+      goto out;
+    }
+  }
 
 out:
   return ret;
@@ -143,6 +151,9 @@ out:
 static int serial2console_tick(void *sess, uint64_t time_ps) {
   static clk_edge_state_t edge;
   struct session_s *s = (struct session_s*)sess;
+
+  if(!s || !s->sys_clk)
+    return RC_ERROR;
 
   if(!clk_pos_edge(&edge, *s->sys_clk)) {
     return RC_OK;
