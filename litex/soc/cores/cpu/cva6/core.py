@@ -33,7 +33,7 @@ GCC_FLAGS = {
     #                       |||||/-- Double-Precision Floating-Point
     #                       imacfd
     "standard"   : "-march=rv64i2p0_mac -mabi=lp64 ",
-    "standard32" : "-march=rv32imac -mabi=ilp32 ",
+    "standard32" : "-march=rv32i2p0_mac -mabi=ilp32 ",
     "full"       : "-march=rv64gc   -mabi=lp64 ",
 }
 
