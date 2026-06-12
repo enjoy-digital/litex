@@ -810,6 +810,20 @@ class TestSoC(unittest.TestCase):
         self.assertEqual(soc.constants["CONFIG_CPU_INTERRUPTS"], 3)
         self.assertEqual(soc.constants["RAW_INTERRUPT"], 2)
 
+    def test_finalize_irq_warns_on_unresolved_source(self):
+        soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.cpu = SimpleNamespace(interrupt=Signal(4), interrupts={})
+        soc.irq.enable()
+        soc.irq.add("missing", 1)
+
+        with self.assertLogs("SoC", level="WARNING") as log:
+            soc._finalize_irq()
+
+        messages = "\n".join(log.output)
+        self.assertIn("missing", messages)
+        self.assertIn("unconnected", messages)
+        self.assertEqual(soc.constants["MISSING_INTERRUPT"], 1)
+
     def test_build_uses_platform_name_and_sanitizes_numeric_build_name(self):
         platform = _FakePlatform()
         soc      = SoC(platform, sys_clk_freq=1e6)

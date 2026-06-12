@@ -1832,6 +1832,10 @@ class SoC(LiteXModule):
                             colorer(name)))
                         raise SoCError()
                     self.comb += self.cpu.interrupt[loc].eq(irq)
+                else:
+                    self.logger.warning("{} IRQ has no matching submodule/direct source and will be left {}.".format(
+                        colorer(name),
+                        colorer("unconnected", color="yellow")))
                 self.add_constant(name + "_INTERRUPT", loc)
 
     def _log_finalized(self):
