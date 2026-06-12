@@ -694,7 +694,8 @@ class SoCBusHandler(LiteXModule):
             axi.AXIInterface     : axi.AXIOffset,
         }[interface_cls]
 
-        adapted_interface = interface_cls(**self._get_interface_args(interface))
+        adapted_interface = interface_cls(**self._get_interface_args(interface,
+            address_width = self.address_width))
 
         self.submodules += offset_cls(adapted_interface, interface, offset)
 

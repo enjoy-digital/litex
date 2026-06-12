@@ -449,6 +449,20 @@ class TestSoCBusStandardIntegration(unittest.TestCase):
         self.assertIsInstance(bus.slaves["slave"], wishbone.Interface)
         self.assertEqual(bus.slaves["slave"].data_width, 64)
 
+    def test_narrow_axi_lite_slave_with_strip_origin_adapts_to_wishbone_bus(self):
+        bus       = SoCBusHandler(standard="wishbone", data_width=32, address_width=32)
+        interface = axi.AXILiteInterface(data_width=32, address_width=28)
+
+        bus.add_slave(
+            "slave",
+            interface,
+            SoCRegion(origin=0x4000_0000, size=0x1000_0000),
+            strip_origin=True,
+        )
+
+        self.assertIsInstance(bus.slaves["slave"], wishbone.Interface)
+        self.assertEqual(bus.slaves["slave"].address_width, bus.address_width)
+
     def test_axi_slave_adaptation_uses_existing_master_id_width(self):
         bus = SoCBusHandler(standard="axi")
         bus.add_master("cpu", axi.AXIInterface(id_width=4))
