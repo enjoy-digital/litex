@@ -1,6 +1,7 @@
 import unittest
 
 from migen import *
+from migen.fhdl.specials import Tristate
 
 from litex.build.altera.common import altera_special_overrides
 from litex.build.colognechip.common import colognechip_special_overrides
@@ -227,6 +228,24 @@ class TestBuildIO(unittest.TestCase):
         ))
         self.assertEqual(v.count("\nIDDR IDDR"), 4)
         self.assertEqual(v.count("\nODDR ODDR"), 4)
+
+    def test_gowin_inout_slices_are_normalized(self):
+        dut  = Module()
+        pads = Signal(16)
+        o    = Signal(8)
+        oe   = Signal()
+        i    = Signal(8)
+
+        dut.specials += Tristate(pads[0:8], o, oe, i)
+
+        v = str(verilog.convert(
+            dut,
+            ios               = {pads, o, oe, i},
+            special_overrides = _merge_overrides(gowin_special_overrides, gw5a_special_overrides),
+        ))
+        self.assertNotIn("[7:0][", v)
+        self.assertIn(".IO  (pads[0])", v)
+        self.assertIn(".IO  (pads[7])", v)
 
     def test_lattice_nx_ddr_tristate_preserves_i_async(self):
         dut = Module()

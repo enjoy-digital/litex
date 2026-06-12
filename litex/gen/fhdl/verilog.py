@@ -620,6 +620,30 @@ class _ComplexSliceLowerer(_Lowerer):
 def lower_complex_slices(f):
     return _apply_lowerer(_ComplexSliceLowerer(), f)
 
+def _lower_inout_slice(node):
+    length = len(node)
+    start  = 0
+    while isinstance(node, _Slice):
+        start += node.start
+        node   = node.value
+    if not isinstance(node, Signal):
+        return None
+    if start == 0 and len(node) == length:
+        return node
+    return _Slice(node, start, start + length)
+
+def lower_complex_inout_slices(f):
+    for special in sorted(f.specials, key=lambda s: s.duid):
+        for obj, attr, direction in special.iter_expressions():
+            if direction != SPECIAL_INOUT:
+                continue
+            expr = getattr(obj, attr)
+            if isinstance(expr, _Slice):
+                expr = _lower_inout_slice(expr)
+                if expr is not None:
+                    setattr(obj, attr, expr)
+    return f
+
 # ------------------------------------------------------------------------------------------------ #
 #                                    FHDL --> VERILOG                                              #
 # ------------------------------------------------------------------------------------------------ #
@@ -684,6 +708,9 @@ def _prepare_fragment(f, platform, special_overrides, global_clock_domains=None)
 
     # Lower basics (for basics included in specials).
     f = lower_basics(f)
+
+    # Lower inout slices only when this can be done without proxy signals.
+    f = lower_complex_inout_slices(f)
 
     return f, lowered_specials
 
