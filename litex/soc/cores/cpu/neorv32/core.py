@@ -100,6 +100,8 @@ class NEORV32(CPU):
         # CPU Instance.
         self.cores = []
         for i in range(self.cpu_count):
+            wb_stb = Signal()
+            wb_cyc = Signal()
             cpu_params = dict(
                 # Clk/Rst.
                 i_clk_i  = ClockSignal("sys"),
@@ -120,8 +122,8 @@ class NEORV32(CPU):
                 o_wb_dat_o = self.periph_buses[i].dat_w,
                 o_wb_we_o  = self.periph_buses[i].we,
                 o_wb_sel_o = self.periph_buses[i].sel,
-                o_wb_stb_o = self.periph_buses[i].stb,
-                o_wb_cyc_o = self.periph_buses[i].cyc,
+                o_wb_stb_o = wb_stb,
+                o_wb_cyc_o = wb_cyc,
                 i_wb_ack_i = self.periph_buses[i].ack,
                 i_wb_err_i = self.periph_buses[i].err,
 
@@ -139,6 +141,14 @@ class NEORV32(CPU):
                 }[self.variant],
                 p_DEBUG = "debug" in self.variant,
             )
+            # NEORV32's XBUS can pulse stb while keeping cyc asserted for the
+            # pending access; LiteX Wishbone slaves expect stb until ack.
+            self.comb += [
+                self.periph_buses[i].stb.eq(wb_cyc),
+                self.periph_buses[i].cyc.eq(wb_cyc),
+                self.periph_buses[i].cti.eq(wishbone.CTI_BURST_NONE),
+                self.periph_buses[i].bte.eq(0),
+            ]
 
             # TODO
             if "debug" in variant:
