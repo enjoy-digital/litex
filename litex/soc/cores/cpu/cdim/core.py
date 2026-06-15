@@ -16,6 +16,24 @@ from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_MIPS
 
 CPU_VARIANTS = ["standard"]
 
+# Helpers ------------------------------------------------------------------------------------------
+
+def _get_cdim_dir():
+    candidates = [
+        os.environ.get("LITEX_CDIM_DIR"),
+        os.path.join(os.getcwd(), "CDIM", "mycpu"),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../../CDIM/mycpu")),
+    ]
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        if os.path.isfile(os.path.join(candidate, "mycpu_top.v")):
+            return candidate
+    raise OSError(
+        "Unable to locate CDIM Verilog sources. Clone the CDIM sources next to the LiteX repository "
+        "or set LITEX_CDIM_DIR to the CDIM/mycpu directory."
+    )
+
 # CDIM ---------------------------------------------------------------------------------------------
 
 class CDIM(CPU):
@@ -115,7 +133,7 @@ class CDIM(CPU):
         )
 
         # Add Verilog sources.
-        basedir = os.path.join("CDIM", "mycpu")
+        basedir = _get_cdim_dir()
         self.platform.add_source_dir(basedir)
         platform.add_verilog_include_path(basedir)
 

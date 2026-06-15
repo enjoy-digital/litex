@@ -16,6 +16,24 @@ from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_MIPS
 
 CPU_VARIANTS = ["standard"]
 
+# Helpers ------------------------------------------------------------------------------------------
+
+def _get_gs232_dir():
+    candidates = [
+        os.environ.get("LITEX_GS232_DIR"),
+        os.path.join(os.getcwd(), "cpu_gs232"),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../../cpu_gs232")),
+    ]
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        if os.path.isfile(os.path.join(candidate, "godson_cpu_core.v")):
+            return candidate
+    raise OSError(
+        "Unable to locate GS232 Verilog sources. Clone https://github.com/elllusion/cpu_gs232 "
+        "next to the LiteX repository or set LITEX_GS232_DIR to the cpu_gs232 directory."
+    )
+
 # GS232 --------------------------------------------------------------------------------------------
 
 class GS232(CPU):
@@ -223,7 +241,7 @@ class GS232(CPU):
                 ]
 
         # Add sources.
-        basedir = "cpu_gs232"
+        basedir = _get_gs232_dir()
         self.platform.add_source_dir(basedir)
         platform.add_verilog_include_path(basedir)
 
