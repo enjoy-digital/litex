@@ -63,6 +63,14 @@ def _validate_trace_timescale(timescale, timescale_ps, sim_config):
         )
 
 
+def _normalize_verilator_extra_sources(verilator_extra_sources):
+    if verilator_extra_sources is None:
+        return []
+    if isinstance(verilator_extra_sources, (str, os.PathLike)):
+        verilator_extra_sources = [verilator_extra_sources]
+    return [os.path.abspath(os.fspath(filename)) for filename in verilator_extra_sources]
+
+
 def _generate_sim_h_struct(name, index, siglist):
     content = ""
 
@@ -119,6 +127,19 @@ def _generate_sim_cpp(platform, trace=False, trace_start=0, trace_end=-1,
 #include "sim_header.h"
 
 extern "C" void litex_sim_init_runtime(long load_start, long save_start);
+#if defined(__GNUC__) || defined(__clang__)
+extern "C" void litex_sim_user_init(void *vsim) __attribute__((weak));
+static void litex_sim_call_user_init(void *vsim)
+{
+    if (litex_sim_user_init != nullptr)
+        litex_sim_user_init(vsim);
+}
+#else
+static void litex_sim_call_user_init(void *vsim)
+{
+    (void)vsim;
+}
+#endif
 """
     if trace:
         content += """\
@@ -155,23 +176,40 @@ extern "C" void litex_sim_init(void **out)
         content += _generate_sim_cpp_struct(*args)
 
     content += """\
+    litex_sim_call_user_init(sim);
+
     *out = sim;
 }
 """
     tools.write_to_file("sim_init.cpp", content)
 
 
-def _generate_sim_variables(include_paths, extra_mods, extra_mods_path, video):
+def _generate_sim_variables(include_paths, extra_mods, extra_mods_path, video,
+        verilator_extra_sources=None):
     tapcfg_dir = get_data_mod("misc", "tapcfg").data_location
     include = ""
     for path in include_paths:
         include += "-I" + path + " "
+    verilator_extra_sources = verilator_extra_sources or []
+    user_cpp_inc_dirs = []
+    for filename in verilator_extra_sources:
+        include_dir = os.path.dirname(filename)
+        if include_dir and include_dir not in user_cpp_inc_dirs:
+            user_cpp_inc_dirs.append(include_dir)
     content = """\
 SRC_DIR = {}
 INC_DIR = {}
 TAPCFG_DIRECTORY = {}
+USER_CPP_SRCS = {}
+USER_CPP_INC_DIRS = {}
 {}
-""".format(core_directory, include, tapcfg_dir, "VIDEO = 1" if video else "")
+""".format(
+    core_directory,
+    include,
+    tapcfg_dir,
+    " ".join(verilator_extra_sources),
+    " ".join("-I" + path for path in user_cpp_inc_dirs),
+    "VIDEO = 1" if video else "")
 
     if extra_mods:
         if not extra_mods_path:
@@ -298,7 +336,10 @@ class SimVerilatorToolchain:
             extra_mods_path  = "",
             load_start       = 0,
             save_start       = -1,
+            verilator_extra_sources = None,
             **kwargs):
+
+        verilator_extra_sources = _normalize_verilator_extra_sources(verilator_extra_sources)
 
         # Create build directory
         os.makedirs(build_dir, exist_ok=True)
@@ -342,7 +383,8 @@ class SimVerilatorToolchain:
                 _generate_sim_variables(platform.verilog_include_paths,
                                         extra_mods,
                                         extra_mods_path,
-                                        video)
+                                        video,
+                                        verilator_extra_sources)
 
                 # Generate sim config
                 if sim_config:
@@ -408,6 +450,9 @@ def verilator_build_args(parser):
     toolchain_group.add_argument("--opt-level",    default="O3",        help="Compilation optimization level.")
     toolchain_group.add_argument("--load-start",   default="0",         help="Time to restore simulation state (ps).")
     toolchain_group.add_argument("--save-start",   default="-1",        help="Time to save simulation state (ps).")
+    toolchain_group.add_argument("--verilator-extra-source", action="append", default=[],
+                                 dest="verilator_extra_sources",
+                                 help="Add user C++ source to the Verilator simulation executable.")
 
 
 def verilator_build_argdict(args):
@@ -422,4 +467,5 @@ def verilator_build_argdict(args):
         "opt_level"   : args.opt_level,
         "load_start"  : int(float(args.load_start)),
         "save_start"  : int(float(args.save_start)),
+        "verilator_extra_sources" : args.verilator_extra_sources,
     }

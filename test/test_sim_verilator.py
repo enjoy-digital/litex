@@ -4,6 +4,8 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import argparse
+import os
 import signal
 import subprocess
 import unittest
@@ -52,6 +54,54 @@ class TestSimVerilatorTrace(unittest.TestCase):
 
         content = write_to_file.call_args.args[1]
         self.assertIn('litex_sim_init_tracer(sim, 0, -1, "100ps", 100);', content)
+
+
+class TestSimVerilatorUserHooks(unittest.TestCase):
+    def test_generate_sim_cpp_calls_user_init_hook(self):
+        platform = mock.Mock()
+        platform.sim_requested = []
+
+        with mock.patch.object(verilator.tools, "write_to_file") as write_to_file:
+            verilator._generate_sim_cpp(platform)
+
+        content = write_to_file.call_args.args[1]
+        self.assertIn("litex_sim_user_init", content)
+        self.assertIn("litex_sim_call_user_init(sim);", content)
+
+    def test_generate_sim_variables_adds_extra_sources(self):
+        with mock.patch.object(verilator.tools, "write_to_file") as write_to_file:
+            verilator._generate_sim_variables(
+                include_paths            = [],
+                extra_mods               = None,
+                extra_mods_path          = "",
+                video                    = False,
+                verilator_extra_sources  = [
+                    "/tmp/litex_force.cpp",
+                    "/tmp/hooks/litex_trace.cpp",
+                ],
+            )
+
+        content = write_to_file.call_args.args[1]
+        self.assertIn("USER_CPP_SRCS = /tmp/litex_force.cpp /tmp/hooks/litex_trace.cpp", content)
+        self.assertIn("USER_CPP_INC_DIRS = -I/tmp -I/tmp/hooks", content)
+
+    def test_normalize_extra_sources_accepts_string(self):
+        self.assertEqual(
+            verilator._normalize_verilator_extra_sources("hook.cpp"),
+            [os.path.abspath("hook.cpp")],
+        )
+
+    def test_build_argdict_keeps_extra_sources(self):
+        parser = argparse.ArgumentParser()
+        verilator.verilator_build_args(parser)
+
+        args = parser.parse_args([
+            "--verilator-extra-source", "force.cpp",
+            "--verilator-extra-source", "trace.cpp",
+        ])
+        argdict = verilator.verilator_build_argdict(args)
+
+        self.assertEqual(argdict["verilator_extra_sources"], ["force.cpp", "trace.cpp"])
 
 
 class TestSimVerilatorRun(unittest.TestCase):

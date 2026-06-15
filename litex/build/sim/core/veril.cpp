@@ -32,6 +32,35 @@ uint64_t save_time = -1;
 uint64_t load_time = 0;
 static bool finalized = false;
 
+#if defined(__GNUC__) || defined(__clang__)
+extern "C" void litex_sim_user_pre_eval(void *vsim, uint64_t time_ps) __attribute__((weak));
+extern "C" void litex_sim_user_post_eval(void *vsim, uint64_t time_ps) __attribute__((weak));
+
+static void litex_sim_call_user_pre_eval(void *vsim, uint64_t time_ps)
+{
+  if (litex_sim_user_pre_eval != nullptr)
+    litex_sim_user_pre_eval(vsim, time_ps);
+}
+
+static void litex_sim_call_user_post_eval(void *vsim, uint64_t time_ps)
+{
+  if (litex_sim_user_post_eval != nullptr)
+    litex_sim_user_post_eval(vsim, time_ps);
+}
+#else
+static void litex_sim_call_user_pre_eval(void *vsim, uint64_t time_ps)
+{
+  (void)vsim;
+  (void)time_ps;
+}
+
+static void litex_sim_call_user_post_eval(void *vsim, uint64_t time_ps)
+{
+  (void)vsim;
+  (void)time_ps;
+}
+#endif
+
 #ifdef SAVABLE
 static void litex_sim_save_state(void *vsim, const char *filename);
 static void litex_sim_restore_state(void *vsim, const char *filename);
@@ -70,7 +99,9 @@ extern "C" void litex_sim_eval(void *vsim, uint64_t time_ps)
   }
 #endif
   Vsim *sim = (Vsim *)vsim;
+  litex_sim_call_user_pre_eval(sim, time_ps);
   sim->eval();
+  litex_sim_call_user_post_eval(sim, time_ps);
   main_time = time_ps;
 }
 

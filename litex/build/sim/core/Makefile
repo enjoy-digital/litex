@@ -20,6 +20,8 @@ endif
 CFLAGS += -Wall -$(OPT_LEVEL) $(if $(COVERAGE), -DVM_COVERAGE) $(if $(TRACE_FST), -DTRACE_FST) $(if $(SAVABLE), -DSAVABLE)
 
 CC_SRCS ?= "--cc sim.v"
+USER_CPP_SRCS ?=
+USER_CPP_INC_DIRS ?=
 
 SRC_DIR ?= .
 INC_DIR ?= .
@@ -28,7 +30,7 @@ export OBJ_DIR = $(abspath obj_dir)
 
 SRCS_SIM_ABSPATH = $(wildcard $(SRC_DIR)/*.c)
 SRCS_SIM = $(notdir $(SRCS_SIM_ABSPATH))
-SRCS_SIM_CPP = sim_init.cpp $(SRC_DIR)/veril.cpp
+SRCS_SIM_CPP = sim_init.cpp $(SRC_DIR)/veril.cpp $(USER_CPP_SRCS)
 OBJS_SIM = $(SRCS_SIM:.c=.o)
 
 all: modules sim
@@ -46,7 +48,7 @@ sim: $(OBJS_SIM) | mkdir
 		$(SRCS_SIM_CPP) $(OBJS_SIM) \
 		--top-module sim \
 		$(if $(THREADS), --threads $(THREADS),) \
-		-CFLAGS "$(CFLAGS) -I$(SRC_DIR)" \
+		-CFLAGS "$(CFLAGS) -I$(SRC_DIR) $(USER_CPP_INC_DIRS)" \
 		-LDFLAGS "$(LDFLAGS)" \
 		$(if $(TRACE), --trace,) \
 		$(if $(TRACE_FST), --trace-fst,) \
