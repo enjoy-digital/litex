@@ -195,9 +195,13 @@ $ litex_sim --cpu-type=vexriscv
 On MacOS:
 ```sh
 $ brew install json-c verilator libevent
-$ brew cask install tuntap
 $ litex_sim --cpu-type=vexriscv
 ```
+
+Ethernet/TAP simulation requires a host TAP interface. The old
+`brew cask install tuntap` command is no longer valid on current Homebrew, so
+install a MacOS-compatible TUN/TAP driver separately or use Linux for TAP-based
+simulation.
 
 6. Run a terminal program on the board's serial port at 115200 8-N-1.
 
