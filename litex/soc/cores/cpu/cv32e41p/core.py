@@ -31,7 +31,9 @@ GCC_FLAGS = {
     #                       |    |||/--- Single-Precision Floating-Point
     #                       |    ||||/-- Double-Precision Floating-Point
     #                       i    macfd
-    "standard": "-march=rv32i2p0_mc    -mabi=ilp32 ",
+    # Keep software builds on RV32IM: the archived CV32E41P RTL has a broken
+    # compressed-instruction flag path, which can corrupt c.jal link addresses.
+    "standard": "-march=rv32i2p0_m     -mabi=ilp32 ",
 }
 
 # OBI / APB / Trace Layouts ------------------------------------------------------------------------
@@ -64,9 +66,9 @@ def add_manifest_sources(platform, manifest):
     basedir = get_data_mod("cpu", "cv32e41p").data_location
     with open(os.path.join(basedir, manifest), 'r') as f:
         for l in f:
-            res = re.search('\$\{DESIGN_RTL_DIR\}/(.+)', l)
+            res = re.search(r'\$\{DESIGN_RTL_DIR\}/(.+)', l)
             if res and not re.match('//', l):
-                if re.match('\+incdir\+', l):
+                if re.match(r'\+incdir\+', l):
                     platform.add_verilog_include_path(os.path.join(basedir, 'rtl', res.group(1)))
                 else:
                     platform.add_source(os.path.join(basedir, 'rtl', res.group(1)))

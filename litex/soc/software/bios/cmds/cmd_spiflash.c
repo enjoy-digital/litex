@@ -18,7 +18,7 @@
  * Write data from a memory buffer to SPI flash
  *
  */
-#if (defined CSR_SPIFLASH_CORE_MASTER_CS_ADDR)
+#if (defined CSR_SPIFLASH_MASTER_CS_ADDR)
 static void flash_write_handler(int nb_params, char **params)
 {
 	char *c;
@@ -27,19 +27,19 @@ static void flash_write_handler(int nb_params, char **params)
 	unsigned int count;
 
 	if (nb_params < 2) {
-		printf("flash_write <offset> <mem_addr> [count (bytes)]");
+		printf("flash_write <offset> <mem_addr> [count]\n");
 		return;
 	}
 
 	addr = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect offset");
+		printf("Error: invalid offset\n");
 		return;
 	}
 
 	mem_addr = strtoul(params[1], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect mem_addr");
+		printf("Error: invalid mem_addr\n");
 		return;
 	}
 
@@ -48,12 +48,13 @@ static void flash_write_handler(int nb_params, char **params)
 	} else {
 		count = strtoul(params[2], &c, 0);
 		if (*c != 0) {
-			printf("Incorrect count");
+			printf("Error: invalid count\n");
 			return;
 		}
 	}
 
-	spiflash_write_stream(addr, (unsigned char *)mem_addr, count);
+	if (spiflash_write_stream(addr, (unsigned char *)mem_addr, count) != (int)count)
+		printf("Error: flash write failed (is the region erased? see flash_erase_range)\n");
 }
 
 define_command(flash_write, flash_write_handler, "Write to flash", SPIFLASH_CMDS);
@@ -69,15 +70,17 @@ static void flash_from_sdcard_handler(int nb_params, char **params)
 	uint8_t buf[512];
 
 	if (nb_params < 1) {
-		printf("flash_from_sdcard <filename>");
+		printf("flash_from_sdcard <filename>\n");
 		return;
 	}
 
 	char* filename = params[0];
 
 	fr = f_mount(&fs, "", 1);
-	if (fr != FR_OK)
+	if (fr != FR_OK) {
+		printf("Error: filesystem mount failed (FatFs error %d)\n", fr);
 		return;
+	}
 	fr = f_open(&file, filename, FA_READ);
 	if (fr != FR_OK) {
 		printf("%s file not found.\n", filename);
@@ -92,7 +95,7 @@ static void flash_from_sdcard_handler(int nb_params, char **params)
 	for (;;) {
 		fr = f_read(&file, (void*) buf, 512, (UINT *)&br);
 		if (fr != FR_OK) {
-			printf("file read error.\n");
+			printf("Error: file read failed\n");
 			f_close(&file);
 			f_mount(0, "", 0);
 			return;
@@ -100,7 +103,12 @@ static void flash_from_sdcard_handler(int nb_params, char **params)
 		if (br == 0) {
 			break;
 		} else {
-			spiflash_write_stream(offset, buf, br);
+			if (spiflash_write_stream(offset, buf, br) != (int)br) {
+				printf("Error: flash write failed (is the region erased? see flash_erase_range)\n");
+				f_close(&file);
+				f_mount(0, "", 0);
+				return;
+			}
 		}
 
 		offset += br;
@@ -121,19 +129,19 @@ static void flash_erase_range_handler(int nb_params, char **params)
 	uint32_t count;
 
 	if (nb_params < 2) {
-		printf("flash_erase <offset> <count (bytes)>");
+		printf("flash_erase_range <offset> <count>\n");
 		return;
 	}
 
 	addr = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect offset");
+		printf("Error: invalid offset\n");
 		return;
 	}
 
 	count = strtoul(params[1], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect count");
+		printf("Error: invalid count\n");
 		return;
 	}
 

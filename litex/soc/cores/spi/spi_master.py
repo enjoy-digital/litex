@@ -41,13 +41,15 @@ class SPIMaster(LiteXModule):
     """
     pads_layout = [("clk", 1), ("cs_n", 1), ("mosi", 1), ("miso", 1)]
     def __init__(self, pads, data_width, sys_clk_freq, spi_clk_freq, with_csr=True, mode="raw"):
-        assert mode in ["raw", "aligned"]
+        if mode not in ["raw", "aligned"]:
+            raise ValueError("Unsupported SPI master mode: {}.".format(mode))
         self.mode = mode
         if pads is None:
             pads = Record(self.pads_layout)
         if not hasattr(pads, "cs_n"):
             pads.cs_n = Signal()
-        assert len(pads.cs_n) <= 16
+        if len(pads.cs_n) > 16:
+            raise ValueError("SPI master supports up to 16 chip-selects.")
         self.pads       = pads
         self.data_width = data_width
 
@@ -182,8 +184,10 @@ class SPIMaster(LiteXModule):
         ]
 
         # MOSI/MISO.
-        self._mosi = CSRStorage(self.data_width, reset_less=True, description="SPI MOSI data (MSB-first serialization).")
-        self._miso = CSRStatus(self.data_width,                   description="SPI MISO data (MSB-first de-serialization).")
+        self._mosi = CSRStorage(self.data_width, reset_less=True,
+            description="SPI MOSI data (MSB-first serialization).")
+        self._miso = CSRStatus(self.data_width,
+            description="SPI MISO data (MSB-first de-serialization).")
         self.comb += [
             self.mosi.eq(self._mosi.storage),
             self._miso.status.eq(self.miso),
@@ -192,14 +196,17 @@ class SPIMaster(LiteXModule):
         # Chip Select.
         if with_cs:
             self._cs = CSRStorage(description="SPI CS Chip-Select and Mode.", fields=[
-                CSRField("sel",  size=len(self.cs), offset=0,  reset=1, values=[
-                    ("``0b0..001``", "Chip ``0`` selected for SPI Xfer."),
-                    ("``0b1..000``", "Chip ``N`` selected for SPI Xfer.")
-                ]),
-                CSRField("mode", size=1,            offset=16, reset=0, values=[
-                    ("``0b0``", "Normal operation (CS handled by Core)."),
-                    ("``0b1``", "Manual operation (CS handled by User, direct recopy of ``sel``), useful for Bulk transfers.")
-                ]),
+                CSRField("sel",  size=len(self.cs), offset=0,  reset=1,
+                    description="SPI chip-select value.", values=[
+                        ("``0b0..001``", "Chip ``0`` selected for SPI Xfer."),
+                        ("``0b1..000``", "Chip ``N`` selected for SPI Xfer.")
+                    ]),
+                CSRField("mode", size=1, offset=16, reset=0,
+                    description="SPI chip-select mode.", values=[
+                        ("``0b0``", "Normal operation (CS handled by Core)."),
+                        ("``0b1``", "Manual operation (CS handled by User, direct recopy of ``sel``), "
+                            "useful for Bulk transfers.")
+                    ]),
             ])
             self.comb += [
                 self.cs.eq(self._cs.fields.sel),
@@ -209,7 +216,7 @@ class SPIMaster(LiteXModule):
         # Loopback.
         if with_loopback:
             self._loopback = CSRStorage(description="SPI Loopback Mode.", fields=[
-                CSRField("mode", size=1, values=[
+                CSRField("mode", size=1, description="SPI loopback mode.", values=[
                     ("``0b0``", "Normal operation."),
                     ("``0b1``", "Loopback operation (MOSI to MISO).")
                 ])

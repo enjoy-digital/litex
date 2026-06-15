@@ -17,6 +17,8 @@ struct i2c_ops {
 	int w_scl_offset;
 	int w_sda_offset;
 	int w_oe_offset;
+	int r_sda_offset;
+	int r_scl_offset;
 };
 
 struct i2c_dev {

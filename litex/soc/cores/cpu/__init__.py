@@ -9,6 +9,7 @@ import os
 import sys
 import inspect
 import importlib
+import logging
 
 from migen import *
 
@@ -17,22 +18,23 @@ from litex.gen import *
 # CPU (Generic) ------------------------------------------------------------------------------------
 
 class CPU(LiteXModule):
-    category             = None
-    family               = None
-    name                 = None
-    data_width           = None
-    endianness           = None
-    gcc_triple           = None
-    gcc_flags            = None
-    clang_triple         = None
-    clang_flags          = None
-    linker_output_format = None
-    interrupts           = {}
-    mem_map              = {"csr": 0x82000000}
-    io_regions           = {}
-    use_rom              = False
-    csr_decode           = True
-    reset_address_check  = True
+    category                 = None
+    family                   = None
+    name                     = "None"
+    data_width               = None
+    endianness               = None
+    gcc_triple               = None
+    gcc_flags                = None
+    clang_triple             = None
+    clang_flags              = None
+    linker_output_format     = None
+    interrupts               = {}
+    mem_map                  = {"csr": 0x82000000}
+    io_regions               = {}
+    use_rom                  = False
+    csr_decode               = True
+    reset_address_check      = True
+    integrated_rom_supported = True
 
     def __init__(self, *args, **kwargs):
         pass
@@ -52,17 +54,18 @@ class CPU(LiteXModule):
 # CPU None (Used for SoC without a CPU) ------------------------------------------------------------
 
 class CPUNone(CPU):
-    variants            = ["standard"]
-    endianness          = "little"
-    reset_address       = 0x00000000
-    reset_address_check = False
-    periph_buses        = []
-    memory_buses        = []
-    mem_map             = {
+    variants                 = ["standard"]
+    endianness               = "little"
+    reset_address            = 0x00000000
+    reset_address_check      = False
+    periph_buses             = []
+    memory_buses             = []
+    mem_map                  = {
         "csr"      : 0x0000_0000,
         "ethmac"   : 0x0002_0000, # FIXME: Remove.
         "spiflash" : 0x1000_0000, # FIXME: Remove.
     }
+    integrated_rom_supported = False
 
     def __init__(self, data_width=32, addr_width=32):
         self.io_regions = {0: int(2**float(addr_width))} # origin, length
@@ -127,7 +130,8 @@ CPU_GCC_TRIPLE_MIPS = (
 # CPUs Collection ----------------------------------------------------------------------------------
 
 def collect_cpus():
-    cpus  = {"None" : CPUNone}
+    logger = logging.getLogger("CPU")
+    cpus  = {"None" : CPUNone, None: CPUNone}
     paths = [
         # Add litex.soc.cores.cpu path.
         os.path.dirname(__file__),
@@ -135,7 +139,15 @@ def collect_cpus():
         os.getcwd()
     ]
 
-    exec_dir = os.getcwd()
+    def import_cpu_module(path, cpu):
+        sys.path.append(path)
+        try:
+            return importlib.import_module(cpu)
+        finally:
+            if sys.path and sys.path[-1] == path:
+                sys.path.pop()
+            else:
+                sys.path.remove(path)
 
     # Search for CPUs in paths.
     for path in paths:
@@ -153,9 +165,15 @@ def collect_cpus():
 
             # OK, it seems to be a CPU; now get the class and add it to dict.
             cpu = file
-            sys.path.append(path)
-            for cpu_name, cpu_cls in inspect.getmembers(importlib.import_module(cpu), inspect.isclass):
+            try:
+                cpu_module = import_cpu_module(path, cpu)
+            except Exception as e:
+                logger.warning("Skipping CPU '%s' (import failed): %s", cpu, e)
+                continue
+            for cpu_name, cpu_cls in inspect.getmembers(cpu_module, inspect.isclass):
                 if cpu_name.lower() in [cpu, cpu.replace("_", "")]:
+                    if cpu in cpus:
+                        logger.warning("CPU '%s' already registered, overriding with %s.", cpu, cpu_path)
                     cpus[cpu] = cpu_cls
 
     # Return collected CPUs.

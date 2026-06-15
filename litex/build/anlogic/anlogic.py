@@ -5,21 +5,17 @@
 # Copyright (c) 2015-2021 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import os
-import math
 import subprocess
 import datetime
 from shutil import which
-
-from migen.fhdl.structure import _Fragment
 
 from litex.build.generic_platform import *
 from litex.build.generic_toolchain import GenericToolchain
 from litex.build import tools
 
-# TangDinastyToolchain -----------------------------------------------------------------------------
+# TangDynastyToolchain -----------------------------------------------------------------------------
 
-class TangDinastyToolchain(GenericToolchain):
+class TangDynastyToolchain(GenericToolchain):
     attr_translate = {}
 
     def __init__(self):
@@ -49,6 +45,8 @@ class TangDinastyToolchain(GenericToolchain):
             for c in other:
                 if isinstance(c, IOStandard):
                     line += f" IOSTANDARD = {c.name}; "
+                elif isinstance(c, Misc):
+                    line += f" {c.misc}; "
             line += f"}}"
             adc.append(line)
 
@@ -92,7 +90,7 @@ class TangDinastyToolchain(GenericToolchain):
         xml.append(f"        <Verilog>")
 
         # Add Sources.
-        for f, typ, lib in self.platform.sources:
+        for f, typ, lib, *_ in self.platform.sources:
             xml.append(f"            <File Path=\"{f}\">")
             xml.append(f"                <FileInfo>")
             xml.append(f"                    <Attr Name=\"UsedInSyn\" Val=\"true\"/>")
@@ -180,6 +178,7 @@ class TangDinastyToolchain(GenericToolchain):
         tcl.append("place")
         tcl.append("route")
         tcl.append(f"bitgen -bit \"{self._build_name}.bit\" -version 0X00 -g ucode:000000000000000000000000")
+        tcl.append("exit")
 
         # Generate .tcl.
         tools.write_to_file("run.tcl", "\n".join(tcl))
@@ -192,6 +191,13 @@ class TangDinastyToolchain(GenericToolchain):
                 msg += "- Add  Tang Dinasty toolchain to your $PATH."
                 raise OSError(msg)
 
+            if self._architecture == "dr1_90":
+                td_version = subprocess.check_output(["td", "-v"],
+                    stderr=subprocess.STDOUT).decode("utf-8")
+                if "5.9" not in td_version:
+                    msg = "dr1_90 architecture is only supported in Tang Dinasty 5.9."
+                    raise OSError(msg)
+
             if subprocess.call(["td", script]) != 0:
                 raise OSError("Error occured during Tang Dinasty's script execution.")
 
@@ -199,6 +205,7 @@ class TangDinastyToolchain(GenericToolchain):
         device = self.platform.device
 
         devices = {
+            "DR1V90MEG484" :[ "dr1_90", "DR1", "DR1V90MEG484" ],
             "EG4S20BG256" :[ "eagle_s20", "EG4", "BG256" ],
         }
 

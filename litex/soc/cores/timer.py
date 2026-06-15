@@ -85,7 +85,7 @@ class Timer(LiteXModule):
             ).Else(
                 value.eq(self._load.storage)
             ),
-            If(self._update_value.re, self._value.status.eq(value))
+            If(self._update_value.wr_stb, self._value.status.eq(value))
         ]
         self.comb += self.ev.zero.trigger.eq(value == 0)
 
@@ -99,4 +99,4 @@ class Timer(LiteXModule):
 
         self.uptime_cycles = uptime_cycles = Signal(width, reset_less=True)
         self.sync += uptime_cycles.eq(uptime_cycles + 1)
-        self.sync += If(self._uptime_latch.re, self._uptime_cycles.status.eq(uptime_cycles))
+        self.sync += If(self._uptime_latch.wr_stb, self._uptime_cycles.status.eq(uptime_cycles))

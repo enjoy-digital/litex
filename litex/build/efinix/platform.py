@@ -12,6 +12,7 @@ from migen.fhdl.structure import _Slice
 from litex.build.generic_platform import *
 from litex.build.efinix import common, efinity
 from litex.build.efinix import EfinixDbParser
+from litex.build.efinix.toolchain import find_efinity_path
 
 # EfinixPlatform -----------------------------------------------------------------------------------
 
@@ -31,18 +32,15 @@ class EfinixPlatform(GenericPlatform):
         self.iobank_info  = iobank_info
         self.spi_mode     = spi_mode
         self.spi_width    = spi_width
+        self.clks         = {}
         if self.device[:2] == "Ti":
             self.family = "Titanium"
+        elif self.device[:2] == "Tz":
+            self.family = "Topaz"
         else:
             self.family = "Trion"
 
-        if os.getenv("LITEX_ENV_EFINITY", False) == False:
-            msg = "Unable to find or source Efinity toolchain, please either:\n"
-            msg += "- Set LITEX_ENV_EFINITY environment variant to Efinity path.\n"
-            msg += "- Or add Efinity toolchain to your $PATH."
-            raise OSError(msg)
-
-        self.efinity_path = os.environ["LITEX_ENV_EFINITY"].rstrip('/')
+        self.efinity_path = find_efinity_path()
         os.environ["EFINITY_HOME"] = self.efinity_path
 
         if toolchain == "efinity":
@@ -50,7 +48,7 @@ class EfinixPlatform(GenericPlatform):
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
 
-        self.parser = EfinixDbParser(self.efinity_path, self.device)
+        self.parser = EfinixDbParser(self.efinity_path, self.device, self.family)
         self.pll_available = self.parser.get_block_instance_names('pll')
         self.pll_used = []
 
@@ -90,6 +88,15 @@ class EfinixPlatform(GenericPlatform):
                     return [pins[idx]]
         return None
 
+    def get_pins_location(self, sig):
+        if sig is None:
+            return None
+        sc = self.constraint_manager.get_sig_constraints()
+        for s, pins, others, resource in sc:
+            if (s == sig) and (pins[0] != 'X'):
+                    return pins
+        return None
+
     def get_pin_properties(self, sig):
         ret = []
         if sig is None:
@@ -108,6 +115,10 @@ class EfinixPlatform(GenericPlatform):
                             if o.misc in ["WEAK_PULLUP", "WEAK_PULLDOWN"]:
                                 prop = "PULL_OPTION"
                                 val = o.misc
+                                ret.append((prop, val))
+                            if o.misc == "SCHMITT_TRIGGER":
+                                prop = "SCHMITT_TRIGGER"
+                                val = "1"
                                 ret.append((prop, val))
                             if "DRIVE_STRENGTH" in o.misc:
                                 prop = "DRIVE_STRENGTH"
@@ -130,18 +141,29 @@ class EfinixPlatform(GenericPlatform):
             return None
         assert len(sig) == 1
         idx = 0
-        slc = False
         while isinstance(sig, _Slice) and hasattr(sig, "value"):
             idx = sig.start
             sig = sig.value
-            slc = hasattr(sig, "nbits") and sig.nbits > 1
         sc = self.constraint_manager.get_sig_constraints()
         for s, pins, others, resource in sc:
             if s == sig:
                 name = resource[0] + (f"{resource[1]}" if resource[1] is not None else "")
                 if resource[2]:
                     name = name + "_" + resource[2]
-                name = name + (f"{idx}" if slc else "")
+                name = name + f"{idx}"
+                return name
+        return None
+
+    def get_pins_name(self, sig):
+        if sig is None:
+            return None
+        sc = self.constraint_manager.get_sig_constraints()
+        for s, pins, others, resource in sc:
+            if s == sig:
+                name = resource[0] + (f"{resource[1]}" if resource[1] is not None else "")
+                if resource[2]:
+                    name = name + "_" + resource[2]
+                name = name + "_gen" # Avoids to define a new signal with the same name
                 return name
         return None
 
@@ -162,7 +184,7 @@ class EfinixPlatform(GenericPlatform):
         sc = self.constraint_manager.get_sig_constraints()
         for s, pins, others, resource in sc:
             if s == sig:
-                return sc
+                return (s, pins, others, resource)
         return None
 
     def add_iface_io(self, name, size=1):
@@ -185,3 +207,34 @@ class EfinixPlatform(GenericPlatform):
         pll = self.pll_available[0]
         self.get_pll_resource(pll)
         return pll
+
+    @classmethod
+    def fill_args(cls, toolchain, parser):
+        """
+        pass parser to the specific toolchain to
+        fill this with toolchain args
+
+        Parameters
+        ==========
+        toolchain: str
+            toolchain name
+        parser: argparse.ArgumentParser
+            parser to be filled
+        """
+        efinity.build_args(parser)
+
+    @classmethod
+    def get_argdict(cls, toolchain, args):
+        """
+        return a dict of args
+
+        Parameters
+        ==========
+        toolchain: str
+            toolchain name
+
+        Return
+        ======
+        a dict of key/value for each args or an empty dict
+        """
+        return efinity.build_argdict(args)

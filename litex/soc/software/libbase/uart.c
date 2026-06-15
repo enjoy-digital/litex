@@ -31,17 +31,21 @@ static volatile unsigned int tx_consume;
 void uart_isr(void)
 {
 	unsigned int stat, rx_produce_next;
+	char c;
 
-	stat = uart_ev_pending_read();
+	stat = uart_ev_pending_read() & uart_ev_enable_read();
 
 	if(stat & UART_EV_RX) {
 		while(!uart_rxempty_read()) {
+			c = uart_rxtx_read();
 			rx_produce_next = (rx_produce + 1) & UART_RINGBUFFER_MASK_RX;
 			if(rx_produce_next != rx_consume) {
-				rx_buf[rx_produce] = uart_rxtx_read();
+				rx_buf[rx_produce] = c;
 				rx_produce = rx_produce_next;
 			}
+#ifndef CONFIG_UART_RX_FIFO_RX_WE
 			uart_ev_pending_write(UART_EV_RX);
+#endif
 			#if defined(__cva6__)
 				asm volatile("fence\n");
 			#endif
@@ -49,10 +53,13 @@ void uart_isr(void)
 	}
 
 	if(stat & UART_EV_TX) {
-		uart_ev_pending_write(UART_EV_TX);
 		while((tx_consume != tx_produce) && !uart_txfull_read()) {
 			uart_rxtx_write(tx_buf[tx_consume]);
 			tx_consume = (tx_consume + 1) & UART_RINGBUFFER_MASK_TX;
+		}
+
+		if(tx_consume == tx_produce) {
+			uart_ev_enable_write(UART_EV_RX); /* Disable TX interrupt */
 		}
 	}
 }
@@ -64,8 +71,11 @@ char uart_read(void)
 
 	if(irq_getie()) {
 		while(rx_consume == rx_produce);
-	} else if (rx_consume == rx_produce) {
-		return 0;
+	} else {
+		/* Interrupts are disabled, so the ISR cannot fill the ring buffer:
+		   harvest the RX FIFO ourselves. */
+		while(rx_consume == rx_produce)
+			uart_isr();
 	}
 
 	c = rx_buf[rx_consume];
@@ -75,6 +85,8 @@ char uart_read(void)
 
 int uart_read_nonblock(void)
 {
+	if(!irq_getie() && (rx_consume == rx_produce))
+		uart_isr();
 	return (rx_consume != rx_produce);
 }
 
@@ -85,8 +97,12 @@ void uart_write(char c)
 
 	if(irq_getie()) {
 		while(tx_produce_next == tx_consume);
-	} else if(tx_produce_next == tx_consume) {
-		return;
+	} else {
+		/* Interrupts are disabled, so the ISR cannot drain the ring buffer:
+		   do it ourselves instead of silently dropping the character (e.g.
+		   long printf output from an exception handler). */
+		while(tx_produce_next == tx_consume)
+			uart_isr();
 	}
 
 	oldmask = irq_getmask();
@@ -94,6 +110,7 @@ void uart_write(char c)
 	if((tx_consume != tx_produce) || uart_txfull_read()) {
 		tx_buf[tx_produce] = c;
 		tx_produce = tx_produce_next;
+		uart_ev_enable_write(UART_EV_TX | UART_EV_RX); /* Enable TX interrupt */
 	} else {
 		uart_rxtx_write(c);
 	}
@@ -108,8 +125,7 @@ void uart_init(void)
 	tx_produce = 0;
 	tx_consume = 0;
 
-	uart_ev_pending_write(uart_ev_pending_read());
-	uart_ev_enable_write(UART_EV_TX | UART_EV_RX);
+	uart_ev_enable_write(UART_EV_RX); /* TX will be enabled when needed */
 	if (irq_attach)
 		irq_attach(UART_INTERRUPT, uart_isr);
 	irq_setmask(irq_getmask() | (1 << UART_INTERRUPT));
@@ -117,7 +133,10 @@ void uart_init(void)
 
 void uart_sync(void)
 {
-	while(tx_consume != tx_produce);
+	while(tx_consume != tx_produce) {
+		if(!irq_getie())
+			uart_isr();
+	}
 }
 
 #else
@@ -131,7 +150,9 @@ char uart_read(void)
 	char c;
 	while (uart_rxempty_read());
 	c = uart_rxtx_read();
+#ifndef CONFIG_UART_RX_FIFO_RX_WE
 	uart_ev_pending_write(UART_EV_RX);
+#endif
 	return c;
 }
 
@@ -144,13 +165,10 @@ void uart_write(char c)
 {
 	while (uart_txfull_read());
 	uart_rxtx_write(c);
-	uart_ev_pending_write(UART_EV_TX);
 }
 
 void uart_init(void)
 {
-	uart_ev_pending_write(uart_ev_pending_read());
-	uart_ev_enable_write(UART_EV_TX | UART_EV_RX);
 }
 
 void uart_sync(void)

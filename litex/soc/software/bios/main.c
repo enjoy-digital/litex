@@ -16,6 +16,7 @@
 // License: BSD
 
 #include <stdio.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <system.h>
@@ -33,11 +34,13 @@
 
 #include <libbase/console.h>
 #include <libbase/crc.h>
+#include <libbase/format.h>
 #include <libbase/memtest.h>
 
 #include <libbase/spiflash.h>
 #include <libbase/uart.h>
 #include <libbase/i2c.h>
+#include <libbase/hyperram.h>
 
 #include <liblitedram/sdram.h>
 #include <liblitedram/utils.h>
@@ -46,35 +49,122 @@
 #include <libliteeth/mdio.h>
 
 #include <liblitespi/spiflash.h>
+#include <liblitespi/spiram.h>
 
 #include <liblitesdcard/sdcard.h>
 #include <liblitesata/sata.h>
 
 #ifndef CONFIG_BIOS_NO_BOOT
-static void boot_sequence(void)
+#define BOOT_METHOD_CONTINUE 1
+#define BOOT_METHOD_STOP     0
+
+#if defined(CSR_UART_BASE) && !defined(SERIAL_BOOT_DISABLE)
+#ifndef SERIAL_BOOT_PRIORITY
+#define SERIAL_BOOT_PRIORITY 0
+#endif
+static int serial_boot_method(void)
 {
-#ifdef CSR_UART_BASE
-	if (serialboot() == 0)
-		return;
+	return serialboot();
+}
+define_boot_method(serial, serial_boot_method, SERIAL_BOOT_PRIORITY);
 #endif
-#ifdef FLASH_BOOT_ADDRESS
+
+#if defined(FLASH_BOOT_ADDRESS) && !defined(FLASH_BOOT_DISABLE)
+#ifndef FLASH_BOOT_PRIORITY
+#define FLASH_BOOT_PRIORITY 10
+#endif
+static int flash_boot_method(void)
+{
 	flashboot();
+	return BOOT_METHOD_CONTINUE;
+}
+define_boot_method(flash, flash_boot_method, FLASH_BOOT_PRIORITY);
 #endif
-#ifdef ROM_BOOT_ADDRESS
+
+#if defined(ROM_BOOT_ADDRESS) && !defined(ROM_BOOT_DISABLE)
+#ifndef ROM_BOOT_PRIORITY
+#define ROM_BOOT_PRIORITY 20
+#endif
+static int rom_boot_method(void)
+{
 	romboot();
+	return BOOT_METHOD_CONTINUE;
+}
+define_boot_method(rom, rom_boot_method, ROM_BOOT_PRIORITY);
 #endif
-#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCARD_CORE_BASE)
-	sdcardboot();
+
+#if (defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCARD_BASE)) && !defined(SDCARD_BOOT_DISABLE)
+#ifndef SDCARD_BOOT_PRIORITY
+#define SDCARD_BOOT_PRIORITY 30
 #endif
-#if defined(CSR_SATA_SECTOR2MEM_BASE)
-	sataboot();
+static int sdcard_boot_method(void)
+{
+	sdcardboot(0, NULL);
+	return BOOT_METHOD_CONTINUE;
+}
+define_boot_method(sdcard, sdcard_boot_method, SDCARD_BOOT_PRIORITY);
 #endif
-#ifdef CSR_ETHMAC_BASE
+
+#if defined(CSR_SATA_SECTOR2MEM_BASE) && !defined(SATA_BOOT_DISABLE)
+#ifndef SATA_BOOT_PRIORITY
+#define SATA_BOOT_PRIORITY 40
+#endif
+static int sata_boot_method(void)
+{
+	sataboot(0, NULL);
+	return BOOT_METHOD_CONTINUE;
+}
+define_boot_method(sata, sata_boot_method, SATA_BOOT_PRIORITY);
+#endif
+
+#if defined(CSR_ETHMAC_BASE) && !defined(NET_BOOT_DISABLE)
+#ifndef NET_BOOT_PRIORITY
+#define NET_BOOT_PRIORITY 50
+#endif
+static int net_boot_method(void)
+{
 #ifdef CSR_ETHPHY_MODE_DETECTION_MODE_ADDR
 	eth_mode();
 #endif
 	netboot(0, NULL);
+	return BOOT_METHOD_CONTINUE;
+}
+define_boot_method(net, net_boot_method, NET_BOOT_PRIORITY);
 #endif
+
+static void boot_sequence(void)
+{
+	const struct boot_method *const *boot_method;
+	int priority;
+
+	priority = INT_MIN;
+	while (1) {
+		int next_priority;
+		int found;
+
+		next_priority = INT_MAX;
+		found = 0;
+		for (boot_method = __bios_boot_start; boot_method != __bios_boot_end; boot_method++) {
+			if ((*boot_method)->priority <= priority)
+				continue;
+			if (found && ((*boot_method)->priority >= next_priority))
+				continue;
+			next_priority = (*boot_method)->priority;
+			found = 1;
+		}
+		if (!found)
+			break;
+
+		for (boot_method = __bios_boot_start; boot_method != __bios_boot_end; boot_method++) {
+			if ((*boot_method)->priority != next_priority)
+				continue;
+			if ((*boot_method)->handler() == BOOT_METHOD_STOP)
+				return;
+		}
+
+		priority = next_priority;
+	}
+
 	printf("No boot medium found\n");
 }
 #endif
@@ -104,13 +194,13 @@ __attribute__((__used__)) int main(int i, char **c)
 
 #ifndef CONFIG_BIOS_NO_PROMPT
 	printf("\n");
-	printf("\e[1m        __   _ __      _  __\e[0m\n");
-	printf("\e[1m       / /  (_) /____ | |/_/\e[0m\n");
-	printf("\e[1m      / /__/ / __/ -_)>  <\e[0m\n");
-	printf("\e[1m     /____/_/\\__/\\__/_/|_|\e[0m\n");
-	printf("\e[1m   Build your hardware, easily!\e[0m\n");
+	printf(ANSI_BOLD "        __   _ __      _  __" ANSI_RESET "\n");
+	printf(ANSI_BOLD "       / /  (_) /____ | |/_/" ANSI_RESET "\n");
+	printf(ANSI_BOLD "      / /__/ / __/ -_)>  <" ANSI_RESET "\n");
+	printf(ANSI_BOLD "     /____/_/\\__/\\__/_/|_|" ANSI_RESET "\n");
+	printf(ANSI_BOLD "   Build your hardware, easily!" ANSI_RESET "\n");
 	printf("\n");
-	printf(" (c) Copyright 2012-2024 Enjoy-Digital\n");
+	printf(" (c) Copyright 2012-2026 Enjoy-Digital\n");
 	printf(" (c) Copyright 2007-2015 M-Labs\n");
 	printf("\n");
 #ifndef CONFIG_BIOS_NO_BUILD_TIME
@@ -122,41 +212,46 @@ __attribute__((__used__)) int main(int i, char **c)
 	printf("\n");
 	printf(" LiteX git sha1: "LITEX_GIT_SHA1"\n");
 	printf("\n");
-	printf("--=============== \e[1mSoC\e[0m ==================--\n");
-	printf("\e[1mCPU\e[0m:\t\t%s @ %dMHz\n",
+	bios_print_section("SoC");
+	printf(ANSI_BOLD "CPU" ANSI_RESET ":\t\t%s @ %dMHz\n",
 		CONFIG_CPU_HUMAN_NAME,
 #ifdef CONFIG_CPU_CLK_FREQ
 		CONFIG_CPU_CLK_FREQ/1000000);
 #else
 		CONFIG_CLOCK_FREQUENCY/1000000);
 #endif
-	printf("\e[1mBUS\e[0m:\t\t%s %d-bit @ %dGiB\n",
+	printf(ANSI_BOLD "BUS" ANSI_RESET ":\t\t%s %d-bit data/%d-bit addr\n",
 		CONFIG_BUS_STANDARD,
 		CONFIG_BUS_DATA_WIDTH,
-		(1 << (CONFIG_BUS_ADDRESS_WIDTH - 30)));
-	printf("\e[1mCSR\e[0m:\t\t%d-bit data\n",
+		CONFIG_BUS_ADDRESS_WIDTH);
+	printf(ANSI_BOLD "CSR" ANSI_RESET ":\t\t%d-bit data ",
 		CONFIG_CSR_DATA_WIDTH);
-	printf("\e[1mROM\e[0m:\t\t");
-	print_size(ROM_SIZE);
+#ifdef CONFIG_CSR_ORDERING_BIG
+	printf("big ordering\n");
+#else
+	printf("little ordering\n");
+#endif
+	printf(ANSI_BOLD "ROM" ANSI_RESET ":\t\t");
+	litex_print_size(ROM_SIZE);
 	printf("\n");
-	printf("\e[1mSRAM\e[0m:\t\t");
-	print_size(SRAM_SIZE);
+	printf(ANSI_BOLD "SRAM" ANSI_RESET ":\t\t");
+	litex_print_size(SRAM_SIZE);
 	printf("\n");
 #ifdef CONFIG_L2_SIZE
-	printf("\e[1mL2\e[0m:\t\t");
-	print_size(CONFIG_L2_SIZE);
+	printf(ANSI_BOLD "L2" ANSI_RESET ":\t\t");
+	litex_print_size(CONFIG_L2_SIZE);
 	printf("\n");
 #endif
-#ifdef CSR_SPIFLASH_CORE_BASE
-	printf("\e[1mFLASH\e[0m:\t\t");
-	print_size(SPIFLASH_MODULE_TOTAL_SIZE);
+#ifdef SPIFLASH_MODULE_TOTAL_SIZE
+	printf(ANSI_BOLD "FLASH" ANSI_RESET ":\t\t");
+	litex_print_size(SPIFLASH_MODULE_TOTAL_SIZE);
 	printf("\n");
 #endif
 #ifdef MAIN_RAM_SIZE
 #ifdef CSR_SDRAM_BASE
 	uint64_t supported_memory = sdram_get_supported_memory();
-	printf("\e[1mSDRAM\e[0m:\t\t");
-	print_size(supported_memory);
+	printf(ANSI_BOLD "SDRAM" ANSI_RESET ":\t\t");
+	litex_print_size(supported_memory);
 	printf(" %d-bit @ %dMT/s ",
 		sdram_get_databits(),
 		sdram_get_freq()/1000000);
@@ -166,101 +261,31 @@ __attribute__((__used__)) int main(int i, char **c)
 		printf(" CWL-%d", sdram_get_cwl());
 	printf(")\n");
 #endif
-	printf("\e[1mMAIN-RAM\e[0m:\t");
-	print_size(MAIN_RAM_SIZE);
+	printf(ANSI_BOLD "MAIN RAM" ANSI_RESET ":\t");
+	litex_print_size(MAIN_RAM_SIZE);
 	printf("\n");
 #endif
 	printf("\n");
 #endif
 
-        sdr_ok = 1;
+	sdr_ok = 1;
 
-#ifdef CSR_HYPERRAM_BASE /* FIXME: Move to libbase/hyperram.h/c? */
-    /* Helper Functions */
-
-    printf("HyperRAM init...\n");
-    void hyperram_write_reg(uint16_t reg_addr, uint16_t data) {
-        /* Write data to the register */
-        hyperram_reg_wdata_write(data);
-        hyperram_reg_control_write(
-            1        << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
-            0        << CSR_HYPERRAM_REG_CONTROL_READ_OFFSET  |
-            reg_addr << CSR_HYPERRAM_REG_CONTROL_ADDR_OFFSET
-        );
-        /* Wait for write to complete */
-        while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_WRITE_DONE_OFFSET)) == 0);
-    }
-
-    uint16_t hyperram_read_reg(uint16_t reg_addr) {
-        /* Read data from the register */
-        hyperram_reg_control_write(
-            0        << CSR_HYPERRAM_REG_CONTROL_WRITE_OFFSET |
-            1        << CSR_HYPERRAM_REG_CONTROL_READ_OFFSET  |
-            reg_addr << CSR_HYPERRAM_REG_CONTROL_ADDR_OFFSET
-        );
-        /* Wait for read to complete */
-        while ((hyperram_reg_status_read() & (1 << CSR_HYPERRAM_REG_STATUS_READ_DONE_OFFSET)) == 0);
-        return hyperram_reg_rdata_read();
-    }
-
-    /* Configuration and Utility Functions */
-
-    uint16_t hyperram_get_core_latency_setting(uint32_t clk_freq) {
-        /* Raw clock latency settings for the HyperRAM core */
-        if (clk_freq <=  85000000) return 3; /* 3 Clock Latency */
-        if (clk_freq <= 104000000) return 4; /* 4 Clock Latency */
-        if (clk_freq <= 133000000) return 5; /* 5 Clock Latency */
-        if (clk_freq <= 166000000) return 6; /* 6 Clock Latency */
-        if (clk_freq <= 250000000) return 7; /* 7 Clock Latency */
-        return 7; /* Default to highest latency for safety */
-    }
-
-    uint16_t hyperram_get_chip_latency_setting(uint32_t clk_freq) {
-        /* LUT/Translated settings for the HyperRAM chip */
-        if (clk_freq <=  85000000) return 0b1110; /* 3 Clock Latency */
-        if (clk_freq <= 104000000) return 0b1111; /* 4 Clock Latency */
-        if (clk_freq <= 133000000) return 0b0000; /* 5 Clock Latency */
-        if (clk_freq <= 166000000) return 0b0001; /* 6 Clock Latency */
-        if (clk_freq <= 250000000) return 0b0010; /* 7 Clock Latency */
-        return 0b0010; /* Default to highest latency for safety */
-    }
-
-    void hyperram_configure_latency(void) {
-        uint16_t config_reg_0 = 0x8f2f;
-        uint16_t core_latency_setting;
-        uint16_t chip_latency_setting;
-
-        /* Compute Latency settings */
-        core_latency_setting = hyperram_get_core_latency_setting(CONFIG_CLOCK_FREQUENCY/4);
-        chip_latency_setting = hyperram_get_chip_latency_setting(CONFIG_CLOCK_FREQUENCY/4);
-
-        /* Write Latency to HyperRAM Core */
-        printf("HyperRAM Core Latency: %d CK (X1).\n", core_latency_setting);
-        hyperram_config_write(core_latency_setting << CSR_HYPERRAM_CONFIG_LATENCY_OFFSET);
-
-        /* Enable Variable Latency on HyperRAM Chip */
-        if (hyperram_status_read() & 0x1)
-            config_reg_0 &= ~(0b1 << 3); /* Enable Variable Latency */
-
-        /* Update Latency on HyperRAM Chip */
-        config_reg_0 &= ~(0b1111 << 4);
-        config_reg_0 |= chip_latency_setting << 4;
-
-        /* Write Configuration Register 0 to HyperRAM Chip */
-        hyperram_write_reg(2, config_reg_0);
-
-        /* Read current configuration */
-        config_reg_0 = hyperram_read_reg(2);
-        printf("HyperRAM Configuration Register 0: %08x\n", config_reg_0);
-    }
-    hyperram_configure_latency();
-    printf("\n");
+#ifdef CSR_HYPERRAM_BASE
+	hyperram_init();
 #endif
 
-#if defined(CSR_ETHMAC_BASE) || defined(MAIN_RAM_BASE_VA) || defined(CSR_SPIFLASH_CORE_BASE)
-    printf("--========== \e[1mInitialization\e[0m ============--\n");
+#if defined(CSR_ETHMAC_BASE) || defined(MAIN_RAM_BASE_VA) || defined(CSR_SPIFLASH_BASE)
+	bios_print_section("Initialization");
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
+	net_init();
+	set_idle_hook(udp_service);
+#endif
+
+	/* Initialize and test SPIRAM */
+#ifdef CSR_SPIRAM_BASE
+	spiram_init();
+	printf("\n");
 #endif
 
 	/* Initialize and test DRAM */
@@ -280,11 +305,10 @@ __attribute__((__used__)) int main(int i, char **c)
 #endif
 
 	/* Initialize and test SPIFLASH */
-#ifdef CSR_SPIFLASH_CORE_BASE
+#ifdef CSR_SPIFLASH_BASE
 	spiflash_init();
-#endif
 	printf("\n");
-
+#endif
 
 	/* Initialize Video Framebuffer FIXME: Move */
 #ifdef CSR_VIDEO_FRAMEBUFFER_BASE
@@ -300,7 +324,7 @@ __attribute__((__used__)) int main(int i, char **c)
 	/* Execute Boot sequence */
 #ifndef CONFIG_BIOS_NO_BOOT
 	if(sdr_ok) {
-		printf("--============== \e[1mBoot\e[0m ==================--\n");
+		bios_print_section("Boot");
 		boot_sequence();
 		printf("\n");
 	}
@@ -308,23 +332,26 @@ __attribute__((__used__)) int main(int i, char **c)
 
 	/* Console */
 #ifdef BIOS_CONSOLE_DISABLE
-	printf("--======= \e[1mDone (No Console) \e[0m ==========--\n");
+	bios_print_section("Done (No Console)");
 #else
-	printf("--============= \e[1mConsole\e[0m ================--\n");
+	bios_print_section("Console");
 #if !defined(BIOS_CONSOLE_LITE) && !defined(BIOS_CONSOLE_NO_HISTORY)
 	hist_init();
 #endif
 	printf("\n%s", PROMPT);
 	while(1) {
 		readline(buffer, CMD_LINE_BUFFER_SIZE);
+		printf("\n");
 		if (buffer[0] != 0) {
-			printf("\n");
 			nb_params = get_param(buffer, &command, params);
-			cmd = command_dispatcher(command, nb_params, params);
-			if (!cmd)
-				printf("Command not found");
+			/* Ignore whitespace-only lines */
+			if (*command != 0) {
+				cmd = command_dispatcher(command, nb_params, params);
+				if (!cmd)
+					printf("Command not found\n");
+			}
 		}
-		printf("\n%s", PROMPT);
+		printf("%s", PROMPT);
 	}
 #endif
 	return 0;

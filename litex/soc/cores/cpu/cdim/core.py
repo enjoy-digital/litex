@@ -59,10 +59,10 @@ class CDIM(CPU):
         self.cpu_params = dict(
             # Clk / Rst
             i_aclk       = ClockSignal("sys"),
-            i_aresetn       = ~ResetSignal("sys") & ~self.reset,
+            i_aresetn    = ~ResetSignal("sys") & ~self.reset,
 
             # Interrupts
-            i_ext_int= self.interrupt,
+            i_ext_int    = self.interrupt,
 
             # AXI interface
             o_arid          = axi_if.ar.id,

@@ -19,6 +19,12 @@ from litex.soc.interconnect import wishbone
 from litex.build.io import SDRTristate
 
 # USB OHCI -----------------------------------------------------------------------------------------
+class InterruptPin:
+    """
+    Dummy signal module that maps onto the EventManager "irq" pin, but without the CSR overhead
+    """
+    def __init__(self):
+        self.irq = Signal()
 
 class USBOHCI(LiteXModule):
     def __init__(self, platform, pads, usb_clk_freq=48e6, dma_data_width=32):
@@ -30,6 +36,10 @@ class USBOHCI(LiteXModule):
         self.wb_dma  = wb_dma  = wishbone.Interface(data_width=dma_data_width, address_width=32, addressing="word")
 
         self.interrupt = Signal()
+
+        # Add "ev" object so we can use the normal interrupt allocation
+        self.ev    = InterruptPin()
+        self.comb += self.ev.irq.eq(self.interrupt)
 
         # # #
 
@@ -95,12 +105,14 @@ class USBOHCI(LiteXModule):
                 o  = usb_ios[i].dp_o,
                 oe = usb_ios[i].dp_oe,
                 i  = usb_ios[i].dp_i,
+                clk = ClockSignal("usb")
             )
             self.specials += SDRTristate(
                 io = pads.dm[i],
                 o  = usb_ios[i].dm_o,
                 oe = usb_ios[i].dm_oe,
                 i  = usb_ios[i].dm_i,
+                clk = ClockSignal("usb")
             )
 
         self.add_sources(platform)

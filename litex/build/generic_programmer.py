@@ -33,55 +33,53 @@ class GenericProgrammer:
         if flash_proxy_dir is not None:
             self.flash_proxy_dirs = [flash_proxy_dir]
 
-    def find_flash_proxy(self):
-        # Search in installed flash_proxy_directories
-        for d in self.flash_proxy_dirs:
+    def _find_or_download(self, basename, dirs, repos, description):
+        # Search in local directory.
+        fullname = tools.cygpath(basename)
+        if os.path.exists(fullname):
+            return fullname
+        # Search in user directories.
+        for d in dirs:
             fulldir  = os.path.abspath(os.path.expanduser(d))
-            fullname = tools.cygpath(os.path.join(fulldir, self.flash_proxy_basename))
+            fullname = tools.cygpath(os.path.join(fulldir, basename))
             if os.path.exists(fullname):
                 return fullname
-        # Search in local flash_proxy directory
-        fullname = tools.cygpath(os.path.join(self.prog_local, self.flash_proxy_basename))
+        # Search in local prog directory.
+        fullname = tools.cygpath(os.path.join(self.prog_local, basename))
         if os.path.exists(fullname):
             return fullname
-        # Search in repositories and download it
+        # Search in repositories and download it.
         import requests
         os.makedirs(self.prog_local, exist_ok=True)
-        for d in self.flash_proxy_repos:
-            fullname = tools.cygpath(os.path.join(self.prog_local, self.flash_proxy_basename))
+        for repo in repos:
             try:
-                r = requests.get(d + self.flash_proxy_basename)
-                if r.status_code != 404:
-                    with open(fullname, "wb") as f:
+                r = requests.get(repo + basename, timeout=30)
+                if r.ok:
+                    # Write atomically to avoid caching truncated files on interruption.
+                    tmpname = fullname + ".tmp"
+                    with open(tmpname, "wb") as f:
                         f.write(r.content)
+                    os.replace(tmpname, fullname)
                     return fullname
-            except:
+            except requests.RequestException:
                 pass
-        raise OSError("Failed to find flash proxy bitstream")
+        raise OSError(f"Failed to find {description}")
+
+    def find_flash_proxy(self):
+        return self._find_or_download(
+            basename    = self.flash_proxy_basename,
+            dirs        = self.flash_proxy_dirs,
+            repos       = self.flash_proxy_repos,
+            description = "flash proxy bitstream",
+        )
 
     def find_config(self):
-        # Search in local directory
-        fullname = tools.cygpath(self.config)
-        if os.path.exists(fullname):
-            return self.config
-        # Search in local config directory
-        fullname = tools.cygpath(os.path.join(self.prog_local, self.config))
-        if os.path.exists(fullname):
-            return fullname
-        # Search in repositories and download it
-        import requests
-        os.makedirs(self.prog_local, exist_ok=True)
-        for d in self.config_repos:
-            fullname = tools.cygpath(os.path.join(self.prog_local, self.config))
-            try:
-                r = requests.get(d + self.config)
-                if r.status_code != 404:
-                    with open(fullname, "wb") as f:
-                        f.write(r.content)
-                    return fullname
-            except:
-                pass
-        raise OSError("Failed to find config file")
+        return self._find_or_download(
+            basename    = self.config,
+            dirs        = [],
+            repos       = self.config_repos,
+            description = "config file",
+        )
 
     # Must be overloaded by specific programmer
     def load_bitstream(self, bitstream_file):

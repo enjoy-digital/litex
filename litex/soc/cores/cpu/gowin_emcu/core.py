@@ -29,8 +29,10 @@ class GowinEMCU(CPU):
     nop                  = "nop"
     io_regions           = {
         # Origin, Length.
-        0x4000_0000 : 0x2000_0000,
-        0xa000_0000 : 0x6000_0000,
+        # LiteX is connected through the EMCU AHB2 Master extension (Gowin
+        # IPUG517E, section 3.2.5). APB2 extension windows use separate EMCU
+        # interfaces and are not exposed by this integration.
+        0xa000_0000 : 0x0001_0000,
     }
 
     # Memory Mapping.
@@ -109,16 +111,17 @@ class GowinEMCU(CPU):
             i_DAPSWCLKTCK = 0,
 
             # TARGFLASH0 / AHBLite Master.
+            # NOTE: The open signals are connected in hardware and deliberately disconnected by nextpnr
             o_TARGFLASH0HSEL      = ahb_flash.sel,
             o_TARGFLASH0HADDR     = ahb_flash.addr,
             o_TARGFLASH0HTRANS    = ahb_flash.trans,
-            o_TARGFLASH0HSIZE     = ahb_flash.size,
-            o_TARGFLASH0HBURST    = ahb_flash.burst,
+            o_TARGFLASH0HSIZE     = Open(4),
+            o_TARGFLASH0HBURST    = Open(3),
             o_TARGFLASH0HREADYMUX = Open(),
-            i_TARGFLASH0HRDATA    = ahb_flash.rdata,
+            i_TARGFLASH0HRDATA    = Open(32),
             i_TARGFLASH0HRUSER    = 0b000,
             i_TARGFLASH0HRESP     = ahb_flash.resp,
-            i_TARGFLASH0EXRESP    = 0b0,
+            i_TARGFLASH0EXRESP    = Open(),
             i_TARGFLASH0HREADYOUT = ahb_flash.readyout,
 
             # TARGEXP0 / AHBLite Master.
@@ -230,8 +233,9 @@ class GowinEMCU(CPU):
                 fsm.act("WAIT",
                     NextState("IDLE")
                 )
-                self.specials += Instance("FLASH256K",
-                    o_DOUT  = bus.rdata,
+                # NOTE: The DOUT ⇒ EMCU connection is implement in hardware
+                self.specials.flash = Instance("FLASH256K",
+                    o_DOUT  = Signal(32),
                     i_DIN   = Signal(32),
                     i_XADR  = addr[6:],
                     i_YADR  = addr[:6],
@@ -242,6 +246,8 @@ class GowinEMCU(CPU):
                     i_ERASE = 0,
                     i_NVSTR = 0
                 )
+                # As no output is used in RTL, yosys would otherwise discard it
+                self.flash.attr.add("keep")
 
         flash = ResetInserter()(AHBFlash(ahb_flash))
         self.comb += flash.reset.eq(~bus_reset_n)
@@ -250,17 +256,6 @@ class GowinEMCU(CPU):
         # Peripheral Bus (AHB -> Wishbone).
         # ---------------------------------
         self.submodules += ahb.AHB2Wishbone(ahb_targexp0, self.pbus)
-
-    def connect_jtag(self, pads):
-        self.cpu_params.update(
-            i_DAPSWDITMS  = pads.tms,
-            i_DAPTDI      = pads.tdi,
-            o_DAPTDO      = pads.tdo,
-            o_DAPNTDOEN   = Signal(),
-            i_DAPNTRST    = ~self.reset,
-            i_DAPSWCLKTCK = pads.tck,
-            o_DAPJTAGNSW  = Signal(),  # Indicates debug mode, JTAG or SWD
-        )
 
     def do_finalize(self):
         self.specials += Instance("EMCU", **self.cpu_params)

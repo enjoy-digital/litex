@@ -17,10 +17,12 @@
 #define STORE sd
 #define LOAD ld
 #define WORD 8
+#define LOADW lwu
 #else
 #define STORE sw
 #define LOAD lw
 #define WORD 4
+#define LOADW lw
 #endif
 
 _start:
@@ -78,7 +80,7 @@ crt_init:
   la sp, _fstack
   la a0, trap_entry
   csrw mtvec, a0
-  
+
 enable_fpu:
   li x1, MSTATUS_FS_INITIAL
   csrs mstatus, x1
@@ -94,10 +96,10 @@ smp_slave:
   fence r, r
 
   .word(0x100F) //i$ flush
-  lw x10, smp_lottery_args
-  lw x11, smp_lottery_args+4
-  lw x12, smp_lottery_args+8
-  lw x13, smp_lottery_target
+  LOADW x10, smp_lottery_args
+  LOADW x11, smp_lottery_args+4
+  LOADW x12, smp_lottery_args+8
+  LOADW x13, smp_lottery_target
   jr x13
 
 
@@ -124,7 +126,11 @@ bss_loop:
   j bss_loop
 bss_done:
 
-  call plic_init // initialize external interrupt controller
+  #if defined(__riscv_plic__)
+    call plic_init // initialize external interrupt controller
+  #else
+    call aplic_init // initialize external advanced i nterrupt controller
+  #endif
   li t0, 0x800   // external interrupt sources only (using LiteX timer);
                  // NOTE: must still enable mstatus.MIE!
   csrw mie,t0
@@ -138,4 +144,3 @@ infinit_loop:
   smp_lottery_target: .word 0
   smp_lottery_args:   .word 0; .word 0; .word 0
   smp_lottery_lock:   .word 0
-

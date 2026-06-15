@@ -25,19 +25,19 @@ static void boot_handler(int nb_params, char **params)
 	unsigned long r3;
 
 	if (nb_params < 1) {
-		printf("boot <address> [r1] [r2] [r3]");
+		printf("boot <address> [r1] [r2] [r3]\n");
 		return;
 	}
 	addr = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect address");
+		printf("Error: invalid address\n");
 		return;
 	}
 	r1 = 0;
 	if (nb_params > 1) {
 		r1 = strtoul(params[1], &c, 0);
 		if (*c != 0) {
-			printf("Incorrect r1");
+			printf("Error: invalid r1\n");
 			return;
 		}
 	}
@@ -45,15 +45,15 @@ static void boot_handler(int nb_params, char **params)
 	if (nb_params > 2) {
 		r2 = strtoul(params[2], &c, 0);
 		if (*c != 0) {
-			printf("Incorrect r2");
+			printf("Error: invalid r2\n");
 			return;
 		}
 	}
 	r3 = 0;
 	if (nb_params > 3) {
-		r2 = strtoul(params[3], &c, 0);
+		r3 = strtoul(params[3], &c, 0);
 		if (*c != 0) {
-			printf("Incorrect r3");
+			printf("Error: invalid r3\n");
 			return;
 		}
 	}
@@ -119,10 +119,10 @@ define_command(netboot, netboot, "Boot via Ethernet (TFTP)", BOOT_CMDS);
 /**
  * Command "spisdcardboot"
  *
- * Boot software from SDcard
+ * Boot software from SDCard
  *
  */
-#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCARD_CORE_BASE)
+#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCARD_BASE)
 define_command(sdcardboot, sdcardboot, "Boot from SDCard", BOOT_CMDS);
 #endif
 
@@ -135,4 +135,3 @@ define_command(sdcardboot, sdcardboot, "Boot from SDCard", BOOT_CMDS);
 #if defined(CSR_SATA_SECTOR2MEM_BASE)
 define_command(sataboot, sataboot, "Boot from SATA", BOOT_CMDS);
 #endif
-

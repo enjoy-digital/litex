@@ -17,9 +17,11 @@ else
 	LDFLAGS += -lpthread -Wl,--no-as-needed -ljson-c -lz -lm -lstdc++ -Wl,--no-as-needed -ldl -levent $(if $(VIDEO), -lSDL2)
 endif
 
-CFLAGS += -Wall -$(OPT_LEVEL) $(if $(COVERAGE), -DVM_COVERAGE) $(if $(TRACE_FST), -DTRACE_FST)
+CFLAGS += -Wall -$(OPT_LEVEL) $(if $(COVERAGE), -DVM_COVERAGE) $(if $(TRACE_FST), -DTRACE_FST) $(if $(SAVABLE), -DSAVABLE)
 
 CC_SRCS ?= "--cc sim.v"
+USER_CPP_SRCS ?=
+USER_CPP_INC_DIRS ?=
 
 SRC_DIR ?= .
 INC_DIR ?= .
@@ -28,7 +30,7 @@ export OBJ_DIR = $(abspath obj_dir)
 
 SRCS_SIM_ABSPATH = $(wildcard $(SRC_DIR)/*.c)
 SRCS_SIM = $(notdir $(SRCS_SIM_ABSPATH))
-SRCS_SIM_CPP = sim_init.cpp $(SRC_DIR)/veril.cpp
+SRCS_SIM_CPP = sim_init.cpp $(SRC_DIR)/veril.cpp $(USER_CPP_SRCS)
 OBJS_SIM = $(SRCS_SIM:.c=.o)
 
 all: modules sim
@@ -46,10 +48,11 @@ sim: $(OBJS_SIM) | mkdir
 		$(SRCS_SIM_CPP) $(OBJS_SIM) \
 		--top-module sim \
 		$(if $(THREADS), --threads $(THREADS),) \
-		-CFLAGS "$(CFLAGS) -I$(SRC_DIR)" \
+		-CFLAGS "$(CFLAGS) -I$(SRC_DIR) $(USER_CPP_INC_DIRS)" \
 		-LDFLAGS "$(LDFLAGS)" \
-		--trace \
+		$(if $(TRACE), --trace,) \
 		$(if $(TRACE_FST), --trace-fst,) \
+		$(if $(TRACE_FST), --trace-structs,) \
 		$(if $(COVERAGE), --coverage,) \
 		--unroll-count 256 \
 		--output-split 5000 \
@@ -60,7 +63,8 @@ sim: $(OBJS_SIM) | mkdir
 		-Wno-WIDTH \
 		-Wno-COMBDLY \
 		-Wno-CASEINCOMPLETE \
-		--relative-includes
+		$(if $(SAVABLE), --savable,) \
+		--relative-includes 
 	make -j$(JOBS) -C $(OBJ_DIR) -f Vsim.mk Vsim
 
 .PHONY: modules

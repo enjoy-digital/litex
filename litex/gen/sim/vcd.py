@@ -30,11 +30,12 @@ class VCDWriter:
         self.filename = filename
         self.out_file = None
         self.buffer_file = tempfile.TemporaryFile(
-            dir=os.path.dirname(filename), mode="w+")
+            dir=os.path.dirname(filename) or None, mode="w+")
         self.initialized = False
         self.codegen = vcd_codes()
         self.codes = OrderedDict()
         self.signal_values = dict()
+        self.vns = None
         self.t = 0
 
     def _write_value(self, signal, value):
@@ -58,7 +59,7 @@ class VCDWriter:
         self.out_file.write(s)
         self.buffer_file.write(s)
 
-    def init(self, signals):
+    def init(self, signals, clock_domains=None):
         self.out_file = open(self.filename, "w")
 
         # generate codes
@@ -72,6 +73,8 @@ class VCDWriter:
         # write vcd header
         header = ""
         ns = build_signal_namespace(self.codes.keys())
+        ns.clock_domains = list(clock_domains or [])
+        self.vns = ns
         for signal, code in self.codes.items():
             name = ns.get_name(signal)
             header += "$var wire {len} {code} {name} $end\n".format(name=name, code=code, len=len(signal))
@@ -107,7 +110,10 @@ class VCDWriter:
 
 
 class DummyVCDWriter:
-    def init(self):
+    filename = None
+    vns      = None
+
+    def init(self, *args, **kwargs):
         pass
 
     def set(self, signal, value):

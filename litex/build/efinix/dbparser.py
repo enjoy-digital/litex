@@ -20,9 +20,10 @@ namespaces = {
 # Efinix Database Parser ---------------------------------------------------------------------------
 
 class EfinixDbParser:
-    def __init__(self, efinity_path, device):
+    def __init__(self, efinity_path, device, family):
         self.efinity_db_path = efinity_path + '/pt/db/'
         self.device = device
+        self.family = family
 
     def get_device_map(self, device):
         with open(self.efinity_db_path + 'devicemap.csv') as f:
@@ -33,31 +34,35 @@ class EfinixDbParser:
             if d[0] == device:
                 return d
 
-        return None
+        raise ValueError(f"Device {device} not found in devicemap.csv")
 
-    def get_package_file_name(self, dmap):
-        tree = et.parse(self.efinity_db_path + dmap[2])
-        root = tree.getroot()
-        inc = root.findall('xi:include', namespaces)
-        for i in inc:
-            if 'package' in i.get('href'):
-                return i.get('href').split('/')[1]
+    def get_package_file_path(self, dmap):
+        packetname = dmap[2].split('_', 1)[1]
+        filepath = self.efinity_db_path + 'package/' + packetname
+        while not os.path.isfile(filepath):
+            if not '_' in packetname:
+                return None
+            packetname = packetname.rsplit('_', 1)[0]
+            filepath = self.efinity_db_path + 'package/' + packetname + '.xml'
 
-        return None
+        return filepath
 
-    def get_die_file_name(self, dmap):
-        tree = et.parse(self.efinity_db_path + dmap[2])
-        root = tree.getroot()
-        inc = root.findall('xi:include', namespaces)
-        for i in inc:
-            if 'die' in i.get('href'):
-                return i.get('href').split('/')[1]
+    def get_die_file_path(self, dmap):
+        diename = dmap[1]
+        filepath = self.efinity_db_path + 'die/' + diename + '.xml'
+        while not os.path.isfile(filepath):
+            if not '_' in diename:
+                return None
+            diename = diename.rsplit('_', 1)[0]
+            filepath = self.efinity_db_path + 'die/' + diename + '.xml'
 
-        return None
+        return filepath
 
     def get_pad_name_xml(self, dmap, pin):
-        package_file = self.get_package_file_name(dmap)
-        tree = et.parse(self.efinity_db_path + 'package/' + package_file)
+        package = self.get_package_file_path(dmap)
+        if package is None:
+            raise ValueError(f"Unable to find package file for device {self.device} in Efinity database.")
+        tree = et.parse(package)
         root = tree.getroot()
 
         pm = root.findall('efxpt:package_map', namespaces)
@@ -68,8 +73,10 @@ class EfinixDbParser:
         return None
 
     def get_instance_name_xml(self, dmap, pad):
-        die = self.get_die_file_name(dmap)
-        tree = et.parse(self.efinity_db_path + 'die/' + die)
+        die = self.get_die_file_path(dmap)
+        if die is None:
+            raise ValueError(f"Unable to find die file for device {self.device} in Efinity database.")
+        tree = et.parse(die)
         root = tree.getroot()
 
         ipd = root.find('efxpt:io_pad_definition', namespaces)
@@ -82,8 +89,10 @@ class EfinixDbParser:
 
     def get_block_instance_names(self, block):
         dmap = self.get_device_map(self.device)
-        die = self.get_die_file_name(dmap)
-        tree = et.parse(self.efinity_db_path + 'die/' + die)
+        die = self.get_die_file_path(dmap)
+        if die is None:
+            raise ValueError(f"Unable to find die file for device {self.device} in Efinity database.")
+        tree = et.parse(die)
         root = tree.getroot()
 
         peri = root.findall('efxpt:periphery_instance', namespaces)
@@ -96,12 +105,13 @@ class EfinixDbParser:
         if block == "pll" and self.device == "Ti60F100S3F2":
             names.remove("PLL_BL0")
 
-        print(f"block {block}: names:{names}")
         return names
 
     def get_pll_inst_from_gpio_inst(self, dmap, inst):
-        die = self.get_die_file_name(dmap)
-        tree = et.parse(self.efinity_db_path + 'die/' + die)
+        die = self.get_die_file_path(dmap)
+        if die is None:
+            raise ValueError(f"Unable to find die file for device {self.device} in Efinity database.")
+        tree = et.parse(die)
         root = tree.getroot()
 
         peri = root.findall('efxpt:periphery_instance', namespaces)
@@ -116,7 +126,7 @@ class EfinixDbParser:
                         if i == None:
                             continue
                         if (i == inst) or (inst + '.' in i):
-                            refclk_no = 0 if self.device[:2] != "Ti" else c.get('index')
+                            refclk_no = 0 if self.family == "Trion" else c.get('index')
                             if c.get('index') == '3':
                                 refclk_no = 1
                             return (p.get('name'), refclk_no)

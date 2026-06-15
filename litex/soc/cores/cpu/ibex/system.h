@@ -7,7 +7,13 @@
 extern "C" {
 #endif
 
-__attribute__((unused)) static void flush_cpu_icache(void){}; /* No instruction cache */
+__attribute__((unused)) static void flush_cpu_icache(void)
+{
+  asm volatile(
+    "fence.i\n"
+  );
+}
+
 __attribute__((unused)) static void flush_cpu_dcache(void){}; /* No instruction cache */
 void flush_l2_cache(void);
 

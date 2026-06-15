@@ -8,6 +8,14 @@
 from migen import *
 from migen.fhdl.specials import Special, Tristate
 
+# Helpers ------------------------------------------------------------------------------------------
+
+def _check_widths(name, **signals):
+    widths = {k: len(v) for k, v in signals.items() if v is not None}
+    if len(set(widths.values())) != 1:
+        widths = ", ".join(f"{k}={v}" for k, v in widths.items())
+        raise ValueError(f"{name} signal widths must match ({widths})")
+
 # Differential Input/Output ------------------------------------------------------------------------
 
 class DifferentialInput(Special):
@@ -16,6 +24,9 @@ class DifferentialInput(Special):
         self.i_p = wrap(i_p)
         self.i_n = wrap(i_n)
         self.o   = wrap(o)
+        _check_widths(self.__class__.__name__, i_p=self.i_p, i_n=self.i_n, o=self.o)
+        if len(self.o) != 1:
+            raise ValueError(f"{self.__class__.__name__} only supports single-bit signals")
 
     def iter_expressions(self):
         yield self, "i_p", SPECIAL_INPUT
@@ -33,6 +44,9 @@ class DifferentialOutput(Special):
         self.i   = wrap(i)
         self.o_p = wrap(o_p)
         self.o_n = wrap(o_n)
+        _check_widths(self.__class__.__name__, i=self.i, o_p=self.o_p, o_n=self.o_n)
+        if len(self.i) != 1:
+            raise ValueError(f"{self.__class__.__name__} only supports single-bit signals")
 
     def iter_expressions(self):
         yield self, "i"  , SPECIAL_INPUT
@@ -46,6 +60,12 @@ class DifferentialOutput(Special):
 # Clk Input/Output ---------------------------------------------------------------------------------
 
 class ClkInput(Special):
+    """Clock input primitive.
+
+    This is currently lowered by the Efinix backend. Other platforms fail
+    explicitly unless they provide an override.
+    """
+
     def __init__(self, i, o):
         Special.__init__(self)
         self.i = wrap(i)
@@ -61,9 +81,17 @@ class ClkInput(Special):
 
 
 class ClkOutput(Special):
+    """Clock output primitive.
+
+    This is currently lowered by the Efinix backend. Other platforms fail
+    explicitly unless they provide an override.
+    """
+
     def __init__(self, i, o):
         Special.__init__(self)
-        self.i = i if isinstance(i, str) else wrap(i)
+        if isinstance(i, str):
+            raise ValueError("ClkOutput input must be a Signal or ClockSignal")
+        self.i = wrap(i)
         self.o = wrap(o)
 
     def iter_expressions(self):
@@ -76,20 +104,40 @@ class ClkOutput(Special):
 
 # SDR Input/Output ---------------------------------------------------------------------------------
 
-class InferedSDRIO(Module):
-    def __init__(self, i, o, clk):
-        self.clock_domains.cd_sdrio = ClockDomain(reset_less=True)
-        self.comb += self.cd_sdrio.clk.eq(clk)
-        self.sync.sdrio += o.eq(i)
+class InferredSDRIO(Module):
+    """Generic SDR IO fallback.
+
+    The generic fallback is a fabric register clocked by ``clk``. Vendor
+    overrides should map SDRInput/SDROutput to IO register primitives when the
+    toolchain exposes them; otherwise timing/placement are toolchain-dependent.
+    """
+
+    n = 0
+
+    def __init__(self, i, o, clk, clock_domain=None):
+        if clock_domain is None:
+            clock_domain = f"sdrio{InferredSDRIO.n}"
+            InferredSDRIO.n += 1
+            cd = ClockDomain(clock_domain, reset_less=True)
+            self.clock_domains += cd
+            self.comb += cd.clk.eq(clk)
+        cd_name = clock_domain
+        sync = getattr(self.sync, cd_name)
+        sync += o.eq(i)
+
+# Backward-compatible alias for the original misspelling.
+InferedSDRIO = InferredSDRIO
 
 class SDRIO(Special):
-    def __init__(self, i, o, clk=ClockSignal()):
-        assert len(i) == len(o) == 1
+    def __init__(self, i, o, clk=None):
         Special.__init__(self)
         self.i            = wrap(i)
         self.o            = wrap(o)
+        if clk is None:
+            clk = ClockSignal()
         self.clk          = wrap(clk)
         self.clk_domain   = None if not hasattr(clk, "cd") else clk.cd
+        _check_widths(self.__class__.__name__, i=self.i, o=self.o)
 
     def iter_expressions(self):
         yield self, "i"  , SPECIAL_INPUT
@@ -98,54 +146,61 @@ class SDRIO(Special):
 
     @staticmethod
     def lower(dr):
-        return InferedSDRIO(dr.i, dr.o, dr.clk)
-
+        return InferredSDRIO(dr.i, dr.o, dr.clk, dr.clk_domain)
 
 class SDRInput(SDRIO):  pass
 class SDROutput(SDRIO): pass
 
 # SDR Tristate -------------------------------------------------------------------------------------
 
-class InferedSDRTristate(Module):
+class InferredSDRTristate(Module):
     def __init__(self, io, o, oe, i, clk):
-        _o  = Signal()
-        _oe = Signal()
-        _i  = Signal()
+        _o  = Signal.like(o)
+        _oe = Signal.like(oe)
+        _i  = Signal.like(i) if i is not None else None
         self.specials   += SDROutput(o, _o, clk)
-        self.specials   += SDRInput(_i, i, clk)
-        self.submodules += InferedSDRIO(oe, _oe, clk)
+        if _i is not None:
+            self.specials   += SDRInput(_i, i, clk)
+        self.submodules += InferredSDRIO(oe, _oe, clk)
         self.specials   += Tristate(io, _o, _oe, _i)
 
+# Backward-compatible alias for the original misspelling.
+InferedSDRTristate = InferredSDRTristate
+
 class SDRTristate(Special):
-    def __init__(self, io, o, oe, i, clk=ClockSignal()):
-        assert len(i) == len(o) == len(oe)
+    def __init__(self, io, o, oe, i=None, clk=None):
         Special.__init__(self)
         self.io  = wrap(io)
         self.o   = wrap(o)
         self.oe  = wrap(oe)
-        self.i   = wrap(i)
-        self.clk = wrap(clk)
+        self.i   = wrap(i) if i is not None else None
+        self.clk = wrap(clk) if clk is not None else ClockSignal()
+        _check_widths(self.__class__.__name__, io=self.io, o=self.o, oe=self.oe, i=self.i)
 
     def iter_expressions(self):
         yield self, "io" , SPECIAL_INOUT
         yield self, "o"  , SPECIAL_INPUT
         yield self, "oe" , SPECIAL_INPUT
-        yield self, "i"  , SPECIAL_OUTPUT
+        if self.i is not None:
+            yield self, "i"  , SPECIAL_OUTPUT
         yield self, "clk", SPECIAL_INPUT
 
     @staticmethod
     def lower(dr):
-        return InferedSDRTristate(dr.io, dr.o, dr.oe, dr.i, dr.clk)
+        return InferredSDRTristate(dr.io, dr.o, dr.oe, dr.i, dr.clk)
 
 # DDR Input/Output ---------------------------------------------------------------------------------
 
 class DDRInput(Special):
-    def __init__(self, i, o1, o2, clk=ClockSignal()):
+    def __init__(self, i, o1, o2, clk=None):
         Special.__init__(self)
         self.i   = wrap(i)
         self.o1  = wrap(o1)
         self.o2  = wrap(o2)
+        if clk is None:
+            clk = ClockSignal()
         self.clk = clk if isinstance(clk, str) else wrap(clk)
+        _check_widths(self.__class__.__name__, i=self.i, o1=self.o1, o2=self.o2)
 
     def iter_expressions(self):
         yield self, "i"  , SPECIAL_INPUT
@@ -159,12 +214,15 @@ class DDRInput(Special):
 
 
 class DDROutput(Special):
-    def __init__(self, i1, i2, o, clk=ClockSignal()):
+    def __init__(self, i1, i2, o, clk=None):
         Special.__init__(self)
         self.i1  = wrap(i1)
         self.i2  = wrap(i2)
         self.o   = wrap(o)
+        if clk is None:
+            clk = ClockSignal()
         self.clk = clk if isinstance(clk, str) else wrap(clk)
+        _check_widths(self.__class__.__name__, i1=self.i1, i2=self.i2, o=self.o)
 
     def iter_expressions(self):
         yield self, "i1" , SPECIAL_INPUT
@@ -178,41 +236,69 @@ class DDROutput(Special):
 
 # DDR Tristate -------------------------------------------------------------------------------------
 
-class InferedDDRTristate(Module):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
-        _o  = Signal()
-        _oe = Signal()
-        _i  = Signal()
+class InferredDDRTristate(Module):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, i_async):
+        _o  = Signal.like(o1)
+        _oe = Signal.like(oe1)
+        _i  = Signal.like(_o) if i1 is not None and i2 is not None else None
         self.specials += DDROutput(o1, o2, _o, clk)
-        self.specials += DDROutput(oe1, oe2, _oe, clk)
-        self.specials += DDRInput(_i, i1, i2, clk)
+        self.specials += DDROutput(oe1, oe2, _oe, clk) if oe2 is not None else SDROutput(oe1, _oe, clk)
+        if _i is not None:
+            self.specials += DDRInput(_i, i1, i2, clk)
+            if i_async is not None:
+                self.comb += i_async.eq(_i)
+        elif i_async is not None:
+            _i = i_async
         self.specials += Tristate(io, _o, _oe, _i)
 
+# Backward-compatible alias for the original misspelling.
+InferedDDRTristate = InferredDDRTristate
+
 class DDRTristate(Special):
-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk=ClockSignal()):
+    def __init__(self, io, o1, o2, oe1, oe2=None, i1=None, i2=None, clk=None, i_async=None):
         Special.__init__(self)
-        self.io  = io
-        self.o1  = o1
-        self.o2  = o2
-        self.oe1 = oe1
-        self.oe2 = oe2
-        self.i1  = i1
-        self.i2  = i2
-        self.clk = clk
+        self.io      = wrap(io)
+        self.o1      = wrap(o1)
+        self.o2      = wrap(o2)
+        self.oe1     = wrap(oe1)
+        self.oe2     = wrap(oe2) if oe2 is not None else None
+        self.i1      = wrap(i1) if i1 is not None else None
+        self.i2      = wrap(i2) if i2 is not None else None
+        self.clk     = clk if isinstance(clk, str) else wrap(clk) if clk is not None else ClockSignal()
+        self.i_async = wrap(i_async) if i_async is not None else None
+        if (self.i1 is None) != (self.i2 is None):
+            raise ValueError("DDRTristate i1 and i2 must both be provided or both be omitted")
+        _check_widths(
+            self.__class__.__name__,
+            io      = self.io,
+            o1      = self.o1,
+            o2      = self.o2,
+            oe1     = self.oe1,
+            oe2     = self.oe2,
+            i1      = self.i1,
+            i2      = self.i2,
+            i_async = self.i_async,
+        )
 
     def iter_expressions(self):
-        yield self, "io" , SPECIAL_INOUT
-        yield self, "o1" , SPECIAL_INPUT
-        yield self, "o2" , SPECIAL_INPUT
-        yield self, "oe1", SPECIAL_INPUT
-        yield self, "oe2", SPECIAL_INPUT
-        yield self, "i1" , SPECIAL_OUTPUT
-        yield self, "i2" , SPECIAL_OUTPUT
-        yield self, "clk", SPECIAL_INPUT
+        attr_context = [
+            ("io" ,     SPECIAL_INOUT),
+            ("o1" ,     SPECIAL_INPUT),
+            ("o2" ,     SPECIAL_INPUT),
+            ("oe1",     SPECIAL_INPUT),
+            ("oe2",     SPECIAL_INPUT),
+            ("i1" ,     SPECIAL_OUTPUT),
+            ("i2" ,     SPECIAL_OUTPUT),
+            ("clk",     SPECIAL_INPUT),
+            ("i_async", SPECIAL_OUTPUT)
+        ]
+        for attr, target_context in attr_context:
+            if getattr(self, attr) is not None:
+                yield self, attr, target_context
 
     @staticmethod
     def lower(dr):
-        return InferedDDRTristate(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
+        return InferredDDRTristate(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.i_async)
 
 # Clock Reset Generator ----------------------------------------------------------------------------
 

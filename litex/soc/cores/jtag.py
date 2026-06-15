@@ -1,7 +1,8 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2019-2022 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2026 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2026 chiralitie <chiralitie@gmail.com>
 # Copyright (c) 2019 Antti Lukats <antti.lukats@gmail.com>
 # Copyright (c) 2017 Robert Jordens <jordens@gmail.com>
 # Copyright (c) 2021 Gregory Davill <greg.davill@gmail.com>
@@ -11,6 +12,7 @@
 
 from migen import *
 from migen.genlib.cdc import AsyncResetSynchronizer, MultiReg
+from migen.genlib.fifo import AsyncFIFO
 
 from litex.gen import *
 
@@ -321,7 +323,7 @@ class XilinxJTAG(LiteXModule):
         prim_dict = {
             # Primitive Name   Ðevice (startswith)
             "BSCAN_SPARTAN6" : ["xc6"],
-            "BSCANE2"        : ["xc7a", "xc7k", "xc7v", "xc7z"] +  ["xcau", "xcku", "xcvu", "xczu"],
+            "BSCANE2"        : ["xc7a", "xc7k", "xc7s", "xc7v", "xc7z"] +  ["xcau", "xcku", "xcvu", "xczu"],
         }
         for prim, prim_devs in prim_dict.items():
             for prim_dev in prim_devs:
@@ -373,13 +375,17 @@ class ECP5JTAG(LiteXModule):
             i_JTDO1 = self.tdo, # FF(negedge TCK, JTDO1) if (IR==0x32 && FSM==Shift-DR)
         )
 
+        # NextPnr/Diamond LUT4 p_INIT/p_init workaround.
+        from litex.build.lattice.diamond import LatticeDiamondToolchain
+        p_init_name = {False: "p_INIT", True: "p_init"}[isinstance(LiteXContext.toolchain, LatticeDiamondToolchain)]
+
         # TDI/TCK are synchronous on JTAGG output (TDI being registered with TCK). Introduce a delay
         # on TCK with multiple LUT4s to allow its use as the JTAG Clk.
         for i in range(tck_delay_luts):
             new_tck = Signal()
             self.specials += Instance("LUT4",
                 attr   = {"keep"},
-                p_INIT = 2,
+                **{f"{p_init_name}": 2},  # Use toolchain-specific INIT parameter name.
                 i_A = tck,
                 i_B = 0,
                 i_C = 0,
@@ -398,17 +404,23 @@ class JTAGPHY(LiteXModule):
         Provides a simple JTAG to LiteX stream module to easily stream data to/from the FPGA
         over JTAG.
 
-        Wire format: data_width + 2 bits, LSB first.
+        Wire format: data_width + 3 bits, LSB first.
+
+        Due to JTAG timing constraints (the JTAGG primitive only captures TDO on falling
+        edge in Shift-DR, and the last shift's falling edge is in Exit1-DR), we need
+        data_width + 3 shift cycles to transfer data_width + 2 bits of information.
 
         Host to Target:
           - TX ready : bit 0
-          - RX data: : bit 1 to data_width
+          - RX data  : bit 1 to data_width
           - RX valid : bit data_width + 1
+          - Padding  : bit data_width + 2 (ignored)
 
         Target to Host:
           - RX ready : bit 0
           - TX data  : bit 1 to data_width
           - TX valid : bit data_width + 1
+          - Padding  : bit data_width + 2 (repeat of valid)
         """
         self.sink   =   sink = stream.Endpoint([("data", data_width)])
         self.source = source = stream.Endpoint([("data", data_width)])
@@ -417,8 +429,8 @@ class JTAGPHY(LiteXModule):
 
 
         # JTAG TAP ---------------------------------------------------------------------------------
+        jtag_tdi_delay = 0
         if jtag is None:
-            jtag_tdi_delay = 0
             # Xilinx.
             if XilinxJTAG.get_primitive(device) is not None:
                 jtag = XilinxJTAG(primitive=XilinxJTAG.get_primitive(device), chain=chain)
@@ -427,7 +439,7 @@ class JTAGPHY(LiteXModule):
             elif device[:5] == "LFE5U":
                 jtag = ECP5JTAG()
             # Efinix
-            elif device[:2] == "Ti":
+            elif device[:2] in ["Ti", "Tz"]:
                 jtag = EfinixJTAG(platform)
             # Altera/Intel.
             elif AlteraJTAG.get_primitive(device) is not None:
@@ -474,15 +486,43 @@ class JTAGPHY(LiteXModule):
 
         # JTAG Xfer FSM ----------------------------------------------------------------------------
         valid = Signal()
-        ready = Signal()
         data  = Signal(data_width)
         count = Signal(max=data_width)
+
+        # RX valid/data - registered to hold for CDC transfer.
+        # These are updated via sync.jtag OUTSIDE the FSM to survive FSM resets.
+        # The JTAG TAP goes through Test-Logic-Reset between scans, which would
+        # clear NextValue registers via ResetInserter.
+        rx_valid    = Signal()
+        rx_data     = Signal(data_width)
+        update_rx   = Signal()  # Trigger to capture RX data
+        rx_valid_in = Signal()  # The valid bit to store
+
+        # Ready signal - updated outside FSM to survive FSM resets.
+        # This is critical: the JTAG TAP goes through Test-Logic-Reset between drscans,
+        # which would clear NextValue registers via ResetInserter. By updating 'ready'
+        # via sync.jtag outside the FSM, it only resets on the clock domain reset.
+        ready        = Signal()
+        update_ready = Signal()
+
+        # Detect shift falling edge (transition from Shift-DR to Exit1-DR)
+        # This is when the valid bit (bit9) is available but jtag.shift is already 0
+        shift_d = Signal()
+        self.sync.jtag += shift_d.eq(jtag.shift)
+        shift_falling = Signal()
+        self.comb += shift_falling.eq(shift_d & ~jtag.shift)
 
         fsm = FSM(reset_state="XFER-READY")
         fsm = ClockDomainsRenamer("jtag")(fsm)
         fsm = ResetInserter()(fsm)
         self.submodules += fsm
+
+        # Reset FSM on both jtag.reset and jtag.capture to ensure the FSM
+        # starts in XFER-READY at the beginning of each DR scan. The 'ready'
+        # signal is updated outside the FSM (via sync.jtag), so it survives
+        # FSM resets and is correctly output via combinational TDO.
         self.comb += fsm.reset.eq(jtag.reset | jtag.capture)
+
         fsm.act("XFER-READY",
             jtag_tdo.eq(ready),
             If(jtag.shift,
@@ -494,7 +534,7 @@ class JTAGPHY(LiteXModule):
             )
         )
         fsm.act("XFER-DATA",
-            jtag_tdo.eq(data),
+            jtag_tdo.eq(data[0]),
             If(jtag.shift,
                 NextValue(count, count + 1),
                 NextValue(data, Cat(data[1:], jtag_tdi)),
@@ -506,12 +546,140 @@ class JTAGPHY(LiteXModule):
         fsm.act("XFER-VALID",
             jtag_tdo.eq(valid),
             If(jtag.shift,
-                source.valid.eq(jtag_tdi),
-                source.data.eq(data),
-                NextValue(ready, source.ready),
+                NextValue(rx_valid_in, jtag_tdi),
+                NextState("XFER-PADDING")
+            )
+        )
+        fsm.act("XFER-PADDING",
+            # Padding cycle: finalize the current word and return to XFER-READY.
+            # rx_valid_in was registered in XFER-VALID; data holds the 8 RX bits.
+            # Handle both concatenated scans (jtag.shift stays high) and individual
+            # scans (shift_falling fires when TAP exits Shift-DR).
+            If(jtag.shift,
+                update_rx.eq(1),
+                update_ready.eq(1),
+                NextState("XFER-READY")
+            ),
+            If(shift_falling,
+                update_rx.eq(1),
+                update_ready.eq(1),
                 NextState("XFER-READY")
             )
         )
+
+        # RX path - connect to CDC FIFO write side.
+        self.comb += [
+            source.valid.eq(rx_valid),
+            source.data.eq(rx_data),
+        ]
+
+        # Update ready from FIFO writable (outside FSM, survives resets).
+        self.sync.jtag += If(update_ready, ready.eq(source.ready))
+
+        # Update RX registers (outside FSM, survives resets).
+        # Clear rx_valid after FIFO accepts the data to prevent duplicates.
+        self.sync.jtag += [
+            If(update_rx,
+                rx_valid.eq(rx_valid_in),
+                rx_data.eq(data),
+            ).Elif(source.valid & source.ready,
+                rx_valid.eq(0),
+            )
+        ]
+
+# ECP5 JTAG PHY (Verilog + AsyncFIFO) -----------------------------------------------------------------
+
+class ECP5JTAGPHY(LiteXModule):
+    """ECP5-specific JTAG PHY using Verilog shift register and AsyncFIFO CDC.
+
+    This implementation handles the ECP5 JTAGG primitive's timing quirks:
+    - JTDI is registered (1 TCK cycle late)
+    - TDO is sampled on falling edge of TCK
+    - Supports continuous multi-word Shift-DR scans (modulo-11 counter)
+
+    Uses a Verilog module for timing-critical shift register logic and
+    Migen AsyncFIFOs for clock domain crossing.
+
+    Wire format: 11 bits LSB first (data_width + 3 for data_width=8).
+      Host -> Target: [padding:10][rx_valid:9][rx_data:8-1][tx_ready:0]
+      Target -> Host: [padding:10][tx_valid:9][tx_data:8-1][rx_ready:0]
+    """
+    def __init__(self, platform, data_width=8, clock_domain="sys", fifo_depth=8):
+        self.sink   = sink   = stream.Endpoint([("data", data_width)])
+        self.source = source = stream.Endpoint([("data", data_width)])
+
+        # # #
+
+        # Add Verilog source for JTAG shift register.
+        import os
+        platform.add_source(os.path.join(os.path.dirname(__file__), "jtagphy_shift.v"))
+
+        # JTAG clock domain.
+        self.cd_jtag = ClockDomain("jtag")
+
+        # Signals from Verilog module.
+        jtag_clk = Signal()
+        jtag_rst = Signal()
+
+        # RX path (JTAG -> sys): data from host.
+        rx_data_jtag  = Signal(data_width)
+        rx_valid_jtag = Signal()
+        rx_ready_jtag = Signal()
+
+        # TX path (sys -> JTAG): data to host.
+        tx_data_jtag  = Signal(data_width)
+        tx_valid_jtag = Signal()
+        tx_ready_jtag = Signal()
+
+        # Connect JTAG clock domain.
+        self.comb += [
+            self.cd_jtag.clk.eq(jtag_clk),
+            self.cd_jtag.rst.eq(jtag_rst),
+        ]
+
+        # Instantiate Verilog shift register.
+        self.specials += Instance("jtagphy_shift",
+            o_jtag_clk = jtag_clk,
+            o_jtag_rst = jtag_rst,
+            o_rx_data  = rx_data_jtag,
+            o_rx_valid = rx_valid_jtag,
+            i_rx_ready = rx_ready_jtag,
+            i_tx_data  = tx_data_jtag,
+            i_tx_valid = tx_valid_jtag,
+            o_tx_ready = tx_ready_jtag,
+        )
+
+        # RX AsyncFIFO (JTAG -> sys).
+        self.submodules.rx_fifo = rx_fifo = ClockDomainsRenamer({
+            "write": "jtag", "read": clock_domain
+        })(AsyncFIFO(width=data_width, depth=fifo_depth))
+
+        self.comb += [
+            rx_fifo.din.eq(rx_data_jtag),
+            rx_fifo.we.eq(rx_valid_jtag & rx_fifo.writable),
+            rx_ready_jtag.eq(rx_fifo.writable),
+        ]
+        self.comb += [
+            source.valid.eq(rx_fifo.readable),
+            source.data.eq(rx_fifo.dout),
+            rx_fifo.re.eq(source.ready & rx_fifo.readable),
+        ]
+
+        # TX AsyncFIFO (sys -> JTAG).
+        self.submodules.tx_fifo = tx_fifo = ClockDomainsRenamer({
+            "write": clock_domain, "read": "jtag"
+        })(AsyncFIFO(width=data_width, depth=fifo_depth))
+
+        self.comb += [
+            tx_fifo.din.eq(sink.data),
+            tx_fifo.we.eq(sink.valid & tx_fifo.writable),
+            sink.ready.eq(tx_fifo.writable),
+        ]
+        self.comb += [
+            tx_valid_jtag.eq(tx_fifo.readable),
+            tx_data_jtag.eq(tx_fifo.dout),
+            tx_fifo.re.eq(tx_ready_jtag & tx_fifo.readable),
+        ]
 
 # Efinix / TRION -----------------------------------------------------------------------------------
 

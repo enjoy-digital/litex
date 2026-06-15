@@ -19,6 +19,7 @@ from litex.soc.interconnect.csr import *
 from litex.soc.integration.soc import SoCRegion
 
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
+from litex.soc.cores.ram.common import get_cpu_ram_filename
 
 # VexRiscv SMP -------------------------------------------------------------------------------------
 
@@ -78,7 +79,7 @@ class VexRiscvSMP(CPU):
         cpu_group.add_argument("--icache-ways",                  default=None,         help="L1 instruction cache ways per CPU")
         cpu_group.add_argument("--aes-instruction",              default=None,         help="Enable AES instruction acceleration.")
         cpu_group.add_argument("--without-out-of-order-decoder", action="store_true",  help="Reduce area at cost of peripheral access speed")
-        cpu_group.add_argument("--with-wishbone-memory",         action="store_true",  help="Disable native LiteDRAM interface")
+        cpu_group.add_argument("--with-wishbone-memory",         action="store_true",  help="Disable native LiteDRAM interface (needed with SDRAM PHYs without DM/data-mask pads).")
         cpu_group.add_argument("--with-privileged-debug",        action="store_true",  help="Enable official RISC-V debug spec")
         cpu_group.add_argument("--hardware-breakpoints",         default=1,            help="Number of hardware breapoints", type=int)
         cpu_group.add_argument("--wishbone-force-32b",           action="store_true",  help="Force the wishbone bus to be 32 bits")
@@ -211,6 +212,13 @@ class VexRiscvSMP(CPU):
     # Default Configs Generation.
     @staticmethod
     def generate_default_configs():
+        # Sim
+        VexRiscvSMP.wishbone_memory = False
+        VexRiscvSMP.hardware_breakpoints = 1
+        VexRiscvSMP.coherent_dma = False
+        VexRiscvSMP.generate_cluster_name()
+        VexRiscvSMP.generate_netlist()
+
         # Single cores.
         for data_width in [None, 16, 32, 64, 128]:
             if data_width is None:
@@ -249,6 +257,8 @@ class VexRiscvSMP(CPU):
             VexRiscvSMP.dcache_width   = 32 if data_width is None \
                                               or data_width < 64 else 64
 
+            VexRiscvSMP.hardware_breakpoint = 0
+
             # Without DMA.
             VexRiscvSMP.coherent_dma = False
             VexRiscvSMP.generate_cluster_name()
@@ -275,9 +285,11 @@ class VexRiscvSMP(CPU):
 
     # Netlist Generation.
     @staticmethod
-    def generate_netlist():
+    def generate_netlist(netlist_directory=None):
         print(f"Generating cluster netlist")
         vdir = get_data_mod("cpu", "vexriscv_smp").data_location
+        netlist_directory = netlist_directory or vdir
+        os.makedirs(netlist_directory, exist_ok=True)
         gen_args = []
         if(VexRiscvSMP.coherent_dma):
             gen_args.append("--coherent-dma")
@@ -301,7 +313,7 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--cpu-per-fpu={VexRiscvSMP.cpu_per_fpu}")
         gen_args.append(f"--rvc={VexRiscvSMP.with_rvc}")
         gen_args.append(f"--netlist-name={VexRiscvSMP.cluster_name}")
-        gen_args.append(f"--netlist-directory={vdir}")
+        gen_args.append(f"--netlist-directory={netlist_directory}")
         gen_args.append(f"--dtlb-size={VexRiscvSMP.dtlb_size}")
         gen_args.append(f"--itlb-size={VexRiscvSMP.itlb_size}")
         gen_args.append(f"--jtag-tap={VexRiscvSMP.jtag_tap}")
@@ -424,44 +436,38 @@ class VexRiscvSMP(CPU):
     def add_sources(self, platform):
         vdir = get_data_mod("cpu", "vexriscv_smp").data_location
         print(f"VexRiscv cluster : {self.cluster_name}")
-        if not os.path.exists(os.path.join(vdir, self.cluster_name + ".v")):
-            self.generate_netlist()
 
+        # Prepare build directory.
+        if getattr(platform, "output_dir", None) is not None:
+            build_dir = os.path.join(platform.output_dir, "gateware")
+        else:
+            build_dir = os.getcwd()
+        os.makedirs(build_dir, exist_ok=True)
 
         # Add RAM.
-
-        # By default, use Generic RAM implementation.
-        ram_filename = "Ram_1w_1rs_Generic.v"
-        # On Altera/Intel platforms, use specific implementation.
-        from litex.build.altera import AlteraPlatform
-        if isinstance(platform, AlteraPlatform):
-            ram_filename = "Ram_1w_1rs_Intel.v"
-            # define SYNTHESIS verilog name to avoid issues with unsupported
-            # functions
-            platform.toolchain.additional_qsf_commands.append(
-                'set_global_assignment -name VERILOG_MACRO "SYNTHESIS=1"')
-        # On Efinix platforms, use specific implementation.
-        from litex.build.efinix import EfinixPlatform
-        if isinstance(platform, EfinixPlatform):
-            ram_filename = "Ram_1w_1rs_Efinix.v"
+        ram_filename = get_cpu_ram_filename(platform, "1w_1rs")
         platform.add_source(os.path.join(vdir, ram_filename), "verilog")
 
         # Add Cluster.
-        cluster_filename = os.path.join(vdir,  self.cluster_name + ".v")
-        def add_synthesis_define(filename):
-            """Add SYNTHESIS define to verilog for toolchains requiring it, ex Gowin"""
+        cluster_filename = os.path.join(vdir, self.cluster_name + ".v")
+        build_cluster_filename = os.path.join(build_dir, self.cluster_name + ".v")
+        if not os.path.exists(cluster_filename):
+            self.generate_netlist(netlist_directory=build_dir)
+            cluster_filename = build_cluster_filename
+
+        def copy_with_synthesis_define(src, dst):
+            """Add SYNTHESIS define to verilog for toolchains requiring it, ex Gowin."""
             synthesis_define = "`define SYNTHESIS\n"
-            # Read file.
-            with open(filename, "r") as f:
+            with open(src, "r") as f:
                 lines = f.readlines()
-            # Modify file.
-            with open(filename, "w") as f:
-                if lines[0] != synthesis_define:
+            with open(dst, "w") as f:
+                if not lines or lines[0] != synthesis_define:
                     f.write(synthesis_define)
                 for line in lines:
                     f.write(line)
-        add_synthesis_define(cluster_filename)
-        platform.add_source(cluster_filename, "verilog")
+
+        copy_with_synthesis_define(cluster_filename, build_cluster_filename)
+        platform.add_source(build_cluster_filename, "verilog")
 
     def add_jtag(self, pads):
         self.comb += [
@@ -529,6 +535,28 @@ class VexRiscvSMP(CPU):
         )
         soc.bus.add_slave("clint", clintbus, region=SoCRegion(origin=soc.mem_map.get("clint"), size=0x1_0000, cached=False))
 
+    @staticmethod
+    def _sdram_phy_has_byte_masks(phy):
+        settings = getattr(phy, "settings", None)
+        if settings is not None and hasattr(settings, "with_dm"):
+            return settings.with_dm
+        return True
+
+    def check_sdram(self, phy, data_width):
+        if VexRiscvSMP.wishbone_memory:
+            return
+        if self._sdram_phy_has_byte_masks(phy):
+            return
+
+        raise ValueError(
+            "VexRiscv SMP's native LiteDRAM interface uses byte write enables, "
+            f"but the selected {data_width}-bit SDRAM PHY does not expose DM/data-mask pads. "
+            "With the current LiteDRAM implementation these byte masks cannot reach the SDRAM, "
+            "so partial writes can corrupt the other bytes of the written SDRAM word. "
+            "Add --with-wishbone-memory to route main RAM through the Wishbone/L2 path, "
+            "which writes full SDRAM words instead of relying on SDRAM byte masks."
+        )
+
     def add_memory_buses(self, address_width, data_width):
         VexRiscvSMP.litedram_width = data_width
 
@@ -584,4 +612,3 @@ class VexRiscvSMP(CPU):
 
         # Add verilog sources
         self.add_sources(self.platform)
-

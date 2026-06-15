@@ -14,6 +14,7 @@ import math
 from shutil import which
 
 from migen.fhdl.structure import _Fragment
+from migen.fhdl.simplify import FullMemoryWE
 
 from litex.build.generic_platform import Pins, IOStandard, Misc
 from litex.build.generic_toolchain import GenericToolchain
@@ -23,14 +24,32 @@ from litex.build import tools
 
 class AlteraQuartusToolchain(GenericToolchain):
     attr_translate = {
-        "keep": ("keep", 1),
+        "keep":    ("keep", 1),
+        "noprune": ("noprune", 1),
     }
 
     def __init__(self):
         super().__init__()
+        self._synth_tool             = "quartus_map"
+        self._conv_tool              = "quartus_cpf"
+        self.clock_constraints       = []
         self.additional_sdc_commands = []
         self.additional_qsf_commands = []
         self.cst                     = []
+
+    def build(self, platform, fragment,
+        synth_tool = "quartus_map",
+        conv_tool  = "quartus_cpf",
+        **kwargs):
+
+        self._synth_tool = synth_tool
+        self._conv_tool  = conv_tool
+
+        if not platform.device.startswith("10M"):
+            # Apply FullMemoryWE on Design (Quartus does not infer memories correctly otherwise).
+            FullMemoryWE()(fragment)
+
+        return GenericToolchain.build(self, platform, fragment, **kwargs)
 
     # IO/Placement Constraints (.qsf) --------------------------------------------------------------
 
@@ -50,9 +69,11 @@ class AlteraQuartusToolchain(GenericToolchain):
             if not isinstance(c.misc, str) and len(c.misc) == 2:
                 tpl = "set_instance_assignment -comment \"{name}\" -name {misc[0]} \"{misc[1]}\" -to {signame}"
                 return tpl.format(signame=signame, name=fmt_r, misc=c.misc)
-            else:
-                tpl = "set_instance_assignment -comment \"{name}\"  -name {misc} -to {signame}"
+            elif isinstance(c.misc, str):
+                tpl = "set_instance_assignment -comment \"{name}\" -name {misc} -to {signame}"
                 return tpl.format(signame=signame, name=fmt_r, misc=c.misc)
+            else:
+                raise ValueError("Unsupported Misc constraint: {}".format(c.misc))
 
     def _format_qsf_constraint(self, signame, pin, others, resname):
         fmt_r = "{}:{}".format(*resname[:2])
@@ -88,6 +109,9 @@ class AlteraQuartusToolchain(GenericToolchain):
     def build_timing_constraints(self, vns):
         sdc = []
 
+        # Build clk->name map (use user-provided name when set, fallback to netlist name).
+        clk_names = {clk: (name if name is not None else vns.get_name(clk)) for clk, [period, name] in self.clocks.items()}
+
         # Clock constraints
         for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             is_port = False
@@ -95,8 +119,7 @@ class AlteraQuartusToolchain(GenericToolchain):
                 if sig == vns.get_name(clk):
                     is_port = True
             clk_sig = self._vns.get_name(clk)
-            if name is None:
-                name = clk_sig
+            name    = clk_names[clk]
             if is_port:
                 tpl = "create_clock -name {name} -period {period} [get_ports {{{clk}}}]"
                 sdc.append(tpl.format(name=name, clk=clk_sig, period=str(period)))
@@ -105,12 +128,18 @@ class AlteraQuartusToolchain(GenericToolchain):
                 sdc.append(tpl.format(name=name, clk=clk_sig, period=str(period)))
 
         # Enable automatical constraint generation for PLLs
-        sdc.append("derive_pll_clocks -use_net_name")
+        if not self.platform.device[:3] in ["A5E", "A3C"]:
+            sdc.append("derive_pll_clocks -use_net_name")
+
+        # Any additional clock constraints like "create_generated_clock" etc.
+        sdc += self.clock_constraints
 
         # False path constraints
         for from_, to in sorted(self.false_paths, key=lambda x: (x[0].duid, x[1].duid)):
             tpl = "set_false_path -from [get_clocks {{{from_}}}] -to [get_clocks {{{to}}}]"
-            sdc.append(tpl.format(from_=vns.get_name(from_), to=vns.get_name(to)))
+            sdc.append(tpl.format(
+                from_ = clk_names.get(from_, vns.get_name(from_)),
+                to    = clk_names.get(to,    vns.get_name(to))))
 
         # Add additional commands
         sdc += self.additional_sdc_commands
@@ -138,12 +167,13 @@ class AlteraQuartusToolchain(GenericToolchain):
             else:
                 if filename.endswith(".svh") or filename.endswith(".vh"):
                     fpath = os.path.dirname(filename)
-                    if fpath not in platform.verilog_include_paths:
-                        platform.verilog_include_paths.append(fpath)
+                    if fpath not in self.platform.verilog_include_paths:
+                        self.platform.verilog_include_paths.append(fpath)
 
         # Add IPs
         for filename in self.platform.ips:
-            qsf.append("set_global_assignment -name QSYS_FILE " + filename.replace("\\", "/"))
+            file_ext = os.path.splitext(filename)[1][1:].upper()
+            qsf.append(f"set_global_assignment -name {file_ext}_FILE " + filename.replace("\\", "/"))
 
         # Add include paths
         for path in self.platform.verilog_include_paths:
@@ -157,6 +187,9 @@ class AlteraQuartusToolchain(GenericToolchain):
 
         # Set timing constraints
         qsf.append("set_global_assignment -name SDC_FILE {}.sdc".format(self._build_name))
+
+        # Define SYNTHESIS macro
+        qsf.append('set_global_assignment -name VERILOG_MACRO "SYNTHESIS=1"')
 
         # Add additional commands
         qsf += self.additional_qsf_commands
@@ -172,31 +205,50 @@ class AlteraQuartusToolchain(GenericToolchain):
         if sys.platform in ["win32", "cygwin"]:
             script_file = "build_" + build_name + ".bat"
             script_contents = "REM Autogenerated by LiteX / git: " + tools.get_litex_git_revision() + "\n"
+            fail_stmt = " || exit /b 1"
         else:
             script_file = "build_" + build_name + ".sh"
             script_contents = "#!/usr/bin/env bash\n"
             script_contents += "# Autogenerated by LiteX / git: " + tools.get_litex_git_revision() + "\n"
             script_contents += "set -e -u -x -o pipefail\n"
+            fail_stmt = ""
         script_contents += """
-quartus_map --read_settings_files=on  --write_settings_files=off {build_name} -c {build_name}
-quartus_fit --read_settings_files=off --write_settings_files=off {build_name} -c {build_name}
-quartus_asm --read_settings_files=off --write_settings_files=off {build_name} -c {build_name}
-quartus_sta {build_name} -c {build_name}"""
+{synth_tool} --read_settings_files=on  --write_settings_files=off {build_name} -c {build_name}{fail_stmt}
+quartus_fit --read_settings_files=off --write_settings_files=off {build_name} -c {build_name}{fail_stmt}
+quartus_asm --read_settings_files=off --write_settings_files=off {build_name} -c {build_name}{fail_stmt}
+quartus_sta {build_name} -c {build_name}{fail_stmt}"""
+
+        # Create .rbf.
         if self.platform.create_rbf:
             if sys.platform in ["win32", "cygwin"]:
               script_contents += """
 if exist "{build_name}.sof" (
-    quartus_cpf -c {build_name}.sof {build_name}.rbf
+    {conv_tool} -c {build_name}.sof {build_name}.rbf{fail_stmt}
 )
 """
             else:
               script_contents += """
 if [ -f "{build_name}.sof" ]
 then
-    quartus_cpf -c {build_name}.sof {build_name}.rbf
+    {conv_tool} -c {build_name}.sof {build_name}.rbf
 fi
 """
-        script_contents = script_contents.format(build_name=build_name)
+        # Create .svf.
+        if self.platform.create_svf:
+            if sys.platform in ["win32", "cygwin"]:
+              script_contents += """
+if exist "{build_name}.sof" (
+    {conv_tool} -c -q \"12.0MHz\" -g 3.3 -n p {build_name}.sof {build_name}.svf{fail_stmt}
+)
+"""
+            else:
+              script_contents += """
+if [ -f "{build_name}.sof" ]
+then
+    {conv_tool} -c -q \"12.0MHz\" -g 3.3 -n p {build_name}.sof {build_name}.svf
+fi
+"""
+        script_contents = script_contents.format(build_name=build_name, synth_tool=self._synth_tool, conv_tool=self._conv_tool, fail_stmt=fail_stmt)
         tools.write_to_file(script_file, script_contents, force_unix=True)
 
         return script_file
@@ -207,10 +259,21 @@ fi
         else:
             shell = ["bash"]
 
-        if which("quartus_map") is None:
+        if which(self._synth_tool) is None:
             msg = "Unable to find Quartus toolchain, please:\n"
             msg += "- Add Quartus toolchain to your $PATH."
             raise OSError(msg)
 
         if subprocess.call(shell + [script]) != 0:
             raise OSError("Error occured during Quartus's script execution.")
+
+def fill_args(parser):
+    toolchain_group = parser.add_argument_group(title="Quartus toolchain options")
+    toolchain_group.add_argument("--synth-tool", default="quartus_map", help="Synthesis mode (quartus_map or quartus_syn).")
+    toolchain_group.add_argument("--conv-tool",  default="quartus_cpf", help="Quartus Prime Convert_programming_file (quartus_cpf or quartus_pfg).")
+
+def get_argdict(args):
+    return {
+        "synth_tool" : args.synth_tool,
+        "conv_tool"  : args.conv_tool,
+    }

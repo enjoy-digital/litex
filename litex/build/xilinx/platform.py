@@ -28,28 +28,28 @@ class XilinxPlatform(GenericPlatform):
 
     _jtag_support = [
         "xc6",
-        "xc7a", "xc7k", "xc7v", "xc7z",
+        "xc7a", "xc7k", "xc7s", "xc7v", "xc7z",
         "xcau", "xcku", "xcvu", "xczu"
     ]
 
-    def __init__(self, *args, toolchain="ise", **kwargs):
+    def __init__(self, *args, toolchain="ise", device_image_arch=None, **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
         self.edifs = set()
         self.ips   = {}
         if toolchain == "ise":
-            from litex.build.xilinx import ise
             self.toolchain = ise.XilinxISEToolchain()
         elif toolchain == "vivado":
-            from litex.build.xilinx import vivado
-            self.toolchain = vivado.XilinxVivadoToolchain()
+            self.toolchain = vivado.XilinxVivadoToolchain(device_image_arch=device_image_arch)
         elif toolchain == "symbiflow" or toolchain == "f4pga":
             from litex.build.xilinx import f4pga
             self.toolchain = f4pga.F4PGAToolchain()
         elif toolchain in ["yosys+nextpnr", "openxc7"]:
-            from litex.build.xilinx import yosys_nextpnr
             self.toolchain = yosys_nextpnr.XilinxYosysNextpnrToolchain(toolchain)
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
+        if device_image_arch is not None:
+            self._bitstream_ext = dict(self._bitstream_ext)
+            self._bitstream_ext["sram"] = ".pdi"
 
     def add_edif(self, filename):
         self.edifs.add((os.path.abspath(filename)))
@@ -59,7 +59,6 @@ class XilinxPlatform(GenericPlatform):
 
     def add_platform_command(self, command, **signals):
         skip = False
-        from litex.build.xilinx import yosys_nextpnr
         if isinstance(self.toolchain, yosys_nextpnr.XilinxYosysNextpnrToolchain):
             # FIXME: Add support for INTERNAL_VREF to yosys+nextpnr flow.
             if "set_property INTERNAL_VREF" in command:
@@ -76,13 +75,22 @@ class XilinxPlatform(GenericPlatform):
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.xilinx_special_overrides)
-        if self.device[:3] == "xc6":
+
+        device = self.device.lower()
+        family = self.device_family
+        if family is None:
+            if device.startswith(("xc6", "xa6", "xq6")):
+                family = "spartan6"
+            elif device.startswith(("xc7", "xa7", "xq7")):
+                family = "7series"
+            elif device.startswith(("xcau", "xcku", "xqku", "xcvu", "xqvu", "xczu", "xqzu")):
+                family = "ultrascale"
+
+        if family == "spartan6":
             so.update(common.xilinx_s6_special_overrides)
-        if self.device[:3] == "xc7":
+        elif family == "7series":
             so.update(common.xilinx_s7_special_overrides)
-        if self.device[:4] == "xcku":
-            so.update(common.xilinx_us_special_overrides)
-        if self.device[:4] == "xcau":
+        elif family in ["ultrascale", "ultrascale+"]:
             so.update(common.xilinx_us_special_overrides)
         so.update(special_overrides)
         return GenericPlatform.get_verilog(self, *args,
@@ -104,6 +112,29 @@ class XilinxPlatform(GenericPlatform):
             to = to.p
         self.toolchain.add_false_path_constraint(self, from_, to)
 
+    def add_generated_clock_from_divider_reg(self, name, reg_basename, divide_by):
+        self.add_platform_command(
+            f"create_generated_clock -name {name} -divide_by {divide_by} "
+            + "-source [get_pins -hierarchical -filter {{NAME =~ *" + reg_basename + "/C}}] "
+            + "[get_pins -hierarchical -filter {{NAME =~ *" + reg_basename + "/Q}}]"
+        )
+
+
+    def add_false_path_constraints_by_name(self, *clock_names):
+        # On Vivado, some generated/internal clocks are only resolvable after synthesis.
+        # Emit explicit set_clock_groups in pre-placement commands for robust resolution.
+        if hasattr(self.toolchain, "pre_placement_commands"):
+            for i, a in enumerate(clock_names):
+                for b in clock_names[i+1:]:
+                    self.toolchain.pre_placement_commands.append(
+                        f"set_clock_groups -asynchronous -group [get_clocks {a}] -group [get_clocks {b}]"
+                    )
+        else:
+            for a in clock_names:
+                for b in clock_names:
+                    if a != b:
+                        self.add_false_path_constraint(a, b)
+
     @classmethod
     def fill_args(cls, toolchain, parser):
         """
@@ -119,6 +150,8 @@ class XilinxPlatform(GenericPlatform):
         """
         if toolchain == "vivado":
             vivado.vivado_build_args(parser)
+        elif toolchain in ["yosys+nextpnr", "openxc7"]:
+            yosys_nextpnr.xilinx_yosys_nextpnr_args(parser)
 
     @classmethod
     def get_argdict(cls, toolchain, args):
@@ -136,6 +169,8 @@ class XilinxPlatform(GenericPlatform):
         """
         if toolchain == "vivado":
             return vivado.vivado_build_argdict(args)
+        elif toolchain in ["yosys+nextpnr", "openxc7"]:
+            return yosys_nextpnr.xilinx_yosys_nextpnr_argdict(args)
         else:
             return dict()
 

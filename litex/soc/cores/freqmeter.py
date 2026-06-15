@@ -43,7 +43,7 @@ class _Sampler(LiteXModule):
 class FreqMeter(LiteXModule):
     def __init__(self, period, width=6, clk=None):
         self.clk   = Signal() if clk is None else clk
-        self.value = CSRStatus(32)
+        self.value = CSRStatus(32, description="Measured frequency counter value.")
 
         # # #
 

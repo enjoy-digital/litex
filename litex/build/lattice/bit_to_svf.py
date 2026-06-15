@@ -29,8 +29,7 @@ def bit_to_svf(bit, svf):
                 idcode |= bs[i+7]
                 break
         if idcode is None:
-            print("Failed to find IDCODE in bitstream, check bitstream is valid")
-            sys.exit(1)
+            raise ValueError("Failed to find IDCODE in bitstream, check bitstream is valid")
         print("IDCODE in bitstream is 0x%08x" % idcode)
         bitf.seek(0)
         with open(svf, 'w') as svf:

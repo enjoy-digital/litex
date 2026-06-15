@@ -46,23 +46,43 @@ DEPFLAGS += -MD -MP
 
 # Toolchain options
 #
-INCLUDES = -I$(PICOLIBC_DIRECTORY)/newlib/libc/tinystdio \
-           -I$(PICOLIBC_DIRECTORY)/newlib/libc/include \
+INCLUDES = -I$(PICOLIBC_DIRECTORY)/libc/include \
            -I$(LIBBASE_DIRECTORY) \
            -I$(SOC_DIRECTORY)/software/include \
            -I$(SOC_DIRECTORY)/software \
            -I$(BUILDINC_DIRECTORY) \
            -I$(BUILDINC_DIRECTORY)/../libc \
            -I$(CPU_DIRECTORY)
-COMMONFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -no-pie -fomit-frame-pointer -Wall -fno-builtin -fno-stack-protector $(INCLUDES)
+# Keep C++ standard headers before picolibc headers so libstdc++'s include_next
+# wrappers resolve C headers to picolibc instead of the toolchain's newlib.
+CXX_STANDARD_INCLUDE_DIRS := $(shell $(CX_normal) $(CPUFLAGS) -E -x c++ - -v < /dev/null 2>&1 | sed -n '/search starts here:/,/End of search list./{s,^ ,,; /\/include\/c++\//p;}')
+CXX_STANDARD_INCLUDES = $(addprefix -isystem ,$(CXX_STANDARD_INCLUDE_DIRS))
+CXX_INCLUDES = -I$(LIBBASE_DIRECTORY) \
+               -I$(SOC_DIRECTORY)/software/include \
+               -I$(SOC_DIRECTORY)/software \
+               -I$(BUILDINC_DIRECTORY) \
+               -I$(BUILDINC_DIRECTORY)/../libc \
+               -I$(CPU_DIRECTORY) \
+               $(CXX_STANDARD_INCLUDES) \
+               -isystem $(PICOLIBC_DIRECTORY)/libc/include
+BASEFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -no-pie -fomit-frame-pointer -Wall \
+            -fno-builtin -fno-stack-protector -ffunction-sections -fdata-sections
+COMMONFLAGS = $(BASEFLAGS) $(INCLUDES)
+CXXCOMMONFLAGS = $(BASEFLAGS) $(CXX_INCLUDES)
 ifeq ($(LTO), 1)
 COMMONFLAGS += -flto
+CXXCOMMONFLAGS += -flto
 endif
 ifneq ($(CPUFAMILY), arm)
 COMMONFLAGS += -fexceptions
+CXXCOMMONFLAGS += -fexceptions
 endif
 CFLAGS = $(COMMONFLAGS) -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes
+ifneq ($(strip $(CXX_STANDARD_INCLUDES)),)
+CXXFLAGS = -nostdinc++ $(CXXCOMMONFLAGS) -std=c++11 -I$(SOC_DIRECTORY)/software/include/basec++ -fno-rtti -ffreestanding
+else
 CXXFLAGS = $(COMMONFLAGS) -std=c++11 -I$(SOC_DIRECTORY)/software/include/basec++ -fno-rtti -ffreestanding
+endif
 LDFLAGS = -nostdlib -nodefaultlibs -Wl,--no-dynamic-linker -Wl,--build-id=none $(CFLAGS) -L$(BUILDINC_DIRECTORY)
 
 define compilexx

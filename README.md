@@ -1,10 +1,10 @@
 <p align="center"><img src="https://raw.githubusercontent.com/enjoy-digital/litex/master/doc/litex.png"></p>
 
 ```
-             Copyright 2012-2024 / Enjoy-Digital & LiteX developers
+             Copyright 2012-2026 / Enjoy-Digital & LiteX developers
 ```
 [![](https://github.com/enjoy-digital/litex/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litex/actions)
-![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
+![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/enjoy-digital/litex)
 
 # Welcome to LiteX!
 
@@ -14,6 +14,8 @@ The LiteX framework provides a convenient and efficient infrastructure to create
 **LiteX SoC builder framework quick tour/overview: [Slides](https://docs.google.com/presentation/d/1mQOWqgmyQxpjLAzFwCulqgkp0TuxmaIDYp5iUfPqqIk/edit?usp=sharing)**
 
 **Want to get started and/or looking for documentation? Make sure to visit the [Wiki](https://github.com/enjoy-digital/litex/wiki)!**
+
+**Want development notes from building FPGA SoCs with LiteX? Visit the [LiteX Notes blog](https://enjoy-digital.github.io/)!**
 
 **A question or want to get in touch? Join us on [Discord](https://discord.gg/PkJwjDbxeG) or on our IRC channel: [#litex at irc.libera.chat]**.
 
@@ -54,9 +56,9 @@ The framework is also far from perfect and we'll be happy to have your [feedback
 
 Have fun! :wink:
 
-**Moral precisions**: The project is shared with a permissive BSD 2-Clause License and we are encouraged to continue sharing it this way thanks to the awesome community and clients willing to support the project!
-If the projet is useful for your research, hobby or commercial projects, we are just asking you to be coherent and behave with integrity: Don't expect free support or that the community will be welcoming if your spent your time complaining about the project (and then direspect developers) or don't pay the custom developments you asked for... (While it's probably natural for 99% of users/clients, it  does seems useful to add this for the 1% remaining that are eating lots of our energy/time).
+We share this project under a permissive BSD 2-Clause License, inspired by our fantastic community and supportive clients. If LiteX benefits your research, hobby, or commercial projects, we kindly ask for your positive collaboration and respect for the effort involved.
 
+Thank you for helping us improve LiteX and being part of our community!
 
 # Typical LiteX design flow:
 ```
@@ -86,6 +88,7 @@ LiteX already supports various softcores CPUs: VexRiscv, Rocket, LM32, Mor1kx, P
 | [LiteDRAM](http://github.com/enjoy-digital/litedram)         | [![](https://github.com/enjoy-digital/litedram/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litedram/actions)         | DRAM                      |
 | [LiteEth](http://github.com/enjoy-digital/liteeth)           | [![](https://github.com/enjoy-digital/liteeth/workflows/ci/badge.svg)](https://github.com/enjoy-digital/liteeth/actions)           | Ethernet                  |
 | [LitePCIe](http://github.com/enjoy-digital/litepcie)         | [![](https://github.com/enjoy-digital/litepcie/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litepcie/actions)         | PCIe                      |
+| [LiteNVMe](http://github.com/enjoy-digital/litenvme)         | [![](https://github.com/enjoy-digital/litenvme/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litenvme/actions)         | NVMe                      |
 | [LiteSATA](http://github.com/enjoy-digital/litesata)         | [![](https://github.com/enjoy-digital/litesata/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litesata/actions)         | SATA                      |
 | [LiteSDCard](http://github.com/enjoy-digital/litesdcard)     | [![](https://github.com/enjoy-digital/litesdcard/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litesdcard/actions)     | SD card                   |
 | [LiteICLink](http://github.com/enjoy-digital/liteiclink)     | [![](https://github.com/enjoy-digital/liteiclink/workflows/ci/badge.svg)](https://github.com/enjoy-digital/liteiclink/actions)     | Inter-Chip communication  |
@@ -155,6 +158,7 @@ $ wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.
 $ chmod +x litex_setup.py
 $ ./litex_setup.py --init --install --user (--user to install to user directory) --config=(minimal, standard, full)
 ```
+  `litex_setup.py` downloads the repository definitions it needs automatically.
   Later, if you need to update all repositories:
 ```sh
 $ ./litex_setup.py --update
@@ -164,10 +168,10 @@ $ ./litex_setup.py --update
 
 > **Note:** On Windows, it's possible you'll have to set `SHELL` environment variable to `SHELL=cmd.exe`.
 
-3. Install a RISC-V toolchain (Only if you want to test/create a SoC with a CPU):
+3. Install a CPU GCC toolchain (Only if you want to test/create a SoC with a CPU):
 ```sh
 $ pip3 install meson ninja
-$ ./litex_setup.py --gcc=riscv
+$ ./litex_setup.py --gcc=riscv # Or lm32/openrisc/powerpc.
 ```
 
 4. Build the target of your board...:
@@ -176,18 +180,28 @@ Go to litex-boards/litex_boards/targets and execute the target you want to build
 
 5. ... and/or install [Verilator](http://www.veripool.org/) and test LiteX directly on your computer without any FPGA board:
 
-On Linux (Ubuntu):
+On Linux (Ubuntu/Debian):
 ```sh
 $ sudo apt install libevent-dev libjson-c-dev verilator
+$ litex_sim --cpu-type=vexriscv
+```
+
+On Linux (Fedora):
+```sh
+$ sudo dnf install libevent-devel json-c-devel verilator
 $ litex_sim --cpu-type=vexriscv
 ```
 
 On MacOS:
 ```sh
 $ brew install json-c verilator libevent
-$ brew cask install tuntap
 $ litex_sim --cpu-type=vexriscv
 ```
+
+Ethernet/TAP simulation requires a host TAP interface. The old
+`brew cask install tuntap` command is no longer valid on current Homebrew, so
+install a MacOS-compatible TUN/TAP driver separately or use Linux for TAP-based
+simulation.
 
 6. Run a terminal program on the board's serial port at 115200 8-N-1.
 

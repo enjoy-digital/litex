@@ -22,7 +22,7 @@
 /**
  * Command "sdram_bist"
  *
- * Run SDRAM Build-In Self-Test
+ * Run SDRAM Built-In Self-Test
  *
  */
 #if defined(CSR_SDRAM_GENERATOR_BASE) && defined(CSR_SDRAM_CHECKER_BASE)
@@ -32,22 +32,22 @@ static void sdram_bist_handler(int nb_params, char **params)
 	int burst_length;
 	int random;
 	if (nb_params < 2) {
-		printf("sdram_bist <burst_length> <random>");
+		printf("sdram_bist <burst_length> <random>\n");
 		return;
 	}
 	burst_length = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect burst_length");
+		printf("Error: invalid burst_length\n");
 		return;
 	}
 	random = strtoul(params[1], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect random");
+		printf("Error: invalid random\n");
 		return;
 	}
 	sdram_bist(burst_length, random);
 }
-define_command(sdram_bist, sdram_bist_handler, "Run SDRAM Build-In Self-Test", LITEDRAM_CMDS);
+define_command(sdram_bist, sdram_bist_handler, "Run SDRAM Built-In Self-Test", LITEDRAM_CMDS);
 #endif
 
 /**
@@ -64,23 +64,23 @@ static void sdram_hw_test_handler(int nb_params, char **params)
 	uint64_t size;
 	uint64_t burst_length = 1;
 	if (nb_params < 2) {
-		printf("sdram_hw_test <origin> <size> [<burst_length>]");
+		printf("sdram_hw_test <origin> <size> [burst_length]\n");
 		return;
 	}
 	origin = strtoull(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect origin");
+		printf("Error: invalid origin\n");
 		return;
 	}
 	size = strtoull(params[1], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect size");
+		printf("Error: invalid size\n");
 		return;
 	}
 	if (nb_params > 2) {
 		burst_length = strtoull(params[2], &c, 0);
 		if (*c != 0) {
-			printf("Incorrect burst length");
+			printf("Error: invalid burst_length\n");
 			return;
 		}
 	}
@@ -102,12 +102,12 @@ static void sdram_force_rdphase_handler(int nb_params, char **params)
 	char *c;
 	int phase;
 	if (nb_params < 1) {
-		printf("sdram_force_rdphase <phase>");
+		printf("sdram_force_rdphase <phase>\n");
 		return;
 	}
 	phase = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect phase");
+		printf("Error: invalid phase\n");
 		return;
 	}
 	printf("Forcing read phase to %d\n", phase);
@@ -128,12 +128,12 @@ static void sdram_force_wrphase_handler(int nb_params, char **params)
 	char *c;
 	int phase;
 	if (nb_params < 1) {
-		printf("sdram_force_wrphase <phase>");
+		printf("sdram_force_wrphase <phase>\n");
 		return;
 	}
 	phase = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect phase");
+		printf("Error: invalid phase\n");
 		return;
 	}
 	printf("Forcing write phase to %d\n", phase);
@@ -150,7 +150,7 @@ define_command(sdram_force_wrphase, sdram_force_wrphase_handler, "Force write ph
  * Reset write leveling Cmd delay
  *
  */
-#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE) && defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE)
 static void sdram_rst_cmd_delay_handler(int nb_params, char **params)
 {
 	sdram_software_control_on();
@@ -166,18 +166,18 @@ define_command(sdram_rst_cmd_delay, sdram_rst_cmd_delay_handler, "Reset write le
  * Force write leveling Cmd delay
  *
  */
-#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE)
+#if defined(CSR_SDRAM_BASE) && defined(CSR_DDRPHY_BASE) && defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE)
 static void sdram_force_cmd_delay_handler(int nb_params, char **params)
 {
 	char *c;
 	int taps;
 	if (nb_params < 1) {
-		printf("sdram_force_cmd_delay <taps>");
+		printf("sdram_force_cmd_delay <taps>\n");
 		return;
 	}
 	taps = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect taps");
+		printf("Error: invalid taps\n");
 		return;
 	}
 	sdram_software_control_on();
@@ -240,12 +240,12 @@ static void sdram_rst_dat_delay_handler(int nb_params, char **params)
 	char *c;
 	int module;
 	if (nb_params < 1) {
-		printf("sdram_rst_dat_delay <module>");
+		printf("sdram_rst_dat_delay <module>\n");
 		return;
 	}
 	module = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect module");
+		printf("Error: invalid module\n");
 		return;
 	}
 	sdram_software_control_on();
@@ -268,17 +268,17 @@ static void sdram_force_dat_delay_handler(int nb_params, char **params)
 	int module;
 	int taps;
 	if (nb_params < 2) {
-		printf("sdram_force_dat_delay <module> <taps>");
+		printf("sdram_force_dat_delay <module> <taps>\n");
 		return;
 	}
 	module = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect module");
+		printf("Error: invalid module\n");
 		return;
 	}
 	taps = strtoul(params[1], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect taps");
+		printf("Error: invalid taps\n");
 		return;
 	}
 	sdram_software_control_on();
@@ -303,12 +303,12 @@ static void sdram_rst_bitslip_handler(int nb_params, char **params)
 	char *c;
 	int module;
 	if (nb_params < 1) {
-		printf("sdram_rst_bitslip <module>");
+		printf("sdram_rst_bitslip <module>\n");
 		return;
 	}
 	module = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect module");
+		printf("Error: invalid module\n");
 		return;
 	}
 	sdram_software_control_on();
@@ -331,17 +331,17 @@ static void sdram_force_bitslip_handler(int nb_params, char **params)
 	int module;
 	int bitslip;
 	if (nb_params < 2) {
-		printf("sdram_force_bitslip <module> <bitslip>");
+		printf("sdram_force_bitslip <module> <bitslip>\n");
 		return;
 	}
 	module = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect module");
+		printf("Error: invalid module\n");
 		return;
 	}
 	bitslip = strtoul(params[1], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect bitslip");
+		printf("Error: invalid bitslip\n");
 		return;
 	}
 	sdram_software_control_on();
@@ -366,17 +366,17 @@ static void sdram_mr_write_handler(int nb_params, char **params)
 	uint16_t value;
 
 	if (nb_params < 2) {
-		printf("sdram_mr_write <reg> <value>");
+		printf("sdram_mr_write <reg> <value>\n");
 		return;
 	}
 	reg = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect reg");
+		printf("Error: invalid reg\n");
 		return;
 	}
 	value = strtoul(params[1], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect value");
+		printf("Error: invalid value\n");
 		return;
 	}
 	sdram_software_control_on();
@@ -405,22 +405,22 @@ static void sdram_spd_handler(int nb_params, char **params)
 	int len = sizeof(buf);
 
 	if (nb_params < 1) {
-		printf("sdram_spd <spdaddr>");
+		printf("sdram_spd <spdaddr>\n");
 		return;
 	}
 
 	spdaddr = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect address");
+		printf("Error: invalid SPD address\n");
 		return;
 	}
 	if (spdaddr > 0b111) {
-		printf("SPD EEPROM max address is 0b111 (defined by A0, A1, A2 pins)");
+		printf("Error: SPD EEPROM max address is 0b111 (defined by A0, A1, A2 pins)\n");
 		return;
 	}
 
 	if (!sdram_read_spd(spdaddr, 0, buf, (uint16_t)len)) {
-		printf("Error when reading SPD EEPROM");
+		printf("Error: SPD EEPROM read failed\n");
 		return;
 	}
 
@@ -431,7 +431,7 @@ static void sdram_spd_handler(int nb_params, char **params)
 		int cmp_result;
 		cmp_result = memcmp(buf, (void *) SPD_BASE, SPD_SIZE);
 		if (cmp_result == 0) {
-			printf("Memory contents matches the data used for gateware generation\n");
+			printf("Memory contents match the data used for gateware generation\n");
 		} else {
 			printf("\nWARNING: memory differs from the data used during gateware generation:\n");
 			dump_bytes((void *) SPD_BASE, SPD_SIZE, 0);

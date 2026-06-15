@@ -40,11 +40,22 @@ from migen import *
 from migen.util.misc import xdir
 from migen.fhdl.tracer import get_obj_var_name
 
+# Helpers ------------------------------------------------------------------------------------------
+
+def _check_csr_location(n):
+    if n is None:
+        return
+    if not isinstance(n, int):
+        raise ValueError("CSR location should be an integer.")
+    if n < 0:
+        raise ValueError("CSR location should be non-negative.")
+
 # CSRBase ------------------------------------------------------------------------------------------
 
 class _CSRBase(DUID):
     def __init__(self, size, name, n=None):
         DUID.__init__(self)
+        _check_csr_location(n)
         self.n     = n
         self.fixed = n is not None
         self.size = size
@@ -62,6 +73,7 @@ class CSRConstant(DUID):
 
     def __init__(self, value, bits_sign=None, name=None, n=None):
         DUID.__init__(self)
+        _check_csr_location(n)
         self.n        = n
         self.fixed    = n is not None
         self.value    = Constant(value, bits_sign)
@@ -91,44 +103,93 @@ class CSR(_CSRBase):
 
     Attributes
     ----------
-    r : Signal(size), out
+    wr_data : Signal(size), out
         Contains the data written from the bus interface.
-        ``r`` is only valid when ``re`` is high.
+        ``wr_data`` is only valid when ``wr_stb`` is high.
 
-    re : Signal(), out
-        The strobe signal for ``r``.
+    wr_stb : Signal(), out
+        The strobe signal for ``wr_data``.
         It is active for one cycle, after or during a write from the bus.
 
-    w : Signal(size), in
+    rd_data : Signal(size), in
         The value to be read from the bus.
         Must be provided at all times.
 
-    we : Signal(), out
-        The strobe signal for ``w``.
+    rd_stb : Signal(), out
+        The strobe signal for ``rd_data``.
         It is active for one cycle, after or during a read from the bus.
+
+    r/re/w/we : Signal(), compatibility aliases
+        Historical names kept for compatibility:
+        ``r``/``re`` alias ``wr_data``/``wr_stb`` and
+        ``w``/``we`` alias ``rd_data``/``rd_stb``.
     """
 
     def __init__(self, size=1, name=None, n=None):
         _CSRBase.__init__(self, size, name, n)
-        self.re = Signal(name=self.name + "_re")
-        self.r  = Signal(self.size, name=self.name + "_r")
-        self.we = Signal(name=self.name + "_we")
-        self.w  = Signal(self.size, name=self.name + "_w")
+        self.wr_stb  = Signal(name=self.name + "_re")
+        self.wr_data = Signal(self.size, name=self.name + "_r")
+        self.rd_stb  = Signal(name=self.name + "_we")
+        self.rd_data = Signal(self.size, name=self.name + "_w")
+
+        # Compatibility aliases.
+        self.re = self.wr_stb
+        self.r  = self.wr_data
+        self.we = self.rd_stb
+        self.w  = self.rd_data
 
     def read(self):
         """Read method for simulation."""
-        yield self.we.eq(1)
-        value = (yield self.w)
+        yield self.rd_stb.eq(1)
+        value = (yield self.rd_data)
         yield
-        yield self.we.eq(0)
+        yield self.rd_stb.eq(0)
         return value
 
     def write(self, value):
         """Write method for simulation."""
-        yield self.r.eq(value)
-        yield self.re.eq(1)
+        yield self.wr_data.eq(value)
+        yield self.wr_stb.eq(1)
         yield
-        yield self.re.eq(0)
+        yield self.wr_stb.eq(0)
+
+
+class CSRGap(_CSRBase):
+    """Reserve one or more locations in a fixed CSR bank layout.
+
+    When provided, ``n`` is the first reserved CSR index in the bank. Without
+    ``n``, the gap is inserted at its natural declaration position. ``name`` is
+    used as the generated CSR name prefix, while ``name_start`` controls the
+    numeric suffix. Set ``name_start`` to ``None`` to use ``name`` as an exact
+    name for a single-location gap.
+    """
+
+    def __init__(self, count=1, name="reserved", n=None, name_start=0):
+        if count < 1:
+            raise ValueError("CSRGap count must be >= 1.")
+        if name_start is None and count != 1:
+            raise ValueError("CSRGap name_start=None is only valid for a single-location gap.")
+        _CSRBase.__init__(self, 0, name, n)
+        self.count      = count
+        self.name_start = name_start
+
+    def get_name(self, index):
+        if index < 0 or index >= self.count:
+            raise ValueError(f"CSRGap index {index} outside gap size {self.count}.")
+        if self.name_start is None:
+            return self.name
+        return f"{self.name}{self.name_start + index}"
+
+    def read(self):
+        yield
+        return 0
+
+    def write(self, value):
+        yield
+
+
+def _expand_csr_gap(csr_gap):
+    return [CSR(name=csr_gap.get_name(i)) for i in range(csr_gap.count)]
 
 
 class _CompoundCSR(_CSRBase, Module):
@@ -300,10 +361,13 @@ class CSRStatus(_CompoundCSR):
         self.description = description
         self.read_only   = read_only
         self.status      = Signal(self.size, reset=reset)
-        self.we          = Signal()
-        self.re          = Signal()
+        self.rd_stb      = Signal()
+        self.wr_stb      = Signal()
+        self.we          = self.rd_stb
+        self.re          = self.wr_stb
         if not read_only:
-            self.r       = Signal(self.size)
+            self.wr_data = Signal(self.size)
+            self.r       = self.wr_data
         for field in fields:
             self.comb += self.status[field.offset:field.offset + field.size].eq(getattr(self.fields, field.name))
 
@@ -312,21 +376,29 @@ class CSRStatus(_CompoundCSR):
         for i in reversed(range(nwords)) if ordering == "big" else range(nwords):
             nbits = min(self.size - i*busword, busword)
             sc    = CSR(nbits, self.name + str(i) if nwords > 1 else self.name)
-            self.comb += sc.w.eq(self.status[i*busword:i*busword+nbits])
+            self.comb += sc.rd_data.eq(self.status[i*busword:i*busword+nbits])
             self.simple_csrs.append(sc)
             if not self.read_only:
                 lo = i*busword
                 hi = lo+nbits
-                self.sync += If(sc.re, self.r[lo:hi].eq(sc.r))
-        self.comb += self.we.eq(sc.we)
-        self.sync += self.re.eq(sc.re)
+                self.sync += If(sc.wr_stb, self.wr_data[lo:hi].eq(sc.wr_data))
+        self.comb += self.rd_stb.eq(sc.rd_stb)
+        self.sync += self.wr_stb.eq(sc.wr_stb)
 
     def read(self):
         """Read method for simulation."""
-        yield self.we.eq(1)
-        value = (yield self.status)
+        yield self.rd_stb.eq(1)
+        if hasattr(self, "fields"):
+            # In standalone simulation, CSRStatus is commonly used as a plain
+            # CSR object rather than as a submodule, so pack the live fields
+            # directly instead of relying on this module's internal comb logic.
+            value = 0
+            for field in [*self.fields.fields]:
+                value |= (yield getattr(self.fields, field.name)) << field.offset
+        else:
+            value = (yield self.status)
         yield
-        yield self.we.eq(0)
+        yield self.rd_stb.eq(0)
         return value
 
 # CSRStorage ---------------------------------------------------------------------------------------
@@ -366,9 +438,12 @@ class CSRStorage(_CompoundCSR):
     storage : Signal(size), out
         Signal providing the value of the ``CSRStorage`` object.
 
-    re : Signal(), in
+    wr_stb : Signal(), in
         The strobe signal indicating a write to the ``CSRStorage`` register from the CPU. It is active
         for one cycle, after or during a write from the bus.
+
+    re : Signal(), in
+        Compatibility alias for ``wr_stb``.
 
     we : Signal(), out
         The strobe signal to write to the ``CSRStorage`` register from the logic. Only available when
@@ -389,7 +464,8 @@ class CSRStorage(_CompoundCSR):
         self.description  = description
         self.storage      = Signal(self.size, reset=reset, reset_less=reset_less)
         self.atomic_write = atomic_write
-        self.re           = Signal()
+        self.wr_stb       = Signal()
+        self.re           = self.wr_stb
         if write_from_dev:
             self.we    = Signal()
             self.dat_w = Signal(self.size)
@@ -397,31 +473,47 @@ class CSRStorage(_CompoundCSR):
         for field in [*fields]:
             field_assign = getattr(self.fields, field.name).eq(self.storage[field.offset:field.offset + field.size])
             if field.pulse:
-                self.comb += If(self.re, field_assign)
+                self.comb += If(self.wr_stb, field_assign)
             else:
                 self.comb += field_assign
 
     def do_finalize(self, busword, ordering):
         nwords = (self.size + busword - 1)//busword
+        # The CPU writes ascending addresses: with big ordering, word 0 (LSBs) is at the highest
+        # address and thus written last; with little ordering, word nwords-1 (MSBs) is written
+        # last. Commit the storage atomically on that last-written word.
+        commit_word = 0 if (ordering == "big") else (nwords - 1)
         if nwords > 1 and self.atomic_write:
-            backstore = Signal(self.size - busword, name=self.name + "_backstore")
+            # The backstore holds all the words but the commit one.
+            backstore_width = {
+                "big"    : self.size - busword,         # Words 1..nwords-1.
+                "little" : (nwords - 1)*busword,        # Words 0..nwords-2.
+            }[ordering]
+            backstore = Signal(backstore_width, name=self.name + "_backstore")
         for i in reversed(range(nwords)) if ordering == "big" else range(nwords):
             nbits = min(self.size - i*busword, busword)
-            sc    = CSR(nbits, self.name + str(i) if nwords else self.name)
+            sc    = CSR(nbits, self.name + str(i) if nwords > 1 else self.name)
             self.simple_csrs.append(sc)
             lo = i*busword
             hi = lo+nbits
             # read
-            self.comb += sc.w.eq(self.storage[lo:hi])
+            self.comb += sc.rd_data.eq(self.storage[lo:hi])
             # write
             if nwords > 1 and self.atomic_write:
-                if i:
-                    self.sync += If(sc.re, backstore[lo-busword:hi-busword].eq(sc.r))
+                if i != commit_word:
+                    backstore_lo = lo - (busword if ordering == "big" else 0)
+                    backstore_hi = hi - (busword if ordering == "big" else 0)
+                    self.sync += If(sc.wr_stb,
+                        backstore[backstore_lo:backstore_hi].eq(sc.wr_data))
                 else:
-                    self.sync += If(sc.re, self.storage.eq(Cat(sc.r, backstore)))
+                    commit_value = {
+                        "big"    : Cat(sc.wr_data, backstore),
+                        "little" : Cat(backstore, sc.wr_data),
+                    }[ordering]
+                    self.sync += If(sc.wr_stb, self.storage.eq(commit_value))
             else:
-                self.sync += If(sc.re, self.storage[lo:hi].eq(sc.r))
-        self.sync += self.re.eq(sc.re)
+                self.sync += If(sc.wr_stb, self.storage[lo:hi].eq(sc.wr_data))
+        self.sync += self.wr_stb.eq(sc.wr_stb)
 
     def read(self):
         """Read method for simulation.
@@ -437,12 +529,12 @@ class CSRStorage(_CompoundCSR):
             raise ValueError(f"value {value} exceeds range of {self.size} bit CSR {self.name}.")
 
         yield self.storage.eq(value)
-        yield self.re.eq(1)
+        yield self.wr_stb.eq(1)
         if hasattr(self, "fields"):
             for field in [*self.fields.fields]:
                 yield getattr(self.fields, field.name).eq((value >> field.offset) & (2**field.size -1))
         yield
-        yield self.re.eq(0)
+        yield self.wr_stb.eq(0)
         if hasattr(self, "fields"):
             for field in [*self.fields.fields]:
                 if field.pulse:
@@ -482,13 +574,16 @@ def _sort_gathered_items(items):
 
     # Determine items length.
     # -----------------------
-    # Set to length of provided items.
-    items_length = len(items)
+    # Set to length of provided items after expanding gaps.
+    items_length = 0
+    for item in items:
+        items_length += item.count if isinstance(item, CSRGap) else 1
 
     # Eventually extend with fixed items:
     for item in fixed_items:
-        if item.n > items_length:
-            items_length = (item.n + 1)
+        item_count = item.count if isinstance(item, CSRGap) else 1
+        if (item.n + item_count) > items_length:
+            items_length = item.n + item_count
 
     # Create list of sorted items:
     # ----------------------------
@@ -498,6 +593,16 @@ def _sort_gathered_items(items):
 
     # Fill fixed items.
     for item in fixed_items:
+        if isinstance(item, CSRGap):
+            for i, csr in enumerate(_expand_csr_gap(item)):
+                location = item.n + i
+                if sorted_items[location] is not None:
+                    csr0 = item.get_name(i)
+                    csr1 = sorted_items[location].name
+                    raise ValueError(f"CSR conflict on location {location} between {csr0} and {csr1}.")
+                sorted_items[location] = csr
+            continue
+
         if sorted_items[item.n] is not None:
             csr0 = item.name
             csr1 = sorted_items[item.n].name
@@ -507,10 +612,14 @@ def _sort_gathered_items(items):
     # Fill variable items in empty locations.
     while len(variable_items):
         item = variable_items.pop(0)
-        for i in range(items_length):
-            if sorted_items[i] is None:
-                sorted_items[i] = item
-                break
+        expanded_items = _expand_csr_gap(item) if isinstance(item, CSRGap) else [item]
+        for expanded_item in expanded_items:
+            for i in range(items_length):
+                if sorted_items[i] is None:
+                    sorted_items[i] = expanded_item
+                    break
+            else:
+                raise ValueError(f"No free CSR location for {item.name}.")
 
     # Fill remaining location with reserved CSR.
     for i in range(items_length):
@@ -524,7 +633,7 @@ def _sort_gathered_items(items):
     # Return.
     return sorted_items
 
-def _make_gatherer(method, cls, prefix_cb):
+def _make_gatherer(method, cls, prefix_cb, sort_cb=None):
     def gatherer(self, sort=False):
         try:
             exclude = self.autocsr_exclude
@@ -544,8 +653,8 @@ def _make_gatherer(method, cls, prefix_cb):
                     prefix_cb(k + "_", items, prefixed)
                     r += items
         r = sorted(r, key=lambda x: x.duid)
-        if sort:
-            r = _sort_gathered_items(r)
+        if sort and sort_cb is not None:
+            r = sort_cb(r)
         return r
     return gatherer
 
@@ -561,7 +670,12 @@ class AutoCSR:
     with the child objects' names as prefixes.
     """
     get_memories  = _make_gatherer(method="get_memories",  cls=Memory,      prefix_cb=memprefix)
-    get_csrs      = _make_gatherer(method="get_csrs",      cls=_CSRBase,    prefix_cb=csrprefix)
+    get_csrs      = _make_gatherer(
+        method    = "get_csrs",
+        cls       = _CSRBase,
+        prefix_cb = csrprefix,
+        sort_cb   = _sort_gathered_items,
+    )
     get_constants = _make_gatherer(method="get_constants", cls=CSRConstant, prefix_cb=csrprefix)
 
 
@@ -571,7 +685,11 @@ class GenericBank(Module):
         # Turn description into simple CSRs and claim ownership of compound CSR modules
         self.simple_csrs = []
         for c in description:
-            if isinstance(c, CSR):
+            if isinstance(c, CSRGap):
+                for csr in _expand_csr_gap(c):
+                    assert csr.size <= busword
+                    self.simple_csrs.append(csr)
+            elif isinstance(c, CSR):
                 assert c.size <= busword
                 self.simple_csrs.append(c)
             elif hasattr(c, "finalize"):

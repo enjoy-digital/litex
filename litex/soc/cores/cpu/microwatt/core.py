@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2019 Benjamin Herrenschmidt <benh@ozlabs.org>
 # Copyright (c) 2020 Raptor Engineering <sales@raptorengineering.com>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -133,8 +133,7 @@ class Microwatt(CPU):
 
         # VHDL to Verilog Converter.
         self.cpu_vhd2v_converter = VHD2VConverter(platform,
-            top_entity    = "microwatt_wrapper",
-            build_dir     = os.path.abspath(os.path.dirname(__file__)),
+            name          = "microwatt_wrapper",
             force_convert = ("ghdl" in self.variant),
         )
 
@@ -226,7 +225,6 @@ class Microwatt(CPU):
             sources.append("multiply.vhdl")
             sources.append("multiply-32s.vhdl")
         sdir = get_data_mod("cpu", "microwatt").data_location
-        cdir = os.path.dirname(__file__)
         self.cpu_vhd2v_converter.add_sources(sdir, *sources)
         self.cpu_vhd2v_converter.add_source(os.path.join(os.path.dirname(__file__), "microwatt_wrapper.vhdl"))
 
@@ -294,13 +292,11 @@ class XICSSlave(LiteXModule):
 
         # VHDL to Verilog Converter.
         self.icp_vhd2v_converter = VHD2VConverter(platform,
-            top_entity    = "xics_icp_wrapper",
-            build_dir     = os.path.abspath(os.path.dirname(__file__)),
+            name          = "xics_icp_wrapper",
             force_convert = ("ghdl" in self.variant),
         )
         self.ics_vhd2v_converter = VHD2VConverter(platform,
-            top_entity    = "xics_ics_wrapper",
-            build_dir     = os.path.abspath(os.path.dirname(__file__)),
+            name          = "xics_ics_wrapper",
             force_convert = ("ghdl" in self.variant),
         )
 
@@ -320,9 +316,9 @@ class XICSSlave(LiteXModule):
             "xics.vhdl",
         ]
         sdir = get_data_mod("cpu", "microwatt").data_location
-        cdir = os.path.dirname(__file__)
-        self.ics_vhd2v_converter.add_sources(sdir, *sources)
-        self.ics_vhd2v_converter.add_source(os.path.join(os.path.dirname(__file__), "xics_wrapper.vhdl"))
+        for vhd2v_converter in [self.icp_vhd2v_converter, self.ics_vhd2v_converter]:
+            vhd2v_converter.add_sources(sdir, *sources)
+            vhd2v_converter.add_source(os.path.join(os.path.dirname(__file__), "xics_wrapper.vhdl"))
 
     def do_finalize(self):
         self.specials += Instance("xics_icp_wrapper", **self.icp_params)

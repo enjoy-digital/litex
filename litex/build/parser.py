@@ -9,10 +9,12 @@ import sys
 import logging
 import argparse
 import importlib
+import importlib.util
 
 from litex.soc.cores import cpu
-from litex.soc.integration import soc_core
+from litex.soc.integration import soc
 from litex.soc.integration import builder
+from litex.build.log import configure_build_log
 
 from litex.gen.common import *
 
@@ -51,7 +53,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         kwargs: dict
             all arguments passed to argparse.ArgumentParser CTOR
         """
-        argparse.ArgumentParser.__init__(self, kwargs)
+        argparse.ArgumentParser.__init__(self, **kwargs)
         self._platform          = None
         self._device            = None
         self.toolchains         = None
@@ -98,7 +100,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
                 choices = self.toolchains,
                 help    = "FPGA toolchain ({}).".format(" or ".join(self.toolchains)))
         else:
-            self.add_target_argument("-toolchain", help="FPGA toolchain")
+            self.add_target_argument("--toolchain", help="FPGA toolchain")
         self.add_target_argument("--build", action="store_true", help="Build design.")
         self.add_target_argument("--load",  action="store_true", help="Load bitstream.")
 
@@ -124,7 +126,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         """
         self._logging_group = self.add_argument_group(title="Logging options")
         self._logging_group.add_argument("--log-filename", default=None,   help="Logging filename.")
-        self._logging_group.add_argument("--log-level",    default="info", help="Logging level: debug, info (default), warning error or critical.")
+        self._logging_group.add_argument("--log-level",    default="info", choices=["debug", "info", "warning", "error", "critical"], help="Logging level.")
 
     def set_defaults(self, **kwargs):
         """
@@ -158,7 +160,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         ======
         soc_core arguments dict
         """
-        soc_arg = soc_core.soc_core_argdict(self._args) # FIXME: Rename to soc_argdict in the future.
+        soc_arg = soc.soc_core_argdict(self._args) # FIXME: Rename to soc_argdict in the future.
 
         # Work around for backward compatibility
         if getattr(self, "_rm_jtagbone", False):
@@ -191,34 +193,43 @@ class LiteXArgumentParser(argparse.ArgumentParser):
 
         # When platform is None try to search for a user input
         if self._platform is None:
-            platform = self.get_value_from_key("--platform", None)
+            platform = self.get_value_from_key("--platform", None, args)
             if platform is None: # no user selection: try default
                 platform = self.get_default_value_from_actions("platform", None)
             if platform is not None:
                 try:
-                    platform_cls = importlib.import_module(platform).Platform
-                except ModuleNotFoundError as e:
-                    # platform not found: try litex-boards package
+                    platform_spec = importlib.util.find_spec(platform)
+                except ModuleNotFoundError:
+                    platform_spec = None
+                if platform_spec is None and "." not in platform:
                     platform = "litex_boards.platforms." + platform
-                    platform_cls = importlib.import_module(platform).Platform
+                platform_cls = importlib.import_module(platform).Platform
                 self.set_platform(platform_cls)
 
                 self.add_target_group()
 
+        # Intercept selected SoC/CPU options to select matching arguments.
+        default_cpu_type             = self._args_default.get("cpu_type", "vexriscv")
+        selected_cpu_type            = self.get_value_from_key("--cpu-type", default_cpu_type, args)
+        default_cpu_variant          = self._args_default.get("cpu_variant", None)
+        selected_cpu_variant         = self.get_value_from_key("--cpu-variant", default_cpu_variant, args)
+
         # When platform provided/set, set builder/soc_core args.
         if self._platform is not None:
             builder.builder_args(self)
-            soc_core.soc_core_args(self)
+            soc.soc_core_args(self,
+                cpu_type    = selected_cpu_type,
+                cpu_variant = selected_cpu_variant,
+            )
 
         # Intercept selected toolchain to fill arguments.
         if self._platform is not None:
-            self._toolchain = self.get_value_from_key("--toolchain", self._default_toolchain)
+            self._toolchain = self.get_value_from_key("--toolchain", self._default_toolchain, args)
             if self._toolchain is not None:
                 self._platform.fill_args(self._toolchain, self)
 
         # Intercept selected CPU to fill arguments.
-        default_cpu_type = self._args_default.get("cpu_type", None)
-        cpu_cls = cpu.CPUS.get(self.get_value_from_key("--cpu-type", default_cpu_type))
+        cpu_cls = cpu.CPUS.get(selected_cpu_type)
         if cpu_cls is not None and hasattr(cpu_cls, "args_fill"):
             cpu_cls.args_fill(self)
 
@@ -231,7 +242,8 @@ class LiteXArgumentParser(argparse.ArgumentParser):
                 if action.dest in remaining:
                     remaining.remove(action.dest)
             if len(remaining) > 0:
-                raise ValueError(f"set_default() for invalid argument(s): {remaining}")
+                # argparse supports set_defaults for dests without arguments, so only warn.
+                print(f"Warning: set_defaults() for argument(s) without matching option(s): {remaining}.")
 
         # Parse args.
         self._args = argparse.ArgumentParser.parse_args(self, args, namespace)
@@ -252,33 +264,40 @@ class LiteXArgumentParser(argparse.ArgumentParser):
             }[self._args.log_level]
         )
 
+        configure_build_log(
+            build_log  = getattr(self._args, "build_log", True),
+            output_dir = getattr(self._args, "output_dir", None),
+        )
+
         return self._args
 
-    def get_value_from_key(self, key, default=None):
+    def get_value_from_key(self, key, default=None, args=None):
         """
-        search key into sys.argv
+        search key into provided args or sys.argv
 
         Parameters
         ==========
         key: str
             key to search
         default: str
-            default value when key is not in sys.argv
+            default value when key is not found
+        args: list
+            optional argument list to search instead of sys.argv
 
         Return
         ======
-            sys.argv corresponding value or default
+            corresponding value or default
         """
-        value = None
-        try:
-            index = [i for i, item in enumerate(sys.argv) if key in item][0]
-            if '=' in sys.argv[index]:
-                value = sys.argv[index].split('=')[1]
-            else:
-                value = sys.argv[index+1]
-        except IndexError:
-            value = default
-        return value
+        args = sys.argv[1:] if args is None else list(args)
+        for n, arg in enumerate(args):
+            if arg == key:
+                try:
+                    return args[n + 1]
+                except IndexError:
+                    return default
+            if arg.startswith(key + "="):
+                return arg.split("=", 1)[1]
+        return default
 
     def get_default_value_from_actions(self, key, default=None):
         """

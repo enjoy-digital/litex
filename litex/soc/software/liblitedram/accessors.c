@@ -156,11 +156,11 @@ void sdram_select(int module, int dq_line) {
 void sdram_deselect(int module, int dq_line) {
 	ddrphy_dly_sel_write(0);
 
-#if defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY)
+#if defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY) || defined(SDRAM_PHY_GW5DDRPHY)
 	/* Sync all DQSBUFM's, By toggling all dly_sel (DQSBUFM.PAUSE) lines. */
 	ddrphy_dly_sel_write(0xff);
 	ddrphy_dly_sel_write(0);
-#endif //SDRAM_PHY_ECP5DDRPHY
+#endif // defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY) || defined(SDRAM_PHY_GW5DDRPHY)
 
 #ifdef SDRAM_DELAY_PER_DQ
 	/* Un-select DQ line */
@@ -189,7 +189,7 @@ int _sdram_write_leveling_dat_delays[16];
 void sdram_write_leveling_rst_dat_delay(int module, int show) {
 	_sdram_write_leveling_dat_delays[module] = -1;
 	if (show)
-		printf("Reseting Dat delay of module %d\n", module);
+		printf("Resetting Dat delay of module %d\n", module);
 }
 
 void sdram_write_leveling_force_dat_delay(int module, int taps, int show) {
@@ -203,7 +203,7 @@ int _sdram_write_leveling_bitslips[16];
 void sdram_write_leveling_rst_bitslip(int module, int show) {
 	_sdram_write_leveling_bitslips[module] = -1;
 	if (show)
-		printf("Reseting Bitslip of module %d\n", module);
+		printf("Resetting Bitslip of module %d\n", module);
 }
 
 void sdram_write_leveling_force_bitslip(int module, int bitslip, int show) {

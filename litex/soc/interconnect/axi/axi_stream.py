@@ -59,7 +59,8 @@ class AXIStreamInterface(stream.Endpoint):
         return ios
 
     def connect_to_pads(self, pads, mode="master"):
-        assert mode in ["slave", "master"]
+        if mode not in ["slave", "master"]:
+            raise ValueError("Unsupported AXI-Stream pads mode: {}.".format(mode))
         r = []
         if mode == "master":
             # Control Signals.

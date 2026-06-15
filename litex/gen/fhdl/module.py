@@ -61,7 +61,6 @@ class LiteXModule(Module, AutoCSR, AutoDoc):
 
         # - m += module_x  equivalent of Migen's m.submodules += module_x.
         if isinstance(other, Module):
-            print(other)
             m.submodules += other
         # - m += special_x  equivalent of Migen's m.specials += special_x.
         elif isinstance(other, Special):

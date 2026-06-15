@@ -6,8 +6,9 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen.fhdl.structure import *
-from migen.fhdl.verilog   import _printexpr as verilog_printexpr
 from migen.fhdl.specials  import *
+
+from litex.gen.fhdl.expression import _generate_expression
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -48,7 +49,7 @@ def _instance_generate_verilog(instance, ns, add_data_file):
             r += f"\t.{p.name}{' '*(ident-len(p.name))} ("
             # Constant.
             if isinstance(p.value, Constant):
-                r += verilog_printexpr(ns, p.value)[0]
+                r += _generate_expression(ns, p.value)[0]
             # Float.
             elif isinstance(p.value, float):
                 r += str(p.value)
@@ -84,7 +85,7 @@ def _instance_generate_verilog(instance, ns, add_data_file):
         if len(inouts) and (io is inouts[0]):
             r += "\n\t// InOuts.\n"
         name_inst   = io.name
-        name_design = verilog_printexpr(ns, io.expr)[0]
+        name_design = _generate_expression(ns, io.expr)[0]
         first = False
         r += f"\t.{name_inst}{' '*(ident-len(name_inst))} ({name_design})"
     if not first:

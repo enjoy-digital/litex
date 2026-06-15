@@ -2,10 +2,10 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2023 Icenowy Zheng <icenowy@aosc.io>
+# Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen import *
 
@@ -16,11 +16,13 @@ from litex.soc.cores.clock.common import *
 class GW5APLL(LiteXModule):
     nclkouts_max = 7
 
-    def __init__(self, devicename, device, vco_margin=0):
+    def __init__(self, devicename, device, vco_margin=0, name=None):
+        check_margin(vco_margin, "VCO margin")
         self.logger = logging.getLogger("GW5APLL")
         self.logger.info("Creating GW5APLL.".format())
         self.device     = device
         self.devicename = devicename
+        self.name       = name
         self.vco_margin = vco_margin
         self.reset      = Signal()
         self.locked     = Signal()
@@ -56,25 +58,25 @@ class GW5APLL(LiteXModule):
         return pfd_freq_range
 
     def register_clkin(self, clkin, freq):
-        self.clkin = Signal()
-        if isinstance(clkin, (Signal, ClockSignal)):
-            self.comb += self.clkin.eq(clkin)
-        else:
-            raise ValueError
+        check_freq_positive(freq, "Input clock frequency")
+        self.clkin = connect_clkin(self, clkin)
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
-        assert self.nclkouts < self.nclkouts_max
+        check_freq_positive(freq, "Output clock frequency")
+        check_margin(margin)
+        check_clkout_cd_unused(self, cd)
+        check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
-        self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
-        if with_reset:
-            self.specials += AsyncResetSynchronizer(cd, ~self.locked)
-        self.comb += cd.clk.eq(clkout)
+        self.clkouts[self.nclkouts] = ClkOut(clkout, freq, phase, margin)
+        connect_clkout(self, cd, clkout, reset=~self.locked, with_reset=with_reset)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
 
     def compute_config(self):
+        check_clkin_registered(hasattr(self, "clkin"))
+        check_clkouts(self.nclkouts)
         configs = [] # corresponding VCO/FBDIV/IDIV/ODIV params + diff
 
         for idiv in range(1, 64):
@@ -90,20 +92,23 @@ class GW5APLL(LiteXModule):
                         vco_freq <= vco_freq_max*(1 - self.vco_margin)):
                             okay = True
                             config = {}
-                            for n, (clk, f, p, m) in self.clkouts.items():
-                                odiv = round(vco_freq/f)
-                                out_freq = vco_freq/odiv
-                                diff = abs(out_freq - f) / f
-                                pe = round(p * odiv / 360)
-                                if abs((360.0 * pe / odiv) - p) / 360 > m:
+                            for n, clkout in self.clkouts.items():
+                                odiv = round(vco_freq/clkout.freq)
+                                if not (1 <= odiv <= 128):
                                     okay = False
-                                if diff > m:
+                                    continue
+                                out_freq = vco_freq/odiv
+                                diff = abs(out_freq - clkout.freq) / clkout.freq
+                                pe = round(clkout.phase * odiv / 360)
+                                if abs((360.0 * pe / odiv) - clkout.phase) / 360 > clkout.margin:
+                                    okay = False
+                                if diff > clkout.margin:
                                     okay = False
                                 else:
                                     config["odiv%d" % n] = odiv
                                     config["diff%d" % n] = diff
-                                    config["pe%d" % n] = int(p * odiv / 360)
-                                    config["pe%d_fine" % n] = round(p * odiv * 8 / 360) % 8
+                                    config["pe%d" % n] = int(clkout.phase * odiv / 360)
+                                    config["pe%d_fine" % n] = round(clkout.phase * odiv * 8 / 360) % 8
                             if okay:
                                 config["idiv"] = idiv
                                 config["vco"] = vco_freq
@@ -112,24 +117,19 @@ class GW5APLL(LiteXModule):
                                 configs += [config]
 
         if len(configs) == 0:
-            raise ValueError("No PLL config found")
+            raise pll_config_error(self.clkin_freq, self.clkouts)
 
         best_config = None
-        best_diff_sum = 0
-        for i in range(0,len(configs)):
-            curr_diff_sum = 0
-            for n, clkout in self.clkouts.items():
-                curr_diff_sum += configs[i]["diff%d" % n]
-
-            if i == 0 or curr_diff_sum < best_diff_sum:
-                best_diff_sum = curr_diff_sum
-                best_config = configs[i]
+        best_score  = None
+        for config in configs:
+            errors = [config["diff%d" % n] for n in self.clkouts.keys()]
+            best_config, best_score = update_best_config(best_config, best_score, config, errors, config["vco"])
 
         return best_config
 
     def do_finalize(self):
-        assert hasattr(self, "clkin")
-        assert len(self.clkouts) > 0 and len(self.clkouts) <= self.nclkouts_max
+        check_clkin_registered(hasattr(self, "clkin"))
+        check_clkouts(self.nclkouts)
         config = self.compute_config()
         # Based on UG306-1.0 Note.
         self.params.update(
@@ -234,8 +234,8 @@ class GW5APLL(LiteXModule):
             o_CLKFBOUT = Open()
         )
 
-        if self.device.startswith('GW5A-'): # GW5A-25, uses PLLA
-            instance_name = 'PLLA'
+        if self.device.startswith('GW5A-') or self.device.startswith("GW5AT-"): # GW5A(T), uses PLLA
+            primitive_name = 'PLLA'
             self.params.update(
                 i_MDCLK  = 0,
                 i_MDOPC  = Constant(0, 2),
@@ -243,7 +243,7 @@ class GW5APLL(LiteXModule):
                 i_MDWDI  = Constant(0, 8),
             )
         else: # GW5A{,S}T, uses PLL
-            instance_name = 'PLL'
+            primitive_name = 'PLL'
             self.params.update(
                 p_DYN_IDIV_SEL     = "FALSE", # Disable dynamic IDIV.
                 p_DYN_FBDIV_SEL    = "FALSE", # Disable dynamic FBDIV.
@@ -292,11 +292,11 @@ class GW5APLL(LiteXModule):
             )
 
         for i in range(0, len(self.clkouts)):
-            clk, f, p, m = self.clkouts[i]
-            self.params["o_CLKOUT%d" % i] = clk
+            clkout = self.clkouts[i]
+            self.params["o_CLKOUT%d" % i] = clkout.clk
             self.params["p_CLKOUT%d_EN" % i] = "TRUE"
             self.params["p_ODIV%d_SEL" % i] = config["odiv%d" % i]
             self.params["p_CLKOUT%d_PE_COARSE" % i] = config["pe%d" % i]
             self.params["p_CLKOUT%d_PE_FINE" % i] = config["pe%d_fine" % i]
 
-        self.specials += Instance(instance_name, **self.params)
+        self.specials += Instance(primitive_name, name=self.name or "", **self.params)

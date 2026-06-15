@@ -42,7 +42,8 @@ class RS232PHYInterface(UARTInterface): pass
 
 class RS232ClkPhaseAccum(LiteXModule):
     def __init__(self, tuning_word, mode="tx"):
-        assert mode in ["tx", "rx"]
+        if mode not in ["tx", "rx"]:
+            raise ValueError("Unsupported RS232 clock phase accumulator mode: {}.".format(mode))
         self.enable = Signal()
         self.tick   = Signal()
 
@@ -86,7 +87,7 @@ class RS232PHYTX(LiteXModule):
             # On Clock Phase Accumulator tick:
             If(clk_phase_accum.tick,
                 # Set TX data.
-                NextValue(pads.tx, data),
+                NextValue(pads.tx, data[0]),
                 # Increment Count.
                 NextValue(count, count + 1),
                 # Shift TX data.
@@ -153,7 +154,12 @@ class RS232PHY(LiteXModule):
     def __init__(self, pads, clk_freq, baudrate=115200, with_dynamic_baudrate=False):
         tuning_word = int((baudrate/clk_freq)*2**32)
         if with_dynamic_baudrate:
-            self._tuning_word  = CSRStorage(32, reset=tuning_word)
+            self._tuning_word  = CSRStorage(
+                32,
+                reset=tuning_word,
+                name="tuning_word",
+                description="UART baudrate tuning word.",
+            )
             tuning_word = self._tuning_word.storage
         self.tx = RS232PHYTX(pads, tuning_word)
         self.rx = RS232PHYRX(pads, tuning_word)
@@ -195,6 +201,21 @@ class RS232PHYModel(LiteXModule):
 
 # UART ---------------------------------------------------------------------------------------------
 
+supported_uarts = [
+    "crossover",
+    "crossover+uartbone",
+    "jtag_uart",
+    "sim",
+    "stub",
+    "stream",
+    "uartbone",
+    "usb_acm",
+    "serial(x)",
+]
+
+def get_uart_supported_names():
+    return list(supported_uarts)
+
 def _get_uart_fifo(depth, sink_cd="sys", source_cd="sys"):
     if sink_cd != source_cd:
         fifo = stream.AsyncFIFO([("data", 8)], depth)
@@ -202,14 +223,14 @@ def _get_uart_fifo(depth, sink_cd="sys", source_cd="sys"):
     else:
         return stream.SyncFIFO([("data", 8)], depth, buffered=True)
 
-def UARTPHY(pads, clk_freq, baudrate):
+def UARTPHY(pads, clk_freq, baudrate, with_dynamic_baudrate=False):
     # FT245 Asynchronous FIFO mode (baudrate ignored)
     if hasattr(pads, "rd_n") and hasattr(pads, "wr_n"):
         from litex.soc.cores.usb_fifo import FT245PHYAsynchronous
         return FT245PHYAsynchronous(pads, clk_freq)
     # RS232
     else:
-        return  RS232PHY(pads, clk_freq, baudrate)
+        return  RS232PHY(pads, clk_freq, baudrate, with_dynamic_baudrate=with_dynamic_baudrate)
 
 class UART(LiteXModule, UARTInterface):
     def __init__(self, phy=None,
@@ -217,17 +238,17 @@ class UART(LiteXModule, UARTInterface):
             rx_fifo_depth = 16,
             rx_fifo_rx_we = False,
             phy_cd        = "sys"):
-        self._rxtx    = CSR(8) # RX/TX Data.
-        self._txfull  = CSRStatus(description="TX FIFO Full.")
-        self._rxempty = CSRStatus(description="RX FIFO Empty.")
+        self._rxtx    = CSR(8, name="rxtx") # RX/TX Data.
+        self._txfull  = CSRStatus(description="TX FIFO Full.", name="txfull")
+        self._rxempty = CSRStatus(description="RX FIFO Empty.", name="rxempty")
 
         self.ev    = EventManager()
-        self.ev.tx = EventSourceProcess(edge="rising")
-        self.ev.rx = EventSourceProcess(edge="rising")
+        self.ev.tx = EventSourceLevel()
+        self.ev.rx = EventSourceLevel()
         self.ev.finalize()
 
-        self._txempty = CSRStatus(description="TX FIFO Empty.")
-        self._rxfull  = CSRStatus(description="RX FIFO Full.")
+        self._txempty = CSRStatus(description="TX FIFO Empty.", name="txempty")
+        self._rxfull  = CSRStatus(description="RX FIFO Full.", name="rxfull")
 
         # # #
 
@@ -236,6 +257,7 @@ class UART(LiteXModule, UARTInterface):
         # PHY
         # ---
         if phy is not None:
+            self.phy = phy
             self.comb += phy.source.connect(self.sink)
             self.comb += self.source.connect(phy.sink)
 
@@ -244,8 +266,8 @@ class UART(LiteXModule, UARTInterface):
         self.tx_fifo = tx_fifo = _get_uart_fifo(tx_fifo_depth, source_cd=phy_cd)
         self.comb += [
             # CSR --> FIFO.
-            tx_fifo.sink.valid.eq(self._rxtx.re),
-            tx_fifo.sink.data.eq(self._rxtx.r),
+            tx_fifo.sink.valid.eq(self._rxtx.wr_stb),
+            tx_fifo.sink.data.eq(self._rxtx.wr_data),
 
             # FIFO --> Source.
             tx_fifo.source.connect(self.source),
@@ -266,8 +288,8 @@ class UART(LiteXModule, UARTInterface):
             self.sink.connect(rx_fifo.sink),
 
             # FIFO --> CSR.
-            self._rxtx.w.eq(rx_fifo.source.data),
-            rx_fifo.source.ready.eq(self.ev.rx.clear | (rx_fifo_rx_we & self._rxtx.we)),
+            self._rxtx.rd_data.eq(rx_fifo.source.data),
+            rx_fifo.source.ready.eq(self._rxtx.rd_stb if rx_fifo_rx_we else self.ev.rx.clear),
 
             # Status.
             self._rxempty.status.eq(~rx_fifo.source.valid),
@@ -305,13 +327,15 @@ CMD_READ_BURST_FIXED  = 0x04
 
 class Stream2Wishbone(LiteXModule):
     def __init__(self, phy=None, clk_freq=None, data_width=32, address_width=32):
+        if data_width not in [8, 16, 32]:
+            raise ValueError("Unsupported UARTBone data-width: {}.".format(data_width))
+        if address_width not in [8, 16, 32, 64]:
+            raise ValueError("Unsupported UARTBone address-width: {}.".format(address_width))
         self.sink     = sink   = stream.Endpoint([("data", 8)]) if phy is None else phy.source
         self.source   = source = stream.Endpoint([("data", 8)]) if phy is None else phy.sink
         self.wishbone = wishbone.Interface(data_width=data_width, address_width=address_width, addressing="word")
 
         # # #
-        assert data_width    in [8, 16, 32]
-        assert address_width in [8, 16, 32, 64]
 
         cmd              = Signal(8,                           reset_less=True)
         incr             = Signal()
@@ -470,16 +494,87 @@ class UARTMultiplexer(LiteXModule):
 
 class UARTCrossover(UART):
     """
-    UART crossover trough Wishbone bridge.
+    UART crossover through Wishbone bridge.
 
     Creates a fully compatible UART that can be used by the CPU as a regular UART and adds a second
     UART, cross-connected to the main one to allow terminal emulation over a Wishbone bridge.
     """
     def __init__(self, **kwargs):
-        assert kwargs.get("phy", None) == None
+        if kwargs.get("phy", None) is not None:
+            raise ValueError("UARTCrossover does not support a custom PHY.")
         UART.__init__(self, **kwargs)
         self.xover = UART(tx_fifo_depth=1, rx_fifo_depth=16, rx_fifo_rx_we=True)
         self.comb += [
             self.source.connect(self.xover.sink),
             self.xover.source.connect(self.sink)
         ]
+
+def get_uart_core(
+    uart_name,
+    uart_pads             = None,
+    platform              = None,
+    clk_freq              = None,
+    baudrate              = 115200,
+    fifo_depth            = 16,
+    with_dynamic_baudrate = False,
+    rx_fifo_rx_we         = False,
+):
+    uart_kwargs = {
+        "tx_fifo_depth": fifo_depth,
+        "rx_fifo_depth": fifo_depth,
+        "rx_fifo_rx_we": rx_fifo_rx_we,
+    }
+
+    # Crossover.
+    if uart_name in ["crossover", "crossover+uartbone"]:
+        return UARTCrossover(**uart_kwargs)
+
+    # JTAG UART.
+    if uart_name in ["jtag_uart"]:
+        if platform is None:
+            raise ValueError("platform is required for JTAG UART.")
+        from litex.soc.cores.jtag import JTAGPHY
+        uart_phy = JTAGPHY(device=platform.device, platform=platform)
+        return UART(uart_phy, **uart_kwargs)
+
+    # Sim.
+    if uart_name in ["sim"]:
+        if uart_pads is None:
+            raise ValueError("pads are required for simulated UART.")
+        uart_phy = RS232PHYModel(uart_pads)
+        return UART(uart_phy, **uart_kwargs)
+
+    # Stub / Stream.
+    if uart_name in ["stub", "stream"]:
+        uart = UART(tx_fifo_depth=0, rx_fifo_depth=0)
+        uart.comb += uart.source.ready.eq(uart_name == "stub")
+        return uart
+
+    # UARTBone.
+    if uart_name in ["uartbone"]:
+        return None
+
+    # USB ACM (with LUNA ACM core).
+    if uart_name in ["usb_acm"]:
+        if platform is None:
+            raise ValueError("platform is required for USB ACM UART.")
+        if uart_pads is None:
+            raise ValueError("pads are required for USB ACM UART.")
+        from litex.soc.cores.luna_cdc_acm import LunaCDCACM
+        uart_phy = LunaCDCACM(platform, uart_pads)
+        uart     = UART(uart_phy, **uart_kwargs)
+        uart.comb += uart_phy.connect.eq(1)
+        return uart
+
+    # Regular UART.
+    if uart_pads is None:
+        raise ValueError("pads are required for serial UART.")
+    if clk_freq is None:
+        raise ValueError("clk_freq is required for serial UART.")
+    uart_phy = UARTPHY(
+        uart_pads,
+        clk_freq              = clk_freq,
+        baudrate              = baudrate,
+        with_dynamic_baudrate = with_dynamic_baudrate,
+    )
+    return UART(uart_phy, **uart_kwargs)

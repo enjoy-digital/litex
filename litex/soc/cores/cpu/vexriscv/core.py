@@ -85,18 +85,18 @@ GCC_FLAGS = {
 class VexRiscvTimer(LiteXModule):
     def __init__(self):
         self._latch    = CSR()
-        self._time     = CSRStatus(64)
-        self._time_cmp = CSRStorage(64, reset=2**64-1)
+        self._time     = CSRStatus(64, description="Latched VexRiscv timer value.")
+        self._time_cmp = CSRStorage(64, reset=2**64-1, description="VexRiscv timer compare value.")
         self.interrupt = Signal()
 
         # # #
 
         time = Signal(64)
         self.sync += time.eq(time + 1)
-        self.sync += If(self._latch.re, self._time.status.eq(time))
+        self.sync += If(self._latch.wr_stb, self._time.status.eq(time))
 
         time_cmp = Signal(64, reset=2**64-1)
-        self.sync += If(self._latch.re, time_cmp.eq(self._time_cmp.storage))
+        self.sync += If(self._latch.wr_stb, time_cmp.eq(self._time_cmp.storage))
 
         self.comb += self.interrupt.eq(time >= time_cmp)
 

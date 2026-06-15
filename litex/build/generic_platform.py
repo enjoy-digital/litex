@@ -18,6 +18,7 @@ from litex.gen.fhdl import verilog
 
 from litex.build.io import CRG
 from litex.build import tools
+from litex.build.generic_toolchain import GenericToolchain
 
 # --------------------------------------------------------------------------------------------------
 
@@ -173,8 +174,15 @@ class ConnectorManager:
                 if isinstance(conn_entry, dict):
                     assert pn in conn_entry, f"There is no pin '{pn}' on connector '{conn}'"
                 else:
+                    if not isinstance(pn, int):
+                        raise ConstraintError(f"Pin '{pn}' on connector '{conn}' must be a number")
                     assert pn < len(conn_entry), f"There is no pin with number '{pn}' on connector '{conn}', maximum is {len(conn_entry)-1}"
                 conn_pn = self.connector_table[conn][pn]
+                if conn_pn is None:
+                    # Unconnected (None) connector pins are preserved; backends decide how to
+                    # handle them.
+                    r.append(conn_pn)
+                    continue
                 if ":" in conn_pn:
                     conn_pn = self.resolve_identifiers([conn_pn])[0]
                 r.append(conn_pn)
@@ -214,7 +222,7 @@ class ConstraintManager:
     def add_connector(self, connectors):
         self.connector_manager.add_connector(connectors)
 
-    def request(self, name, number=None, loose=False):
+    def request(self, name, number=None, loose=False, reserve=True):
         resource = _lookup(self.available, name, number, loose)
         if resource is None:
             return None
@@ -239,8 +247,9 @@ class ConstraintManager:
                 obj.platform_info = element.info
                 break
 
-        self.available.remove(resource)
-        self.matched.append((resource, obj))
+        if reserve:
+            self.available.remove(resource)
+            self.matched.append((resource, obj))
         return obj
 
     def request_all(self, name):
@@ -272,7 +281,11 @@ class ConstraintManager:
             if resource[0] == name and (number is None or
                                         resource[1] == number):
                 if subname is not None:
-                    return getattr(obj, subname)
+                    if hasattr(obj, subname):
+                        return getattr(obj, subname)
+                    if loose:
+                        return None
+                    raise ConstraintError("Resource not found: {}:{}:{}".format(name, number, subname))
                 else:
                     return obj
 
@@ -338,7 +351,7 @@ class GenericPlatform:
                           # flash. A dict must be provided otherwise
 
     def __init__(self, device, io, connectors=[], name=None):
-        self.toolchain          = None
+        self.toolchain          = GenericToolchain()
         self.device             = device
         self.constraint_manager = ConstraintManager(io, connectors)
         if name is None:
@@ -380,6 +393,12 @@ class GenericPlatform:
         for a in clk:
             for b in clk:
                 if a is not b:
+                    self.add_false_path_constraint(a, b)
+
+    def add_false_path_constraints_by_name(self, *clock_names):
+        for a in clock_names:
+            for b in clock_names:
+                if a != b:
                     self.add_false_path_constraint(a, b)
 
     def add_platform_command(self, *args, **kwargs):
@@ -470,12 +489,6 @@ class GenericPlatform:
 
     def get_verilog(self, fragment, **kwargs):
         return verilog.convert(fragment, platform=self, **kwargs)
-
-    def get_edif(self, fragment, cell_library, vendor, device, **kwargs):
-        return edif.convert(
-            fragment,
-            self.constraint_manager.get_io_signals(),
-            cell_library, vendor, device, **kwargs)
 
     def build(self, fragment):
         raise NotImplementedError("GenericPlatform.build must be overloaded")

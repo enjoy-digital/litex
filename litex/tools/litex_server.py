@@ -13,7 +13,6 @@ import argparse
 import os
 import sys
 import socket
-import time
 import threading
 
 from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord, EtherboneWrites
@@ -21,7 +20,7 @@ from litex.tools.remote.etherbone import EtherboneIPC
 
 # Read Merger --------------------------------------------------------------------------------------
 
-def _read_merger(addrs, max_length=256, bursts=["incr", "fixed"]):
+def _read_merger(addrs, max_length=255, bursts=None):
     """Sequential reads merger
 
     Take a list of read addresses as input and merge the sequential/fixed reads in (base, length, burst) tuples:
@@ -31,7 +30,19 @@ def _read_merger(addrs, max_length=256, bursts=["incr", "fixed"]):
     most of the access delay and allows minimizing number of commands by grouping them in UARTBone
     packets.
     """
-    assert "incr" in bursts
+    bursts = ["incr", "fixed"] if bursts is None else bursts
+
+    if max_length <= 0:
+        raise ValueError("max_length must be greater than 0.")
+    if "incr" not in bursts:
+        raise ValueError("Read merger requires incr burst support.")
+    for burst in bursts:
+        if burst not in ["incr", "fixed"]:
+            raise ValueError("Unsupported burst mode: {}".format(burst))
+
+    if not addrs:
+        return
+
     burst_base   = addrs[0]
     burst_length = 1
     burst_type   = "incr"
@@ -40,7 +51,7 @@ def _read_merger(addrs, max_length=256, bursts=["incr", "fixed"]):
         # Try to merge to a "fixed" burst if supported
         if ("fixed" in bursts):
             # If current burst matches
-            if (burst_type in [None, "fixed"]) or (burst_length == 1):
+            if (burst_type == "fixed") or (burst_length == 1):
                 # If addr matches
                 if (addr == burst_base):
                     if (burst_length != max_length):
@@ -51,7 +62,7 @@ def _read_merger(addrs, max_length=256, bursts=["incr", "fixed"]):
         # Try to merge to an "incr" burst if supported
         if ("incr" in bursts):
             # If current burst matches
-            if (burst_type in [None, "incr"]) or (burst_length == 1):
+            if (burst_type == "incr") or (burst_length == 1):
                 # If addr matches
                 if (addr == burst_base + (4 * burst_length)):
                     if (burst_length != max_length):
@@ -74,8 +85,18 @@ class RemoteServer(EtherboneIPC):
         self.comm       = comm
         self.bind_ip    = bind_ip
         self.bind_port  = bind_port
-        self.lock       = False
+        self.lock       = threading.Lock()
         self.addr_width = addr_width
+        self.addr_size  = self.addr_width // 8
+
+        comm_name = comm.__class__.__name__
+        self.read_max_length = {
+            "CommUART": 255,
+            "CommUDP":    1,
+        }.get(comm_name, 1)
+        self.read_bursts = {
+            "CommUART": ["incr", "fixed"]
+        }.get(comm_name, ["incr"])
 
     def open(self):
         if hasattr(self, "socket"):
@@ -116,10 +137,10 @@ class RemoteServer(EtherboneIPC):
                 while True:
                     # Receive packet.
                     try:
-                        packet = self.receive_packet(client_socket, self.addr_width // 8)
+                        packet = self.receive_packet(client_socket, self.addr_size)
                         if packet == 0:
                             break
-                    except:
+                    except Exception:
                         break
                     # Decode Packet.
                     packet = EtherbonePacket(self.addr_width, packet)
@@ -129,41 +150,27 @@ class RemoteServer(EtherboneIPC):
                     record = packet.records.pop()
 
                     # Hardware lock/reservation.
-                    while self.lock:
-                        time.sleep(0.01)
-                    self.lock = True
+                    with self.lock:
+                        # Handle Etherbone writes.
+                        if record.writes != None:
+                            self.comm.write(record.writes.base_addr, record.writes.get_datas())
 
-                    # Handle Etherbone writes.
-                    if record.writes != None:
-                        self.comm.write(record.writes.base_addr, record.writes.get_datas())
+                        # Handle Etherbone reads.
+                        if record.reads != None:
+                            reads = []
+                            for addr, length, burst in _read_merger(record.reads.get_addrs(),
+                                max_length  = self.read_max_length,
+                                bursts      = self.read_bursts):
+                                reads.extend(self.comm.read(addr, length, burst))
 
-                    # Handle Etherbone reads.
-                    if record.reads != None:
-                        max_length = {
-                            "CommUART": 256,
-                            "CommUDP":    1,
-                        }.get(self.comm.__class__.__name__, 1)
-                        bursts = {
-                            "CommUART": ["incr", "fixed"]
-                        }.get(self.comm.__class__.__name__, ["incr"])
-                        reads = []
-                        for addr, length, burst in _read_merger(record.reads.get_addrs(),
-                            max_length  = max_length,
-                            bursts      = bursts):
-                            reads += self.comm.read(addr, length, burst)
+                            record = EtherboneRecord(self.addr_size)
+                            record.writes = EtherboneWrites(addr_size=self.addr_size, datas=reads)
+                            record.wcount = len(record.writes)
 
-                        addr_size = self.addr_width // 8
-                        record = EtherboneRecord(addr_size)
-                        record.writes = EtherboneWrites(addr_size=addr_size, datas=reads)
-                        record.wcount = len(record.writes)
-
-                        packet = EtherbonePacket(self.addr_width)
-                        packet.records = [record]
-                        packet.encode()
-                        self.send_packet(client_socket, packet)
-
-                    # Release hardware lock.
-                    self.lock = False
+                            packet = EtherbonePacket(self.addr_width)
+                            packet.records = [record]
+                            packet.encode()
+                            self.send_packet(client_socket, packet)
 
             finally:
                 print("Disconnect")
@@ -172,7 +179,7 @@ class RemoteServer(EtherboneIPC):
     def start(self, nthreads):
         for i in range(nthreads):
             self.serve_thread = threading.Thread(target=self._serve_thread)
-            self.serve_thread.setDaemon(True)
+            self.serve_thread.daemon = True
             self.serve_thread.start()
 
 # Run ----------------------------------------------------------------------------------------------
@@ -209,16 +216,24 @@ def main():
     parser.add_argument("--usb",             action="store_true",    help="Select USB interface.")
     parser.add_argument("--usb-vid",         default=None,           help="Set USB vendor ID.")
     parser.add_argument("--usb-pid",         default=None,           help="Set USB product ID.")
-    parser.add_argument("--usb-max-retries", default=10,             help="Number of USB reconecting retries.")
+    parser.add_argument("--usb-max-retries", default=10,             help="Number of USB reconnecting retries.")
     args = parser.parse_args()
 
+    if args.udp_scan:
+        args.udp = True
+    interfaces          = ["uart", "jtag", "udp", "pcie", "usb"]
+    selected_interfaces = [name for name in interfaces if getattr(args, name)]
+    if len(selected_interfaces) == 0:
+        parser.error("select one interface: --uart, --jtag, --udp, --udp-scan, --pcie or --usb.")
+    if len(selected_interfaces) > 1:
+        parser.error("select only one interface (got: {}).".format(
+            ", ".join("--" + name for name in selected_interfaces)))
 
     # UART mode
     if args.uart:
         from litex.tools.remote.comm_uart import CommUART
         if args.uart_port is None:
-            print("Need to specify --uart-port, exiting.")
-            exit()
+            parser.error("--uart requires --uart-port.")
         uart_port = args.uart_port
         uart_baudrate = int(float(args.uart_baudrate))
         print("[CommUART] port: {} / baudrate: {} / ".format(uart_port, uart_baudrate), end="")
@@ -240,14 +255,15 @@ def main():
         udp_port = int(args.udp_port)
         if args.udp_scan:
             udp_ip = udp_ip.split(".")
-            assert len(udp_ip) == 4
+            if len(udp_ip) != 4:
+                parser.error("--udp-scan requires --udp-ip to contain four octets.")
             udp_ip[3] = "x"
             udp_ip = ".".join(udp_ip)
             comm = CommUDP(udp_ip, udp_port, debug=args.debug, addr_width=int(args.addr_width))
             comm.open(probe=False)
             comm.scan(udp_ip)
             comm.close()
-            exit()
+            return
         else:
             print("[CommUDP] ip: {} / port: {} / ".format(udp_ip, udp_port), end="")
             comm = CommUDP(udp_ip, udp_port, debug=args.debug, addr_width=int(args.addr_width))
@@ -257,8 +273,7 @@ def main():
         from litex.tools.remote.comm_pcie import CommPCIe
         pcie_bar = args.pcie_bar
         if pcie_bar is None:
-            print("Need to speficy --pcie-bar, exiting.")
-            exit()
+            parser.error("--pcie requires --pcie-bar.")
         print("[CommPCIe] bar: {} / ".format(pcie_bar), end="")
         comm = CommPCIe(pcie_bar, debug=args.debug)
 
@@ -266,8 +281,7 @@ def main():
     elif args.usb:
         from litex.tools.remote.comm_usb import CommUSB
         if args.usb_pid is None and args.usb_vid is None:
-            print("Need to speficy --usb-vid or --usb-pid, exiting.")
-            exit()
+            parser.error("--usb requires --usb-vid and/or --usb-pid.")
         print("[CommUSB] vid: {} / pid: {} / ".format(args.usb_vid, args.usb_pid), end="")
         pid = args.usb_pid
         if pid is not None:
@@ -276,10 +290,6 @@ def main():
         if vid is not None:
             vid = int(vid, base=0)
         comm = CommUSB(vid=vid, pid=pid, max_retries=args.usb_max_retries, debug=args.debug)
-
-    else:
-        parser.print_help()
-        exit()
 
     server = RemoteServer(comm, args.bind_ip, int(args.bind_port), addr_width=int(args.addr_width))
     server.open()

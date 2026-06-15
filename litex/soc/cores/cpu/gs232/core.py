@@ -28,7 +28,7 @@ class GS232(CPU):
     # GCC Flags.
     @property
     def gcc_flags(self):
-        flags = "-march=mips32 -mabi=32 -msoft-float"
+        flags = "-march=mips32 -mabi=32 -EL -msoft-float"
         flags += " -D__gs232__ "
         flags += " -DUART_POLLING"
         return flags

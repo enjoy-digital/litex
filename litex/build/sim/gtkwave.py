@@ -139,13 +139,15 @@ class GTKWSave:
     def by_regex(self, regex: Regex, **kwargs):
         pattern = re.compile(regex)
         signals = list(filter(
-            lambda sig: pattern.search(self.vns.pnd[sig]),
-            self.vns.pnd.keys()))
+            lambda sig: pattern.search(self.vns.name_dict[sig]),
+            self.vns.name_dict.keys()))
         assert len(signals) > 0, "No match found for {}".format(regex)
         return self.group(signals, **kwargs)
 
     def clocks(self, **kwargs):
         clks = [cd.clk for cd in self.vns.clock_domains]
+        if len(clks) == 0:
+            return
         self.group(clks, group_name="clocks", alias=False, closed=False, **kwargs)
 
     def add(self, obj: Any, no_defaults=False, **kwargs):
@@ -153,7 +155,7 @@ class GTKWSave:
 
         def default_mappers(types, mappers):
             if not no_defaults and isinstance(obj, types):
-                kwargs["mappers"] = DEFAULT_ENDPOINT_MAPPERS + kwargs.get("mappers", [])
+                kwargs["mappers"] = mappers + kwargs.get("mappers", [])
 
         if isinstance(obj, Record):
             # automatic settings for supported Record types
@@ -206,6 +208,8 @@ class GTKWSave:
     def fsm_states(self, soc: Module, alias: bool = True, **kwargs):
         fsms = list(filter(lambda module: isinstance(module, FSM), self.iter_submodules(soc)))
         states = [fsm.state for fsm in fsms]
+        if len(states) == 0:
+            return
         files = [self.make_fsm_state_translation(fsm) for fsm in fsms]
 
         if alias:

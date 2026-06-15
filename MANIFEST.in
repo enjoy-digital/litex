@@ -7,3 +7,5 @@ exclude litex_setup.py
 
 prune test
 
+global-exclude *.py[cod]
+global-exclude __pycache__/*

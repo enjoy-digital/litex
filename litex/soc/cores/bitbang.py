@@ -27,7 +27,7 @@ class I2CMaster(LiteXModule):
     """
     pads_layout = [("scl", 1), ("sda", 1)]
 
-    def __init__(self, pads=None, default_dev=False):
+    def __init__(self, pads=None, default_dev=False, connect_pads=True):
         """
         Class constructor.
 
@@ -45,12 +45,14 @@ class I2CMaster(LiteXModule):
             CSRField("sda", size=1, offset=2, reset=1, description="Drives the state of the SDA pad.")],
             name="w")
         self._r = CSRStatus(fields=[
-            CSRField("sda", size=1, offset=0, description="Contains the current state of the SDA pad.")],
+            CSRField("sda", size=1, offset=0, description="Contains the current state of the SDA pad."),
+            CSRField("scl", size=1, offset=1, description="Contains the current state of the SCL pad.")],
             name="r")
 
         self.default_dev = default_dev
 
-        self.connect(pads)
+        if connect_pads:
+            self.connect(pads)
 
     def connect(self, pads):
         """
@@ -61,8 +63,9 @@ class I2CMaster(LiteXModule):
         """
         # SCL
         self.specials += Tristate(pads.scl,
-            o  = 0,                  # I2C uses Pull-ups, only drive low.
-            oe = ~self._w.fields.scl # Drive when scl is low.
+            o  = 0,                   # I2C uses Pull-ups, only drive low.
+            oe = ~self._w.fields.scl, # Drive when scl is low.
+            i  = self._r.fields.scl   # Readback to detect slave clock stretching.
         )
         # SDA
         self.specials += Tristate(pads.sda,
@@ -107,6 +110,7 @@ class I2CMasterSim(I2CMaster):
 
         self.comb += [
             pads.scl.eq(self._w.fields.scl),
+            self._r.fields.scl.eq(self._w.fields.scl), # No open-drain in sim: read back the driven value.
             _sda_oe.eq( self._w.fields.oe),
             _sda_w.eq(  self._w.fields.sda),
             If(_sda_oe,

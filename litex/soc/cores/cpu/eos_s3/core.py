@@ -18,20 +18,21 @@ from litex.soc.cores.cpu import CPU
 # EOS-S3 -------------------------------------------------------------------------------------------
 
 class EOS_S3(CPU):
-    variants             = ["standard"]
-    category             = "hardcore"
-    family               = "arm"
-    name                 = "eos_s3"
-    human_name           = "EOS S3"
-    data_width           = 32
-    endianness           = "little"
-    reset_address        = 0x0000_0000
-    gcc_triple           = "arm-none-eabi"
-    gcc_flags            = "-mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16"
-    linker_output_format = "elf32-littlearm"
-    nop                  = "nop"
-    io_regions           = {0x4000_0000: 0xc000_0000}  # Origin, Length.
-    csr_decode           = False # Wishbone address is decoded before fabric.
+    variants                 = ["standard"]
+    category                 = "hardcore"
+    family                   = "arm"
+    name                     = "eos_s3"
+    human_name               = "EOS S3"
+    data_width               = 32
+    endianness               = "little"
+    reset_address            = 0x0000_0000
+    gcc_triple               = "arm-none-eabi"
+    gcc_flags                = "-mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16"
+    linker_output_format     = "elf32-littlearm"
+    nop                      = "nop"
+    io_regions               = {0x4000_0000: 0xc000_0000}  # Origin, Length.
+    csr_decode               = False # Wishbone address is decoded before fabric.
+    integrated_rom_supported = False
 
     # Memory Mapping.
     @property

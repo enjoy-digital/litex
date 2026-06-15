@@ -21,8 +21,7 @@ from migen import *
 
 from litex.build.generic_platform import *
 
-from litex.soc.integration.soc_core import *
-from litex.soc.integration.soc import SoCRegion
+from litex.soc.integration.soc import *
 from litex.soc.integration.builder import *
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import axi
@@ -101,8 +100,8 @@ class LiteXSoCGenerator(SoCMini):
 # Build --------------------------------------------------------------------------------------------
 def main():
     # Arguments.
-    from litex.soc.integration.soc import LiteXSoCArgumentParser
-    parser = LiteXSoCArgumentParser(description="LiteX standalone SoC generator")
+    from litex.build.parser import LiteXArgumentParser
+    parser = LiteXArgumentParser(description="LiteX standalone SoC generator")
     target_group = parser.add_argument_group(title="Generator options")
     target_group.add_argument("--name",          default="litex_soc", help="SoC Name.")
     target_group.add_argument("--build",         action="store_true", help="Build SoC.")

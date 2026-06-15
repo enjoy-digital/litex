@@ -17,17 +17,56 @@ from litex.build import tools
 from litex.build.generic_toolchain import GenericToolchain
 from litex.build.yosys_wrapper import YosysWrapper, yosys_args, yosys_argdict
 
+# Constraints (.ccf) -------------------------------------------------------------------------------
+def _build_ccf(named_sc, named_pc):
+    ccf = []
+
+    flat_sc = []
+    for name, pins, other, resource in named_sc:
+        if len(pins) > 1:
+            for i, p in enumerate(pins):
+                flat_sc.append((f"{name}[{i}]", p, other))
+        else:
+            flat_sc.append((name, pins[0], other))
+
+    for name, pin, other in flat_sc:
+        if pin == "X":
+            continue
+        pin_cst = f"Net \"{name}\" Loc = \"{pin}\""
+
+        for c in other:
+            if isinstance(c, Misc):
+                pin_cst += f" | {c.misc}"
+        pin_cst += ";"
+        ccf.append(pin_cst)
+
+    if named_pc:
+        ccf.extend(named_pc)
+
+    return ccf
+
+# check if CFG IO pins are used
+def _check_cfg_io_used(named_sc):
+    for _, pins, _, _ in named_sc:
+        for p in pins:
+            if p.startswith("IO_WA_"):
+                return True
+    return False
 
 # CologneChipToolchain -----------------------------------------------------------------------------
 
 class CologneChipToolchain(GenericToolchain):
     attr_translate = {}
-    supported_build_backend = ["litex", "edalize"]
+    supported_build_backend = ["litex"]
 
     def __init__(self):
         super().__init__()
         self._yosys      = None
-        self._yosys_cmds = []
+        # CologneChip does not have distributed RAM
+        self._yosys_cmds = [
+            "hierarchy -top {build_name}",
+            "setattr -unset ram_style a:ram_style=distributed",
+        ]
         self._synth_opts = "-nomx8 "
 
     def finalize(self):
@@ -44,44 +83,8 @@ class CologneChipToolchain(GenericToolchain):
 
     # IO Constraints (.ccf) ------------------------------------------------------------------------
 
-    def _get_pin_direction(self, pinname):
-        pins = self.platform.constraint_manager.get_io_signals()
-        for pin in sorted(pins, key=lambda x: x.duid):
-            if (pinname.split("[")[0] == pin.name):
-                if pin.direction == "output":
-                    return "Pin_out"
-                elif pin.direction == "input":
-                    return "Pin_in"
-                else:
-                    return "Pin_inout"
-        return "Unknown"
-
     def build_io_constraints(self):
-        ccf = []
-
-        flat_sc = []
-        for name, pins, other, resource in self.named_sc:
-            if len(pins) > 1:
-                for i, p in enumerate(pins):
-                    flat_sc.append((f"{name}[{i}]", p, other))
-            else:
-                flat_sc.append((name, pins[0], other))
-
-        for name, pin, other in flat_sc:
-            pin_cst = ""
-            if pin != "X":
-                direction = self._get_pin_direction(name)
-                pin_cst = f"{direction} \"{name}\" Loc = \"{pin}\""
-
-            for c in other:
-                if isinstance(c, Misc):
-                    pin_cst += f" | {c.misc}"
-            pin_cst += ";"
-            ccf.append(pin_cst)
-
-        if self.named_pc:
-            ccf.extend(self.named_pc)
-
+        ccf = _build_ccf(self.named_sc, self.named_pc)
         tools.write_to_file(f"{self._build_name}.ccf", "\n".join(ccf))
         return (f"{self._build_name}.ccf", "CCF")
 
@@ -96,7 +99,7 @@ class CologneChipToolchain(GenericToolchain):
         if which("p_r"):
             p_r_path              = which("p_r")
             cc_worst_spd_dly_path = os.path.join(os.path.dirname(p_r_path), "cc_worst_spd_dly.dly")
-            copyfile(cc_worst_spd_dly_path, os.path.join(self._build_dir, "cc_worst_spd_dly.dly"))
+            copyfile(cc_worst_spd_dly_path, "cc_worst_spd_dly.dly")
  
     # Script ---------------------------------------------------------------------------------------
 
@@ -119,9 +122,11 @@ class CologneChipToolchain(GenericToolchain):
 
         # yosys call
         script_contents += self._yosys.get_yosys_call("script") + fail_stmt
+        # use CFG IOs as user GPIOs
+        cfg_io = "+uCIO" if _check_cfg_io_used(self.named_sc) else ""
         # p_r call
-        script_contents += "p_r -ccf {build_name}.ccf -cCP -A 1 -i {build_name}_synth.v -o {build_name} -lib ccag\n".format(
-            build_name = self._build_name)
+        script_contents += "p_r -ccf {build_name}.ccf -cCP {cfg_io} -A 1 -i {build_name}_synth.v -o {build_name} -lib ccag\n".format(
+            build_name = self._build_name, cfg_io = cfg_io)
 
         script_file = "build_" + self._build_name + script_ext
         tools.write_to_file(script_file, script_contents, force_unix=False)
@@ -149,7 +154,7 @@ class CologneChipToolchain(GenericToolchain):
             raise OSError("Error occured during Yosys/p_r's script execution.")
 
 
-    def add_period_constraint(self, platform, clk, period):
+    def add_period_constraint(self, platform, clk, period, keep=True, name=None):
         pass
 
 def colognechip_args(parser):

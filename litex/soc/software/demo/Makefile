@@ -9,6 +9,9 @@ ifdef WITH_CXX
 	CFLAGS += -DWITH_CXX
 endif
 
+COMMA = ,
+REGULAR_LIBS = $(filter-out $(ALWAYS_LINK_LIBS),$(LIBS))
+ALWAYS_LINK_LIBFLAGS = $(if $(ALWAYS_LINK_LIBS),-Wl$(COMMA)--whole-archive $(ALWAYS_LINK_LIBS:lib%=-l%) -Wl$(COMMA)--no-whole-archive)
 
 all: demo.bin
 
@@ -25,10 +28,12 @@ demo.elf: $(OBJECTS)
 	$(CC) $(LDFLAGS) -T linker.ld -N -o $@ \
 		$(OBJECTS) \
 		$(PACKAGES:%=-L$(BUILD_DIR)/software/%) \
-		-Wl,--whole-archive \
+		-Wl,--start-group \
+		$(REGULAR_LIBS:lib%=-l%) \
+		$(ALWAYS_LINK_LIBFLAGS) \
+		-Wl,--end-group \
 		-Wl,--gc-sections \
-		-Wl,-Map,$@.map \
-		$(LIBS:lib%=-l%)
+		-Wl,-Map,$@.map
 
 ifneq ($(OS),Windows_NT)
 	chmod -x $@

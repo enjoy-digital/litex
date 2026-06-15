@@ -43,8 +43,12 @@ class LatticeIceStormToolchain(YosysNextPNRToolchain):
     def finalize(self):
         # Translate device to Nextpnr architecture/package
         (_, self._architecture, self._package) = self.parse_device()
-        self._pnr_opts += f" --pre-pack {self._build_name}_pre_pack.py "
-        self._packer_opts += f" {self._build_name}.asc {self._build_name}.bin"
+        # Snapshot base options on first finalize to keep finalize idempotent.
+        if not hasattr(self, "_base_pnr_opts"):
+            self._base_pnr_opts    = self._pnr_opts
+            self._base_packer_opts = self._packer_opts
+        self._pnr_opts    = self._base_pnr_opts    + f" --pre-pack {self._build_name}_pre_pack.py "
+        self._packer_opts = self._base_packer_opts + f" {self._build_name}.asc {self._build_name}.bin"
 
         YosysNextPNRToolchain.finalize(self)
 
@@ -52,14 +56,24 @@ class LatticeIceStormToolchain(YosysNextPNRToolchain):
 
     def build_io_constraints(self):
         r = ""
+        unhandled = set()
         for sig, pins, others, resname in self.named_sc:
+            options = ""
+            for o in others:
+                if isinstance(o, Misc):
+                    if o.misc == "PULLUP":
+                        options += "-pullup yes "
+                    else:
+                        unhandled.add(repr(o))
             if len(pins) > 1:
                 for bit, pin in enumerate(pins):
-                    r += "set_io {}[{}] {}\n".format(sig, bit, pin)
+                    r += f"set_io {options} {sig}[{bit}] {pin}\n"
             else:
-                r += "set_io {} {}\n".format(sig, pins[0])
+                r += f"set_io {options} {sig} {pins[0]}\n"
         if self.named_pc:
             r += "\n" + "\n\n".join(self.named_pc)
+        for c in sorted(unhandled):
+            print(f"Warning: unsupported constraint {c}, it will be ignored in .pcf.")
         tools.write_to_file(self._build_name + ".pcf", r)
         return (self._build_name + ".pcf", "PCF")
 
@@ -69,6 +83,9 @@ class LatticeIceStormToolchain(YosysNextPNRToolchain):
         r = ""
         for clk, [period, _] in self.clocks.items():
             r += """ctx.addClock("{}", {})\n""".format(vns.get_name(clk), 1e3/period)
+        # False path constraints are not supported by nextpnr-ice40.
+        if self.false_paths:
+            print("Warning: nextpnr-ice40 does not support false path constraints, they will be ignored.")
         tools.write_to_file(self._build_name + "_pre_pack.py", r)
         return (self._build_name + "_pre_pack.py", "PY")
 

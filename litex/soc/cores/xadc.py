@@ -28,18 +28,25 @@ class XilinxSystemMonitorChannel:
         self.desc = "\n".join(desc) if isinstance(desc, list) else desc
 
 class XilinxSystemMonitor(LiteXModule):
+    def expose_hwmon(self, temp_scale, temp_divisor, temp_offset, voltage_scale, voltage_divisor):
+        self.hwmon_temp_scale      = CSRConstant(temp_scale,      name="hwmon_temp_scale")
+        self.hwmon_temp_divisor    = CSRConstant(temp_divisor,    name="hwmon_temp_divisor")
+        self.hwmon_temp_offset     = CSRConstant(temp_offset,     name="hwmon_temp_offset")
+        self.hwmon_voltage_scale   = CSRConstant(voltage_scale,   name="hwmon_voltage_scale")
+        self.hwmon_voltage_divisor = CSRConstant(voltage_divisor, name="hwmon_voltage_divisor")
+
     def add_channel(self, channel):
         setattr(self, channel.name, CSRStatus(channel.bits, name=channel.name, description=channel.desc))
         channel.status = getattr(self, channel.name).status
 
     def expose_drp(self):
-        self.drp_enable = CSRStorage() # Set to 1 to use DRP and disable auto-sampling.
+        self.drp_enable = CSRStorage(1,                               description="Enable DRP access and disable auto-sampling.")
         self.drp_read   = CSR()
         self.drp_write  = CSR()
-        self.drp_drdy   = CSRStatus()
-        self.drp_adr    = CSRStorage(self.dadr_size,  reset_less=True)
-        self.drp_dat_w  = CSRStorage(16, reset_less=True)
-        self.drp_dat_r  = CSRStatus(16)
+        self.drp_drdy   = CSRStatus(1,                                description="DRP transfer done.")
+        self.drp_adr    = CSRStorage(self.dadr_size, reset_less=True, description="DRP address.")
+        self.drp_dat_w  = CSRStorage(16,             reset_less=True, description="DRP write data.")
+        self.drp_dat_r  = CSRStatus(16,                               description="DRP read data.")
 
         # # #
 
@@ -54,10 +61,10 @@ class XilinxSystemMonitor(LiteXModule):
             )
         ]
         self.sync += [
-            self.dwe.eq(self.drp_write.re),
+            self.dwe.eq(self.drp_write.wr_stb),
             self.drp_en.eq(self.drp_enable.storage),
-            den_pipe.eq(self.drp_read.re | self.drp_write.re),
-            If(self.drp_read.re | self.drp_write.re,
+            den_pipe.eq(self.drp_read.wr_stb | self.drp_write.wr_stb),
+            If(self.drp_read.wr_stb | self.drp_write.wr_stb,
                 self.drp_drdy.status.eq(0)
             ).Elif(self.drdy,
                 self.drp_drdy.status.eq(1)
@@ -87,12 +94,21 @@ S7SystemMonitorChannels = [
 
 class S7SystemMonitor(XilinxSystemMonitor):
     def __init__(self, channels=S7SystemMonitorChannels, analog_pads=None):
+        # Hardware Monitor.
+        self.expose_hwmon(
+            temp_scale      = 503975,
+            temp_divisor    = 4096,
+            temp_offset     = 273150,
+            voltage_scale   = 3000,
+            voltage_divisor = 4096,
+        )
+
         # Channels.
         for channel in channels:
             self.add_channel(channel)
 
-        # End of Convertion/Sequence
-        self.eoc = CSRStatus(description="End of Convertion Status, ``1``: Convertion Done.")
+        # End of Conversion/Sequence.
+        self.eoc = CSRStatus(description="End of Conversion Status, ``1``: Conversion Done.")
         self.eos = CSRStatus(description="End of Sequence Status,   ``1``: Sequence Done.")
 
         # Alarms
@@ -163,8 +179,8 @@ class S7SystemMonitor(XilinxSystemMonitor):
 
         # End of Conversion/Sequence update.
         self.sync += [
-            self.eoc.status.eq((self.eoc.status & ~self.eoc.we) | eoc),
-            self.eos.status.eq((self.eos.status & ~self.eos.we) | eos),
+            self.eoc.status.eq((self.eoc.status & ~self.eoc.rd_stb) | eoc),
+            self.eos.status.eq((self.eos.status & ~self.eos.rd_stb) | eos),
         ]
 
 class XADC(S7SystemMonitor): pass # For compat.
@@ -191,7 +207,26 @@ USSystemMonitorChannels = [
 ]
 
 class USSystemMonitor(XilinxSystemMonitor):
-    def __init__(self, channels=USSystemMonitorChannels, primitive="SYSMONE1", sim_device=None, analog_pads=None):
+    def __init__(self,
+        channels        = USSystemMonitorChannels,
+        primitive       = "SYSMONE1",
+        sim_device      = None,
+        analog_pads     = None,
+        temp_scale      = 503975,
+        temp_divisor    = 1024,
+        temp_offset     = 273150,
+        voltage_scale   = 3000,
+        voltage_divisor = 1024,
+    ):
+        # Hardware Monitor.
+        self.expose_hwmon(
+            temp_scale      = temp_scale,
+            temp_divisor    = temp_divisor,
+            temp_offset     = temp_offset,
+            voltage_scale   = voltage_scale,
+            voltage_divisor = voltage_divisor,
+        )
+
         # Channels.
         for channel in channels:
             self.add_channel(channel)
@@ -272,8 +307,8 @@ class USSystemMonitor(XilinxSystemMonitor):
 
         # End of Convertion/Sequence update.
         self.sync += [
-            self.eoc.status.eq((self.eoc.status & ~self.eoc.we) | eoc),
-            self.eos.status.eq((self.eos.status & ~self.eos.we) | eos),
+            self.eoc.status.eq((self.eoc.status & ~self.eoc.rd_stb) | eoc),
+            self.eos.status.eq((self.eos.status & ~self.eos.rd_stb) | eos),
         ]
 
 # Xilinx Ultrascale Plus System Monitor ------------------------------------------------------------
@@ -315,17 +350,21 @@ ZynqUSPSystemMonitorChannels = USPSystemMonitorChannels + [
 class USPSystemMonitor(USSystemMonitor):
     def __init__(self, analog_pads=None):
         USSystemMonitor.__init__(self,
-            channels    = USPSystemMonitorChannels,
-            primitive   = "SYSMONE4",
-            sim_device  = "ULTRASCALE_PLUS",
-            analog_pads = analog_pads,
+            channels        = USPSystemMonitorChannels,
+            primitive       = "SYSMONE4",
+            sim_device      = "ULTRASCALE_PLUS",
+            analog_pads     = analog_pads,
+            temp_scale      = 507592,
+            temp_offset     = 279427,
         )
 
 class ZynqUSPSystemMonitor(USSystemMonitor):
     def __init__(self, analog_pads=None):
         USSystemMonitor.__init__(self,
-            channels    = ZynqUSPSystemMonitorChannels,
-            primitive   = "SYSMONE4",
-            sim_device  = "ZYNQ_ULTRASCALE",
-            analog_pads = analog_pads,
+            channels        = ZynqUSPSystemMonitorChannels,
+            primitive       = "SYSMONE4",
+            sim_device      = "ZYNQ_ULTRASCALE",
+            analog_pads     = analog_pads,
+            temp_scale      = 507592,
+            temp_offset     = 279427,
         )

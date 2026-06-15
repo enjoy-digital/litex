@@ -26,10 +26,14 @@ class SimConfig():
             new.append(obj)
         return new
 
-    def _format_timebase(self):
+    def get_timebase_ps(self):
         clockers = [m for m in self.modules if m["module"] == "clocker"]
-        timebase_ps = _calculate_timebase_ps(clockers)
-        return {"timebase": int(timebase_ps)}
+        assert clockers, \
+            "No simulation clocker found! Use sim_config.add_clocker() to define one or more clockers."
+        return int(_calculate_timebase_ps(clockers))
+
+    def _format_timebase(self):
+        return {"timebase": self.get_timebase_ps()}
 
     def add_clocker(self, clk, freq_hz, phase_deg=0):
         args = {"freq_hz": freq_hz, "phase_deg": phase_deg}
@@ -55,8 +59,6 @@ class SimConfig():
         return False
 
     def get_json(self):
-        assert "clocker" in (m["module"] for m in self.modules), \
-            "No simulation clocker found! Use sim_config.add_clocker() to define one or more clockers."
         config = self.modules + [self._format_timebase()]
         return json.dumps(config, indent=4)
 

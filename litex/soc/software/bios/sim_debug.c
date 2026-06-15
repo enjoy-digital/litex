@@ -61,9 +61,11 @@ int sim_trace_on(void) {
 void sim_finish(void) {
 #ifdef CSR_SIM_FINISH_BASE
   sim_trace(0);
+#ifdef CSR_SIM_MARKER_BASE
   if (n_markers > 0) {
     sim_markers_summary();
   }
+#endif
   sim_finish_finish_write(1);
 #else
   printf("No sim_finish CSR\n");

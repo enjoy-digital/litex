@@ -123,7 +123,7 @@ class ESCDShot(LiteXModule):
         bus.close()
     """
     def __init__(self, pad, sys_clk_freq, protocol="D150"):
-        self.value = CSRStorage(16)
+        self.value = CSRStorage(16, description="ESC protocol frame value.")
 
         # # #
 

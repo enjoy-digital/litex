@@ -8,7 +8,7 @@
 import os
 
 from litex.build.generic_platform import GenericPlatform
-from litex.build.gowin import common, gowin
+from litex.build.gowin import common, gowin, apicula
 
 # GowinPlatform ------------------------------------------------------------------------------------
 
@@ -28,12 +28,14 @@ class GowinPlatform(GenericPlatform):
         if toolchain == "gowin":
             self.toolchain = gowin.GowinToolchain()
         elif toolchain == "apicula":
-            raise ValueError("Apicula toolchain needs more work")
+            self.toolchain = apicula.GowinApiculaToolchain()
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.gowin_special_overrides)
+        if self.device[:4] == "GW5A":
+            so.update(common.gw5a_special_overrides)
         so.update(special_overrides)
         return GenericPlatform.get_verilog(self, *args,
             special_overrides = so,

@@ -16,6 +16,8 @@
 #include "readline.h"
 #include "complete.h"
 
+#include <libbase/uart.h>
+
 #ifndef BIOS_CONSOLE_NO_HISTORY
 static int hist_max = 0;
 static int hist_add_idx = 0;
@@ -23,6 +25,8 @@ static int hist_cur = 0;
 static int hist_num = 0;
 static char hist_lines[HIST_MAX][CMD_LINE_BUFFER_SIZE];
 #endif
+
+static void (*idle_hook_ptr)(void) = NULL;
 
 #define ARRAY_SIZE(array)  (sizeof(array) / sizeof(array[0]))
 
@@ -47,23 +51,38 @@ static const struct esc_cmds esccmds[] = {
 	{"[6~", KEY_PAGEDOWN},// Cursor Key Page Down
 };
 
+void set_idle_hook(void (*fptr)(void)) {
+	idle_hook_ptr = fptr;
+}
+
 static int read_key(void)
 {
 	char c;
-	char esc[5];
+	char esc[8];
+
+	if (idle_hook_ptr != NULL) {
+		while (!uart_read_nonblock()) {
+			idle_hook_ptr();
+		}
+	}
+
 	c = getchar();
 
 	if (c == 27) {
-		int i = 0;
+		unsigned int i = 0;
 		esc[i++] = getchar();
 		esc[i++] = getchar();
 		if (isdigit(esc[1])) {
 			while(1) {
-				esc[i] = getchar();
-				if (esc[i++] == '~')
-					break;
-				if (i == ARRAY_SIZE(esc))
+				if (i == ARRAY_SIZE(esc) - 1)
 					return -1;
+				esc[i] = getchar();
+				/* CSI sequences terminate with a byte in the 0x40-0x7e range. */
+				if ((esc[i] >= 0x40) && (esc[i] <= 0x7e)) {
+					i++;
+					break;
+				}
+				i++;
 			}
 		}
 		esc[i] = 0;
@@ -79,7 +98,8 @@ static int read_key(void)
 #ifndef BIOS_CONSOLE_NO_HISTORY
 static void cread_add_to_hist(char *line)
 {
-	strcpy(&hist_lines[hist_add_idx][0], line);
+	strncpy(&hist_lines[hist_add_idx][0], line, CMD_LINE_BUFFER_SIZE - 1);
+	hist_lines[hist_add_idx][CMD_LINE_BUFFER_SIZE - 1] = 0;
 
 	if (++hist_add_idx >= HIST_MAX)
 		hist_add_idx = 0;
@@ -153,7 +173,7 @@ static void cread_add_char(char ichar, int insert, unsigned int *num,
 	unsigned int wlen;
 
 	if (insert || *num == *eol_num) {
-		if (*eol_num > len - 1) {
+		if (*eol_num >= len - 1) {
 			getcmd_cbeep();
 			return;
 		}
@@ -187,17 +207,24 @@ int readline(char *buf, int len)
 	unsigned int eol_num = 0;
 	unsigned int wlen;
 	int insert = 1;
-	unsigned char ichar;
+	int ichar;
 
 #ifndef BIOS_CONSOLE_NO_AUTOCOMPLETE
 	char tmp;
 	int reprint, i;
-	char *completestr;
+	char completestr[CMD_LINE_BUFFER_SIZE];
 #endif
+
+	if (len <= 0)
+		return -1;
 
 	while (1) {
 
 		ichar = read_key();
+
+		/* Ignore unrecognized escape sequences. */
+		if (ichar < 0)
+			continue;
 
 		if ((ichar == '\n') || (ichar == '\r'))
 			break;
@@ -209,7 +236,7 @@ int readline(char *buf, int len)
 			tmp = buf[num];
 
 			buf[num] = 0;
-			reprint = complete(buf, &completestr);
+			reprint = complete(buf, completestr, sizeof(completestr));
 			buf[num] = tmp;
 
 			if (reprint) {
@@ -243,7 +270,7 @@ int readline(char *buf, int len)
 		case KEY_LEFT:
 			if (num) {
 				getcmd_putch(CTL_BACKSPACE);
-			 	num--;
+				num--;
 			}
 			break;
 		case CTL_CH('d'):
@@ -274,6 +301,14 @@ int readline(char *buf, int len)
 		case KEY_ERASE_LINE:
 			BEGINNING_OF_LINE();
 			ERASE_TO_EOL();
+			break;
+		case KEY_CLEAR_SCREEN:
+			printf(ANSI_CLEAR_SCREEN "%s", PROMPT);
+			/* Redisplay the current line, cursor back at num */
+			putnstr(buf, eol_num);
+			wlen = eol_num - num;
+			while (wlen--)
+				getcmd_putch(CTL_BACKSPACE);
 			break;
 		case DEL:
 		case KEY_DEL7:
@@ -309,9 +344,9 @@ int readline(char *buf, int len)
 #ifndef BIOS_CONSOLE_NO_HISTORY
 			char * hline;
 			if (ichar == KEY_UP)
-			 	hline = hist_prev();
+				hline = hist_prev();
 			else
-			 	hline = hist_next();
+				hline = hist_next();
 
 			if (!hline) {
 				getcmd_cbeep();
@@ -326,7 +361,8 @@ int readline(char *buf, int len)
 			ERASE_TO_EOL();
 
 			/* copy new line into place and display */
-			strcpy(buf, hline);
+			strncpy(buf, hline, len - 1);
+			buf[len - 1] = 0;
 			eol_num = strlen(buf);
 			REFRESH_TO_EOL();
 #endif
@@ -344,7 +380,7 @@ int readline(char *buf, int len)
 	buf[eol_num] = '\0';
 
 #ifndef BIOS_CONSOLE_NO_HISTORY
-	if (buf[0] && buf[0] != CREAD_HIST_CHAR) 
+	if (buf[0])
 		cread_add_to_hist(buf);
 	hist_cur = hist_add_idx;
 #endif

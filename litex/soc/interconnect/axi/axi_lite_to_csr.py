@@ -13,6 +13,8 @@ from litex.gen import *
 
 from litex.build.generic_platform import *
 
+from litex.soc.interconnect import csr_bus
+
 from litex.soc.interconnect.axi.axi_common import *
 from litex.soc.interconnect.axi.axi_lite import *
 
@@ -24,14 +26,17 @@ class AXILite2CSR(LiteXModule):
         if axi_lite is None:
             axi_lite = AXILiteInterface()
         if bus_csr is None:
-            bus_csr = csr_bus.Interface()
+            bus_csr = csr_bus.Interface(data_width=axi_lite.data_width)
 
         self.axi_lite = axi_lite
         self.csr      = bus_csr
 
+        assert axi_lite.data_width == bus_csr.data_width
+
         fsm, comb = axi_lite_to_simple(
             axi_lite   = self.axi_lite,
             port_adr   = self.csr.adr,
+            port_re    = self.csr.re,
             port_dat_r = self.csr.dat_r,
             port_dat_w = self.csr.dat_w,
             port_we    = self.csr.we)

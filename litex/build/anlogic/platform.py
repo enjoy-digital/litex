@@ -21,7 +21,7 @@ class AnlogicPlatform(GenericPlatform):
     def __init__(self, device, *args, toolchain="td", **kwargs):
         GenericPlatform.__init__(self, device, *args, **kwargs)
         if toolchain == "td":
-            self.toolchain = anlogic.TangDinastyToolchain()
+            self.toolchain = anlogic.TangDynastyToolchain()
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
 

@@ -2,12 +2,12 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2020 David Corrigan <davidcorrigan714@gmail.com>
+# Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from collections import namedtuple
 import logging
 import math
-import pprint
 from math import log, log10, exp, pi
 from cmath import phase
 
@@ -29,10 +29,10 @@ nx_pll_param_permutation = namedtuple("nx_pll_param_permutation",[
 class NXOSCA(LiteXModule):
     nclkouts_max = 2
     clk_hf_div_range = (0, 255)
-    clk_hf_freq_range = (1.76, 450e6)
+    clk_hf_freq_range = (1.76e6, 450e6)
     clk_hf_freq = 450e6
 
-    def __init__(self):
+    def __init__(self, platform=None):
         self.logger = logging.getLogger("NXOSCA")
         self.logger.info("Creating NXOSCA.")
 
@@ -40,12 +40,13 @@ class NXOSCA(LiteXModule):
         self.hfsdc_clk_out = {}
         self.lf_clk_out    = None
         self.params        = {}
+        self.platform      = platform
 
     def create_hf_clk(self, cd, freq, margin=.05):
         """450 - 1.7 Mhz Clk"""
-        (clko_freq_min, clko_freq_max) = self.clk_hf_freq_range
-        assert freq >= clko_freq_min
-        assert freq <= clko_freq_max
+        check_freq_range(freq, self.clk_hf_freq_range, "HF clock frequency")
+        check_margin(margin)
+        register_clkout_cd(self, cd)
         clkout = Signal()
         self.hf_clk_out = (clkout, freq, margin)
         self.comb += cd.clk.eq(clkout)
@@ -53,9 +54,9 @@ class NXOSCA(LiteXModule):
 
     def create_hfsdc_clk(self, cd, freq, margin=.05):
         """450 - 1.7 Mhz Clk. Can only be connected to the SEDC_CLK port of CONFIG_CLKRST_CORE"""
-        (clko_freq_min, clko_freq_max) = self.clk_hf_freq_range
-        assert freq >= clko_freq_min
-        assert freq <= clko_freq_max
+        check_freq_range(freq, self.clk_hf_freq_range, "HFSDSC clock frequency")
+        check_margin(margin)
+        register_clkout_cd(self, cd)
         clkout = Signal()
         self.hfsdc_clk_out = (clkout, freq, margin)
         self.comb += cd.clk.eq(clkout)
@@ -63,12 +64,14 @@ class NXOSCA(LiteXModule):
 
     def create_lf_clk(self, cd):
         """128 kHz Clock"""
+        register_clkout_cd(self, cd)
         clkout = Signal()
         self.lf_clk_out = (clkout)
         self.comb += cd.clk.eq(clkout)
         create_clkout_log(self.logger, cd.name, 128e3, 19e3, -1)
 
     def compute_divisor(self, freq, margin):
+        check_margin(margin)
         config = {}
 
         for divisor in range(*self.clk_hf_div_range):
@@ -86,21 +89,29 @@ class NXOSCA(LiteXModule):
 
     def do_finalize(self):
         if self.hf_clk_out:
-            divisor = self.compute_divisor(self.hf_clk_out[1], self.hf_clk_out[2])
+            clk_freq = self.hf_clk_out[1]
+            divisor = self.compute_divisor(clk_freq, self.hf_clk_out[2])
             self.params["i_HFOUTEN"]      = 0b1
             self.params["p_HF_CLK_DIV"]   = divisor
             self.params["o_HFCLKOUT"]     = self.hf_clk_out[0]
             self.params["p_HF_OSC_EN"]    = "ENABLED"
+            if self.platform:
+                self.platform.add_platform_command("create_clock -period {} -name OSCA_HFCLKOUT [get_pins OSCA.OSCA_inst/HFCLKOUT]".format(str(1e9/clk_freq)))
 
         if self.hfsdc_clk_out:
-            divisor = self.compute_divisor(self.hfsdc_clk_out[1], self.hfsdc_clk_out[2])
+            clk_freq = self.hfsdc_clk_out[1]
+            divisor = self.compute_divisor(clk_freq, self.hfsdc_clk_out[2])
             self.params["i_HFSDSCEN"]        = 0b1
             self.params["p_HF_SED_SEC_DIV"]  = divisor
             self.params["o_HFSDCOUT"]        = self.hfsdc_clk_out[0]
+            if self.platform:
+                self.platform.add_platform_command("create_clock -period {} -name OSCA_HFSDCOUT [get_pins OSCA.OSCA_inst/HFSDCOUT]".format(str(1e9/clk_freq)))
 
         if self.lf_clk_out is not None:
             self.params["o_LFCLKOUT"] = self.lf_clk_out[0]
             self.params["p_LF_OUTPUT_EN"] = "ENABLED"
+            if self.platform:
+                self.platform.add_platform_command("create_clock -period {} -name OSCA_LF_OUTPUT_EN [get_pins OSCA.OSCA_inst/LF_OUTPUT_EN]".format(str(1e9/128e3)))
 
         self.specials += Instance("OSCA", **self.params)
 
@@ -117,7 +128,7 @@ class NXPLL(LiteXModule):
     vco_out_freq_range  = ( 800e6,  1600e6)
     instance_num        = 0
 
-    def __init__(self, platform = None, create_output_port_clocks=False):
+    def __init__(self, platform = None, create_output_port_clocks=False, name=None):
         self.logger = logging.getLogger("NXPLL")
         self.logger.info("Creating NXPLL.")
         self.params     = {}
@@ -129,8 +140,11 @@ class NXPLL(LiteXModule):
         self.nclkouts   = 0
         self.clkouts    = {}
         self.config     = {}
-        self.name       = 'PLL_' + str(NXPLL.instance_num)
-        NXPLL.instance_num += 1
+        if name is None:
+            self.name = 'PLL_' + str(NXPLL.instance_num)
+            NXPLL.instance_num += 1
+        else:
+            self.name = name
         self.platform   = platform
         self.create_output_port_clocks = create_output_port_clocks
 
@@ -138,55 +152,59 @@ class NXPLL(LiteXModule):
         self.calc_tf_coefficients()
 
     def register_clkin(self, clkin, freq):
-        (clki_freq_min, clki_freq_max) = self.clki_freq_range
-        assert freq >= clki_freq_min
-        assert freq <= clki_freq_max
-        self.clkin = Signal()
-        if isinstance(clkin, (Signal, ClockSignal)):
-            self.comb += self.clkin.eq(clkin)
-        else:
-            raise ValueError
+        check_freq_range(freq, self.clki_freq_range, "Input clock frequency")
+        self.clkin = connect_clkin(self, clkin)
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2):
-        (clko_freq_min, clko_freq_max) = self.clko_freq_range
-        assert freq >= clko_freq_min
-        assert freq <= clko_freq_max
-        assert self.nclkouts < self.nclkouts_max
-        self.clkouts[self.nclkouts] = (cd.clk, freq, phase, margin)
+        check_freq_range(freq, self.clko_freq_range, "Output clock frequency")
+        check_margin(margin)
+        check_clkout_cd_unused(self, cd)
+        check_clkout_count(self.nclkouts, self.nclkouts_max)
+        register_clkout_cd(self, cd)
+        self.clkouts[self.nclkouts] = ClkOut(cd.clk, freq, phase, margin)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
 
     def compute_config(self):
-        config = {}
+        check_clkin_registered(hasattr(self, "clkin"))
+        check_clkouts(self.nclkouts)
+        best_config = None
+        best_score  = None
         for clki_div in range(*self.clki_div_range):
-            config["clki_div"] = clki_div
             for clkfb_div in range(*self.clkfb_div_range):
                 all_valid = True
-                vco_freq = self.clkin_freq/clki_div*clkfb_div
+                errors    = []
+                config    = {"clki_div": clki_div}
+                vco_freq  = self.clkin_freq/clki_div*clkfb_div
                 (vco_freq_min, vco_freq_max) = self.vco_out_freq_range
                 if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
-                    for n, (clk, f, p, m) in sorted(self.clkouts.items()):
-                        valid = False
-                        for d in range(*self.clko_div_range):
-                            clk_freq = vco_freq/d
-                            if abs(clk_freq - f) <= f*m:
-                                config["clko{}_freq".format(n)]  = clk_freq
-                                config["clko{}_div".format(n)]   = d
-                                config["clko{}_phase".format(n)] = p
-                                valid = True
-                                break
-                        if not valid:
+                    for n, clkout in sorted(self.clkouts.items()):
+                        best_clkout = clkout_best_divider(
+                            clkout.freq,
+                            clkout.margin,
+                            clkdiv_candidates([self.clko_div_range], ideal=vco_freq/clkout.freq),
+                            lambda d: vco_freq/d
+                        )
+                        if best_clkout is None:
                             all_valid = False
+                            break
+                        error, clk_freq, d = best_clkout
+                        errors.append(error)
+                        config["clko{}_freq".format(n)]  = clk_freq
+                        config["clko{}_div".format(n)]   = d
+                        config["clko{}_phase".format(n)] = clkout.phase
                 else:
                     all_valid = False
                 if all_valid:
                     config["vco"] = vco_freq
                     config["clkfb_div"] = clkfb_div
-                    compute_config_log(self.logger, config)
-                    return config
-        raise ValueError("No PLL config found")
+                    best_config, best_score = update_best_config(best_config, best_score, config, errors, vco_freq)
+        if best_config is not None:
+            compute_config_log(self.logger, best_config)
+            return best_config
+        raise pll_config_error(self.clkin_freq, self.clkouts)
 
     def calculate_analog_parameters(self, clki_freq, fb_div, bw_factor = 5):
         config = {}
@@ -242,22 +260,22 @@ class NXPLL(LiteXModule):
         self.params.update(analog_params)
         n_to_l = {0: "P", 1: "S", 2: "S2", 3:"S3", 4:"S4"}
 
-        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+        for n, clkout in sorted(self.clkouts.items()):
             div    = config["clko{}_div".format(n)]
-            phase = int((1+p/360) * div)
+            phase  = int((1 + clkout.phase/360) * div)
             letter = chr(n+65)
             self.params["p_ENCLK_CLKO{}".format(n_to_l[n])] = "ENABLED"
             self.params["p_DIV{}".format(letter)] = str(div-1)
             self.params["p_PHI{}".format(letter)] = "0"
             self.params["p_DEL{}".format(letter)] = str(phase - 1)
-            self.params["o_CLKO{}".format(n_to_l[n])] = clk
+            self.params["o_CLKO{}".format(n_to_l[n])] = clkout.clk
 
             # In theory this really shouldn't be necessary, in practice
             # the tooling seems to have suspicous clock latency values
             # on generated clocks that are causing timing problems and Lattice
             # hasn't responded to my support requests on the matter.
             if self.platform and self.create_output_port_clocks:
-                self.platform.add_platform_command("create_clock -period {} -name {} [get_pins {}.PLL_inst/CLKO{}]".format(str(1/f*1e9), self.name + "_" + n_to_l[n],self.name, n_to_l[n]))
+                self.platform.add_platform_command("create_clock -period {} -name {} [get_pins {}.PLL_inst/CLKO{}]".format(str(1/clkout.freq*1e9), self.name + "_" + n_to_l[n], self.name, n_to_l[n]))
 
         if self.platform and self.create_output_port_clocks:
             i = 0
@@ -272,9 +290,9 @@ class NXPLL(LiteXModule):
 
     # Later revs of the Lattice calculator BW_FACTOR is set to 10, may need to change it
     def calc_optimal_params(self, fref, fbkdiv, M = 1, BW_FACTOR = 5):
-        print("Calculating Analog Paramters for a reference freqeuncy of " + str(fref*1e-6) +
-              " Mhz, feedback div " + str(fbkdiv) + ", and input div " + str(M) + "."
-        )
+        self.logger.debug(
+            "Calculating analog parameters for reference frequency %sMHz, feedback div %s and input div %s.",
+            fref*1e-6, fbkdiv, M)
 
         best_params = None
         best_3db = 0
@@ -298,9 +316,8 @@ class NXPLL(LiteXModule):
                 best_3db = closed_loop_3db["f"]
                 best_params = params
 
-        print("Done calculating analog parameters:")
         HDL_params = self.numerical_params_to_HDL_params(best_params)
-        pprint.pprint(HDL_params)
+        self.logger.debug("Done calculating analog parameters: %s", HDL_params)
 
         return HDL_params
 

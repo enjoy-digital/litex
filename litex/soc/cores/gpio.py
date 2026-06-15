@@ -9,6 +9,7 @@ from migen import *
 from migen.genlib.cdc import MultiReg
 
 from litex.gen import *
+from litex.build.io import SDRTristate
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
@@ -27,17 +28,22 @@ class _GPIOIRQ(LiteXModule):
         # # #
 
         self.ev = EventManager()
+
+        in_pads_n_d = Signal(len(in_pads))
+        self.sync += in_pads_n_d.eq(in_pads)
+
         for n in range(len(in_pads)):
-            in_pads_n_d = Signal()
-            self.sync += in_pads_n_d.eq(in_pads[n])
-            esp = EventSourceProcess(name=f"i{n}", edge="rising")
+            esp = EventSourcePulse(name=f"i{n}")
             self.comb += [
                 # Change mode.
                 If(self._mode.storage[n],
-                    esp.trigger.eq(in_pads[n] ^ in_pads_n_d)
-                # Edge mode.
+                    esp.trigger.eq(in_pads[n] ^ in_pads_n_d[n])
+                # Falling edge.
+                ).Elif(self._edge.storage[n],
+                    esp.trigger.eq(~in_pads[n] & in_pads_n_d[n])
+                # Rising edge.
                 ).Else(
-                    esp.trigger.eq(in_pads[n] ^ self._edge.storage[n])
+                    esp.trigger.eq(in_pads[n] & ~in_pads_n_d[n])
                 )
             ]
             setattr(self.ev, f"i{n}", esp)
@@ -80,29 +86,43 @@ class GPIOTristate(_GPIOIRQ):
 
         self._oe  = CSRStorage(nbits, description="GPIO Tristate(s) Control.")
         self._in  = CSRStatus(nbits,  description="GPIO Input(s) Status.")
-        self._out = CSRStorage(nbits, description="GPIO Ouptut(s) Control.")
+        self._out = CSRStorage(nbits, description="GPIO Output(s) Control.")
+
+        self.o  = Signal(nbits)
+        self.oe = Signal(nbits)
+        self.i  = Signal(nbits)
 
         # # #
+
+        self.comb += [
+            self.o.eq( self._out.storage),
+            self.oe.eq(self._oe.storage),
+            self._in.status.eq(self.i),
+        ]
 
         # Internal Tristate.
         if internal:
             if isinstance(pads, Record):
                 pads = pads.flatten()
-            # Proper inout IOs.
-            for i in range(nbits):
-                t = TSTriple()
-                self.specials += t.get_tristate(pads[i])
-                self.comb += t.oe.eq(self._oe.storage[i])
-                self.comb += t.o.eq(self._out.storage[i])
-                self.specials += MultiReg(t.i, self._in.status[i])
+            if isinstance(pads, list):
+                start = 0
+                for pad in pads:
+                    _out = self.o[start:start+len(pad)]
+                    _oe  = self.oe[start:start+len(pad)]
+                    _in  = self.i[start:start+len(pad)]
+
+                    self.specials += SDRTristate(pad, _out, _oe, _in)
+                    start += len(pad)
+            else:
+                self.specials += SDRTristate(pads, self.o, self.oe, self.i)
 
         # External Tristate.
         else:
             # Tristate inout IOs (For external tristate IO chips or simulation).
             for i in range(nbits):
-                self.comb += pads.oe[i].eq(self._oe.storage[i])
-                self.comb += pads.o[i].eq(self._out.storage[i])
-                self.specials += MultiReg(pads.i[i], self._in.status[i])
+                self.comb += pads.oe[i].eq(self.oe[i])
+                self.comb += pads.o[i].eq(self.o[i])
+                self.specials += MultiReg(pads.i[i], self.i[i])
 
         if with_irq:
-            self.add_irq(self._in.status)
+            self.add_irq(self.i)

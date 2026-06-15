@@ -41,6 +41,7 @@ class LatticeTrellisToolchain(YosysNextPNRToolchain):
         bootaddr       = 0,
         spimode        = None,
         freq           = None,
+        idcode         = None,
         compress       = True,
         **kwargs):
 
@@ -57,10 +58,11 @@ class LatticeTrellisToolchain(YosysNextPNRToolchain):
             assert freq in ecp5_mclk_freqs, "Invalid MCLK frequency. Valid frequencies: " + str(ecp5_mclk_freqs)
 
         # prepare ecppack opts
-        self._packer_opts += " --bootaddr {bootaddr} {spimode} {freq} {compress} ".format(
+        self._packer_opts += " --bootaddr {bootaddr} {spimode} {freq} {idcode} {compress} ".format(
             bootaddr = bootaddr,
             spimode  = "" if spimode is None else f"--spimode {spimode}",
             freq     = "" if freq is None else "--freq {}".format(freq),
+            idcode   = "" if idcode is None else f"--idcode {idcode}",
             compress = "" if not compress else "--compress"
         )
 
@@ -71,7 +73,10 @@ class LatticeTrellisToolchain(YosysNextPNRToolchain):
         (family, size, self._speed_grade, self._package) = self.nextpnr_ecp5_parse_device(self.platform.device)
         self._architecture = self.nextpnr_ecp5_architectures[(family + "-" + size)]
 
-        self._packer_opts += " {build_name}.config --svf {build_name}.svf --bit {build_name}.bit".format(
+        # Snapshot base options on first finalize to keep finalize idempotent.
+        if not hasattr(self, "_base_packer_opts"):
+            self._base_packer_opts = self._packer_opts
+        self._packer_opts = self._base_packer_opts + " {build_name}.config --svf {build_name}.svf --bit {build_name}.bit".format(
                 build_name = self._build_name,
         )
         return YosysNextPNRToolchain.finalize(self)
@@ -106,6 +111,19 @@ class LatticeTrellisToolchain(YosysNextPNRToolchain):
                 lpf.append(self._format_lpf(sig, pins[0], others, resname))
         if self.named_pc:
             lpf.append("\n\n".join(self.named_pc))
+
+        # Clock constraints
+        for clk, [period, _] in self.clocks.items():
+            clk_name = self._vns.get_name(clk)
+            lpf.append("FREQUENCY {} \"{}\" {} MHz;".format(
+                "PORT" if hasattr(clk, "port") else "NET",
+                clk_name,
+                str(1e3/period)))
+
+        # False path constraints are not supported by nextpnr-ecp5.
+        if self.false_paths:
+            print("Warning: nextpnr-ecp5 does not support false path constraints, they will be ignored.")
+
         tools.write_to_file(self._build_name + ".lpf", "\n".join(lpf))
 
     # NextPnr Helpers/Templates --------------------------------------------------------------------
@@ -147,20 +165,13 @@ class LatticeTrellisToolchain(YosysNextPNRToolchain):
         "lfe5um5g-85f": "um5g-85k",
     }
 
-    def add_period_constraint(self, platform, clk, period, keep=True, name=None):
-        if clk is None:
-            return
-        if hasattr(clk, "p"):
-            clk = clk.p
-        platform.add_platform_command("""FREQUENCY PORT "{clk}" {freq} MHz;""".format(
-            freq=str(float(1/period)*1000), clk="{clk}"), clk=clk)
-
 def trellis_args(parser):
     toolchain_group = parser.add_argument_group(title="Trellis toolchain options")
     yosys_nextpnr_args(toolchain_group)
     toolchain_group.add_argument("--ecppack-bootaddr",     default=0,           help="Set boot address for next image.")
     toolchain_group.add_argument("--ecppack-spimode",      default=None,        help="Set slave SPI programming mode.")
     toolchain_group.add_argument("--ecppack-freq",         default=None,        help="Set SPI MCLK frequency.")
+    toolchain_group.add_argument("--ecppack-idcode",       default=None,        help="IDCODE to override in bitstream.")
     toolchain_group.add_argument("--ecppack-compress",     action="store_true", help="Use Bitstream compression.")
 
 def trellis_argdict(args):
@@ -169,5 +180,6 @@ def trellis_argdict(args):
         "bootaddr":     args.ecppack_bootaddr,
         "spimode":      args.ecppack_spimode,
         "freq":         float(args.ecppack_freq) if args.ecppack_freq is not None else None,
+        "idcode":       args.ecppack_idcode,
         "compress":     args.ecppack_compress,
     }

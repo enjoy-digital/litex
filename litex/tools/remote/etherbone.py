@@ -65,7 +65,8 @@ unpack_uint64_from = struct.Struct('>Q').unpack
 # Packet -------------------------------------------------------------------------------------------
 
 class Packet(list):
-    def __init__(self, init=[]):
+    def __init__(self, init=None):
+        init = [] if init is None else init
         self.ongoing = False
         self.done    = False
         self.bytes   = init
@@ -90,7 +91,9 @@ class EtherboneRead:
 # Etherbone Writes ---------------------------------------------------------------------------------
 
 class EtherboneWrites(Packet):
-    def __init__(self, addr_size=4, init=[], base_addr=0, datas=[]):
+    def __init__(self, addr_size=4, init=None, base_addr=0, datas=None):
+        init  = [] if init  is None else init
+        datas = [] if datas is None else datas
         if isinstance(datas, list) and len(datas) > 255:
             raise ValueError(f"Burst size of {len(datas)} exceeds maximum of 255 allowed by Etherbone.")
         assert addr_size in [1, 2, 4, 8]
@@ -152,7 +155,9 @@ class EtherboneWrites(Packet):
 # Etherbone Reads ----------------------------------------------------------------------------------
 
 class EtherboneReads(Packet):
-    def __init__(self, addr_size=4, init=[], base_ret_addr=0, addrs=[]):
+    def __init__(self, addr_size=4, init=None, base_ret_addr=0, addrs=None):
+        init  = [] if init  is None else init
+        addrs = [] if addrs is None else addrs
         if isinstance(addrs, list) and len(addrs) > 255:
             raise ValueError(f"Burst size of {len(addrs)} exceeds maximum of 255 allowed by Etherbone.")
         assert addr_size in [1, 2, 4, 8]
@@ -221,7 +226,8 @@ class EtherboneReads(Packet):
 # Etherbone Record ---------------------------------------------------------------------------------
 
 class EtherboneRecord(Packet):
-    def __init__(self, addr_size=4, init=[]):
+    def __init__(self, addr_size=4, init=None):
+        init = [] if init is None else init
         assert addr_size in [1, 2, 4, 8]
 
         Packet.__init__(self, init)
@@ -317,7 +323,8 @@ class EtherboneRecord(Packet):
 # Etherbone Packet ---------------------------------------------------------------------------------
 
 class EtherbonePacket(Packet):
-    def __init__(self, addr_width=32, init=[]):
+    def __init__(self, addr_width=32, init=None):
+        init = [] if init is None else init
         assert addr_width in [8, 16, 32, 64]
 
         Packet.__init__(self, init)
@@ -401,24 +408,30 @@ class EtherboneIPC:
     def receive_packet(self, socket, addr_size):
         assert addr_size in [1, 2, 4, 8]
         header_length = etherbone_packet_header_length + etherbone_record_header_length
-        packet        = bytes()
-        while len(packet) < header_length:
-            chunk = socket.recv(header_length - len(packet))
-            if len(chunk) == 0:
-                return 0
-            else:
-                packet += chunk
-        wcount, rcount = struct.unpack(">BB", packet[header_length-2:])
-        counts = wcount + rcount
-        packet_size = header_length
-        if wcount != 0:
-            packet_size += 4 * (wcount ) + addr_size
-        if rcount != 0:
-            packet_size += (rcount + 1 ) * addr_size
-        while len(packet) < packet_size:
-            chunk = socket.recv(packet_size - len(packet))
-            if len(chunk) == 0:
-                return 0
-            else:
-                packet += chunk
-        return packet
+        packet = bytes()
+        try:
+            while len(packet) < header_length:
+                chunk = socket.recv(header_length - len(packet))
+                if len(chunk) == 0:
+                    return 0
+                else:
+                    packet += chunk
+
+            wcount, rcount = struct.unpack(">BB", packet[header_length - 2:])
+            packet_size = header_length
+            if wcount != 0:
+                packet_size += 4 * (wcount) + addr_size
+            if rcount != 0:
+                packet_size += (rcount + 1) * addr_size
+
+            while len(packet) < packet_size:
+                chunk = socket.recv(packet_size - len(packet))
+                if len(chunk) == 0:
+                    return 0
+                else:
+                    packet += chunk
+
+            return packet
+
+        except TimeoutError:
+            return 0

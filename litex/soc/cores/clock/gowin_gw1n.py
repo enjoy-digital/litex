@@ -1,11 +1,10 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2021-2022 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2021-2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen import *
 
@@ -16,6 +15,8 @@ from litex.soc.cores.clock.common import *
 class GW1NOSC(LiteXModule):
     osc_div_range = (2,  128)
     def __init__(self, device, freq, margin=1e-2):
+        check_freq_positive(freq, "Oscillator frequency")
+        check_margin(margin)
         self.logger = logging.getLogger("GW1NOSC")
         self.logger.info("Creating GW1NOSC.".format())
         self.clk    = Signal()
@@ -28,14 +29,17 @@ class GW1NOSC(LiteXModule):
             osc_freq = 210e6
 
         # Oscillator divider.
-        osc_div = None
+        best_config = None
         osc_div_min, osc_div_max = self.osc_div_range
         for div in range(osc_div_min, osc_div_max):
             clk_freq = osc_freq/div
-            if (clk_freq >= freq*(1 - margin) and clk_freq <= freq*(1 + margin)):
-                osc_div = div
-        if osc_div is None:
+            error    = clkout_freq_error(clk_freq, freq)
+            if error <= margin and (best_config is None or error < best_config["error"]):
+                best_config = {"error": error, "freq": clk_freq, "div": div}
+        if best_config is None:
             raise ValueError("No OSC config found")
+        osc_div = best_config["div"]
+        self.config = best_config
         self.logger.info(f"Configured to {(osc_freq/osc_div)/1e6:3.2f}MHz (div={osc_div}).")
 
         # Oscillator instance.
@@ -50,11 +54,13 @@ class GW1NOSC(LiteXModule):
 class GW1NPLL(LiteXModule):
     nclkouts_max = 4
 
-    def __init__(self, devicename, device, vco_margin=0):
+    def __init__(self, devicename, device, vco_margin=0, name=None):
+        check_margin(vco_margin, "VCO margin")
         self.logger = logging.getLogger("GW1NPLL")
         self.logger.info("Creating GW1NPLL.".format())
         self.device     = device
         self.devicename = devicename
+        self.name       = name
         self.vco_margin = vco_margin
         self.reset      = Signal()
         self.locked     = Signal()
@@ -100,28 +106,28 @@ class GW1NPLL(LiteXModule):
         return pfd_freq_range
 
     def register_clkin(self, clkin, freq):
-        self.clkin = Signal()
-        if isinstance(clkin, (Signal, ClockSignal)):
-            self.comb += self.clkin.eq(clkin)
-        else:
-            raise ValueError
+        check_freq_positive(freq, "Input clock frequency")
+        self.clkin = connect_clkin(self, clkin)
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
-        assert self.nclkouts < self.nclkouts_max
+        check_freq_positive(freq, "Output clock frequency")
+        check_margin(margin)
+        check_clkout_cd_unused(self, cd)
+        check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
-        self.clkouts[self.nclkouts] = (clkout, freq, phase, margin)
-        if with_reset:
-            # FIXME: Should use PLL's lock but does not seem stable.
-            self.specials += AsyncResetSynchronizer(cd, self.reset)
-        self.comb += cd.clk.eq(clkout)
+        self.clkouts[self.nclkouts] = ClkOut(clkout, freq, phase, margin)
+        # FIXME: Should use PLL's lock but does not seem stable.
+        connect_clkout(self, cd, clkout, reset=self.reset, with_reset=with_reset)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
 
     def compute_config(self):
+        check_clkin_registered(hasattr(self, "clkin"))
+        check_clkouts(self.nclkouts)
         # extract the highest frequency and associated margin
-        freq_max, m = max([(f, n) for (_, f, _, n) in self.clkouts.values()], key=lambda p: p[1])
+        freq_max, margin = max([(clkout.freq, clkout.margin) for clkout in self.clkouts.values()], key=lambda p: p[0])
 
         configs = [] # corresponding VCO/FBDIV/IDIV/ODIV params + diff
 
@@ -138,7 +144,7 @@ class GW1NPLL(LiteXModule):
                     if (vco_freq >= vco_freq_min*(1 + self.vco_margin) and
                         vco_freq <= vco_freq_max*(1 - self.vco_margin)):
                             diff = abs(out_freq - freq_max)
-                            if diff <= freq_max*m:
+                            if diff <= freq_max*margin:
                                 configs.append({
                                     "diff" : diff,
                                     "idiv" : idiv,
@@ -147,26 +153,19 @@ class GW1NPLL(LiteXModule):
                                     "fdiv" : fdiv
                                 })
         if len(configs) == 0:
-            raise ValueError("No PLL config found")
-
-        # select better combo (where diff f_real-f_req is the smallest)
-        config = configs[min([(i, v["diff"]) for i, v in enumerate(configs)], key=lambda p: p[1])[0]]
-
-        # out_freq using the selected configuration
-        out_freq = self.clkin_freq*config["fdiv"] / config["idiv"]
+            raise pll_config_error(self.clkin_freq, self.clkouts)
 
         # Phase
-        phases = list({p for (_, _, p, _) in self.clkouts.values() if p != 0})
-        assert len(phases) < 2 # only zero or one phase possible
-        # configure phase param
-        config["PSDA_SEL"] = f"{int(phases[0] // 22.5):04b}" if len(phases) == 1 else "0000"
+        phases = list({clkout.phase for clkout in self.clkouts.values() if clkout.phase != 0})
+        if len(phases) >= 2:
+            raise ValueError("Gowin PLL supports only one non-zero phase.")
 
         # frequencies
         # CLKOUT & CLKOUTP : VCODIV / 1
         # CLKOUTD3         : VCODIV / 3
         # CLKOUTD          : VCODIV / an even value [2-128]
         # FIXME: bypass may used to directly connect output clock to the input
-        freqs_div = [freq_max // f for (_, f, _, _) in self.clkouts.values() if freq_max // f != 1]
+        freqs_div = [freq_max // clkout.freq for clkout in self.clkouts.values() if freq_max // clkout.freq != 1]
 
         if len(freqs_div) > 2:
             raise ValueError("Gowin PLL can't have more than two divisor")
@@ -177,37 +176,55 @@ class GW1NPLL(LiteXModule):
             raise ValueError("Gowin PLL has two divisor: one /3 and an even divisor between 2 and 128")
 
         # configure sdiv for CLKOUTD (if it's required)
-        config["SDIV_SEL"] = int(clkoutd_div[0]) if len(clkoutd_div) == 1 else 2
+        sdiv = int(clkoutd_div[0]) if len(clkoutd_div) == 1 else 2
 
-        for c, (clock, freq, phase, margin) in self.clkouts.items():
-            th_div = int(freq_max // freq) # divisor to apply
-            r_freq = out_freq / th_div     # real frequency
-            diff_f = abs(r_freq - freq)    # diff between obtained and requested
-            # check if value fit criterion
-            if diff_f > r_freq*margin:
-                raise ValueError(f"Can't obtain requested frequency {diff_f} > {r_freq * margin}")
-            if th_div == 1: # no divisor: may be CLKOUT or CLKOUTP
-                if phase == 0:
-                    out = "" # CLKOUT
+        best_config = None
+        best_score  = None
+        for config in configs:
+            config   = dict(config)
+            errors   = []
+            out_freq = self.clkin_freq*config["fdiv"] / config["idiv"]
+
+            config["PSDA_SEL"] = f"{int(phases[0] // 22.5):04b}" if len(phases) == 1 else "0000"
+            config["SDIV_SEL"] = sdiv
+
+            all_valid = True
+            for c, clkout in self.clkouts.items():
+                th_div = int(freq_max // clkout.freq) # divisor to apply
+                r_freq = out_freq / th_div     # real frequency
+                error  = clkout_freq_error(r_freq, clkout.freq)
+                # check if value fit criterion
+                if error > clkout.margin:
+                    all_valid = False
+                    break
+                errors.append(error)
+                if th_div == 1: # no divisor: may be CLKOUT or CLKOUTP
+                    if clkout.phase == 0:
+                        out = "" # CLKOUT
+                    else:
+                        if "CLKOUTP" in config.keys():
+                            raise ValueError("Only one clock with freq == freq max and a phase != 0")
+                        out = "P"
+                elif th_div == 3:
+                    out = "D3"
                 else:
-                    if "CLKOUTP" in config.keys():
-                        raise ValueError("Only one clock with freq == freq max and a phase != 0")
-                    out = "P"
-            elif th_div == 3:
-                out = "D3"
-            else:
-                out = "D"
+                    out = "D"
 
-            config.update({
-                f"CLKOUT{out}"     : clock,
-                f"CLKOUT{out}_SRC" : "CLKOUT" if phase == 0 else "CLKOUTP",
-            })
+                config.update({
+                    f"CLKOUT{out}"     : clkout.clk,
+                    f"CLKOUT{out}_SRC" : "CLKOUT" if clkout.phase == 0 else "CLKOUTP",
+                })
 
-        return config
+            if all_valid:
+                best_config, best_score = update_best_config(best_config, best_score, config, errors, config["vco"])
+
+        if best_config is not None:
+            return best_config
+        raise pll_config_error(self.clkin_freq, self.clkouts)
 
     def do_finalize(self):
-        assert hasattr(self, "clkin")
-        assert len(self.clkouts) > 0 and len(self.clkouts) <= 4
+        check_clkin_registered(hasattr(self, "clkin"))
+        check_clkouts(self.nclkouts)
         config = self.compute_config()
         # Based on UG286-1.3E Note.
         self.params.update(
@@ -252,18 +269,14 @@ class GW1NPLL(LiteXModule):
             self.params.update(i_FDLY=Constant(0xf, 4))
 
         if self.device.startswith('GW1NS'):
-            instance_name = 'PLLVR'
+            primitive_name = 'PLLVR'
             self.params.update(i_VREN=1)
         else:
-            instance_name = 'PLL'
-            self.params.update(
-                i_RESET_I = 0,          # IDIV reset.
-                i_RESET_S = 0,          # SDIV and DIV3 reset.
-            )
+            primitive_name = 'rPLL'
         for clk_name in ["CLKOUT", "CLKOUTP", "CLKOUTD", "CLKOUTD3"]:
             self.params[f"o_{clk_name}"] = config.get(clk_name, Open()) # Clock output.
             if clk_name in ["CLKOUTD", "CLKOUTD3"]: # Recopy CLKOUTx to CLKOUTDx
                 self.params[f"p_{clk_name}_SRC"] = config.get(f"{clk_name}_SRC", "CLKOUT")
 
         self.params.update(o_LOCK=self.locked) # PLL lock status.
-        self.specials += Instance(instance_name, **self.params)
+        self.specials += Instance(primitive_name, name=self.name or "", **self.params)

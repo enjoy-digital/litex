@@ -19,16 +19,25 @@ from litex.soc.cores.clock.efinix import TITANIUMPLL
 
 from litex.soc.cores.hyperbus import HyperRAM
 
+EFINIX_HYPERRAM_CLK_RATIO           = 4
+EFINIX_HYPERRAM_MAX_PHY_CLK_FREQ    = 250e6
+EFINIX_HYPERRAM_DYN_PHASE_SEL_WIDTH = 1
+
 # HyperRAM (efinix F100) ---------------------------------------------------------------------------
 
 class EfinixHyperRAM(HyperRAM):
     """ HyperRAM wrapper for efinix F100 (internal)
     """
-    def __init__(self, platform, latency=6, clock_domain="sys", sys_clk_freq=None):
+    def __init__(self, platform, latency=6, latency_mode="fixed", clock_domain="sys", sys_clk_freq=None, with_bursting=True, with_csr=True):
 
         # # #
 
-        assert sys_clk_freq is not None and sys_clk_freq * 2 < 250e6
+        if sys_clk_freq is None:
+            raise ValueError("Efinix HyperRAM requires sys_clk_freq.")
+        if sys_clk_freq <= 0:
+            raise ValueError("Efinix HyperRAM sys_clk_freq must be positive.")
+        if sys_clk_freq * EFINIX_HYPERRAM_CLK_RATIO >= EFINIX_HYPERRAM_MAX_PHY_CLK_FREQ:
+            raise ValueError("Efinix HyperRAM 4x clock must be below 250MHz.")
 
         _io = [
             ("hyperram", 0,
@@ -54,7 +63,7 @@ class EfinixHyperRAM(HyperRAM):
 
         platform.add_extension([
             ("shift_ena", 0, Pins(1)),
-            ("shift_sel", 0, Pins(1)),
+            ("shift_sel", 0, Pins(EFINIX_HYPERRAM_DYN_PHASE_SEL_WIDTH)),
             ("shift",     0, Pins(1)),
         ])
 
@@ -68,12 +77,16 @@ class EfinixHyperRAM(HyperRAM):
         platform.toolchain.excluded_ios.append(_dps_pads["shift"])
 
         # PLL.
+        self.cd_hp = ClockDomain()
+        self.cd_hp90 = ClockDomain()
+        self.cd_hpcal = ClockDomain()
         self.pll = pll = TITANIUMPLL(platform, dyn_phase_shift_pads=_dps_pads)
-        pll.register_clkin(ClockDomain(clock_domain).clk, sys_clk_freq, clock_domain)
-        pll.create_clkout(None, sys_clk_freq)
-        pll.create_clkout(None, sys_clk_freq*2, name="hp_clk", with_reset=True)
-        pll.create_clkout(None, sys_clk_freq*2, phase=90, name="hp90_clk", with_reset=True)
-        pll.create_clkout(None, sys_clk_freq*2, name="hpcal_clk", with_reset=True, dyn_phase=True)
+        pll.register_clkin(None, sys_clk_freq, name=f"{clock_domain}_pll0_clk") # FIXME: fix clkin name
+        hyperram_clk_freq = EFINIX_HYPERRAM_CLK_RATIO*sys_clk_freq
+        pll.create_clkout(None,              sys_clk_freq)
+        pll.create_clkout(self.cd_hp,    hyperram_clk_freq,           with_reset=True)
+        pll.create_clkout(self.cd_hp90,  hyperram_clk_freq, phase=90, with_reset=True)
+        pll.create_clkout(self.cd_hpcal, hyperram_clk_freq,           with_reset=True, dyn_phase=True)
 
 
         # connect HyperRAM to interface designer block
@@ -111,9 +124,9 @@ class EfinixHyperRAM(HyperRAM):
             "name"      : "hp_inst",
             "location"  : "HYPER_RAM0",
             "pads"      : _io_pads,
-            "ctl_clk"   : ClockDomain("hp").clk,
-            "cal_clk"   : ClockDomain("hpcal").clk,
-            "clk90_clk" : ClockDomain("hp90").clk,
+            "ctl_clk"   : self.cd_hp.clk,
+            "cal_clk"   : self.cd_hpcal.clk,
+            "clk90_clk" : self.cd_hp90.clk,
         }
 
         platform.toolchain.ifacewriter.blocks.append(block)
@@ -134,5 +147,16 @@ class EfinixHyperRAM(HyperRAM):
         platform.toolchain.excluded_ios.append(_io_pads.rwds_oe)
         platform.toolchain.excluded_ios.append(_io_pads.csn)
         platform.toolchain.excluded_ios.append(_io_pads.rstn)
+        platform.toolchain.excluded_ios.append(self.cd_hp.clk)
+        platform.toolchain.excluded_ios.append(self.cd_hp90.clk)
 
-        HyperRAM.__init__(self, _hp_pads, latency, sys_clk_freq)
+        HyperRAM.__init__(self,
+            pads          = _hp_pads,
+            latency       = latency,
+            latency_mode  = latency_mode,
+            sys_clk_freq  = sys_clk_freq,
+            clk_ratio     = "{}:1".format(EFINIX_HYPERRAM_CLK_RATIO),
+            with_bursting = with_bursting,
+            with_csr      = with_csr,
+            dq_i_cd       = None,
+        )

@@ -118,7 +118,9 @@ class YosysNextPNRToolchain(GenericToolchain):
         self._abc9        = abc9 
         if flow3:
             self._abc9 = True
-            self._yosys_cmds.append("scratchpad -copy abc9.script.flow3 abc9.script")
+            cmd = "scratchpad -copy abc9.script.flow3 abc9.script"
+            if cmd not in self._yosys_cmds:
+                self._yosys_cmds.append(cmd)
         self.timingstrict = timingstrict
         self.ignoreloops  = ignoreloops
         self.seed         = seed
@@ -232,9 +234,6 @@ class YosysNextPNRToolchain(GenericToolchain):
 
         if subprocess.call(shell + [script]) != 0:
             raise OSError("Error occured during Yosys/Nextpnr's script execution.")
-
-    def build_io_constraints(self):
-        raise NotImplementedError("GenericToolchain.build_io_constraints must be overloaded.")
 
 def yosys_nextpnr_args(parser):
     yosys_args(parser)

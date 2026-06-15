@@ -7,6 +7,8 @@
 
 """Avalon support for LiteX"""
 
+from math import log2
+
 from migen import *
 
 from litex.soc.interconnect import stream
@@ -33,8 +35,10 @@ _layout = [
 class AvalonMMInterface(Record):
     def __init__(self, data_width=32, adr_width=30, **kwargs):
         self.data_width = data_width
-        if kwargs.get("adr_width", False):
-            adr_width = kwargs["adr_width"] - int(log2(data_width//8))
+        # Accept address_width (in bytes) as an alternative to adr_width (in words), as
+        # wishbone.Interface does.
+        if kwargs.get("address_width", False):
+            adr_width = kwargs["address_width"] - int(log2(data_width//8))
         self.adr_width = adr_width
         Record.__init__(self, set_layout_parameters(_layout,
             adr_width  = adr_width,
@@ -47,7 +51,7 @@ class AvalonMMInterface(Record):
 
     @staticmethod
     def like(other):
-        return AvalonMMInterface(len(other.writedata))
+        return AvalonMMInterface(data_width=other.data_width, adr_width=other.adr_width)
 
     def get_ios(self, bus_name="avl"):
         subsignals = []
@@ -57,7 +61,8 @@ class AvalonMMInterface(Record):
         return ios
 
     def connect_to_pads(self, pads, mode="master"):
-        assert mode in ["slave", "master"]
+        if mode not in ["slave", "master"]:
+            raise ValueError("Unsupported Avalon-MM pads mode: {}.".format(mode))
         r = []
         for name, width, direction in self.layout:
             sig  = getattr(self, name)

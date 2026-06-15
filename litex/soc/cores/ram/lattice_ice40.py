@@ -10,6 +10,7 @@ from migen import *
 
 from litex.gen import *
 
+from litex.soc.cores.ram.common import check_value
 from litex.soc.interconnect import wishbone
 
 kB = 1024
@@ -31,17 +32,17 @@ class Up5kSPRAM(LiteXModule):
 
         # # #
 
-        assert width in [16, 32, 64]
+        check_value("UP5K SPRAM width", width, [16, 32, 64])
         if width == 16:
-            assert size in [32*kB, 64*kB, 128*kB]
+            check_value("UP5K SPRAM size for 16-bit width", size, [32*kB, 64*kB, 128*kB])
             depth_cascading = size//(32*kB)
             width_cascading = 1
         if width == 32:
-            assert size in [64*kB, 128*kB]
+            check_value("UP5K SPRAM size for 32-bit width", size, [64*kB, 128*kB])
             depth_cascading = size//(64*kB)
             width_cascading = 2
         if width == 64:
-            assert size in [128*kB]
+            check_value("UP5K SPRAM size for 64-bit width", size, [128*kB])
             depth_cascading = size//(128*kB)
             width_cascading = 4
 
@@ -78,4 +79,6 @@ class Up5kSPRAM(LiteXModule):
                     o_DATAOUT    = dataout
                 )
 
+        # The SoC memory region is expected to bound accesses. Out-of-range
+        # wrapper accesses still acknowledge, but do not select a SPRAM block.
         self.sync += self.bus.ack.eq(self.bus.stb & self.bus.cyc & ~self.bus.ack)

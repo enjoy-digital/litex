@@ -7,45 +7,40 @@
 # Copyright (c) 2020 Antmicro <www.antmicro.com>
 # Copyright (c) 2017 Pierre-Olivier Vauboin <po@lambdaconcept>
 # Copyright (c) 2023 Victor Suarez Rovere <suarezvictor@gmail.com>
+# Copyright (c) 2026 Aoba Fujino <41146f@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import sys
-import argparse
+import os
+import subprocess
 
 from migen import *
 
 from litex.build.generic_platform import *
-from litex.build.sim import SimPlatform
-from litex.build.sim.config import SimConfig
+from litex.build.sim              import SimPlatform
+from litex.build.sim.config       import SimConfig
+from litex.build.sim.qemu.cosim   import qemu_add_args, qemu_configure, qemu_add_sim_modules
+from litex.build.sim.qemu.cosim   import qemu_add_shared_ram, qemu_command, qemu_spawn_when_bridge_ready
 
-from litex.soc.integration.common import *
-from litex.soc.integration.soc_core import *
-from litex.soc.integration.builder import *
-from litex.soc.integration.soc import *
+from litex.soc.integration.common   import *
+from litex.soc.integration.builder  import *
+from litex.soc.integration.soc      import *
+
 from litex.soc.cores.bitbang import *
-from litex.soc.cores.gpio import GPIOTristate
-from litex.soc.cores.cpu import CPUS
+from litex.soc.cores.gpio    import GPIOTristate
+from litex.soc.cores.cpu     import CPUS
+from litex.soc.cores.video   import VideoGenericPHY
 
-from litedram import modules as litedram_modules
-from litedram.modules import parse_spd_hexdump
-from litedram.phy.model import sdram_module_nphases, get_sdram_phy_settings
-from litedram.phy.model import SDRAMPHYModel
-
-from liteeth.phy.gmii import LiteEthPHYGMII
-from liteeth.phy.xgmii import LiteEthPHYXGMII
-from liteeth.phy.model import LiteEthPHYModel
-from liteeth.mac import LiteEthMAC
-from liteeth.core.arp import LiteEthARP
-from liteeth.core.ip import LiteEthIP
-from liteeth.core.udp import LiteEthUDP
-from liteeth.core.icmp import LiteEthICMP
-from liteeth.core import LiteEthUDPIPCore
+from liteeth.common             import *
+from liteeth.phy.gmii           import LiteEthPHYGMII
+from liteeth.phy.xgmii          import LiteEthPHYXGMII
+from liteeth.phy.model          import LiteEthPHYModel
+from liteeth.mac                import LiteEthMAC
+from liteeth.core.arp           import LiteEthARP
+from liteeth.core.ip            import LiteEthIP
+from liteeth.core.udp           import LiteEthUDP
+from liteeth.core.icmp          import LiteEthICMP
+from liteeth.core               import LiteEthUDPIPCore
 from liteeth.frontend.etherbone import LiteEthEtherbone
-from liteeth.common import *
-
-from litex.soc.cores.video import VideoGenericPHY
-
-from litescope import LiteScopeAnalyzer
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -158,33 +153,39 @@ class Platform(SimPlatform):
 # Simulation SoC -----------------------------------------------------------------------------------
 
 class SimSoC(SoCCore):
+    supported_ethernet_phy_models = ["sim", "xgmii", "gmii"]
+
     def __init__(self,
-        with_sdram            = False,
-        with_sdram_bist       = False,
-        with_ethernet         = False,
-        ethernet_phy_model    = "sim",
-        with_etherbone        = False,
-        etherbone_mac_address = 0x10e2d5000001,
-        etherbone_ip_address  = "192.168.1.51",
-        with_analyzer         = False,
-        sdram_module          = "MT48LC16M16",
-        sdram_init            = [],
-        sdram_data_width      = 32,
-        sdram_spd_data        = None,
-        sdram_verbosity       = 0,
-        with_i2c              = False,
-        with_sdcard           = False,
-        with_spi_flash        = False,
-        spi_flash_init        = [],
-        with_gpio             = False,
+        with_sdram             = False,
+        with_sdram_bist        = False,
+        with_ethernet          = False,
+        ethernet_phy_model     = "sim",
+        ethernet_local_ip      = "192.168.1.50",
+        ethernet_remote_ip     = "192.168.1.100",
+        with_etherbone         = False,
+        with_analyzer          = False,
+        sdram_module           = "MT48LC16M16",
+        sdram_init             = [],
+        sdram_data_width       = 32,
+        sdram_spd_data         = None,
+        sdram_verbosity        = 0,
+        with_i2c               = False,
+        with_sdcard            = False,
+        with_spi_flash         = False,
+        spi_flash_init         = [],
+        with_gpio              = False,
         with_video_framebuffer = False,
-        with_video_terminal = False,
-        with_video_colorbars = False,
-        sim_debug             = False,
-        trace_reset_on        = False,
-        with_jtag             = False,
+        with_video_terminal    = False,
+        with_video_colorbars   = False,
+        sim_debug              = False,
+        trace_reset_on         = False,
+        with_jtag              = False,
         **kwargs):
-        platform     = Platform()
+
+        # Platform ---------------------------------------------------------------------------------
+        platform = Platform()
+
+        # Parameters -------------------------------------------------------------------------------
         sys_clk_freq = int(1e6)
 
         # CRG --------------------------------------------------------------------------------------
@@ -204,6 +205,10 @@ class SimSoC(SoCCore):
 
         # SDRAM ------------------------------------------------------------------------------------
         if not self.integrated_main_ram_size and with_sdram:
+            from litedram           import modules as litedram_modules
+            from litedram.phy.model import sdram_module_nphases
+            from litedram.phy.model import SDRAMPHYModel
+
             sdram_clk_freq = int(100e6) # FIXME: use 100MHz timings
             if sdram_spd_data is None:
                 sdram_module_cls = getattr(litedram_modules, sdram_module)
@@ -237,22 +242,29 @@ class SimSoC(SoCCore):
         if with_ethernet or with_etherbone:
             if ethernet_phy_model == "sim":
                 self.ethphy = LiteEthPHYModel(self.platform.request("eth", 0))
+                self.add_constant("HW_PREAMBLE_CRC");
             elif ethernet_phy_model == "xgmii":
                 self.ethphy = LiteEthPHYXGMII(None, self.platform.request("xgmii_eth", 0), model=True)
             elif ethernet_phy_model == "gmii":
                 self.ethphy = LiteEthPHYGMII(None, self.platform.request("gmii_eth", 0), model=True)
             else:
-                raise ValueError("Unknown Ethernet PHY model:", ethernet_phy_model)
+                raise ValueError("Unknown Ethernet PHY model: {}.".format(ethernet_phy_model))
 
         # Etherbone with optional Ethernet ---------------------------------------------------------
         if with_etherbone:
             self.add_etherbone(
-                phy         = self.ethphy,
-                ip_address  = etherbone_ip_address,
-                mac_address = etherbone_mac_address,
-                data_width  = 8,
-                with_ethmac = with_ethernet,
+                phy              = self.ethphy,
+                # Etherbone Parameters.
+                ip_address       = convert_ip(ethernet_local_ip) + int(with_ethernet), # +1 when both to avoid conflict.
+                mac_address      = 0x10e2d5000001,
+                data_width       = 8,
+                # Ethernet Parameters.
+                with_ethmac      = with_ethernet,
+                ethmac_address   = 0x10e2d5000000,
+                ethmac_local_ip  = ethernet_local_ip,
+                ethmac_remote_ip = ethernet_remote_ip,
             )
+
         # Ethernet only ----------------------------------------------------------------------------
         elif with_ethernet:
             # Ethernet MAC
@@ -262,9 +274,29 @@ class SimSoC(SoCCore):
                 interface  = "wishbone",
                 endianness = self.cpu.endianness
             )
-            ethmac_region_size = (ethmac.rx_slots.constant + ethmac.tx_slots.constant)*ethmac.slot_size.constant
-            ethmac_region = SoCRegion(origin=self.mem_map.get("ethmac", None), size=ethmac_region_size, cached=False)
-            self.bus.add_slave(name="ethmac", slave=ethmac.bus, region=ethmac_region)
+            ethmac_rx_region_size = ethmac.rx_slots.constant*ethmac.slot_size.constant
+            ethmac_tx_region_size = ethmac.tx_slots.constant*ethmac.slot_size.constant
+            ethmac_region_size    = ethmac_rx_region_size + ethmac_tx_region_size
+            self.bus.add_region("ethmac", SoCRegion(
+                origin = self.mem_map.get("ethmac", None),
+                size   = ethmac_region_size,
+                linker = True,
+                cached = False,
+            ))
+            ethmac_rx_region = SoCRegion(
+                origin = self.bus.regions["ethmac"].origin + 0,
+                size   = ethmac_rx_region_size,
+                linker = True,
+                cached = False,
+            )
+            self.bus.add_slave(name="ethmac_rx", slave=ethmac.bus_rx, region=ethmac_rx_region)
+            ethmac_tx_region = SoCRegion(
+                origin = self.bus.regions["ethmac"].origin + ethmac_rx_region_size,
+                size   = ethmac_tx_region_size,
+                linker = True,
+                cached = False,
+            )
+            self.bus.add_slave(name="ethmac_tx", slave=ethmac.bus_tx, region=ethmac_tx_region)
 
             # Add IRQs (if enabled).
             if self.irq.enabled:
@@ -325,6 +357,8 @@ class SimSoC(SoCCore):
 
         # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
+            from litescope import LiteScopeAnalyzer
+
             analyzer_signals = [
                 # IBus (could also just added as self.cpu.ibus)
                 self.cpu.ibus.stb,
@@ -394,6 +428,13 @@ def sim_args(parser):
     parser.add_argument("--rom-init",             default=None,            help="ROM init file (.bin or .json).")
     parser.add_argument("--ram-init",             default=None,            help="RAM init file (.bin or .json).")
 
+
+    # UART.
+    parser.add_argument("--uart-tcp",      action="store_true",            help="Use serial2tcp external module for UART.")
+    parser.add_argument("--uart-tcp-port", type=int, default=1234,         help="TCP port for serial2tcp (default: 1234).")
+    parser.add_argument("--uart-pty",      action="store_true",            help="Create a PTY bridged to the UART TCP port (requires socat).")
+    parser.add_argument("--uart-pty-path", default="/tmp/litex_pty0",      help="Path for UART PTY (default: /tmp/litex_pty0).")
+
     # DRAM.
     parser.add_argument("--with-sdram",           action="store_true",     help="Enable SDRAM support.")
     parser.add_argument("--with-sdram-bist",      action="store_true",     help="Enable SDRAM BIST Generator/Checker modules.")
@@ -404,11 +445,11 @@ def sim_args(parser):
     parser.add_argument("--sdram-verbosity",      default=0,               help="Set SDRAM checker verbosity.")
 
     # Ethernet /Etherbone.
-    parser.add_argument("--with-ethernet",        action="store_true",     help="Enable Ethernet support.")
-    parser.add_argument("--ethernet-phy-model",   default="sim",           help="Ethernet PHY to simulate (sim, xgmii or gmii).")
-    parser.add_argument("--with-etherbone",       action="store_true",     help="Enable Etherbone support.")
-    parser.add_argument("--local-ip",             default="192.168.1.50",  help="Local IP address of SoC.")
-    parser.add_argument("--remote-ip",            default="192.168.1.100", help="Remote IP address of TFTP server.")
+    parser.add_argument("--with-ethernet",      action="store_true",                                         help="Enable Ethernet support.")
+    parser.add_argument("--ethernet-phy-model", default="sim", choices=SimSoC.supported_ethernet_phy_models, help="Ethernet PHY to simulate.")
+    parser.add_argument("--with-etherbone",     action="store_true",                                         help="Enable Etherbone support.")
+    parser.add_argument("--local-ip",           default="192.168.1.50",                                      help="Local IP address of SoC.")
+    parser.add_argument("--remote-ip",          default="192.168.1.100",                                     help="Remote IP address of TFTP server.")
 
     # SDCard.
     parser.add_argument("--with-sdcard",          action="store_true",     help="Enable SDCard support.")
@@ -422,6 +463,9 @@ def sim_args(parser):
 
     # JTAG
     parser.add_argument("--with-jtagremote",      action="store_true", help="Enable jtagremote support")
+
+    # QEMU co-simulation.
+    qemu_add_args(parser)
 
     # GPIO.
     parser.add_argument("--with-gpio",            action="store_true",     help="Enable Tristate GPIO (32 pins).")
@@ -437,6 +481,8 @@ def sim_args(parser):
 
     # Debug/Waveform.
     parser.add_argument("--sim-debug",            action="store_true",     help="Add simulation debugging modules.")
+    parser.add_argument("--sim-speed",            action="store_true",     help="Report effective simulated sys_clk speed.")
+    parser.add_argument("--sim-speed-interval",   default=5.0, type=float, help="Set simulation speed report interval in seconds.")
     parser.add_argument("--gtkwave-savefile",     action="store_true",     help="Generate GTKWave savefile.")
     parser.add_argument("--non-interactive",      action="store_true",     help="Run simulation without user input.")
 
@@ -447,10 +493,18 @@ def main():
     sim_args(parser)
     args = parser.parse_args()
 
+    if args.with_sdram and args.integrated_main_ram_size is None and args.ram_init is not None:
+        parser.error("--ram-init cannot be used with --with-sdram; use --sdram-init.")
+    if args.sim_speed_interval <= 0:
+        parser.error("--sim-speed-interval must be greater than 0.")
+
     soc_kwargs = soc_core_argdict(args)
+    qemu_enabled = qemu_configure(args, parser, soc_kwargs)
 
     sys_clk_freq = int(1e6)
-    sim_config   = SimConfig()
+    sim_config           = SimConfig()
+    sim_speed_interfaces = []
+    sim_speed_console    = False
     sim_config.add_clocker("sys_clk", freq_hz=sys_clk_freq)
 
     # Configuration --------------------------------------------------------------------------------
@@ -458,7 +512,31 @@ def main():
     # UART.
     if soc_kwargs["uart_name"] == "serial":
         soc_kwargs["uart_name"] = "sim"
-        sim_config.add_module("serial2console", "serial")
+        # TCP-based UART bridge (serial2tcp).
+        if args.uart_tcp or args.uart_pty:
+            port = args.uart_tcp_port
+            sim_config.add_module("serial2tcp", "serial", args={"port": port})
+            # PTY.
+            if args.uart_pty:
+                port     = args.uart_tcp_port
+                pty_path = args.uart_pty_path
+                cmd = ["socat", f"pty,link={pty_path},raw,echo=0", f"tcp:127.0.0.1:{port},forever,interval=0.1"]
+                try:
+                    socat_proc = subprocess.Popen(cmd)
+                    print(f"[litex_sim] UART PTY created at: {pty_path}")
+                except FileNotFoundError:
+                    print("[litex_sim] ERROR: 'socat' not found. Install socat or disable --uart-pty.")
+                except Exception as e:
+                    print(f"[litex_sim] ERROR: Failed to start socat for UART PTY: {e}")
+        # Console (stdin/stdout) UART bridge (serial2console).
+        else:
+            sim_config.add_module("serial2console", "serial")
+            sim_speed_interfaces.append("serial")
+            sim_speed_console = True
+
+    # QEMU co-simulation bridge.
+    if qemu_enabled:
+        qemu_add_sim_modules(sim_config, args, parser)
 
     # Create config SoC that will be used to prepare/configure real one.
     conf_soc = SimSoC(**soc_kwargs)
@@ -472,17 +550,20 @@ def main():
 
     # RAM / SDRAM.
     ram_boot_address = None
-    soc_kwargs["integrated_main_ram_size"] = args.integrated_main_ram_size
+    main_ram_init = []
     if args.integrated_main_ram_size:
         if args.ram_init is not None:
-            soc_kwargs["integrated_main_ram_init"] = get_mem_data(args.ram_init,
+            main_ram_init = get_mem_data(args.ram_init,
                 data_width = conf_soc.bus.data_width,
                 endianness = conf_soc.cpu.endianness,
                 offset     = conf_soc.mem_map["main_ram"]
             )
+            if not args.qemu_shared_ram_enabled:
+                soc_kwargs["integrated_main_ram_init"] = main_ram_init
             ram_boot_address = get_boot_address(args.ram_init)
     elif args.with_sdram:
-        assert args.ram_init is None
+        from litedram.modules   import parse_spd_hexdump
+
         soc_kwargs["sdram_module"]     = args.sdram_module
         soc_kwargs["sdram_data_width"] = int(args.sdram_data_width)
         soc_kwargs["sdram_verbosity"]  = int(args.sdram_verbosity)
@@ -519,12 +600,22 @@ def main():
     if args.with_video_framebuffer or args.with_video_terminal or args.with_video_colorbars:
         sim_config.add_module("video", "vga", args={"render_on_vsync": args.video_vsync})
 
+    # Simulation speed reporting.
+    if args.sim_speed:
+        sim_config.add_module("sim_perf", sim_speed_interfaces, clocks="sys_clk", args={
+            "freq_hz"    : sys_clk_freq,
+            "interval_s" : args.sim_speed_interval,
+            "console"    : sim_speed_console,
+        })
+
     # SoC ------------------------------------------------------------------------------------------
     soc = SimSoC(
         with_sdram             = args.with_sdram,
         with_sdram_bist        = args.with_sdram_bist,
         with_ethernet          = args.with_ethernet,
         ethernet_phy_model     = args.ethernet_phy_model,
+        ethernet_local_ip      = args.local_ip,
+        ethernet_remote_ip     = args.remote_ip,
         with_etherbone         = args.with_etherbone,
         with_analyzer          = args.with_analyzer,
         with_i2c               = args.with_i2c,
@@ -539,29 +630,52 @@ def main():
         trace_reset_on         = int(float(args.trace_start)) > 0 or int(float(args.trace_end)) > 0,
         spi_flash_init         = None if args.spi_flash_init is None else get_mem_data(args.spi_flash_init, endianness="big"),
         **soc_kwargs)
+    if args.qemu_shared_ram_enabled:
+        qemu_add_shared_ram(
+            soc        = soc,
+            args       = args,
+            init_data  = main_ram_init,
+            data_width = conf_soc.bus.data_width,
+        )
     if ram_boot_address is not None:
         if ram_boot_address == 0:
             ram_boot_address = conf_soc.mem_map["main_ram"]
         soc.add_constant("ROM_BOOT_ADDRESS", ram_boot_address)
-    if args.with_ethernet:
+    if args.with_ethernet and (not args.with_etherbone): # FIXME: Remove.
         for i in range(4):
             soc.add_constant("LOCALIP{}".format(i+1), int(args.local_ip.split(".")[i]))
         for i in range(4):
             soc.add_constant("REMOTEIP{}".format(i+1), int(args.remote_ip.split(".")[i]))
 
     # Build/Run ------------------------------------------------------------------------------------
+    qemu_proc = None
+
     def pre_run_callback(vns):
+        nonlocal qemu_proc
         if args.trace:
             generate_gtkw_savefile(builder, vns, args.trace_fst)
+        if qemu_enabled and not args.qemu_no_run:
+            qemu_cmd = qemu_command(builder, soc, args)
+            print("[litex_sim] QEMU command: {}".format(" ".join(qemu_cmd)))
+            qemu_proc = qemu_spawn_when_bridge_ready(
+                cmd     = qemu_cmd,
+                host    = args.qemu_bind,
+                port    = args.qemu_port,
+                timeout = args.qemu_wait_timeout,
+            )
 
     builder = Builder(soc, **parser.builder_argdict)
-    builder.build(
-        sim_config       = sim_config,
-        interactive      = not args.non_interactive,
-        video            = args.with_video_framebuffer or args.with_video_terminal or args.with_video_colorbars,
-        pre_run_callback = pre_run_callback,
-        **parser.toolchain_argdict,
-    )
+    try:
+        builder.build(
+            sim_config       = sim_config,
+            interactive      = not args.non_interactive,
+            video            = args.with_video_framebuffer or args.with_video_terminal or args.with_video_colorbars,
+            pre_run_callback = pre_run_callback,
+            **parser.toolchain_argdict,
+        )
+    finally:
+        if qemu_proc is not None and qemu_proc.poll() is None:
+            qemu_proc.terminate()
 
 if __name__ == "__main__":
     main()
