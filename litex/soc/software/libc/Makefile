@@ -144,11 +144,13 @@ MINIMAL_PICOLIBC_SRCS += $(PICOLIBC_SRC_DIR)/libc/stdio/vfiprintf.c
 else ifeq ($(PICOLIBC_FORMAT),float)
 MINIMAL_PICOLIBC_SRCS += \
 	$(PICOLIBC_SRC_DIR)/libc/stdio/vffprintf.c \
-	$(PICOLIBC_SRC_DIR)/libc/stdio/ftoa_engine.c
+	$(PICOLIBC_SRC_DIR)/libc/stdio/ftoa_engine.c \
+	$(PICOLIBC_SRC_DIR)/libc/stdio/ftox_engine.c
 else
 MINIMAL_PICOLIBC_SRCS += \
 	$(PICOLIBC_SRC_DIR)/libc/stdio/vfprintf.c \
 	$(PICOLIBC_SRC_DIR)/libc/stdio/dtoa_engine.c \
+	$(PICOLIBC_SRC_DIR)/libc/stdio/dtox_engine.c \
 	$(PICOLIBC_SRC_DIR)/libm/machine/riscv/s_fpclassify.c
 endif
 
