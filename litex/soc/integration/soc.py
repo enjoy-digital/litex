@@ -484,7 +484,7 @@ class SoCBusHandler(LiteXModule):
         ]
         return max(id_widths, default=1)
 
-    def _get_interface_args(self, interface, data_width=None, address_width=None, addressing=None):
+    def _get_interface_args(self, interface, data_width=None, address_width=None, addressing=None, clock_domain=None):
         args = {
             "data_width"    : interface.data_width if data_width    is None else data_width,
             "address_width" : interface.address_width if address_width is None else address_width,
@@ -493,7 +493,7 @@ class SoCBusHandler(LiteXModule):
             "mode"          : interface.mode,
         }
         if hasattr(interface, "clock_domain"):
-            args["clock_domain"] = interface.clock_domain
+            args["clock_domain"] = interface.clock_domain if clock_domain is None else clock_domain
         if isinstance(interface, axi.AXIInterface):
             args.update({
                 "version"       : interface.version,
@@ -708,6 +708,35 @@ class SoCBusHandler(LiteXModule):
 
         return adapted_interface
 
+    # Add Clock Domain Crossing -------------------------------------------------------------------
+    def add_clock_domain_crossing(self, name, interface, clock_domain):
+        if clock_domain in [None, "sys"]:
+            return interface
+
+        interface_cls = type(interface)
+        cdc_cls = {
+            wishbone.Interface   : wishbone.ClockDomainCrossing,
+            axi.AXILiteInterface : axi.AXILiteClockDomainCrossing,
+            axi.AXIInterface     : axi.AXIClockDomainCrossing,
+        }.get(interface_cls)
+        if cdc_cls is None:
+            self.logger.error("{} {} Clock Domain Crossing for {}.".format(
+                colorer(name, color="red"),
+                colorer("unsupported", color="red"),
+                colorer(interface_cls.__name__)))
+            raise SoCError()
+
+        sys_interface = interface_cls(**self._get_interface_args(interface, clock_domain="sys"))
+        self.submodules += cdc_cls(sys_interface, interface, cd_from="sys", cd_to=clock_domain)
+
+        self.logger.info("{} Bus {} from {} to {}.".format(
+            colorer(name),
+            colorer("clock-domain-crossed", color="cyan"),
+            colorer("sys"),
+            colorer(clock_domain)))
+
+        return sys_interface
+
     def _check_name_available(self, collection, role, name):
         if name in collection:
             self.logger.error("{} {} as {}:".format(
@@ -742,7 +771,7 @@ class SoCBusHandler(LiteXModule):
     def add_controller(self, name=None, controller=None):
         self.add_master(name=name, master=controller)
 
-    def add_slave(self, name=None, slave=None, region=None, strip_origin=False):
+    def add_slave(self, name=None, slave=None, region=None, strip_origin=False, clock_domain=None):
         no_name   = name   is None
         no_region = region is None
         region_added = False
@@ -784,6 +813,7 @@ class SoCBusHandler(LiteXModule):
         try:
             if strip_origin:
                 slave = self.add_offset(name, slave, self.regions[name].origin)
+            slave = self.add_clock_domain_crossing(name, slave, clock_domain)
             slave = self.add_adapter(name, slave, "s2m")
             self.slaves[name] = slave
             self._check_axi_id_widths()

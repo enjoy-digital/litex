@@ -449,6 +449,50 @@ class TestSoCBusStandardIntegration(unittest.TestCase):
         self.assertIsInstance(bus.slaves["slave"], wishbone.Interface)
         self.assertEqual(bus.slaves["slave"].data_width, 64)
 
+    def test_wishbone_slave_can_be_clock_domain_crossed(self):
+        bus       = SoCBusHandler(standard="wishbone")
+        interface = wishbone.Interface()
+
+        bus.add_slave(
+            "slave",
+            interface,
+            SoCRegion(origin=0x00000000, size=0x1000),
+            clock_domain="periph",
+        )
+
+        self.assertIsInstance(bus.slaves["slave"], wishbone.Interface)
+        self.assertIsNot(bus.slaves["slave"], interface)
+
+    def test_axi_lite_slave_can_be_clock_domain_crossed(self):
+        bus       = SoCBusHandler(standard="axi-lite")
+        interface = axi.AXILiteInterface(clock_domain="periph")
+
+        bus.add_slave(
+            "slave",
+            interface,
+            SoCRegion(origin=0x00000000, size=0x1000),
+            clock_domain="periph",
+        )
+
+        self.assertIsInstance(bus.slaves["slave"], axi.AXILiteInterface)
+        self.assertIsNot(bus.slaves["slave"], interface)
+        self.assertEqual(bus.slaves["slave"].clock_domain, "sys")
+
+    def test_axi_slave_can_be_clock_domain_crossed(self):
+        bus       = SoCBusHandler(standard="axi")
+        interface = axi.AXIInterface(clock_domain="periph")
+
+        bus.add_slave(
+            "slave",
+            interface,
+            SoCRegion(origin=0x00000000, size=0x1000),
+            clock_domain="periph",
+        )
+
+        self.assertIsInstance(bus.slaves["slave"], axi.AXIInterface)
+        self.assertIsNot(bus.slaves["slave"], interface)
+        self.assertEqual(bus.slaves["slave"].clock_domain, "sys")
+
     def test_narrow_axi_lite_slave_with_strip_origin_adapts_to_wishbone_bus(self):
         bus       = SoCBusHandler(standard="wishbone", data_width=32, address_width=32)
         interface = axi.AXILiteInterface(data_width=32, address_width=28)

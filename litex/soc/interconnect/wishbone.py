@@ -20,7 +20,7 @@ from litex.gen.genlib.misc import split, displacer, chooser, WaitTimer
 
 from litex.build.generic_platform import *
 
-from litex.soc.interconnect import csr, csr_bus
+from litex.soc.interconnect import csr, csr_bus, stream
 
 # Wishbone Definition ------------------------------------------------------------------------------
 
@@ -217,6 +217,115 @@ class Offset(Module):
             offset    >>= int(log2(len(master.dat_w)//8))
         # Apply Address Origin/Mask Remapping.
         self.comb += slave.adr.eq(master.adr - offset)
+
+# Wishbone Clock Domain Crossing -------------------------------------------------------------------
+
+class ClockDomainCrossing(LiteXModule):
+    def __init__(self, master, slave, cd_from="sys", cd_to="sys"):
+        assert isinstance(master, Interface)
+        assert isinstance(slave,  Interface)
+        assert len(master.adr)   == len(slave.adr)
+        assert len(master.dat_w) == len(slave.dat_w)
+        assert len(master.dat_r) == len(slave.dat_r)
+        assert len(master.sel)   == len(slave.sel)
+
+        # Same Clock Domain, direct connection.
+        if cd_from == cd_to:
+            self.comb += master.connect(slave)
+            return
+
+        # # #
+
+        request_layout = [
+            ("adr",   len(master.adr)),
+            ("dat_w", len(master.dat_w)),
+            ("sel",   len(master.sel)),
+            ("we",    1),
+            ("cti",   3),
+            ("bte",   2),
+        ]
+        response_layout = [
+            ("dat_r", len(master.dat_r)),
+            ("err",   1),
+        ]
+
+        request_cdc  = stream.ClockDomainCrossing(request_layout,  cd_from, cd_to)
+        response_cdc = stream.ClockDomainCrossing(response_layout, cd_to,   cd_from)
+        self.submodules += request_cdc, response_cdc
+
+        # Master side.
+        master_fsm = ClockDomainsRenamer(cd_from)(FSM(reset_state="IDLE"))
+        self.submodules.master_fsm = master_fsm
+
+        self.comb += [
+            request_cdc.sink.adr.eq(master.adr),
+            request_cdc.sink.dat_w.eq(master.dat_w),
+            request_cdc.sink.sel.eq(master.sel),
+            request_cdc.sink.we.eq(master.we),
+            request_cdc.sink.cti.eq(master.cti),
+            request_cdc.sink.bte.eq(master.bte),
+            master.dat_r.eq(response_cdc.source.dat_r),
+            master.ack.eq(response_cdc.source.valid & ~response_cdc.source.err),
+            master.err.eq(response_cdc.source.valid &  response_cdc.source.err),
+        ]
+
+        master_fsm.act("IDLE",
+            request_cdc.sink.valid.eq(master.cyc & master.stb),
+            If(request_cdc.sink.valid & request_cdc.sink.ready,
+                NextState("WAIT-RESPONSE")
+            )
+        )
+        master_fsm.act("WAIT-RESPONSE",
+            response_cdc.source.ready.eq(1),
+            If(response_cdc.source.valid,
+                NextState("IDLE")
+            )
+        )
+
+        # Slave side.
+        request     = Record(request_layout)
+        response    = Record(response_layout)
+        slave_fsm   = ClockDomainsRenamer(cd_to)(FSM(reset_state="IDLE"))
+        self.submodules.slave_fsm = slave_fsm
+
+        self.comb += [
+            slave.adr.eq(request.adr),
+            slave.dat_w.eq(request.dat_w),
+            slave.sel.eq(request.sel),
+            slave.we.eq(request.we),
+            slave.cti.eq(request.cti),
+            slave.bte.eq(request.bte),
+            response_cdc.sink.dat_r.eq(response.dat_r),
+            response_cdc.sink.err.eq(response.err),
+        ]
+
+        slave_fsm.act("IDLE",
+            request_cdc.source.ready.eq(1),
+            If(request_cdc.source.valid,
+                NextValue(request.adr,   request_cdc.source.adr),
+                NextValue(request.dat_w, request_cdc.source.dat_w),
+                NextValue(request.sel,   request_cdc.source.sel),
+                NextValue(request.we,    request_cdc.source.we),
+                NextValue(request.cti,   request_cdc.source.cti),
+                NextValue(request.bte,   request_cdc.source.bte),
+                NextState("ACCESS")
+            )
+        )
+        slave_fsm.act("ACCESS",
+            slave.cyc.eq(1),
+            slave.stb.eq(1),
+            If(slave.ack | slave.err,
+                NextValue(response.dat_r, slave.dat_r),
+                NextValue(response.err,   slave.err),
+                NextState("RESPOND")
+            )
+        )
+        slave_fsm.act("RESPOND",
+            response_cdc.sink.valid.eq(1),
+            If(response_cdc.sink.ready,
+                NextState("IDLE")
+            )
+        )
 
 # Wishbone Timeout ---------------------------------------------------------------------------------
 
