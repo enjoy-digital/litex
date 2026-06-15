@@ -857,10 +857,10 @@ def mips_gcc_install():
             toolchain_install_cmd("MIPS", ["dnf", "install", "gcc-mips64-linux-gnu"])
         # Arch (AUR repository).
         elif "arch" in os_release:
-            toolchain_install_cmd("MIPS", ["yay", "-S", "mips64el-linux-gnu-gcc"])
+            toolchain_install_cmd("MIPS", ["yay", "-S", "mipsel-linux-gnu-gcc"])
         # Ubuntu.
         else:
-            toolchain_install_cmd("MIPS", ["apt", "install", "gcc-mips64el-linux-gnuabi64"])
+            toolchain_install_cmd("MIPS", ["apt", "install", "gcc-mipsel-linux-gnu"])
 
     # Manual installation.
     # --------------------

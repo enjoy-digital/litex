@@ -97,6 +97,10 @@ CPU_GCC_TRIPLE_RISCV32 = CPU_GCC_TRIPLE_RISCV64 + (
 )
 
 CPU_GCC_TRIPLE_MIPS = (
+    "mipsel-linux-gnu",
+    "mipsel-linux-musl",
+    "mipsel-linux-musln32sf",
+    "mipsel-linux-muslsf",
     "mips-unknown-elf",
     "mips-sde-elf",
     "mips-mti-elf",
@@ -104,9 +108,6 @@ CPU_GCC_TRIPLE_MIPS = (
     "mips-linux-musl",
     "mips-linux-musln32sf",
     "mips-linux-muslsf",
-    "mipsel-linux-musl",
-    "mipsel-linux-musln32sf",
-    "mipsel-linux-muslsf",
     "mips64-linux-musl",
     "mips64-linux-musln32",
     "mips64-linux-musln32sf",
@@ -116,7 +117,6 @@ CPU_GCC_TRIPLE_MIPS = (
     "mips64el-linux-musln32sf",
     "mips64el-linux-muslsf",
     "mips-linux-gnu",
-    "mipsel-linux-gnu",
     "mips64-linux-gnu",
     "mips64-linux-gnuabi64",
     "mips64el-linux-gnu",
