@@ -133,7 +133,10 @@ def get_linker_output_format(cpu):
 def _cpu_bios_map(cpu, addr, cached=False):
     if cpu is None:
         return addr
-    return cpu.bios_map(addr, cached)
+    bios_map = getattr(cpu, "bios_map", None)
+    if bios_map is None:
+        return addr
+    return bios_map(addr, cached)
 
 def get_linker_regions(regions, cpu=None):
     r = "MEMORY {\n"
