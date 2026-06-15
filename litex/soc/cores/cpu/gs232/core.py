@@ -12,12 +12,18 @@ from litex.gen import *
 from litex.soc.interconnect import axi
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_MIPS
 
+# Variants -----------------------------------------------------------------------------------------
+
+CPU_VARIANTS = ["standard"]
+
+# GS232 --------------------------------------------------------------------------------------------
+
 class GS232(CPU):
     category             = "softcore"
     family               = "mips"
     name                 = "gs232"
     human_name           = "Loongson GS232"
-    variants             = ["standard"]
+    variants             = CPU_VARIANTS
     data_width           = 32
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_MIPS
@@ -28,15 +34,15 @@ class GS232(CPU):
     # GCC Flags.
     @property
     def gcc_flags(self):
-        flags = "-march=mips32 -mabi=32 -EL -msoft-float"
-        flags += " -D__gs232__ "
-        flags += " -DUART_POLLING"
+        flags =  "-march=mips32 -mabi=32 -EL -msoft-float "
+        flags += "-D__gs232__ "
+        flags += "-DUART_POLLING"
         return flags
 
     # Memory Mapping.
     @property
     def mem_map(self):
-        # Based on vanilla sysmap.h
+        # Based on vanilla sysmap.h.
         return {
             "main_ram" : 0x0000_0000,
             "csr"      : 0x1800_0000,
@@ -49,11 +55,12 @@ class GS232(CPU):
         self.variant      = variant
         self.reset        = Signal()
         self.interrupt    = Signal(5)
-        # Peripheral bus (Connected to main SoC's bus).
-        axi_if = axi.AXIInterface(data_width=32, address_width=32, id_width=4)
-        self.periph_buses = [axi_if]
-        # Memory buses (Connected directly to LiteDRAM).
-        self.memory_buses = []
+
+        self.axi_if       = axi_if = axi.AXIInterface(data_width=32, address_width=32, id_width=4)
+        self.periph_buses = [axi_if] # Peripheral buses (Connected to main SoC's bus).
+        self.memory_buses = []       # Memory buses (Connected directly to LiteDRAM).
+
+        # # #
 
         tlb_to_ram = Signal(66)
         ram_to_tlb = Signal(52)
@@ -64,16 +71,16 @@ class GS232(CPU):
 
         # CPU Instance.
         self.cpu_params = dict(
-            # Clk / Rst
+            # Clk / Rst.
             i_coreclock     = ClockSignal("sys"),
             i_areset_n      = ~ResetSignal("sys") & ~self.reset,
             o_core_rst_     = Open(),
 
-            # Interrupts (Low active)
+            # Interrupts (Low active).
             i_interrupt_i   = ~self.interrupt,
             i_nmi           = 1,
 
-            # AXI interface
+            # AXI Interface.
             i_aclk          = ClockSignal("sys"),
             o_arid          = axi_if.ar.id,
             o_araddr        = axi_if.ar.addr,
@@ -126,15 +133,15 @@ class GS232(CPU):
             o_dcache_to_ram = dcache_to_ram,
             i_ram_to_dcache = ram_to_dcache,
 
-            # DFT
-            o_prrst_to_core     = Open(),
-            i_testmode        = 0,
+            # DFT.
+            o_prrst_to_core = Open(),
+            i_testmode      = 0,
         )
 
-        # TLB & Cache SRAMs
-        # Magic numbers all from godson_ram_bist.v, don't touch!
-        tlb_cen = tlb_to_ram[0] # Active low
-        tlb_wen = tlb_to_ram[7] # Active low
+        # TLB & Cache SRAMs.
+        # Magic numbers all from godson_ram_bist.v, don't touch.
+        tlb_cen = tlb_to_ram[0] # Active low.
+        tlb_wen = tlb_to_ram[7] # Active low.
         tlb_din = tlb_to_ram[8:(59 + 1)]
         tlb_mem = Memory(52, 32)
         tlb_p = tlb_mem.get_port(write_capable=True, has_re=True)
@@ -154,7 +161,7 @@ class GS232(CPU):
             tag_dina  =  icache_to_ram[(361 * iway + 9):(361 * iway + 40 + 1)]
             tag_douta =  ram_to_icache[(288 * iway + 0):(288 * iway + 31 + 1)]
             tag_mem = Memory(32, 128)
-            tag_p = tag_mem.get_port(write_capable=True, has_re=True)
+            tag_p   = tag_mem.get_port(write_capable=True, has_re=True)
             self.specials += tag_mem, tag_p
             self.comb += [
                 tag_p.re.eq(tag_ena & ~tag_wea),
@@ -170,8 +177,8 @@ class GS232(CPU):
                 data_wea   = ~icache_to_ram[(361 * iway + 41 + 80 * ibank +  8):(361 * iway + 41 + 80 * ibank + 15 + 1)] # Byte wise
                 data_dina  =  icache_to_ram[(361 * iway + 41 + 80 * ibank + 16):(361 * iway + 41 + 80 * ibank + 79 + 1)]
                 data_douta =  ram_to_icache[(288 * iway + 32 + 64 * ibank +  0):(288 * iway + 32 + 64 * ibank + 63 + 1)]
-                data_mem = Memory(64, 128)
-                data_p = data_mem.get_port(write_capable=True, has_re=True, we_granularity=8)
+                data_mem   = Memory(64, 128)
+                data_p     = data_mem.get_port(write_capable=True, has_re=True, we_granularity=8)
                 self.specials += data_mem, data_p
                 self.comb += [
                     data_p.re.eq(data_ena & ~data_wea),
@@ -188,7 +195,7 @@ class GS232(CPU):
             tag_dina  =  dcache_to_ram[(351 * dway + 9):(351 * dway + 30 + 1)]
             tag_douta =  ram_to_dcache[(278 * dway + 0):(278 * dway + 21 + 1)]
             tag_mem = Memory(22, 128)
-            tag_p = tag_mem.get_port(write_capable=True, has_re=True)
+            tag_p   = tag_mem.get_port(write_capable=True, has_re=True)
             self.specials += tag_mem, tag_p
             self.comb += [
                 tag_p.re.eq(tag_ena & ~tag_wea),
@@ -204,8 +211,8 @@ class GS232(CPU):
                 data_wea   = ~dcache_to_ram[(351 * dway + 31 + 80 * dbank +  8):(351 * dway + 31 + 80 * dbank + 15 + 1)] # Byte wise
                 data_dina  =  dcache_to_ram[(351 * dway + 31 + 80 * dbank + 16):(351 * dway + 31 + 80 * dbank + 79 + 1)]
                 data_douta =  ram_to_dcache[(278 * dway + 22 + 64 * dbank +  0):(278 * dway + 22 + 64 * dbank + 63 + 1)]
-                data_mem = Memory(64, 128)
-                data_p = data_mem.get_port(write_capable=True, has_re=True, we_granularity=8)
+                data_mem   = Memory(64, 128)
+                data_p     = data_mem.get_port(write_capable=True, has_re=True, we_granularity=8)
                 self.specials += data_mem, data_p
                 self.comb += [
                     data_p.re.eq(data_ena & ~data_wea),
@@ -235,12 +242,9 @@ class GS232(CPU):
         self.reset_address = reset_address
 
     def bios_map(self, addr, cached):
-        # We can't access beyond KSEG0/1 in BIOS
+        # We can't access beyond KSEG0/1 in BIOS.
         assert addr < 0x2000_0000
-        if cached:
-            return addr + 0x8000_0000
-        else:
-            return addr + 0xa000_0000
+        return addr + (0x8000_0000 if cached else 0xa000_0000)
 
     def do_finalize(self):
         self.specials += Instance("godson_cpu_core", **self.cpu_params)

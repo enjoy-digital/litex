@@ -12,12 +12,18 @@ from litex.gen import *
 from litex.soc.interconnect import axi
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_MIPS
 
+# Variants -----------------------------------------------------------------------------------------
+
+CPU_VARIANTS = ["standard"]
+
+# CDIM ---------------------------------------------------------------------------------------------
+
 class CDIM(CPU):
     category             = "softcore"
     family               = "mips"
     name                 = "cdim"
     human_name           = "CQU CDIM"
-    variants             = ["standard"]
+    variants             = CPU_VARIANTS
     data_width           = 32
     endianness           = "little"
     gcc_triple           = CPU_GCC_TRIPLE_MIPS
@@ -28,15 +34,15 @@ class CDIM(CPU):
     # GCC Flags.
     @property
     def gcc_flags(self):
-        flags = "-march=mips32 -mabi=32 -EL -msoft-float"
-        flags += " -D__cdim__ "
-        flags += " -DUART_POLLING"
+        flags =  "-march=mips32 -mabi=32 -EL -msoft-float "
+        flags += "-D__cdim__ "
+        flags += "-DUART_POLLING"
         return flags
 
     # Memory Mapping.
     @property
     def mem_map(self):
-        # Based on vanilla sysmap.h
+        # Based on vanilla sysmap.h.
         return {
             "main_ram" : 0x0000_0000,
             "csr"      : 0x1800_0000,
@@ -49,22 +55,23 @@ class CDIM(CPU):
         self.variant      = variant
         self.reset        = Signal()
         self.interrupt    = Signal(6)
-        # Peripheral bus (Connected to main SoC's bus).
-        axi_if = axi.AXIInterface(data_width=32, address_width=32, id_width=4)
-        self.periph_buses = [axi_if]
-        # Memory buses (Connected directly to LiteDRAM).
-        self.memory_buses = []
+
+        self.axi_if       = axi_if = axi.AXIInterface(data_width=32, address_width=32, id_width=4)
+        self.periph_buses = [axi_if] # Peripheral buses (Connected to main SoC's bus).
+        self.memory_buses = []       # Memory buses (Connected directly to LiteDRAM).
+
+        # # #
 
         # CPU Instance.
         self.cpu_params = dict(
-            # Clk / Rst
+            # Clk / Rst.
             i_aclk       = ClockSignal("sys"),
             i_aresetn    = ~ResetSignal("sys") & ~self.reset,
 
-            # Interrupts
+            # Interrupts.
             i_ext_int    = self.interrupt,
 
-            # AXI interface
+            # AXI Interface.
             o_arid          = axi_if.ar.id,
             o_araddr        = axi_if.ar.addr,
             o_arlen         = axi_if.ar.len,
@@ -107,7 +114,7 @@ class CDIM(CPU):
             o_bready        = axi_if.b.ready,
         )
 
-        # Add sources
+        # Add Verilog sources.
         basedir = os.path.join("CDIM", "mycpu")
         self.platform.add_source_dir(basedir)
         platform.add_verilog_include_path(basedir)
@@ -118,12 +125,9 @@ class CDIM(CPU):
         self.reset_address = reset_address
 
     def bios_map(self, addr, cached):
-        # We can't access beyond KSEG0/1 in BIOS
+        # We can't access beyond KSEG0/1 in BIOS.
         assert addr < 0x2000_0000
-        if cached:
-            return addr + 0x8000_0000
-        else:
-            return addr + 0xa000_0000
+        return addr + (0x8000_0000 if cached else 0xa000_0000)
 
     def do_finalize(self):
         self.specials += Instance("mycpu_top", **self.cpu_params)
