@@ -146,6 +146,8 @@ class GTKWSave:
 
     def clocks(self, **kwargs):
         clks = [cd.clk for cd in self.vns.clock_domains]
+        if len(clks) == 0:
+            return
         self.group(clks, group_name="clocks", alias=False, closed=False, **kwargs)
 
     def add(self, obj: Any, no_defaults=False, **kwargs):
@@ -206,6 +208,8 @@ class GTKWSave:
     def fsm_states(self, soc: Module, alias: bool = True, **kwargs):
         fsms = list(filter(lambda module: isinstance(module, FSM), self.iter_submodules(soc)))
         states = [fsm.state for fsm in fsms]
+        if len(states) == 0:
+            return
         files = [self.make_fsm_state_translation(fsm) for fsm in fsms]
 
         if alias:

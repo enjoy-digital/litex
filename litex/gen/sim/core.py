@@ -9,6 +9,7 @@
 # This file is Copyright (c) 2018 Robin Ole Heinemann <robin.ole.heinemann@t-online.de>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
 import operator
 import collections
 import inspect
@@ -27,6 +28,34 @@ from migen.fhdl.module import Module
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen.sim.vcd import VCDWriter, DummyVCDWriter
+
+
+def _get_fragment(fragment_or_module):
+    return fragment_or_module if isinstance(fragment_or_module, _Fragment) else fragment_or_module.get_fragment()
+
+
+def generate_gtkw_savefile(fragment_or_module, vns, savefile, dumpfile,
+    clocks     = True,
+    fsm_states = True,
+    signals    = None,
+    prefix     = ""):
+    """Generate a GTKWave savefile for a litex.gen.sim VCD/FST dump.
+
+    This helper is intentionally small and generic for unit simulations. The
+    richer SoC helper in litex_sim can still add SoC-specific groups.
+    """
+    from litex.build.sim import gtkwave as gtkw
+
+    if vns is None:
+        raise ValueError("A signal namespace is required to generate a GTKWave savefile.")
+
+    with gtkw.GTKWSave(vns, savefile=savefile, dumpfile=dumpfile, prefix=prefix) as save:
+        if clocks:
+            save.clocks()
+        if fsm_states and isinstance(fragment_or_module, Module):
+            save.fsm_states(fragment_or_module)
+        for signal in signals or []:
+            save.add(signal)
 
 
 class ClockState:
@@ -257,11 +286,15 @@ class DummyAsyncResetSynchronizer:
 # TODO: instances via Iverilog/VPI
 class Simulator:
     def __init__(self, fragment_or_module, generators, clocks={"sys": 10}, vcd_name=None,
-                 special_overrides={}):
-        if isinstance(fragment_or_module, _Fragment):
-            self.fragment = fragment_or_module
-        else:
-            self.fragment = fragment_or_module.get_fragment()
+                 gtkw_name=None, special_overrides={}):
+        self.fragment_or_module = fragment_or_module
+        self.gtkw_name          = gtkw_name
+        self.gtkw_generated     = False
+
+        if gtkw_name is not None and vcd_name is None:
+            vcd_name = os.path.splitext(gtkw_name)[0] + ".vcd"
+
+        self.fragment = _get_fragment(fragment_or_module)
 
         mta = MemoryToArray()
         mta.transform_fragment(None, self.fragment)
@@ -311,7 +344,7 @@ class Simulator:
                     signals.add(cd.rst)
             for memory_array in mta.replacements.values():
                 signals |= set(memory_array)
-            self.vcd.init(signals)
+            self.vcd.init(signals, clock_domains=self.fragment.clock_domains)
             for signal in sorted(signals, key=lambda x: x.duid):
                 self.vcd.set(signal, signal.reset.value)
 
@@ -322,7 +355,24 @@ class Simulator:
         self.close()
 
     def close(self):
+        if self.gtkw_name is not None and not self.gtkw_generated:
+            self.generate_gtkw_savefile(self.gtkw_name)
         self.vcd.close()
+
+    def generate_gtkw_savefile(self, savefile=None, **kwargs):
+        if self.vcd.vns is None:
+            raise ValueError("GTKWave savefile generation requires VCD generation.")
+        if savefile is None:
+            savefile = self.gtkw_name
+        if savefile is None:
+            savefile = os.path.splitext(self.vcd.filename)[0] + ".gtkw"
+        generate_gtkw_savefile(
+            fragment_or_module = self.fragment_or_module,
+            vns                = self.vcd.vns,
+            savefile           = savefile,
+            dumpfile           = self.vcd.filename,
+            **kwargs)
+        self.gtkw_generated = True
 
     def _commit_and_comb_propagate(self):
         # TODO: optimize
