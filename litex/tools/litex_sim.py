@@ -302,6 +302,9 @@ class SimSoC(SoCCore):
             if self.irq.enabled:
                 self.irq.add("ethmac", use_loc_if_exists=True)
 
+            # Avoid software reset of the simulated Ethernet PHY.
+            self.add_constant("ETH_PHY_NO_RESET")
+
         # I2C --------------------------------------------------------------------------------------
         if with_i2c:
             pads = platform.request("i2c", 0)
