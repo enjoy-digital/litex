@@ -484,6 +484,19 @@ class SoCBusHandler(LiteXModule):
         ]
         return max(id_widths, default=1)
 
+    def get_axi_id_width(self):
+        """Return the AXI ID width required by already registered AXI interfaces."""
+        return self._get_axi_id_width()
+
+    def get_bus_standard_kwargs(self, with_axi_id_width=False):
+        """Return constructor kwargs for cores that can expose the SoC bus standard natively."""
+        kwargs = {
+            "bus_standard": self.standard,
+        }
+        if with_axi_id_width and self.standard == "axi":
+            kwargs["axi_id_width"] = self.get_axi_id_width()
+        return kwargs
+
     def _get_interface_args(self, interface, data_width=None, address_width=None, addressing=None, clock_domain=None):
         args = {
             "data_width"    : interface.data_width if data_width    is None else data_width,
@@ -509,7 +522,7 @@ class SoCBusHandler(LiteXModule):
     def _check_axi_id_widths(self):
         if self.standard != "axi":
             return
-        id_width = self._get_axi_id_width()
+        id_width = self.get_axi_id_width()
         for name, slave in self.slaves.items():
             if isinstance(slave, axi.AXIInterface) and slave.id_width < id_width:
                 self.logger.error("{} AXI Slave ID width ({}) smaller than Bus ID width ({}).".format(
@@ -600,7 +613,7 @@ class SoCBusHandler(LiteXModule):
                     address_width = self.address_width,
                     addressing    = self.addressing)
                 if main_bus_cls is axi.AXIInterface:
-                    args["id_width"] = self._get_axi_id_width()
+                    args["id_width"] = self.get_axi_id_width()
                 else:
                     for arg in [
                         "version",

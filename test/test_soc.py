@@ -516,6 +516,22 @@ class TestSoCBusStandardIntegration(unittest.TestCase):
         self.assertIsInstance(bus.slaves["wb"], axi.AXIInterface)
         self.assertEqual(bus.slaves["wb"].id_width, 4)
 
+    def test_bus_standard_kwargs_follow_soc_bus(self):
+        self.assertEqual(
+            SoCBusHandler(standard="wishbone").get_bus_standard_kwargs(),
+            {"bus_standard": "wishbone"})
+        self.assertEqual(
+            SoCBusHandler(standard="axi-lite").get_bus_standard_kwargs(with_axi_id_width=True),
+            {"bus_standard": "axi-lite"})
+
+        bus = SoCBusHandler(standard="axi")
+        bus.add_master("cpu", axi.AXIInterface(id_width=4))
+
+        self.assertEqual(bus.get_axi_id_width(), 4)
+        self.assertEqual(
+            bus.get_bus_standard_kwargs(with_axi_id_width=True),
+            {"bus_standard": "axi", "axi_id_width": 4})
+
     def test_axi_id_width_mismatch_on_new_master_rolls_back_master(self):
         bus = SoCBusHandler(standard="axi")
         bus.add_slave("ram", axi.AXIInterface(id_width=1), SoCRegion(origin=0x00000000, size=0x1000))

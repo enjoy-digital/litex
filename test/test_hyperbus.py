@@ -389,14 +389,28 @@ class TestHyperRAM(unittest.TestCase):
 
         self.assertEqual(len(command_starts), 1)
 
-    def test_hyperram_axi_soc_keeps_native_slave(self):
-        soc_bus  = SoCBusHandler(standard="axi")
-        hyperram = HyperRAM(HyperRamPads(), bus_standard="axi", axi_id_width=4, with_csr=False)
+    def test_hyperram_soc_bus_kwargs_keep_native_slave(self):
+        cases = [
+            ("wishbone", wishbone.Interface),
+            ("axi-lite", axi.AXILiteInterface),
+            ("axi",      axi.AXIInterface),
+        ]
 
-        soc_bus.add_master("cpu", axi.AXIInterface(data_width=32, address_width=32, id_width=4))
-        soc_bus.add_slave("hyperram", hyperram.bus, SoCRegion(origin=0x00000000, size=0x1000))
+        for bus_standard, interface_cls in cases:
+            with self.subTest(bus_standard=bus_standard):
+                soc_bus = SoCBusHandler(standard=bus_standard)
+                if bus_standard == "axi":
+                    soc_bus.add_master("cpu", axi.AXIInterface(data_width=32, address_width=32, id_width=4))
 
-        self.assertIs(soc_bus.slaves["hyperram"], hyperram.bus)
+                hyperram = HyperRAM(HyperRamPads(),
+                    with_csr = False,
+                    **soc_bus.get_bus_standard_kwargs(with_axi_id_width=True))
+                soc_bus.add_slave("hyperram", hyperram.bus, SoCRegion(origin=0x00000000, size=0x1000))
+
+                self.assertIsInstance(hyperram.bus, interface_cls)
+                self.assertIs(soc_bus.slaves["hyperram"], hyperram.bus)
+                if bus_standard == "axi":
+                    self.assertEqual(hyperram.bus.id_width, 4)
 
     def test_hyperram_axi_frontend_write_incr_burst(self):
         log = []
