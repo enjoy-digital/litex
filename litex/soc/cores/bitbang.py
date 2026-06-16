@@ -40,9 +40,9 @@ class I2CMaster(LiteXModule):
             pads = Record(self.pads_layout)
         self.pads = pads
         self._w = CSRStorage(fields=[
-            CSRField("scl", size=1, offset=0, reset=1, description="Drives the state of the SCL pad."),
-            CSRField("oe",  size=1, offset=1,          description="Output Enable - if 0, both the SCL and SDA output drivers are disconnected."),
-            CSRField("sda", size=1, offset=2, reset=1, description="Drives the state of the SDA pad.")],
+            CSRField("scl", size=1, offset=0, reset=1, description="SCL output control. The SCL driver is released when 1 and drives low when 0."),
+            CSRField("oe",  size=1, offset=1,          description="SDA output enable. When 0, the SDA output driver is disconnected."),
+            CSRField("sda", size=1, offset=2, reset=1, description="SDA output control. When enabled, the SDA driver is released when 1 and drives low when 0.")],
             name="w")
         self._r = CSRStatus(fields=[
             CSRField("sda", size=1, offset=0, description="Contains the current state of the SDA pad."),
