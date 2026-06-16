@@ -39,8 +39,8 @@ class TestVerilog(unittest.TestCase):
         self.assertRegex(v, r"reg\s+\[29:0\]\s+status")
         self.assertNotRegex(v, r"wire\s+\[29:0\]\s+status")
         self.assertIn("always @(*) begin", v)
-        self.assertIn("status[0] <= flag;", v)
-        self.assertIn("status[12:8] <= count;", v)
+        self.assertIn("status[0] = flag;", v)
+        self.assertIn("status[12:8] = count;", v)
 
     def test_sync_output_port_is_declared_as_reg(self):
         dut = _SyncOutput()

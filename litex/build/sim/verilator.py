@@ -328,7 +328,6 @@ class SimVerilatorToolchain:
             trace_start      = 0,
             trace_end        = -1,
             trace_timescale  = "1ps",
-            regular_comb     = False,
             hierarchical     = False,
             interactive      = True,
             pre_run_callback = None,
@@ -355,7 +354,6 @@ class SimVerilatorToolchain:
                 # Generate verilog
                 v_output = platform.get_verilog(fragment,
                     name         = build_name,
-                    regular_comb = regular_comb,
                     hierarchical = hierarchical,
                 )
                 named_sc, named_pc = platform.resolve_signals(v_output.ns)

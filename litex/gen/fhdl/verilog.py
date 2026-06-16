@@ -474,31 +474,7 @@ def _generate_signals(f, ios, name, ns, attr_translate, regs_init, signals_overr
 #                                  COMBINATORIAL LOGIC                                             #
 # ------------------------------------------------------------------------------------------------ #
 
-def _generate_combinatorial_logic_sim(f, ns):
-    r = ""
-    if f.comb:
-        target_stmt_map = collections.defaultdict(list)
-
-        for statement in flat_iteration(f.comb):
-            targets = list_targets(statement)
-            for t in targets:
-                target_stmt_map[t].append(statement)
-
-        groups = group_by_targets(f.comb)
-
-        for n, (t, stmts) in enumerate(target_stmt_map.items()):
-            assert isinstance(t, Signal)
-            if _use_wire(stmts):
-                r += "assign " + _generate_node(ns, AssignType.BLOCKING, 0, stmts[0])
-            else:
-                r += "always @(*) begin\n"
-                r += _tab + ns.get_name(t) + " <= " + _generate_expression(ns, t.reset)[0] + ";\n"
-                r += _generate_node(ns, AssignType.NON_BLOCKING, 1, stmts, t)
-                r += "end\n"
-    r += "\n"
-    return r
-
-def _generate_combinatorial_logic_synth(f, ns):
+def _generate_combinatorial_logic(f, ns):
     r = ""
     if f.comb:
         groups = group_by_targets(f.comb)
@@ -509,8 +485,8 @@ def _generate_combinatorial_logic_synth(f, ns):
             else:
                 r += "always @(*) begin\n"
                 for t in sorted(g[0], key=lambda x: ns.get_name(x)):
-                    r += _tab + ns.get_name(t) + " <= " + _generate_expression(ns, t.reset)[0] + ";\n"
-                r += _generate_node(ns, AssignType.NON_BLOCKING, 1, g[1])
+                    r += _tab + ns.get_name(t) + " = " + _generate_expression(ns, t.reset)[0] + ";\n"
+                r += _generate_node(ns, AssignType.BLOCKING, 1, g[1])
                 r += "end\n"
     r += "\n"
     return r
@@ -782,7 +758,6 @@ class _HierarchicalBuildContext:
     platform: object
     special_overrides: dict
     attr_translate: object
-    regular_comb: bool
     regs_init: bool
     time_unit: str
     time_precision: str
@@ -796,7 +771,7 @@ class _HierarchicalBuildContext:
     ns: object = None
 
 
-def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_translate, regular_comb, regs_init, time_unit, time_precision):
+def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_translate, regs_init, time_unit, time_precision):
     if LiteXContext.top is None:
         raise ValueError("Hierarchical Verilog generation requires LiteXContext.top to be set.")
 
@@ -811,7 +786,6 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
         platform          = platform,
         special_overrides = special_overrides,
         attr_translate    = attr_translate,
-        regular_comb      = regular_comb,
         regs_init         = regs_init,
         time_unit         = time_unit,
         time_precision    = time_precision,
@@ -1303,10 +1277,7 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
         parts.append(_generate_separator("Submodules"))
         parts.append(_generate_submodule_instances(node, ctx.ns))
         parts.append(_generate_separator("Combinatorial Logic"))
-        if ctx.regular_comb:
-            parts.append(_generate_combinatorial_logic_synth(node.fragment, ctx.ns))
-        else:
-            parts.append(_generate_combinatorial_logic_sim(node.fragment, ctx.ns))
+        parts.append(_generate_combinatorial_logic(node.fragment, ctx.ns))
         parts.append(_generate_separator("Synchronous Logic"))
         parts.append(_generate_synchronous_logic(node.fragment, ctx.ns))
         parts.append(_generate_separator("Specialized Logic"))
@@ -1332,7 +1303,6 @@ def convert(f, ios=set(), name="top", platform=None,
     # Verilog parameters.
     special_overrides = dict(),
     attr_translate    = DummyAttrTranslate(),
-    regular_comb      = True,
     regs_init         = True,
     hierarchical      = False,
     # Sim parameters.
@@ -1356,7 +1326,6 @@ def convert(f, ios=set(), name="top", platform=None,
             platform          = platform,
             special_overrides = special_overrides,
             attr_translate    = attr_translate,
-            regular_comb      = regular_comb,
             regs_init         = regs_init,
             time_unit         = time_unit,
             time_precision    = time_precision,
@@ -1421,10 +1390,7 @@ def convert(f, ios=set(), name="top", platform=None,
 
     # Combinatorial Logic.
     verilog += _generate_separator("Combinatorial Logic")
-    if regular_comb:
-        verilog += _generate_combinatorial_logic_synth(f, ns)
-    else:
-        verilog += _generate_combinatorial_logic_sim(f, ns)
+    verilog += _generate_combinatorial_logic(f, ns)
 
     # Synchronous Logic.
     verilog += _generate_separator("Synchronous Logic")
