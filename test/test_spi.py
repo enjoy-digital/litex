@@ -51,6 +51,45 @@ class TestSPI(unittest.TestCase):
         dut = SPIMaster(pads=None, data_width=32, sys_clk_freq=100e6, spi_clk_freq=5e6, with_csr=False, mode="aligned")
         run_simulation(dut, generator(dut))
 
+    def test_spi_master_manual_cs(self):
+        pads = Record([("clk", 1), ("cs_n", 1), ("mosi", 1), ("miso", 1)])
+
+        def generator(dut):
+            yield dut.clk_divider.eq(2)
+            yield dut.cs_mode.eq(1)
+            yield dut.cs.eq(1)
+            for _ in range(4):
+                yield
+
+            # Manual CS mode only controls chip-select lifetime.
+            self.assertEqual((yield pads.cs_n), 0)
+            for _ in range(8):
+                self.assertEqual((yield pads.cs_n), 0)
+                self.assertEqual((yield pads.clk), 0)
+                yield
+
+            # Transfers still require start/length.
+            yield dut.mosi.eq(0xa5)
+            yield dut.length.eq(8)
+            yield dut.start.eq(1)
+            yield
+            yield dut.start.eq(0)
+            yield
+            while (yield dut.done) == 0:
+                self.assertEqual((yield pads.cs_n), 0)
+                yield
+            yield
+
+            # CS remains asserted after the transfer until software releases it.
+            self.assertEqual((yield pads.cs_n), 0)
+            yield dut.cs.eq(0)
+            for _ in range(4):
+                yield
+            self.assertEqual((yield pads.cs_n), 1)
+
+        dut = SPIMaster(pads=pads, data_width=32, sys_clk_freq=100e6, spi_clk_freq=5e6, with_csr=False)
+        run_simulation(dut, generator(dut))
+
     def test_spi_slave_syntax(self):
         spi_slave = SPISlave(pads=None, data_width=32)
         self.assertEqual(hasattr(spi_slave, "pads"), 1)
