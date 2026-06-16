@@ -28,7 +28,9 @@ EFINIX_HYPERRAM_DYN_PHASE_SEL_WIDTH = 1
 class EfinixHyperRAM(HyperRAM):
     """ HyperRAM wrapper for efinix F100 (internal)
     """
-    def __init__(self, platform, latency=6, latency_mode="fixed", clock_domain="sys", sys_clk_freq=None, with_bursting=True, with_csr=True):
+    def __init__(self, platform, latency=6, latency_mode="fixed", clock_domain="sys",
+        sys_clk_freq=None, with_bursting=True, bus_standard="wishbone", axi_id_width=1,
+        with_csr=True):
 
         # # #
 
@@ -157,6 +159,8 @@ class EfinixHyperRAM(HyperRAM):
             sys_clk_freq  = sys_clk_freq,
             clk_ratio     = "{}:1".format(EFINIX_HYPERRAM_CLK_RATIO),
             with_bursting = with_bursting,
+            bus_standard  = bus_standard,
+            axi_id_width  = axi_id_width,
             with_csr      = with_csr,
             dq_i_cd       = None,
         )
