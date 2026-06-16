@@ -484,6 +484,7 @@ class AXIDownConverter(LiteXModule):
         cap_aw_cache  = Signal.like(axi_from.aw.cache)
         cap_aw_qos    = Signal.like(axi_from.aw.qos)
         cap_aw_region = Signal.like(axi_from.aw.region)
+        cap_aw_lane   = Signal(max=max(ratio, 2))
 
         aw_emit_count    = Signal.like(axi_from.aw.len)
         b_collect_count  = Signal.like(axi_from.aw.len)
@@ -492,13 +493,17 @@ class AXIDownConverter(LiteXModule):
 
         cap_aw_incr   = Signal()    # Captured burst advances address (INCR) in the slow path.
 
-        fixed_aw_active = Signal()  # asserted while AW FSM is in any FIXED-* state.
+        fixed_aw_active  = Signal() # asserted while AW FSM is in any FIXED-* state.
+        narrow_aw_active = Signal() # asserted while a single-beat narrow write is pending.
 
         # Maximum wide len convertible to a single narrow burst (AXI len is 8-bit: 256 beats max).
         # Longer INCR bursts are routed through the per-wide-beat slow path; note that WRAP bursts
         # (len <= 15 per spec) can only overflow for ratio > 16, which is not supported.
         max_fast_len = (256 >> log2_int(ratio)) - 1
 
+        aw_narrow_pending = Signal()
+
+        is_aw_narrow = (axi_from.aw.len == 0) & (axi_from.aw.size <= narrow_size_log2)
         is_aw_slow = ((axi_from.aw.burst == BURST_FIXED) & (axi_from.aw.len != 0)) | \
                      (axi_from.aw.len > max_fast_len)
 
@@ -506,7 +511,29 @@ class AXIDownConverter(LiteXModule):
         self.aw_fsm = aw_fsm
 
         aw_fsm.act("IDLE",
-            If(~is_aw_slow,
+            If(narrow_aw_active,
+                axi_from.aw.ready.eq(0),
+            ).Elif(is_aw_narrow,
+                aw_narrow_pending.eq(axi_from.aw.valid),
+                axi_to.aw.valid.eq(axi_from.aw.valid),
+                axi_to.aw.addr.eq(axi_from.aw.addr),
+                axi_to.aw.len.eq(0),
+                axi_to.aw.size.eq(axi_from.aw.size),
+                axi_to.aw.burst.eq(BURST_INCR),
+                axi_to.aw.id.eq(axi_from.aw.id),
+                axi_to.aw.lock.eq(axi_from.aw.lock),
+                axi_to.aw.prot.eq(axi_from.aw.prot),
+                axi_to.aw.cache.eq(axi_from.aw.cache),
+                axi_to.aw.qos.eq(axi_from.aw.qos),
+                axi_to.aw.region.eq(axi_from.aw.region),
+                axi_to.aw.dest.eq(axi_from.aw.dest),
+                axi_to.aw.user.eq(axi_from.aw.user),
+                axi_from.aw.ready.eq(axi_to.aw.ready),
+                If(axi_from.aw.valid & axi_to.aw.ready,
+                    NextValue(cap_aw_lane, axi_from.aw.addr[narrow_size_log2:wide_size_log2]),
+                    NextValue(narrow_aw_active, 1),
+                ),
+            ).Elif(~is_aw_slow,
                 # Fast path: combinational forward with len/size/burst conversion. The narrow side
                 # always runs full-width beats: each wide beat maps to exactly ratio narrow beats
                 # (sub-width transfers are handled through the byte strobes; passing a sub-width
@@ -605,23 +632,54 @@ class AXIDownConverter(LiteXModule):
             description_to   = [("data",   dw_to), ("strb",   dw_to // 8)],
         )
         self.submodules += w_converter
-        self.comb += axi_from.w.connect(w_converter.sink, omit={"id", "dest", "user"})
+
+        narrow_w_data  = Signal(dw_to)
+        narrow_w_strb  = Signal(dw_to//8)
+        narrow_w_cases = {}
+        for i in range(ratio):
+            narrow_w_cases[i] = [
+                narrow_w_data.eq(axi_from.w.data[i*dw_to:(i + 1)*dw_to]),
+                narrow_w_strb.eq(axi_from.w.strb[i*(dw_to//8):(i + 1)*(dw_to//8)]),
+            ]
+
         self.comb += [
-            axi_to.w.valid.eq(w_converter.source.valid),
-            axi_to.w.data.eq(w_converter.source.data),
-            axi_to.w.strb.eq(w_converter.source.strb),
-            w_converter.source.ready.eq(axi_to.w.ready),
-            axi_to.w.id.eq(axi_from.w.id),
-            axi_to.w.dest.eq(axi_from.w.dest),
-            axi_to.w.user.eq(axi_from.w.user),
-            If(fixed_aw_active,
-                axi_to.w.last.eq(w_subbeat_count == ratio - 1),
+            narrow_w_data.eq(0),
+            narrow_w_strb.eq(0),
+            Case(cap_aw_lane, narrow_w_cases),
+
+            w_converter.sink.valid.eq(axi_from.w.valid & ~narrow_aw_active & ~aw_narrow_pending),
+            w_converter.sink.data.eq(axi_from.w.data),
+            w_converter.sink.strb.eq(axi_from.w.strb),
+            w_converter.sink.last.eq(axi_from.w.last),
+
+            If(narrow_aw_active,
+                axi_to.w.valid.eq(axi_from.w.valid),
+                axi_to.w.data.eq(narrow_w_data),
+                axi_to.w.strb.eq(narrow_w_strb),
+                axi_to.w.last.eq(axi_from.w.last),
+                axi_to.w.id.eq(axi_from.w.id),
+                axi_to.w.dest.eq(axi_from.w.dest),
+                axi_to.w.user.eq(axi_from.w.user),
+                axi_from.w.ready.eq(axi_to.w.ready),
+                w_converter.source.ready.eq(0),
             ).Else(
-                axi_to.w.last.eq(w_converter.source.last),
-            )
+                axi_to.w.valid.eq(w_converter.source.valid),
+                axi_to.w.data.eq(w_converter.source.data),
+                axi_to.w.strb.eq(w_converter.source.strb),
+                w_converter.source.ready.eq(axi_to.w.ready),
+                axi_from.w.ready.eq(Mux(aw_narrow_pending, 0, w_converter.sink.ready)),
+                axi_to.w.id.eq(axi_from.w.id),
+                axi_to.w.dest.eq(axi_from.w.dest),
+                axi_to.w.user.eq(axi_from.w.user),
+                If(fixed_aw_active,
+                    axi_to.w.last.eq(w_subbeat_count == ratio - 1),
+                ).Else(
+                    axi_to.w.last.eq(w_converter.source.last),
+                )
+            ),
         ]
         self.sync += [
-            If(axi_to.w.valid & axi_to.w.ready,
+            If(axi_to.w.valid & axi_to.w.ready & ~narrow_aw_active,
                 If(w_subbeat_count == ratio - 1,
                     w_subbeat_count.eq(0),
                 ).Else(
@@ -632,13 +690,23 @@ class AXIDownConverter(LiteXModule):
 
         # B Channel: pass-through for non-FIXED. The FSM drives wide-side b.valid/id/resp and
         # narrow-side b.ready in FIXED mode.
-        self.comb += If(~fixed_aw_active,
+        self.comb += If(narrow_aw_active,
             axi_from.b.valid.eq(axi_to.b.valid),
             axi_to.b.ready.eq(axi_from.b.ready),
             axi_from.b.id.eq(axi_to.b.id),
             axi_from.b.resp.eq(axi_to.b.resp),
             axi_from.b.user.eq(axi_to.b.user),
             axi_from.b.dest.eq(axi_to.b.dest),
+        ).Elif(~fixed_aw_active,
+            axi_from.b.valid.eq(axi_to.b.valid),
+            axi_to.b.ready.eq(axi_from.b.ready),
+            axi_from.b.id.eq(axi_to.b.id),
+            axi_from.b.resp.eq(axi_to.b.resp),
+            axi_from.b.user.eq(axi_to.b.user),
+            axi_from.b.dest.eq(axi_to.b.dest),
+        )
+        self.sync += If(narrow_aw_active & axi_to.b.valid & axi_from.b.ready,
+            narrow_aw_active.eq(0),
         )
 
         # ==========================================================================================
@@ -654,14 +722,23 @@ class AXIDownConverter(LiteXModule):
         cap_ar_cache  = Signal.like(axi_from.ar.cache)
         cap_ar_qos    = Signal.like(axi_from.ar.qos)
         cap_ar_region = Signal.like(axi_from.ar.region)
+        cap_ar_lane   = Signal(max=max(ratio, 2))
 
         ar_emit_count = Signal.like(axi_from.ar.len)
         r_wide_count  = Signal.like(axi_from.ar.len)
 
         cap_ar_incr   = Signal()
 
-        fixed_ar_active = Signal()
+        fixed_ar_active  = Signal()
+        narrow_ar_active = Signal()
+        narrow_r_valid   = Signal()
+        narrow_r_data    = Signal(dw_to)
+        narrow_r_resp    = Signal.like(axi_from.r.resp)
+        narrow_r_id      = Signal.like(axi_from.r.id)
+        narrow_r_dest    = Signal.like(axi_from.r.dest)
+        narrow_r_user    = Signal.like(axi_from.r.user)
 
+        is_ar_narrow = (axi_from.ar.len == 0) & (axi_from.ar.size <= narrow_size_log2)
         is_ar_slow = ((axi_from.ar.burst == BURST_FIXED) & (axi_from.ar.len != 0)) | \
                      (axi_from.ar.len > max_fast_len)
 
@@ -669,7 +746,28 @@ class AXIDownConverter(LiteXModule):
         self.ar_fsm = ar_fsm
 
         ar_fsm.act("IDLE",
-            If(~is_ar_slow,
+            If(narrow_ar_active,
+                axi_from.ar.ready.eq(0),
+            ).Elif(is_ar_narrow,
+                axi_to.ar.valid.eq(axi_from.ar.valid),
+                axi_to.ar.addr.eq(axi_from.ar.addr),
+                axi_to.ar.len.eq(0),
+                axi_to.ar.size.eq(axi_from.ar.size),
+                axi_to.ar.burst.eq(BURST_INCR),
+                axi_to.ar.id.eq(axi_from.ar.id),
+                axi_to.ar.lock.eq(axi_from.ar.lock),
+                axi_to.ar.prot.eq(axi_from.ar.prot),
+                axi_to.ar.cache.eq(axi_from.ar.cache),
+                axi_to.ar.qos.eq(axi_from.ar.qos),
+                axi_to.ar.region.eq(axi_from.ar.region),
+                axi_to.ar.dest.eq(axi_from.ar.dest),
+                axi_to.ar.user.eq(axi_from.ar.user),
+                axi_from.ar.ready.eq(axi_to.ar.ready),
+                If(axi_from.ar.valid & axi_to.ar.ready,
+                    NextValue(cap_ar_lane, axi_from.ar.addr[narrow_size_log2:wide_size_log2]),
+                    NextValue(narrow_ar_active, 1),
+                ),
+            ).Elif(~is_ar_slow,
                 # Fast path (see AW fast path: full-width narrow beats).
                 axi_to.ar.valid.eq(axi_from.ar.valid),
                 axi_to.ar.addr.eq(axi_from.ar.addr),
@@ -749,17 +847,54 @@ class AXIDownConverter(LiteXModule):
             description_to   = [("data", dw_from)],
         )
         self.submodules += r_converter
-        self.comb += axi_to.r.connect(r_converter.sink, omit={"id", "dest", "user", "resp", "last"})
-        self.comb += r_converter.sink.last.eq(axi_to.r.last)
+
+        full_r_resp = Signal.like(axi_from.r.resp)
+        full_r_id   = Signal.like(axi_from.r.id)
+        full_r_dest = Signal.like(axi_from.r.dest)
+        full_r_user = Signal.like(axi_from.r.user)
+
+        narrow_r_wide_data  = Signal(dw_from)
+        narrow_r_data_cases = {}
+        for i in range(ratio):
+            narrow_r_data_cases[i] = narrow_r_wide_data[i*dw_to:(i + 1)*dw_to].eq(narrow_r_data)
+
         self.comb += [
-            axi_from.r.valid.eq(r_converter.source.valid),
-            axi_from.r.data.eq(r_converter.source.data),
-            r_converter.source.ready.eq(axi_from.r.ready),
-            If(fixed_ar_active,
-                axi_from.r.last.eq(r_wide_count == cap_ar_len),
+            r_converter.sink.valid.eq(axi_to.r.valid & ~narrow_ar_active),
+            r_converter.sink.data.eq(axi_to.r.data),
+            r_converter.sink.last.eq(axi_to.r.last),
+
+            narrow_r_wide_data.eq(0),
+            Case(cap_ar_lane, narrow_r_data_cases),
+
+            If(narrow_ar_active,
+                axi_to.r.ready.eq(~narrow_r_valid),
+                r_converter.source.ready.eq(0),
             ).Else(
-                axi_from.r.last.eq(r_converter.source.last),
-            )
+                axi_to.r.ready.eq(r_converter.sink.ready),
+                r_converter.source.ready.eq(axi_from.r.ready),
+            ),
+
+            If(narrow_r_valid,
+                axi_from.r.valid.eq(1),
+                axi_from.r.data.eq(narrow_r_wide_data),
+                axi_from.r.resp.eq(narrow_r_resp),
+                axi_from.r.last.eq(1),
+                axi_from.r.id.eq(narrow_r_id),
+                axi_from.r.dest.eq(narrow_r_dest),
+                axi_from.r.user.eq(narrow_r_user),
+            ).Else(
+                axi_from.r.valid.eq(r_converter.source.valid),
+                axi_from.r.data.eq(r_converter.source.data),
+                axi_from.r.resp.eq(full_r_resp),
+                axi_from.r.id.eq(full_r_id),
+                axi_from.r.dest.eq(full_r_dest),
+                axi_from.r.user.eq(full_r_user),
+                If(fixed_ar_active,
+                    axi_from.r.last.eq(r_wide_count == cap_ar_len),
+                ).Else(
+                    axi_from.r.last.eq(r_converter.source.last),
+                )
+            ),
         ]
         self.sync += [
             If(axi_from.r.valid & axi_from.r.ready,
@@ -781,14 +916,26 @@ class AXIDownConverter(LiteXModule):
         # new narrow beats once the wide beat is consumed.
         r_sub_count = Signal(max=max(ratio, 2))
         self.sync += [
-            If(axi_to.r.valid & axi_to.r.ready,
+            If(narrow_ar_active & axi_to.r.valid & axi_to.r.ready,
+                narrow_r_valid.eq(1),
+                narrow_r_data.eq(axi_to.r.data),
+                narrow_r_resp.eq(axi_to.r.resp),
+                narrow_r_id.eq(axi_to.r.id),
+                narrow_r_user.eq(axi_to.r.user),
+                narrow_r_dest.eq(axi_to.r.dest),
+            ),
+            If(narrow_r_valid & axi_from.r.ready,
+                narrow_r_valid.eq(0),
+                narrow_ar_active.eq(0),
+            ),
+            If(axi_to.r.valid & axi_to.r.ready & ~narrow_ar_active,
                 If(r_sub_count == 0,
-                    axi_from.r.id.eq(  axi_to.r.id),
-                    axi_from.r.user.eq(axi_to.r.user),
-                    axi_from.r.dest.eq(axi_to.r.dest),
-                    axi_from.r.resp.eq(axi_to.r.resp),
-                ).Elif(axi_to.r.resp > axi_from.r.resp,
-                    axi_from.r.resp.eq(axi_to.r.resp),
+                    full_r_id.eq(  axi_to.r.id),
+                    full_r_user.eq(axi_to.r.user),
+                    full_r_dest.eq(axi_to.r.dest),
+                    full_r_resp.eq(axi_to.r.resp),
+                ).Elif(axi_to.r.resp > full_r_resp,
+                    full_r_resp.eq(axi_to.r.resp),
                 ),
                 If(r_sub_count == (ratio - 1),
                     r_sub_count.eq(0),

@@ -74,10 +74,10 @@ def axi_aw_send(axi, addr, burst_len=0, burst_type=BURST_INCR, size=2, id=0):
         yield
     yield axi.aw.valid.eq(0)
 
-def axi_w_send(axi, data, last):
+def axi_w_send(axi, data, last, strb=None):
     yield axi.w.valid.eq(1)
     yield axi.w.data.eq(data)
-    yield axi.w.strb.eq(2**(axi.data_width//8) - 1)
+    yield axi.w.strb.eq(strb if strb is not None else 2**(axi.data_width//8) - 1)
     yield axi.w.last.eq(int(last))
     yield
     while (yield axi.w.ready) == 0:
@@ -748,6 +748,95 @@ class TestAXI(unittest.TestCase):
             mem_words       = mem_bytes // (dw_narrow // 8)
             self.sram       = AXISRAM(mem_bytes, bus=self.axi_narrow, init=init or [0]*mem_words)
             self.errors     = 0
+
+    def test_axi_down_converter_narrow_single_read(self):
+        # A narrow read on a wide master port must stay a single downstream access. Expanding it
+        # to a full wide-word burst can be destructive with MMIO/CSR/FIFO-like slaves.
+        dw_wide      = 256
+        dw_narrow    = 32
+        narrow_bytes = dw_narrow // 8
+        lane         = 5
+        addr         = lane * narrow_bytes
+        init         = [0x10000000 + i for i in range(1024)]
+        ar_log       = []
+        results      = {}
+
+        @passive
+        def monitor(dut):
+            while True:
+                if (yield dut.axi_narrow.ar.valid) and (yield dut.axi_narrow.ar.ready):
+                    ar_log.append((
+                        (yield dut.axi_narrow.ar.addr),
+                        (yield dut.axi_narrow.ar.len),
+                        (yield dut.axi_narrow.ar.size),
+                        (yield dut.axi_narrow.ar.burst),
+                    ))
+                yield
+
+        def gen(dut):
+            yield from axi_ar_send(dut.axi_wide, addr, size=log2_int(narrow_bytes))
+            data, resp, last = yield from axi_r_recv_one(dut.axi_wide)
+            results["data"] = data
+            results["resp"] = resp
+            results["last"] = last
+
+        dut = self._DownConvDUT(dw_wide=dw_wide, dw_narrow=dw_narrow, mem_bytes=4096, init=init)
+        run_simulation(dut, [gen(dut), monitor(dut)])
+
+        expected_data = init[addr//narrow_bytes] << (lane*dw_narrow)
+        self.assertEqual(ar_log, [(addr, 0, log2_int(narrow_bytes), BURST_INCR)])
+        self.assertEqual(results["resp"], RESP_OKAY)
+        self.assertEqual(results["last"], 1)
+        self.assertEqual(results["data"], expected_data)
+
+    def test_axi_down_converter_narrow_single_write(self):
+        # Same as above for writes: only the selected wide-lane data/strobes should reach the
+        # narrow slave.
+        dw_wide      = 256
+        dw_narrow    = 32
+        narrow_bytes = dw_narrow // 8
+        lane         = 5
+        addr         = lane * narrow_bytes
+        value        = 0xa5a55a5a
+        aw_log       = []
+        w_log        = []
+        results      = {}
+
+        @passive
+        def monitor(dut):
+            while True:
+                if (yield dut.axi_narrow.aw.valid) and (yield dut.axi_narrow.aw.ready):
+                    aw_log.append((
+                        (yield dut.axi_narrow.aw.addr),
+                        (yield dut.axi_narrow.aw.len),
+                        (yield dut.axi_narrow.aw.size),
+                        (yield dut.axi_narrow.aw.burst),
+                    ))
+                if (yield dut.axi_narrow.w.valid) and (yield dut.axi_narrow.w.ready):
+                    w_log.append((
+                        (yield dut.axi_narrow.w.data),
+                        (yield dut.axi_narrow.w.strb),
+                        (yield dut.axi_narrow.w.last),
+                    ))
+                yield
+
+        def gen(dut):
+            size = log2_int(narrow_bytes)
+            data = value << (lane*dw_narrow)
+            strb = ((1 << narrow_bytes) - 1) << (lane*narrow_bytes)
+
+            yield from axi_aw_send(dut.axi_wide, addr, size=size)
+            yield from axi_w_send(dut.axi_wide, data, last=True, strb=strb)
+            results["resp"] = yield from axi_b_recv(dut.axi_wide)
+            results["mem"]  = (yield dut.sram.mem[addr//narrow_bytes])
+
+        dut = self._DownConvDUT(dw_wide=dw_wide, dw_narrow=dw_narrow, mem_bytes=4096)
+        run_simulation(dut, [gen(dut), monitor(dut)])
+
+        self.assertEqual(aw_log, [(addr, 0, log2_int(narrow_bytes), BURST_INCR)])
+        self.assertEqual(w_log, [(value, (1 << narrow_bytes) - 1, 1)])
+        self.assertEqual(results["resp"], RESP_OKAY)
+        self.assertEqual(results["mem"], value)
 
     def test_axi_down_converter_wrap(self):
         # WRAP bursts must wrap inside the wide-side wrap window even after data-width reduction:
