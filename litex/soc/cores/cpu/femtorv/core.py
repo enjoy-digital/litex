@@ -121,9 +121,9 @@ class FemtoRV(CPU):
             # Latch Address + Bytes to Words conversion.
             NextValue(idbus.adr, mbus.addr),
 
-            # Latch Wdata/WMask.
+            # Latch Wdata/Sel.
             NextValue(idbus.dat_w, mbus.wdata),
-            NextValue(idbus.sel,   mbus.wmask),
+            NextValue(idbus.sel,   Mux(write, mbus.wmask, 2**len(idbus.sel) - 1)),
 
             # If Read or Write, jump to access.
             If(read | write,
