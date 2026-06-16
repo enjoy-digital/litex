@@ -66,6 +66,10 @@ git_repos = {
     # OpenPower CPU(s).
     "pythondata-cpu-microwatt":    GitRepo(url="https://github.com/litex-hub/", sha1=0xc69953aff92),
 
+    # MIPS CPU(s).
+    "pythondata-cpu-cdim":         GitRepo(url="https://github.com/litex-hub/", branch="main"),
+    "pythondata-cpu-gs232":        GitRepo(url="https://github.com/litex-hub/", branch="main"),
+
     # RISC-V CPU(s).
     "pythondata-cpu-blackparrot":  GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-coreblocks":   GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
@@ -103,6 +107,8 @@ standard_repos.remove("pythondata-cpu-ibex")
 standard_repos.remove("pythondata-cpu-openc906")
 standard_repos.remove("pythondata-cpu-marocchino")
 standard_repos.remove("pythondata-cpu-microwatt")
+standard_repos.remove("pythondata-cpu-cdim")
+standard_repos.remove("pythondata-cpu-gs232")
 standard_repos.remove("pythondata-cpu-picorv32")
 standard_repos.remove("pythondata-cpu-rocket")
 

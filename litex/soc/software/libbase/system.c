@@ -9,7 +9,7 @@ void flush_l2_cache(void)
 #ifdef CONFIG_L2_SIZE
 	unsigned int i;
 	for(i=0;i<2*CONFIG_L2_SIZE/4;i++) {
-		((volatile unsigned int *) MAIN_RAM_BASE)[i];
+		((volatile unsigned int *) MAIN_RAM_BASE_VA)[i];
 	}
 #endif
 }

@@ -1739,14 +1739,14 @@ int sdram_init(void) {
 	sdram_software_control_off();
 #ifndef SDRAM_TEST_DISABLE
 	/* Final software smoke test before marking DDRCTRL init_done. */
-	if(!memtest((unsigned int *) MAIN_RAM_BASE, MEMTEST_DATA_SIZE)) {
+	if(!memtest((unsigned int *) MAIN_RAM_BASE_VA, MEMTEST_DATA_SIZE)) {
 #ifdef CSR_DDRCTRL_BASE
 		ddrctrl_init_error_write(1);
 		ddrctrl_init_done_write(1);
 #endif // CSR_DDRCTRL_BASE
 		return 0;
 	}
-	memspeed((unsigned int *) MAIN_RAM_BASE, MEMTEST_DATA_SIZE, false, 0);
+	memspeed((unsigned int *) MAIN_RAM_BASE_VA, MEMTEST_DATA_SIZE, false, 0);
 #endif // SDRAM_TEST_DISABLE
 #ifdef CSR_DDRCTRL_BASE
 	ddrctrl_init_done_write(1);
@@ -1792,7 +1792,7 @@ static int sdram_debug_error_stats_on_error(
 
 static void sdram_debug_error_stats(void) {
 	printf("Running initial memtest to fill memory ...\n");
-	memtest_data((unsigned int *) MAIN_RAM_BASE, SDRAM_DEBUG_STATS_MEMTEST_SIZE, 1, NULL);
+	memtest_data((unsigned int *) MAIN_RAM_BASE_VA, SDRAM_DEBUG_STATS_MEMTEST_SIZE, 1, NULL);
 
 	struct error_stats stats;
 	error_stats_init(&stats);
@@ -1807,7 +1807,7 @@ static void sdram_debug_error_stats(void) {
 	printf("Running read-only memtests ... \n");
 	for (int i = 0; i < SDRAM_DEBUG_STATS_NUM_RUNS; ++i) {
 		printf("Running read-only memtest %3d/%3d ... \r", i + 1, SDRAM_DEBUG_STATS_NUM_RUNS);
-		memtest_data((unsigned int *) MAIN_RAM_BASE, SDRAM_DEBUG_STATS_MEMTEST_SIZE, 1, &config);
+		memtest_data((unsigned int *) MAIN_RAM_BASE_VA, SDRAM_DEBUG_STATS_MEMTEST_SIZE, 1, &config);
 	}
 
 	printf("\n");
@@ -1832,7 +1832,7 @@ static void sdram_debug_readback(void) {
 		SDRAM_DEBUG_READBACK_MEM_ADDR, SDRAM_DEBUG_READBACK_MEM_SIZE, SDRAM_DEBUG_READBACK_COUNT);
 
 	printf("Running initial memtest to fill memory ...\n");
-	memtest_data((unsigned int *) MAIN_RAM_BASE, SDRAM_DEBUG_READBACK_MEMTEST_SIZE, 1, NULL);
+	memtest_data((unsigned int *) MAIN_RAM_BASE_VA, SDRAM_DEBUG_READBACK_MEMTEST_SIZE, 1, NULL);
 
 	for (int i = 0; i < SDRAM_DEBUG_READBACK_COUNT; ++i) {
 		struct readback *readback = (struct readback *)
@@ -1847,7 +1847,7 @@ static void sdram_debug_readback(void) {
 		};
 
 		printf("Running readback %3d/%3d ... \r", i + 1, SDRAM_DEBUG_READBACK_COUNT);
-		memtest_data((unsigned int *) MAIN_RAM_BASE, SDRAM_DEBUG_READBACK_MEMTEST_SIZE, 1, &config);
+		memtest_data((unsigned int *) MAIN_RAM_BASE_VA, SDRAM_DEBUG_READBACK_MEMTEST_SIZE, 1, &config);
 	}
 	printf("\n");
 

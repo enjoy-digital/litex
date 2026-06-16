@@ -431,6 +431,22 @@ class TestLiteXSetup(unittest.TestCase):
         self.assertIn("RISC-V GCC requires manual installation on unknown-os.", output)
         self.assertNotIn("Traceback", output + stderr)
 
+    def test_mips_toolchain_uses_ubuntu_mipsel_package(self):
+        with mock.patch.object(sys, "platform", "linux"), \
+             mock.patch("litex_setup._read_os_release", return_value="ubuntu"), \
+             mock.patch("subprocess.check_call") as check_call:
+            litex_setup.mips_gcc_install()
+
+        check_call.assert_called_once_with(["apt", "install", "gcc-mipsel-linux-gnu"])
+
+    def test_mips_toolchain_uses_arch_mipsel_package(self):
+        with mock.patch.object(sys, "platform", "linux"), \
+             mock.patch("litex_setup._read_os_release", return_value="arch linux"), \
+             mock.patch("subprocess.check_call") as check_call:
+            litex_setup.mips_gcc_install()
+
+        check_call.assert_called_once_with(["yay", "-S", "mipsel-linux-gnu-gcc"])
+
     def test_lm32_toolchain_uses_arch_package(self):
         with mock.patch.object(sys, "platform", "linux"), \
              mock.patch("litex_setup._read_os_release", return_value="arch linux"), \

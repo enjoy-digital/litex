@@ -8,8 +8,8 @@ import unittest
 import xml.etree.ElementTree as ET
 from types import SimpleNamespace
 
-from litex.soc.integration.export import get_csr_header, get_csr_svd
-from litex.soc.integration.soc import SoCCSRRegion
+from litex.soc.integration.export import get_csr_header, get_csr_svd, get_linker_regions, get_mem_header
+from litex.soc.integration.soc import SoCCSRRegion, SoCRegion
 from litex.soc.interconnect.csr import CSRField, CSRStatus, CSRStorage
 
 
@@ -92,6 +92,45 @@ class TestCSRExport(unittest.TestCase):
 
         self.assertNotIn("ctrl_too_wide_field_extract", header)
         self.assertNotIn("ctrl_too_wide_field_read", header)
+
+    def test_cpu_bios_map_exports_virtual_memory_aliases(self):
+        cpu = SimpleNamespace(
+            bios_map = lambda addr, cached: addr + (0x80000000 if cached else 0xa0000000),
+        )
+        regions = {
+            "main_ram": SoCRegion(origin=0x00000000, size=0x1000, cached=True),
+            "csr":      SoCRegion(origin=0x18000000, size=0x1000, cached=False),
+        }
+
+        linker = get_linker_regions(regions, cpu=cpu)
+        header = get_mem_header(regions, cpu=cpu)
+
+        self.assertIn("main_ram : ORIGIN = 0x80000000", linker)
+        self.assertIn("csr : ORIGIN = 0xb8000000", linker)
+        self.assertIn("#define MAIN_RAM_BASE 0x00000000L", header)
+        self.assertIn("#define MAIN_RAM_BASE_VA 0x80000000L", header)
+        self.assertIn("#define CSR_BASE 0x18000000L", header)
+        self.assertIn("#define CSR_BASE_VA 0xb8000000L", header)
+
+    def test_cpu_bios_map_exports_virtual_csr_accessors(self):
+        cpu = SimpleNamespace(
+            bios_map = lambda addr, cached: addr + (0x80000000 if cached else 0xa0000000),
+        )
+        csr = CSRStatus(name="scratch", size=32)
+        header = get_csr_header(
+            regions = {
+                "ctrl": SoCCSRRegion(origin=0x18000000, busword=32, obj=[csr]),
+            },
+            constants = {},
+            csr_base  = 0x18000000,
+            cpu       = cpu,
+        )
+
+        self.assertIn("#define CSR_BASE 0x18000000L", header)
+        self.assertIn("#define CSR_BASE_VA 0xb8000000L", header)
+        self.assertIn("#define CSR_CTRL_BASE (CSR_BASE + 0x0L)", header)
+        self.assertIn("#define CSR_CTRL_BASE_VA (CSR_BASE_VA + 0x0L)", header)
+        self.assertIn("return csr_read_simple((CSR_BASE_VA + 0x0L));", header)
 
     def test_svd_splits_wide_csr_fields_per_bus_word(self):
         csr = CSRStatus(name="switch", description="TMU Switch Status", fields=[

@@ -48,15 +48,15 @@ jobs:
         run: |
           python3 litex_setup.py --config=full --init --install --user --dev
 
-      # Install GCC Toolchains (cached). The four packages below are what
-      # `litex_setup.py --gcc={riscv,openrisc,powerpc}` resolves to on
+      # Install GCC Toolchains (cached). The packages below are what
+      # `litex_setup.py --gcc={riscv,openrisc,powerpc,mips}` resolves to on
       # Ubuntu — bypass litex_setup here so the cache action can see the
       # concrete package list and handle restore. On cache hit the .debs
       # are replayed from cache; on miss apt install runs and repopulates.
       - name: Install GCC Toolchains
         uses: awalsh128/cache-apt-pkgs-action@v1
         with:
-          packages: gcc-riscv64-unknown-elf gcc-or1k-elf gcc-powerpc64le-linux-gnu binutils-multiarch
+          packages: gcc-riscv64-unknown-elf gcc-or1k-elf gcc-powerpc64le-linux-gnu gcc-mipsel-linux-gnu binutils-multiarch
           version: 1.0
 
       # Install LM32 GCC Toolchain. Ubuntu does not currently package
@@ -235,9 +235,11 @@ jobs:
           # to rank. Refine from `--durations=0` log output if desired.
           BOOT_TIMES = {
               "blackparrot":  180,
+              "cdim":         180,
               "cv32e40p":    120, "cv32e41p":    120,
               "cva6":        480,
               "femtorv":      60, "firev":        60, "serv":         45,
+              "gs232":        180,
               "sentinel":    120, "minerva":     120, "lm32":        120,
               "marocchino":  120, "mor1kx":       60, "microwatt":    300,
               "vexriscv":    120, "neorv32":     150, "ibex":        150,

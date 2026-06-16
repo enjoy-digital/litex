@@ -844,6 +844,29 @@ def riscv_gcc_install():
     else:
         toolchain_manual_install("RISC-V")
 
+# MIPS toolchain.
+# -----------------
+
+def mips_gcc_install():
+    # Linux.
+    # ------
+    if sys.platform.startswith("linux"):
+        os_release = _read_os_release()
+        # Fedora.
+        if "fedora" in os_release:
+            toolchain_install_cmd("MIPS", ["dnf", "install", "gcc-mips64-linux-gnu"])
+        # Arch (AUR repository).
+        elif "arch" in os_release:
+            toolchain_install_cmd("MIPS", ["yay", "-S", "mipsel-linux-gnu-gcc"])
+        # Ubuntu.
+        else:
+            toolchain_install_cmd("MIPS", ["apt", "install", "gcc-mipsel-linux-gnu"])
+
+    # Manual installation.
+    # --------------------
+    else:
+        toolchain_manual_install("MIPS")
+
 # PowerPC toolchain.
 # -----------------
 
@@ -944,8 +967,8 @@ def main():
     parser.add_argument("--tag",       default=None,        help="Use version from release tag.")
 
     # GCC toolchains.
-    parser.add_argument("--gcc", default=None, choices=["riscv", "powerpc", "openrisc", "lm32"],
-        help="Install GCC Toolchain (riscv, powerpc, openrisc or lm32).")
+    parser.add_argument("--gcc", default=None, choices=["riscv", "mips", "powerpc", "openrisc", "lm32"],
+        help="Install GCC Toolchain (riscv, mips, powerpc, openrisc or lm32).")
 
     # Development mode.
     parser.add_argument("--dev",            action="store_true",
@@ -1001,6 +1024,8 @@ def main():
     os.chdir(os.path.join(current_path))
     if args.gcc == "riscv":
         riscv_gcc_install()
+    if args.gcc == "mips":
+        mips_gcc_install()
     if args.gcc == "powerpc":
         powerpc_gcc_install()
     if args.gcc == "openrisc":

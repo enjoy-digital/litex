@@ -654,6 +654,7 @@ def test_bios_flashboot_host_coverage(tmp_path):
 
         #define FLASH_BOOT_ADDRESS ((unsigned int)flash_base)
         #define MAIN_RAM_BASE ram_base
+        #define MAIN_RAM_BASE_VA ram_base
         #define MAIN_RAM_SIZE ram_size
 
         void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr);

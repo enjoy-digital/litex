@@ -274,7 +274,7 @@ __attribute__((__used__)) int main(int i, char **c)
 	hyperram_init();
 #endif
 
-#if defined(CSR_ETHMAC_BASE) || defined(MAIN_RAM_BASE) || defined(CSR_SPIFLASH_BASE)
+#if defined(CSR_ETHMAC_BASE) || defined(MAIN_RAM_BASE_VA) || defined(CSR_SPIFLASH_BASE)
 	bios_print_section("Initialization");
 #ifdef CSR_ETHMAC_BASE
 	eth_init();
@@ -293,10 +293,10 @@ __attribute__((__used__)) int main(int i, char **c)
 	sdr_ok = sdram_init();
 #else
 	/* Test Main RAM when present and not pre-initialized */
-#ifdef MAIN_RAM_BASE
+#ifdef MAIN_RAM_BASE_VA
 #ifndef CONFIG_MAIN_RAM_INIT
-	sdr_ok = memtest((unsigned int *) MAIN_RAM_BASE, min(MAIN_RAM_SIZE, MEMTEST_DATA_SIZE));
-	memspeed((unsigned int *) MAIN_RAM_BASE, min(MAIN_RAM_SIZE, MEMTEST_DATA_SIZE), false, 0);
+	sdr_ok = memtest((unsigned int *) MAIN_RAM_BASE_VA, min(MAIN_RAM_SIZE, MEMTEST_DATA_SIZE));
+	memspeed((unsigned int *) MAIN_RAM_BASE_VA, min(MAIN_RAM_SIZE, MEMTEST_DATA_SIZE), false, 0);
 #endif
 #endif
 #endif

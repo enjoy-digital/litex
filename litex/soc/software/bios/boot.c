@@ -77,7 +77,7 @@ enum {
 	ACK_OK
 };
 
-#if defined(MAIN_RAM_BASE) || defined(SRAM_BASE)
+#if defined(MAIN_RAM_BASE) || defined(MAIN_RAM_BASE_VA) || defined(SRAM_BASE) || defined(SRAM_BASE_VA)
 static int boot_region_max_size(unsigned long addr, unsigned long base, unsigned long size, size_t *max_size)
 {
 	/* Compare offsets instead of region end so that regions ending exactly at
@@ -98,8 +98,16 @@ static int boot_load_max_size(unsigned long addr, size_t *max_size)
 	if (boot_region_max_size(addr, MAIN_RAM_BASE, MAIN_RAM_SIZE, max_size))
 		return 1;
 #endif
+#ifdef MAIN_RAM_BASE_VA
+	if (boot_region_max_size(addr, MAIN_RAM_BASE_VA, MAIN_RAM_SIZE, max_size))
+		return 1;
+#endif
 #ifdef SRAM_BASE
 	if (boot_region_max_size(addr, SRAM_BASE, SRAM_SIZE, max_size))
+		return 1;
+#endif
+#ifdef SRAM_BASE_VA
+	if (boot_region_max_size(addr, SRAM_BASE_VA, SRAM_SIZE, max_size))
 		return 1;
 #endif
 
@@ -681,14 +689,14 @@ static void netboot_from_json(const char * filename, unsigned int ip, unsigned s
 	boot_from_json_buffer(boot_json_buffer, size, netboot_json_load, &ctx);
 }
 
-#ifdef MAIN_RAM_BASE
+#ifdef MAIN_RAM_BASE_VA
 static void netboot_from_bin(const char * filename, unsigned int ip, unsigned short tftp_port)
 {
 	int size;
-	size = copy_file_from_tftp_to_ram(ip, tftp_port, filename, (void *)MAIN_RAM_BASE, MAIN_RAM_SIZE);
+	size = copy_file_from_tftp_to_ram(ip, tftp_port, filename, (void *)MAIN_RAM_BASE_VA, MAIN_RAM_SIZE);
 	if (size <= 0)
 		return;
-	boot(0, 0, 0, MAIN_RAM_BASE);
+	boot(0, 0, 0, MAIN_RAM_BASE_VA);
 }
 #endif
 
@@ -722,7 +730,7 @@ void netboot(int nb_params, char **params)
 		netboot_from_json("boot.json", ip, TFTP_SERVER_PORT);
 #endif /* ETH_NETBOOT_SKIP_JSON */
 
-#ifdef MAIN_RAM_BASE
+#ifdef MAIN_RAM_BASE_VA
 		/* Boot from boot.bin */
 		printf("Booting from boot.bin...\n");
 		netboot_from_bin("boot.bin", ip, TFTP_SERVER_PORT);
@@ -774,7 +782,7 @@ static unsigned int check_image_in_flash(unsigned int base_address)
 	return length;
 }
 
-#if defined(MAIN_RAM_BASE) && defined(FLASH_BOOT_ADDRESS)
+#if defined(MAIN_RAM_BASE_VA) && defined(FLASH_BOOT_ADDRESS)
 static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned long ram_address)
 {
 	uint32_t length;
@@ -815,13 +823,13 @@ void flashboot(void)
 {
 	printf("Booting from flash...\n");
 
-#ifdef MAIN_RAM_BASE
+#ifdef MAIN_RAM_BASE_VA
 	/* When Main RAM is available, copy the code from the Flash and execute it
 	from Main RAM since faster. The image is checked as part of the copy, no
 	need to check it twice (the CRC over flash is slow). */
-	if(!copy_image_from_flash_to_ram(FLASH_BOOT_ADDRESS, MAIN_RAM_BASE))
+	if(!copy_image_from_flash_to_ram(FLASH_BOOT_ADDRESS, MAIN_RAM_BASE_VA))
 		return;
-	boot(0, 0, 0, MAIN_RAM_BASE);
+	boot(0, 0, 0, MAIN_RAM_BASE_VA);
 #else
 	if(!check_image_in_flash(FLASH_BOOT_ADDRESS))
 		return;
@@ -944,14 +952,14 @@ static void sdcardboot_from_json(const char * filename)
 	boot_from_json_buffer(boot_json_buffer, length, sdcardboot_json_load, NULL);
 }
 
-#ifdef MAIN_RAM_BASE
+#ifdef MAIN_RAM_BASE_VA
 static void sdcardboot_from_bin(const char * filename)
 {
 	uint32_t result;
-	result = copy_file_from_sdcard_to_ram(filename, MAIN_RAM_BASE, MAIN_RAM_SIZE);
+	result = copy_file_from_sdcard_to_ram(filename, MAIN_RAM_BASE_VA, MAIN_RAM_SIZE);
 	if (result == 0)
 		return;
-	boot(0, 0, 0, MAIN_RAM_BASE);
+	boot(0, 0, 0, MAIN_RAM_BASE_VA);
 }
 #endif
 
@@ -979,7 +987,7 @@ void sdcardboot(int nb_params, char **params)
 		printf("Booting from boot.json...\n");
 		sdcardboot_from_json("boot.json");
 
-#ifdef MAIN_RAM_BASE
+#ifdef MAIN_RAM_BASE_VA
 		/* Boot from boot.bin */
 		printf("Booting from boot.bin...\n");
 		sdcardboot_from_bin("boot.bin");
@@ -1102,14 +1110,14 @@ static void sataboot_from_json(const char * filename)
 	boot_from_json_buffer(boot_json_buffer, length, sataboot_json_load, NULL);
 }
 
-#ifdef MAIN_RAM_BASE
+#ifdef MAIN_RAM_BASE_VA
 static void sataboot_from_bin(const char * filename)
 {
 	uint32_t result;
-	result = copy_file_from_sata_to_ram(filename, MAIN_RAM_BASE, MAIN_RAM_SIZE);
+	result = copy_file_from_sata_to_ram(filename, MAIN_RAM_BASE_VA, MAIN_RAM_SIZE);
 	if (result == 0)
 		return;
-	boot(0, 0, 0, MAIN_RAM_BASE);
+	boot(0, 0, 0, MAIN_RAM_BASE_VA);
 }
 #endif
 
@@ -1131,7 +1139,7 @@ void sataboot(int nb_params, char **params)
 		printf("Booting from boot.json...\n");
 		sataboot_from_json("boot.json");
 
-#ifdef MAIN_RAM_BASE
+#ifdef MAIN_RAM_BASE_VA
 		/* Boot from boot.bin */
 		printf("Booting from boot.bin...\n");
 		sataboot_from_bin("boot.bin");

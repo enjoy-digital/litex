@@ -130,10 +130,19 @@ def get_linker_output_format(cpu):
     return f"OUTPUT_FORMAT(\"{cpu.linker_output_format}\")\n"
 
 
-def get_linker_regions(regions):
+def _cpu_bios_map(cpu, addr, cached=False):
+    if cpu is None:
+        return addr
+    bios_map = getattr(cpu, "bios_map", None)
+    if bios_map is None:
+        return addr
+    return bios_map(addr, cached)
+
+def get_linker_regions(regions, cpu=None):
     r = "MEMORY {\n"
     for name, region in regions.items():
-        r += f"\t{name} : ORIGIN = 0x{region.origin:08x}, LENGTH = 0x{region.size:08x}\n"
+        origin = _cpu_bios_map(cpu, region.origin, region.cached)
+        r += f"\t{name} : ORIGIN = 0x{origin:08x}, LENGTH = 0x{region.size:08x}\n"
     r += "}\n"
     return r
 
@@ -151,12 +160,14 @@ def get_git_header():
     r += "#endif\n"
     return r
 
-def get_mem_header(regions):
+def get_mem_header(regions, cpu=None):
     r = generated_banner("//")
     r += "#ifndef __GENERATED_MEM_H\n#define __GENERATED_MEM_H\n\n"
     for name, region in regions.items():
+        origin_va = _cpu_bios_map(cpu, region.origin, region.cached)
         r += f"#ifndef {name.upper()}_BASE\n"
         r += f"#define {name.upper()}_BASE 0x{region.origin:08x}L\n"
+        r += f"#define {name.upper()}_BASE_VA 0x{origin_va:08x}L\n"
         r += f"#define {name.upper()}_SIZE 0x{region.size:08x}\n"
         r += "#endif\n\n"
 
@@ -264,13 +275,17 @@ def _generate_csr_header_includes_c(with_access_functions, with_fields_access_fu
         includes += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
     return includes
 
-def _generate_csr_base_define_c(csr_base, with_csr_base_define):
+def _generate_csr_base_define_c(csr_base, with_csr_base_define, cpu=None):
     includes = ""
     if with_csr_base_define:
+        csr_base_va = _cpu_bios_map(cpu, csr_base, False)
         includes += "\n"
         includes += "#ifndef CSR_BASE\n"
         includes += f"#define CSR_BASE {hex(csr_base)}L\n"
         includes += "#endif /* ! CSR_BASE */\n"
+        includes += "#ifndef CSR_BASE_VA\n"
+        includes += f"#define CSR_BASE_VA {hex(csr_base_va)}L\n"
+        includes += "#endif /* ! CSR_BASE_VA */\n"
     return includes
 
 # CSR Definitions.
@@ -281,24 +296,34 @@ def _get_csr_addr(csr_base, addr, with_csr_base_define=True):
     else:
         return f"{hex(csr_base + addr)}L"
 
-def _generate_csr_definitions_c(reg_name, reg_base, nwords, csr_base, with_csr_base_define):
+def _get_csr_addr_va(cpu, csr_base, addr, with_csr_base_define=True):
+    if with_csr_base_define:
+        return f"(CSR_BASE_VA + {hex(addr)}L)"
+    else:
+        return f"{hex(_cpu_bios_map(cpu, csr_base + addr, False))}L"
+
+def _generate_csr_definitions_c(cpu, reg_name, reg_base, nwords, csr_base, with_csr_base_define):
     addr_str    = f"CSR_{reg_name.upper()}_ADDR"
+    va_str      = f"CSR_{reg_name.upper()}_ADDR_VA"
     size_str    = f"CSR_{reg_name.upper()}_SIZE"
     definitions = f"#define {addr_str} {_get_csr_addr(csr_base, reg_base, with_csr_base_define)}\n"
+    definitions += f"#define {va_str} {_get_csr_addr_va(cpu, csr_base, reg_base, with_csr_base_define)}\n"
     definitions += f"#define {size_str} {nwords}\n"
     return definitions
 
-def _generate_csr_region_definitions_c(name, region, origin, alignment, csr_base, with_csr_base_define):
+def _generate_csr_region_definitions_c(cpu, name, region, origin, alignment, csr_base, with_csr_base_define):
     base_define = with_csr_base_define and not isinstance(region, MockCSRRegion)
     base = csr_base if not isinstance(region, MockCSRRegion) else 0
     region_defs = f"\n/* {name.upper()} Registers */\n"
     region_defs += f"#define CSR_{name.upper()}_BASE {_get_csr_addr(base, origin, base_define)}\n"
+    region_defs += f"#define CSR_{name.upper()}_BASE_VA {_get_csr_addr_va(cpu, base, origin, base_define)}\n"
 
     if not isinstance(region.obj, Memory):
         for csr in region.obj:
             nr = (csr.size + region.busword - 1) // region.busword
             csr_origin = _get_csr_origin(csr, origin)
             region_defs += _generate_csr_definitions_c(
+                cpu                   = cpu,
                 reg_name              = name + "_" + csr.name,
                 reg_base              = csr_origin,
                 nwords                = nr,
@@ -331,31 +356,31 @@ def _determine_ctype_and_stride_c(size, alignment):
     stride = alignment // 8
     return ctype, stride
 
-def _generate_csr_read_function_c(reg_name, reg_base, nwords, busword, ctype, stride, csr_ordering, csr_base, with_csr_base_define):
+def _generate_csr_read_function_c(cpu, reg_name, reg_base, nwords, busword, ctype, stride, csr_ordering, csr_base, with_csr_base_define):
     read_function = f"static inline {ctype} {reg_name}_read(void) {{\n"
     if nwords > 1:
-        read_function += f"\t{ctype} r = csr_read_simple({_get_csr_addr(csr_base, reg_base, with_csr_base_define)});\n"
+        read_function += f"\t{ctype} r = csr_read_simple({_get_csr_addr_va(cpu, csr_base, reg_base, with_csr_base_define)});\n"
         for sub in range(1, nwords):
             if csr_ordering == "big":
                 read_function += f"\tr <<= {busword};\n"
-                read_function += f"\tr |= csr_read_simple({_get_csr_addr(csr_base, reg_base + sub * stride, with_csr_base_define)});\n"
+                read_function += f"\tr |= csr_read_simple({_get_csr_addr_va(cpu, csr_base, reg_base + sub * stride, with_csr_base_define)});\n"
             else:
-                read_function += f"\tr |= ({ctype})csr_read_simple({_get_csr_addr(csr_base, reg_base + sub * stride, with_csr_base_define)}) << {busword * sub};\n"
+                read_function += f"\tr |= ({ctype})csr_read_simple({_get_csr_addr_va(cpu, csr_base, reg_base + sub * stride, with_csr_base_define)}) << {busword * sub};\n"
         read_function += "\treturn r;\n}\n"
     else:
-        read_function += f"\treturn csr_read_simple({_get_csr_addr(csr_base, reg_base, with_csr_base_define)});\n}}\n"
+        read_function += f"\treturn csr_read_simple({_get_csr_addr_va(cpu, csr_base, reg_base, with_csr_base_define)});\n}}\n"
     return read_function
 
-def _generate_csr_write_function_c(reg_name, reg_base, nwords, busword, ctype, stride, csr_ordering, csr_base, with_csr_base_define):
+def _generate_csr_write_function_c(cpu, reg_name, reg_base, nwords, busword, ctype, stride, csr_ordering, csr_base, with_csr_base_define):
     write_function = f"static inline void {reg_name}_write({ctype} v) {{\n"
     for sub in range(nwords):
         shift = (nwords - sub - 1) * busword if csr_ordering == "big" else sub * busword
         v_shift = f"v >> {shift}" if shift else "v"
-        write_function += f"\tcsr_write_simple({v_shift}, {_get_csr_addr(csr_base, reg_base + sub * stride, with_csr_base_define)});\n"
+        write_function += f"\tcsr_write_simple({v_shift}, {_get_csr_addr_va(cpu, csr_base, reg_base + sub * stride, with_csr_base_define)});\n"
     write_function += "}\n"
     return write_function
 
-def _get_csr_read_write_access_functions_c(reg_name, reg_base, nwords, busword, alignment, read_only, csr_ordering, csr_base, with_csr_base_define):
+def _get_csr_read_write_access_functions_c(cpu, reg_name, reg_base, nwords, busword, alignment, read_only, csr_ordering, csr_base, with_csr_base_define):
     result = ""
     size   = nwords * busword // 8
 
@@ -363,13 +388,13 @@ def _get_csr_read_write_access_functions_c(reg_name, reg_base, nwords, busword, 
     if ctype is None:
         return result
 
-    result += _generate_csr_read_function_c(reg_name, reg_base, nwords, busword, ctype, stride, csr_ordering, csr_base, with_csr_base_define)
+    result += _generate_csr_read_function_c(cpu, reg_name, reg_base, nwords, busword, ctype, stride, csr_ordering, csr_base, with_csr_base_define)
     if not read_only:
-        result += _generate_csr_write_function_c(reg_name, reg_base, nwords, busword, ctype, stride, csr_ordering, csr_base, with_csr_base_define)
+        result += _generate_csr_write_function_c(cpu, reg_name, reg_base, nwords, busword, ctype, stride, csr_ordering, csr_base, with_csr_base_define)
 
     return result
 
-def _generate_csr_region_access_functions_c(name, region, origin, alignment, csr_ordering, csr_base, with_csr_base_define):
+def _generate_csr_region_access_functions_c(cpu, name, region, origin, alignment, csr_ordering, csr_base, with_csr_base_define):
     base_define = with_csr_base_define and not isinstance(region, MockCSRRegion)
     base = csr_base if not isinstance(region, MockCSRRegion) else 0
     region_defs = f"\n/* {name.upper()} Access Functions */\n"
@@ -379,6 +404,7 @@ def _generate_csr_region_access_functions_c(name, region, origin, alignment, csr
             nr = (csr.size + region.busword - 1) // region.busword
             csr_origin = _get_csr_origin(csr, origin)
             region_defs += _get_csr_read_write_access_functions_c(
+                cpu                   = cpu,
                 reg_name              = name + "_" + csr.name,
                 reg_base              = csr_origin,
                 nwords                = nr,
@@ -458,11 +484,10 @@ def _get_csr_region_origin(region, csr_base):
         return region.origin
     return region.origin - csr_base
 
-def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_csr_base_define=True, with_access_functions=True, with_fields_access_functions=False):
+def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_csr_base_define=True, with_access_functions=True, with_fields_access_functions=False, cpu=None):
     """
     Generate the CSR header file content.
     """
-
     alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
     r = generated_banner("//")
 
@@ -476,14 +501,14 @@ def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_c
     else:
         _csr_base = csr_base
     csr_base  = _csr_base
-    r += _generate_csr_base_define_c(csr_base, with_csr_base_define)
+    r += _generate_csr_base_define_c(csr_base, with_csr_base_define, cpu=cpu)
 
     # CSR Registers/Fields Definition.
     r += "\n"
     r += generated_separator("//", "CSR Registers/Fields Definition.")
     for name, region in regions.items():
         origin = _get_csr_region_origin(region, _csr_base)
-        r += _generate_csr_region_definitions_c(name, region, origin, alignment, csr_base, with_csr_base_define)
+        r += _generate_csr_region_definitions_c(cpu, name, region, origin, alignment, csr_base, with_csr_base_define)
 
     # CSR Registers Access Functions.
     if with_access_functions:
@@ -499,7 +524,7 @@ def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_c
             origin          = _get_csr_region_origin(region, _csr_base)
             region_ordering = getattr(region, "ordering", None) or csr_ordering
             r += _generate_csr_region_access_functions_c(
-                name, region, origin, alignment, region_ordering, csr_base, with_csr_base_define)
+                cpu, name, region, origin, alignment, region_ordering, csr_base, with_csr_base_define)
         r += "#endif /* LITEX_CSR_ACCESS_FUNCTIONS */\n"
 
     # CSR Registers Field Access Functions.
@@ -967,7 +992,7 @@ def get_memory_x(soc):
     text_region = get_region("rom",  ["main_ram", "sram"])
     data_region = get_region("sram", ["main_ram", "rom"])
 
-    r = get_linker_regions(soc.mem_regions)
+    r = get_linker_regions(soc.mem_regions, cpu=soc.cpu)
     r += '\n'
     r += 'REGION_ALIAS("REGION_TEXT", {});\n'.format(text_region)
     r += 'REGION_ALIAS("REGION_RODATA", {});\n'.format(text_region)

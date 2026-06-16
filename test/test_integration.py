@@ -241,12 +241,14 @@ def test_linux_on_litex_rocket_nexys_video_generation(tmp_path):
 
 TESTED_CPUS = [
     "blackparrot",  # (riscv   / softcore)
+    "cdim",         # (mips    / softcore)
     "coreblocks",   # (riscv   / softcore)
     "cv32e40p",     # (riscv   / softcore)
     "cv32e41p",     # (riscv   / softcore)
     "cva6",         # (riscv   / softcore)
     "femtorv",      # (riscv   / softcore)
     "firev",        # (riscv   / softcore)
+    "gs232",        # (mips    / softcore)
     "lm32",         # (lm32    / softcore)
     "marocchino",   # (or1k    / softcore)
     "mor1kx",       # (or1k    / softcore)
