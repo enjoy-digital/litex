@@ -12,8 +12,9 @@ import unittest
 from contextlib import contextmanager
 from types import SimpleNamespace
 
-from migen import Signal
+from migen import Record, Signal
 
+from litex.soc.cores.hyperbus import HyperRAM
 from litex.soc.interconnect import axi, wishbone
 
 from litex.soc.integration.soc import (
@@ -66,13 +67,25 @@ class _FakePlatform:
 
     def __init__(self):
         self.build_calls = []
+        self.request_calls = []
+        self.requests     = {}
 
     def build(self, soc, *args, **kwargs):
         self.build_calls.append((soc, args, kwargs))
         return "built"
 
-    def request(self, name, loose=False):
-        return None
+    def request(self, name, number=None, loose=False):
+        self.request_calls.append((name, number, loose))
+        return self.requests.get((name, number), self.requests.get(name, None))
+
+
+class _HyperRamPads:
+    def __init__(self):
+        self.clk   = Signal()
+        self.rst_n = Signal()
+        self.cs_n  = Signal()
+        self.dq    = Record([("oe", 1), ("o", 8), ("i", 8)])
+        self.rwds  = Record([("oe", 1), ("o", 1), ("i", 1)])
 
 
 def _make_bus_interface(interface_cls, data_width=32, address_width=32):
@@ -771,6 +784,68 @@ class TestSoC(unittest.TestCase):
         soc.add_config("FEATURE", 1)
 
         self.assertEqual(soc.constants["CONFIG_FEATURE"], 1)
+
+    def test_add_hyperram_maps_region_and_uses_soc_bus_standard(self):
+        cases = [
+            ("wishbone", wishbone.Interface),
+            ("axi-lite", axi.AXILiteInterface),
+            ("axi",      axi.AXIInterface),
+        ]
+
+        for bus_standard, interface_cls in cases:
+            with self.subTest(bus_standard=bus_standard):
+                soc = SoC(_FakePlatform(), sys_clk_freq=100e6, bus_standard=bus_standard)
+                if bus_standard == "axi":
+                    soc.bus.add_master("cpu", axi.AXIInterface(id_width=4))
+
+                hyperram = soc.add_hyperram(
+                    pads        = _HyperRamPads(),
+                    region_name = "main_ram",
+                    origin      = 0x4000_0000,
+                    size        = 0x1000,
+                    with_csr    = False,
+                )
+
+                self.assertIsInstance(hyperram, HyperRAM)
+                self.assertIs(soc.hyperram, hyperram)
+                self.assertIsInstance(hyperram.bus, interface_cls)
+                self.assertIs(soc.bus.slaves["main_ram"], hyperram.bus)
+                self.assertEqual(soc.bus.regions["main_ram"].origin, 0x4000_0000)
+                if bus_standard == "axi":
+                    self.assertEqual(hyperram.bus.id_width, 4)
+
+    def test_add_hyperram_uses_mem_map_origin(self):
+        soc = SoC(_FakePlatform(), sys_clk_freq=100e6)
+        soc.mem_map["hyperram"] = 0x2000_0000
+
+        soc.add_hyperram(pads=_HyperRamPads(), size=0x1000, with_csr=False)
+
+        self.assertEqual(soc.bus.regions["hyperram"].origin, 0x2000_0000)
+
+    def test_add_hyperram_requests_platform_pads(self):
+        platform = _FakePlatform()
+        platform.requests[("hyperram", 1)] = _HyperRamPads()
+        soc = SoC(platform, sys_clk_freq=100e6)
+
+        soc.add_hyperram(number=1, size=0x1000, with_csr=False)
+
+        self.assertEqual(platform.request_calls, [("hyperram", 1, False)])
+
+    def test_add_hyperram_rejects_derived_kwargs(self):
+        soc = SoC(_FakePlatform(), sys_clk_freq=100e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_hyperram(pads=_HyperRamPads(), size=0x1000, bus_standard="wishbone")
+        with _assert_raises_soc_error(self):
+            soc.add_hyperram(pads=_HyperRamPads(), size=0x1000, axi_id_width=1)
+        with _assert_raises_soc_error(self):
+            soc.add_hyperram(pads=_HyperRamPads(), size=0x1000, sys_clk_freq=100e6)
+
+    def test_add_hyperram_requires_size(self):
+        soc = SoC(_FakePlatform(), sys_clk_freq=100e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_hyperram(pads=_HyperRamPads())
 
     def test_add_uart_keeps_soc_level_integration(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)

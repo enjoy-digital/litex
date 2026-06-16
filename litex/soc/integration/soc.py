@@ -1469,6 +1469,50 @@ class SoC(LiteXModule):
     def init_rom(self, name, contents=None, auto_size=True):
         self.init_ram(name, contents, auto_size)
 
+    # Add HyperRAM ---------------------------------------------------------------------------------
+    def add_hyperram(self, name="hyperram", pads=None, origin=None, size=None, mode="rwx",
+        region_name=None, number=None, cached=True, linker=False, **kwargs):
+        if size is None:
+            self.logger.error("HyperRAM requires {}.".format(colorer("size", color="red")))
+            raise SoCError()
+        for arg in ["bus_standard", "axi_id_width", "sys_clk_freq"]:
+            if arg in kwargs:
+                self.logger.error("HyperRAM {} is derived from the SoC by add_hyperram().".format(
+                    colorer(arg, color="red")))
+                raise SoCError()
+
+        # Imports.
+        from litex.soc.cores.hyperbus import HyperRAM
+
+        # Parameters.
+        if region_name is None:
+            region_name = name
+        if origin is None:
+            origin = self.mem_map.get(region_name, None)
+        if pads is None:
+            pads = self.platform.request(name) if number is None else self.platform.request(name, number)
+
+        # Core.
+        self.check_if_exists(name)
+        hyperram = HyperRAM(
+            pads         = pads,
+            sys_clk_freq = self.sys_clk_freq,
+            **self.bus.get_bus_standard_kwargs(with_axi_id_width=True),
+            **kwargs,
+        )
+        self.bus.add_slave(name=region_name, slave=hyperram.bus, region=SoCRegion(
+            origin = origin,
+            size   = size,
+            mode   = mode,
+            cached = cached,
+            linker = linker))
+        self.add_module(name=name, module=hyperram)
+        self.logger.info("HyperRAM {} {} {}.".format(
+            colorer(name),
+            colorer("added", color="green"),
+            self.bus.regions[region_name]))
+        return hyperram
+
     # Add CSR Bridge -------------------------------------------------------------------------------
     def add_csr_bridge(self, name="csr", origin=None, with_register=False, register=None):
         # `register` is the legacy kwarg name, kept as an alias for back-compat.
