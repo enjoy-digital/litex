@@ -45,6 +45,11 @@ class TestBareMetalDemo(unittest.TestCase):
         self.assertIn("} > main_ram AT > sram\n", linker)
         self.assertIn("PROVIDE(_fstack = ORIGIN(main_ram) + LENGTH(main_ram));", linker)
 
+    def test_rodata_keeps_data_load_address_aligned(self):
+        linker = self._linker_with_regions()
+        self.assertIn("*(.srodata .srodata.*)", linker)
+        self.assertIn("FILL(0);\n\t\t. = ALIGN(8);\n\t\t_erodata = .;", linker)
+
 
 if __name__ == "__main__":
     unittest.main()

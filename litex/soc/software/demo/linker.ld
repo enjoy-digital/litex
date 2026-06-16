@@ -26,8 +26,13 @@ SECTIONS
 		_frodata = .;
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
+		*(.srodata .srodata.*)
 		*(.got .got.*)
 		*(.toc .toc.*)
+
+		/* Make sure the file is aligned on disk as well
+		   as in memory. */
+		FILL(0);
 		. = ALIGN(8);
 		_erodata = .;
 	} > main_ram
@@ -40,6 +45,10 @@ SECTIONS
 		*(.data1)
 		_gp = ALIGN(16);
 		*(.sdata .sdata.* .gnu.linkonce.s.*)
+
+		/* Make sure the file is aligned on disk as well
+		   as in memory. */
+		FILL(0);
 		. = ALIGN(8);
 		_edata = .;
 	} > sram AT > main_ram
