@@ -18,20 +18,41 @@ CPU_VARIANTS = ["standard"]
 
 # Helpers ------------------------------------------------------------------------------------------
 
+def _is_valid_gs232_dir(path):
+    if path is None:
+        return False
+    return os.path.isfile(os.path.join(path, "godson_cpu_core.v"))
+
 def _get_gs232_dir():
-    candidates = [
-        os.environ.get("LITEX_GS232_DIR"),
+    env_dir = os.environ.get("LITEX_GS232_DIR")
+    if env_dir is not None:
+        if _is_valid_gs232_dir(env_dir):
+            return env_dir
+        raise OSError(
+            "Invalid LITEX_GS232_DIR: missing godson_cpu_core.v in {}.".format(env_dir)
+        )
+
+    try:
+        import pythondata_cpu_gs232
+    except ImportError:
+        pass
+    else:
+        if _is_valid_gs232_dir(pythondata_cpu_gs232.data_location):
+            return pythondata_cpu_gs232.data_location
+        raise OSError(
+            "Invalid pythondata-cpu-gs232 install: missing godson_cpu_core.v."
+        )
+
+    for candidate in [
         os.path.join(os.getcwd(), "cpu_gs232"),
         os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../../cpu_gs232")),
-    ]
-    for candidate in candidates:
-        if candidate is None:
-            continue
-        if os.path.isfile(os.path.join(candidate, "godson_cpu_core.v")):
+    ]:
+        if _is_valid_gs232_dir(candidate):
             return candidate
+
     raise OSError(
-        "Unable to locate GS232 Verilog sources. Clone https://github.com/elllusion/cpu_gs232 "
-        "next to the LiteX repository or set LITEX_GS232_DIR to the cpu_gs232 directory."
+        "Unable to locate GS232 Verilog sources. Install pythondata-cpu-gs232 "
+        "or set LITEX_GS232_DIR to the cpu_gs232 directory."
     )
 
 # GS232 --------------------------------------------------------------------------------------------

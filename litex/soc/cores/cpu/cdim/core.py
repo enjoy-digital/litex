@@ -18,19 +18,43 @@ CPU_VARIANTS = ["standard"]
 
 # Helpers ------------------------------------------------------------------------------------------
 
+def _is_valid_cdim_dir(path):
+    if path is None:
+        return False
+    return (
+        os.path.isfile(os.path.join(path, "mycpu_top.sv")) or
+        os.path.isfile(os.path.join(path, "mycpu_top.v"))
+    )
+
 def _get_cdim_dir():
-    candidates = [
-        os.environ.get("LITEX_CDIM_DIR"),
+    env_dir = os.environ.get("LITEX_CDIM_DIR")
+    if env_dir is not None:
+        if _is_valid_cdim_dir(env_dir):
+            return env_dir
+        raise OSError(
+            "Invalid LITEX_CDIM_DIR: missing mycpu_top.sv/mycpu_top.v in {}.".format(env_dir)
+        )
+
+    try:
+        import pythondata_cpu_cdim
+    except ImportError:
+        pass
+    else:
+        if _is_valid_cdim_dir(pythondata_cpu_cdim.data_location):
+            return pythondata_cpu_cdim.data_location
+        raise OSError(
+            "Invalid pythondata-cpu-cdim install: missing mycpu_top.sv/mycpu_top.v."
+        )
+
+    for candidate in [
         os.path.join(os.getcwd(), "CDIM", "mycpu"),
         os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../../CDIM/mycpu")),
-    ]
-    for candidate in candidates:
-        if candidate is None:
-            continue
-        if os.path.isfile(os.path.join(candidate, "mycpu_top.v")):
+    ]:
+        if _is_valid_cdim_dir(candidate):
             return candidate
+
     raise OSError(
-        "Unable to locate CDIM Verilog sources. Clone the CDIM sources next to the LiteX repository "
+        "Unable to locate CDIM Verilog/SystemVerilog sources. Install pythondata-cpu-cdim "
         "or set LITEX_CDIM_DIR to the CDIM/mycpu directory."
     )
 
