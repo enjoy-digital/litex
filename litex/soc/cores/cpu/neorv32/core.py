@@ -95,9 +95,15 @@ class NEORV32(CPU):
         self.variant      = variant
         self.human_name   = f"NEORV32-{variant}"
         self.reset        = Signal()
+        self.with_bursting = variant.split("+")[0] in ["full", "numa"]
         # Peripheral buses (Connected to main SoC's bus).
         self.periph_buses = [
-            wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+            wishbone.Interface(
+                data_width    = 32,
+                address_width = 32,
+                addressing    = "byte",
+                bursting      = self.with_bursting,
+            )
         ]
         # Memory buses (Connected directly to LiteDRAM).
         self.memory_buses = []
@@ -129,6 +135,7 @@ class NEORV32(CPU):
             o_wb_sel_o = self.periph_buses[0].sel,
             o_wb_stb_o = wb_stb,
             o_wb_cyc_o = wb_cyc,
+            o_wb_cti_o = self.periph_buses[0].cti,
             i_wb_ack_i = self.periph_buses[0].ack,
             i_wb_err_i = self.periph_buses[0].err,
 
@@ -152,7 +159,6 @@ class NEORV32(CPU):
         self.comb += [
             self.periph_buses[0].stb.eq(wb_cyc),
             self.periph_buses[0].cyc.eq(wb_cyc),
-            self.periph_buses[0].cti.eq(wishbone.CTI_BURST_NONE),
             self.periph_buses[0].bte.eq(0),
         ]
 
@@ -223,17 +229,42 @@ class NEORV32(CPU):
         )
         content = replace_once(
             content,
+            "    wb_cyc_o   : out std_ulogic; -- valid cycle\n"
+            "    wb_ack_i   : in  std_ulogic; -- transfer acknowledge\n",
+            "    wb_cyc_o   : out std_ulogic; -- valid cycle\n"
+            "    wb_cti_o   : out std_ulogic_vector(2 downto 0); -- cycle type\n"
+            "    wb_ack_i   : in  std_ulogic; -- transfer acknowledge\n",
+            "wb_cti_o   : out std_ulogic_vector(2 downto 0)",
+        )
+        content = replace_once(
+            content,
             "    CLOCK_FREQUENCY       => 0,                              -- clock frequency of clk_i in Hz [not required by the core complex]\n",
             "    CLOCK_FREQUENCY       => 0,                              -- clock frequency of clk_i in Hz [not required by the core complex]\n"
             "    DUAL_CORE_EN          => DUAL_CORE,                      -- enable native dual-core mode\n",
             "DUAL_CORE_EN          => DUAL_CORE,",
         )
+        if "CACHE_BURSTS_EN       => false," in content:
+            content = content.replace(
+                "    CACHE_BURSTS_EN       => false,\n",
+                "    CACHE_BURSTS_EN       => true,\n",
+                1,
+            )
+        else:
+            content = replace_once(
+                content,
+                "    ICACHE_EN             => configs_c.icache(CONFIG),\n",
+                "    ICACHE_EN             => configs_c.icache(CONFIG),\n"
+                "    CACHE_BURSTS_EN       => true,\n",
+                "CACHE_BURSTS_EN       => true,",
+            )
         content = replace_once(
             content,
-            "    ICACHE_EN             => configs_c.icache(CONFIG),\n",
-            "    ICACHE_EN             => configs_c.icache(CONFIG),\n"
-            "    CACHE_BURSTS_EN       => false,\n",
-            "CACHE_BURSTS_EN       => false,",
+            "    xbus_cyc_o => wb_cyc_o,   -- valid cycle\n"
+            "    xbus_dat_i => wb_dat_i,   -- read data\n",
+            "    xbus_cyc_o => wb_cyc_o,   -- valid cycle\n"
+            "    xbus_cti_o => wb_cti_o,   -- cycle type\n"
+            "    xbus_dat_i => wb_dat_i,   -- read data\n",
+            "xbus_cti_o => wb_cti_o,",
         )
 
         with open(filename, "w") as f:
@@ -328,6 +359,10 @@ class NEORV32(CPU):
         self._patch_litex_wrapper(os.path.join(source_dir, "neorv32_litex_core_complex.vhd"))
 
     def add_soc_components(self, soc):
+        # The NEORV32 cache can issue incrementing XBUS bursts. Request burst-aware
+        # Wishbone SRAMs before the default ROM/SRAM are instantiated.
+        if self.with_bursting and soc.bus.standard == "wishbone":
+            soc.bus.bursting = True
         soc.bus.add_region("dmem", SoCRegion(origin=self.mem_map["dmem"], size=8*1024, cached=True, linker=True))
         soc.add_config("CPU_COUNT", self.cpu_count)
 
