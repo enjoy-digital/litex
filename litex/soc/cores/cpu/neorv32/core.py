@@ -261,12 +261,26 @@ class NEORV32(CPU):
 
         # Download VHDL sources (if not already present).
         # Version 1.12.6.2
-        sha1 = "e8a44708ee07d396ab4c4495a1638f25e2d6e9b0"
+        sha1       = "e8a44708ee07d396ab4c4495a1638f25e2d6e9b0"
+        hw_version = 'x"01120602"'
+        base_url   = f"https://raw.githubusercontent.com/stnolting/neorv32/{sha1}/rtl"
+
+        # Older LiteX versions cached NEORV32 files directly in cdir. Avoid
+        # mixing those stale sources with the currently pinned NEORV32 revision.
+        source_dir = cdir
+        package    = os.path.join(cdir, "neorv32_package.vhd")
+        if os.path.exists(package):
+            with open(package, "r") as f:
+                if hw_version not in f.read():
+                    source_dir = os.path.join(cdir, "sources", sha1)
+        os.makedirs(source_dir, exist_ok=True)
+
         for directory, vhds in sources.items():
             for vhd in vhds:
-                vhd2v_converter.add_source(os.path.join(cdir, vhd))
-                if not os.path.exists(os.path.join(cdir, vhd)):
-                    os.system(f"wget https://raw.githubusercontent.com/stnolting/neorv32/{sha1}/rtl/{directory}/{vhd} -P {cdir}")
+                source = os.path.join(source_dir, vhd)
+                vhd2v_converter.add_source(source)
+                if not os.path.exists(source):
+                    os.system(f"wget {base_url}/{directory}/{vhd} -P {source_dir}")
 
     def add_soc_components(self, soc):
         soc.bus.add_region("dmem", SoCRegion(origin=self.mem_map["dmem"], size=8*1024, cached=True, linker=True))
