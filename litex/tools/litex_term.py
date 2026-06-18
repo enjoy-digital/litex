@@ -354,8 +354,10 @@ class LiteXTerm:
         self.magic_detect_buffer  = bytes(len(sfl_magic_req))
         self.set_exit_on(exit_on)
 
-        self.console = Console()
-        self.stop_event = threading.Event()
+        self.console            = Console()
+        self.stop_event         = threading.Event()
+        self.upload_active      = threading.Event()
+        self.upload_abort_event = threading.Event()
 
         signal.signal(signal.SIGINT, self.sigint)
         self.sigint_time_last = 0
@@ -440,6 +442,15 @@ class LiteXTerm:
         while self.port.in_waiting:
             self.port.read(self.port.in_waiting)
 
+    def request_upload_abort(self):
+        if not self.upload_abort_event.is_set():
+            print("\n[LITEX-TERM] Upload abort requested.")
+        self.upload_abort_event.set()
+
+    def check_upload_abort(self):
+        if self.upload_abort_event.is_set():
+            raise SFLUploadError("upload aborted by user")
+
     def send_frame(self, frame, timeout=1.0, retries=16):
         encoded_frame = frame.encode()
         for _ in range(retries):
@@ -498,6 +509,8 @@ class LiteXTerm:
 
     def upload_calibration(self, address, image_length=None):
 
+        self.check_upload_abort()
+
         print("[LITEX-TERM] Upload calibration... ", end="")
         sys.stdout.flush()
 
@@ -515,6 +528,7 @@ class LiteXTerm:
 
         working = True
         for _ in range(nframes):
+            self.check_upload_abort()
             timeout = max(1.0, self.frame_time(working_length) + 0.5)
             if not self.send_frame(frame, timeout=timeout, retries=2):
                 working = False
@@ -542,6 +556,7 @@ class LiteXTerm:
         length = os.path.getsize(filename)
 
         print(f"[LITEX-TERM] Uploading {filename} to 0x{address:08x} ({length} bytes)...")
+        self.check_upload_abort()
 
         # Upload calibration
         if not self.safe:
@@ -550,6 +565,7 @@ class LiteXTerm:
         profiles = self.upload_profiles()
         last_error = None
         for n, (data_length, outstanding) in enumerate(profiles):
+            self.check_upload_abort()
             try:
                 uploaded = self.upload_once(filename, address, length, data_length, outstanding)
                 self.length = data_length
@@ -603,6 +619,7 @@ class LiteXTerm:
             window_successes = 0
             last_progress_update = 0.0
             while remaining or outstanding:
+                self.check_upload_abort()
                 # Show progress (throttled to 10 Hz to avoid overloading terminal/X11)
                 now = time.time()
                 if length and now - last_progress_update >= 0.1:
@@ -615,6 +632,7 @@ class LiteXTerm:
 
                 # Send frame if max outstanding not reached.
                 while remaining and len(outstanding) < current_window:
+                    self.check_upload_abort()
                     # Prepare frame.
                     frame_data = f.read(min(remaining, data_length))
                     frame = self.make_load_frame(current_address, frame_data)
@@ -636,6 +654,7 @@ class LiteXTerm:
                 if not outstanding:
                     continue
 
+                self.check_upload_abort()
                 try:
                     ack = self.receive_upload_response(
                         timeout=max(1.0, self.frame_time(data_length) * (len(outstanding) + 1) + 0.5)
@@ -729,9 +748,11 @@ class LiteXTerm:
 
     def answer_magic(self):
         print("[LITEX-TERM] Received firmware download request from the device.")
-        if(len(self.mem_regions)):
-            self.port.write(sfl_magic_ack)
+        self.upload_abort_event.clear()
+        self.upload_active.set()
         try:
+            if(len(self.mem_regions)):
+                self.port.write(sfl_magic_ack)
             for filename, base in self.mem_regions.items():
                 self.upload(filename, int(base, 16))
             self.boot()
@@ -739,6 +760,9 @@ class LiteXTerm:
         except SFLUploadError as e:
             print(f"\n[LITEX-TERM] Serial boot failed: {e}.")
             self.abort_serialboot()
+        finally:
+            self.upload_active.clear()
+            self.upload_abort_event.clear()
 
     def reader(self):
         try:
@@ -777,6 +801,14 @@ class LiteXTerm:
         try:
             while self.writer_alive:
                 b = self.console.getkey()
+                if self.upload_active.is_set():
+                    if b == b"\x03":
+                        self.stop()
+                    elif b == b"\x1b":
+                        self.request_upload_abort()
+                    elif self.console.escape_char(b):
+                        self.console.getkey()
+                    continue
                 if b == b"\x03":
                     self.stop()
                 elif b == b"\n":

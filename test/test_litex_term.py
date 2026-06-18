@@ -48,6 +48,23 @@ class FakePort:
         return len(data)
 
 
+class FakeConsole:
+    def __init__(self, keys):
+        self.keys = list(keys)
+
+    def getkey(self):
+        return self.keys.pop(0)
+
+    def escape_char(self, b):
+        return False
+
+    def handle_escape(self, b):
+        return None
+
+    def unconfigure(self):
+        pass
+
+
 def make_term(port, port_url=None):
     term = LiteXTerm.__new__(LiteXTerm)
     term.port = port
@@ -64,6 +81,8 @@ def make_term(port, port_url=None):
     term.magic_detect_buffer = bytes(len(litex_term.sfl_magic_req))
     term.set_exit_on(None)
     term.stop_event = litex_term.threading.Event()
+    term.upload_active = litex_term.threading.Event()
+    term.upload_abort_event = litex_term.threading.Event()
     return term
 
 
@@ -223,6 +242,40 @@ class TestLiteXTermSFL(unittest.TestCase):
         term.upload.assert_called_once_with("image.bin", 0x40000000)
         term.boot.assert_not_called()
         term.abort_serialboot.assert_called_once()
+        self.assertFalse(term.upload_active.is_set())
+
+    def test_writer_blocks_keyboard_input_during_upload(self):
+        port = FakePort()
+        term = make_term(port)
+        term.console = FakeConsole([b"x", b"\x1b", b"\x03"])
+        term.reader_alive = True
+        term.writer_alive = True
+        term.upload_active.set()
+
+        with redirect_stdout(io.StringIO()):
+            term.writer()
+
+        self.assertEqual(port.written, b"")
+        self.assertTrue(term.upload_abort_event.is_set())
+        self.assertFalse(term.reader_alive)
+        self.assertFalse(term.writer_alive)
+
+    def test_upload_aborts_when_escape_was_requested(self):
+        port = FakePort()
+        term = make_term(port)
+        term.upload_abort_event.set()
+
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            f.write(b"LiteX")
+            filename = f.name
+        try:
+            with redirect_stdout(io.StringIO()):
+                with self.assertRaisesRegex(SFLUploadError, "aborted by user"):
+                    term.upload(filename, 0x40000000)
+        finally:
+            os.unlink(filename)
+
+        self.assertEqual(port.written, b"")
 
     def test_upload_raises_on_device_error_ack(self):
         port = FakePort(read_data=sfl_ack_error)
