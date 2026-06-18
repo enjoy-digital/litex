@@ -725,6 +725,7 @@ class HyperRAMCore(LiteXModule):
             raise ValueError("Unsupported HyperRAM bus standard: {}.".format(bus_standard))
         if axi_id_width <= 0:
             raise ValueError("HyperRAM AXI ID width must be positive.")
+        wishbone_bus = bus_standard == "wishbone"
 
         self.port   = port   = HyperRAMNativePort()
         self.reg    = reg    = wishbone.Interface(data_width=16, address_width=4,  addressing="word")
@@ -818,6 +819,9 @@ class HyperRAMCore(LiteXModule):
             ),
             reg_rx_conv.source.ready.eq(1), # Always ready.
         ]
+        if wishbone_bus:
+            # Preserve the pre-AXI Wishbone datapath behavior: the RX converter was always drained.
+            self.comb += dat_rx_conv.source.ready.eq(1)
 
         # Command/Address Gen.
         # --------------------
@@ -987,7 +991,7 @@ class HyperRAMCore(LiteXModule):
             If(dat_rx_conv.source.valid,
                 port.rsp_valid.eq(1),
                 port.rsp_rdata.eq(dat_rx_conv.source.dq),
-                dat_rx_conv.source.ready.eq(port.rsp_ready),
+                *([] if wishbone_bus else [dat_rx_conv.source.ready.eq(port.rsp_ready)]),
                 If(port.rsp_ready,
                     NextValue(burst_r_first, 0),
                     # If continuing burst, stay in DAT-READ to anticipate next read...
@@ -1011,7 +1015,7 @@ class HyperRAMCore(LiteXModule):
         fsm.act("DAT-READ-DRAIN",
             source.valid.eq(1),
             source.dat_r.eq(1),
-            dat_rx_conv.source.ready.eq(1),
+            *([] if wishbone_bus else [dat_rx_conv.source.ready.eq(1)]),
             If(dat_rx_conv.source.valid,
                 NextState("END")
             )
