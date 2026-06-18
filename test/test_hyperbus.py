@@ -389,6 +389,53 @@ class TestHyperRAM(unittest.TestCase):
 
         self.assertEqual(len(command_starts), 1)
 
+    def test_hyperram_wishbone_classic_writes_start_separate_commands(self):
+        command_starts = []
+
+        def fpga_gen(dut):
+            values = [0x01234567, 0x89abcdef, 0xdeadbeef, 0xc0ffee00]
+            yield dut.bus.cyc.eq(1)
+            yield dut.bus.stb.eq(1)
+            yield dut.bus.we.eq(1)
+            yield dut.bus.sel.eq(0xf)
+            yield dut.bus.cti.eq(wishbone.CTI_BURST_NONE)
+            yield dut.bus.adr.eq(0)
+            yield dut.bus.dat_w.eq(values[0])
+
+            for n, value in enumerate(values):
+                for _ in range(256):
+                    if (yield dut.bus.ack):
+                        break
+                    yield
+                else:
+                    self.fail("Wishbone classic write timed out.")
+
+                if n == (len(values) - 1):
+                    break
+                yield dut.bus.adr.eq(n + 1)
+                yield dut.bus.dat_w.eq(values[n + 1])
+                yield
+
+            yield dut.bus.cyc.eq(0)
+            yield dut.bus.stb.eq(0)
+            yield dut.bus.we.eq(0)
+            yield
+
+        def monitor(dut):
+            was_cmd_address = 0
+            for cycle in range(1024):
+                is_cmd_address = (yield dut.core.fsm.state) == cmd_address
+                if is_cmd_address and not was_cmd_address:
+                    command_starts.append(cycle)
+                was_cmd_address = is_cmd_address
+                yield
+
+        dut = HyperRAM(HyperRamPads(), latency=5, latency_mode="fixed")
+        cmd_address = dut.core.fsm.encoding["CMD-ADDRESS"]
+        run_simulation(dut, [fpga_gen(dut), monitor(dut)])
+
+        self.assertEqual(len(command_starts), 4)
+
     def test_hyperram_soc_bus_kwargs_keep_native_slave(self):
         cases = [
             ("wishbone", wishbone.Interface),

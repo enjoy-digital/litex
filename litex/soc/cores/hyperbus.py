@@ -948,10 +948,10 @@ class HyperRAMCore(LiteXModule):
             )
         ]
         self.comb += burst_w.eq(
-            # Notified Incrementing Burst.
-            (bus_cti == wishbone.CTI_BURST_INCREMENTING) |
-            # Detected Incrementing Burst.
-            (port.req_valid & (port.req_write == bus_we) & (port.req_addr == (bus_adr + 1))),
+            (bus_cti == wishbone.CTI_BURST_INCREMENTING) &
+            port.req_valid &
+            (port.req_write == bus_we) &
+            (port.req_addr == (bus_adr + 1)),
         )
         fsm.act("DAT-WRITE",
             dat_tx_conv.sink.valid.eq(1),
@@ -980,10 +980,10 @@ class HyperRAMCore(LiteXModule):
 
         # Data Read State.
         self.comb += burst_r.eq(
-            # Notified Incrementing Burst.
-            (bus_cti == wishbone.CTI_BURST_INCREMENTING) |
-            # Detected Incrementing Burst.
-            (port.req_valid & (port.req_write == bus_we) & (port.req_addr == (bus_adr + 1))),
+            (bus_cti == wishbone.CTI_BURST_INCREMENTING) &
+            port.req_valid &
+            (port.req_write == bus_we) &
+            (port.req_addr == (bus_adr + 1)),
         )
         fsm.act("DAT-READ",
             source.valid.eq(1),
