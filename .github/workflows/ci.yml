@@ -63,10 +63,11 @@ jobs:
       # lm32-elf-gcc, so use the LiteX-Hub Conda package and expose only
       # the lm32-elf-* tools to the regular test environment.
       - name: Setup Conda for LM32 Toolchain
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         with:
           auto-update-conda: false
           activate-environment: litex-toolchains
+          python-version: "3.9"
           channels: litex-hub,conda-forge
           channel-priority: flexible
 
