@@ -85,84 +85,88 @@ class NEORV32(CPU):
 
     @staticmethod
     def args_read(args):
-        NEORV32.cpu_count  = args.cpu_count
+        NEORV32.cpu_count = args.cpu_count
 
     def __init__(self, platform, variant="standard"):
+        if self.cpu_count not in [1, 2]:
+            raise ValueError("NEORV32 supports 1 or 2 CPU cores.")
+
         self.platform     = platform
         self.variant      = variant
         self.human_name   = f"NEORV32-{variant}"
         self.reset        = Signal()
-        self.periph_buses = [wishbone.Interface(data_width=32, address_width=32, addressing="byte") for _ in range(self.cpu_count)] # Peripheral buses (Connected to main SoC's bus).
-        self.memory_buses = []      # Memory buses (Connected directly to LiteDRAM).
+        # Peripheral buses (Connected to main SoC's bus).
+        self.periph_buses = [
+            wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+        ]
+        # Memory buses (Connected directly to LiteDRAM).
+        self.memory_buses = []
 
         # # #
 
         # CPU Instance.
-        self.cores = []
-        for i in range(self.cpu_count):
-            wb_stb = Signal()
-            wb_cyc = Signal()
-            cpu_params = dict(
-                # Clk/Rst.
-                i_clk_i  = ClockSignal("sys"),
-                i_rstn_i = ~(ResetSignal() | self.reset),
+        wb_stb = Signal()
+        wb_cyc = Signal()
+        cpu_params = dict(
+            # Clk/Rst.
+            i_clk_i  = ClockSignal("sys"),
+            i_rstn_i = ~(ResetSignal() | self.reset),
 
-                # JTAG.
-                i_jtag_tck_i  = 0,
-                i_jtag_tdi_i  = 0,
-                o_jtag_tdo_o  = Open(),
-                i_jtag_tms_i  = 0,
+            # JTAG.
+            i_jtag_tck_i  = 0,
+            i_jtag_tdi_i  = 0,
+            o_jtag_tdo_o  = Open(),
+            i_jtag_tms_i  = 0,
 
-                # Interrupt.
-                i_irq_mei_i = 0,
+            # Interrupt.
+            i_irq_mei_i = 0,
 
-                # I/D Wishbone Bus.
-                o_wb_adr_o = self.periph_buses[i].adr,
-                i_wb_dat_i = self.periph_buses[i].dat_r,
-                o_wb_dat_o = self.periph_buses[i].dat_w,
-                o_wb_we_o  = self.periph_buses[i].we,
-                o_wb_sel_o = self.periph_buses[i].sel,
-                o_wb_stb_o = wb_stb,
-                o_wb_cyc_o = wb_cyc,
-                i_wb_ack_i = self.periph_buses[i].ack,
-                i_wb_err_i = self.periph_buses[i].err,
+            # I/D Wishbone Bus.
+            o_wb_adr_o = self.periph_buses[0].adr,
+            i_wb_dat_i = self.periph_buses[0].dat_r,
+            o_wb_dat_o = self.periph_buses[0].dat_w,
+            o_wb_we_o  = self.periph_buses[0].we,
+            o_wb_sel_o = self.periph_buses[0].sel,
+            o_wb_stb_o = wb_stb,
+            o_wb_cyc_o = wb_cyc,
+            i_wb_ack_i = self.periph_buses[0].ack,
+            i_wb_err_i = self.periph_buses[0].err,
 
-                p_CONFIG = {
-                    "minimal"        : 0,
-                    "minimal+debug"  : 0,
-                    "lite"           : 1,
-                    "lite+debug"     : 1,
-                    "standard"       : 2,
-                    "standard+debug" : 2,
-                    "full"           : 3,
-                    "full+debug"     : 3,
-                    "numa"           : 4,
-                    "numa+debug"     : 4,
-                }[self.variant],
-                p_DEBUG = "debug" in self.variant,
-            )
-            # NEORV32's XBUS can pulse stb while keeping cyc asserted for the
-            # pending access; LiteX Wishbone slaves expect stb until ack.
-            self.comb += [
-                self.periph_buses[i].stb.eq(wb_cyc),
-                self.periph_buses[i].cyc.eq(wb_cyc),
-                self.periph_buses[i].cti.eq(wishbone.CTI_BURST_NONE),
-                self.periph_buses[i].bte.eq(0),
-            ]
+            p_CONFIG = {
+                "minimal"        : 0,
+                "minimal+debug"  : 0,
+                "lite"           : 1,
+                "lite+debug"     : 1,
+                "standard"       : 2,
+                "standard+debug" : 2,
+                "full"           : 3,
+                "full+debug"     : 3,
+                "numa"           : 4,
+                "numa+debug"     : 4,
+            }[self.variant],
+            p_DEBUG     = "debug" in self.variant,
+            p_DUAL_CORE = self.cpu_count == 2,
+        )
+        # NEORV32's XBUS can pulse stb while keeping cyc asserted for the
+        # pending access; LiteX Wishbone slaves expect stb until ack.
+        self.comb += [
+            self.periph_buses[0].stb.eq(wb_cyc),
+            self.periph_buses[0].cyc.eq(wb_cyc),
+            self.periph_buses[0].cti.eq(wishbone.CTI_BURST_NONE),
+            self.periph_buses[0].bte.eq(0),
+        ]
 
-            # TODO
-            if "debug" in variant:
-                self.add_debug(cpu_params)
+        # TODO
+        if "debug" in variant:
+            self.add_debug(cpu_params)
 
-            vhd2v_converter = VHD2VConverter(self.platform,
-                name          = "neorv32_litex_core_complex",
-                library       = "neorv32",
-                force_convert = True,
-                ports         = cpu_params,
-            )
-            self.add_sources(vhd2v_converter)
-
-            setattr(self, f"vhd2v_converter_{i}", vhd2v_converter)
+        self.vhd2v_converter = VHD2VConverter(self.platform,
+            name          = "neorv32_litex_core_complex",
+            library       = "neorv32",
+            force_convert = True,
+            ports         = cpu_params,
+        )
+        self.add_sources(self.vhd2v_converter)
 
     # Memory Mapping.
     @property
@@ -195,6 +199,45 @@ class NEORV32(CPU):
             o_jtag_tdo_o  = self.o_jtag_tdo,
             i_jtag_tms_i  = self.i_jtag_tms,
         )
+
+    @staticmethod
+    def _patch_litex_wrapper(filename):
+        def replace_once(content, old, new, marker):
+            if marker in content:
+                return content
+            if old not in content:
+                raise OSError(f"Unable to patch NEORV32 LiteX wrapper: {marker}.")
+            return content.replace(old, new, 1)
+
+        with open(filename, "r") as f:
+            content = f.read()
+
+        content = replace_once(
+            content,
+            "    CONFIG : natural; -- configuration select (0=minimal, 1=lite, 2=standard, 3=full)\n"
+            "    DEBUG  : boolean  -- enable on-chip debugger, valid for all configurations\n",
+            "    CONFIG    : natural; -- configuration select (0=minimal, 1=lite, 2=standard, 3=full)\n"
+            "    DEBUG     : boolean; -- enable on-chip debugger, valid for all configurations\n"
+            "    DUAL_CORE : boolean  -- enable native dual-core mode\n",
+            "DUAL_CORE : boolean",
+        )
+        content = replace_once(
+            content,
+            "    CLOCK_FREQUENCY       => 0,                              -- clock frequency of clk_i in Hz [not required by the core complex]\n",
+            "    CLOCK_FREQUENCY       => 0,                              -- clock frequency of clk_i in Hz [not required by the core complex]\n"
+            "    DUAL_CORE_EN          => DUAL_CORE,                      -- enable native dual-core mode\n",
+            "DUAL_CORE_EN          => DUAL_CORE,",
+        )
+        content = replace_once(
+            content,
+            "    ICACHE_EN             => configs_c.icache(CONFIG),\n",
+            "    ICACHE_EN             => configs_c.icache(CONFIG),\n"
+            "    CACHE_BURSTS_EN       => false,\n",
+            "CACHE_BURSTS_EN       => false,",
+        )
+
+        with open(filename, "w") as f:
+            f.write(content)
 
     def add_sources(self, vhd2v_converter):
         cdir = os.path.abspath(os.path.dirname(__file__))
@@ -282,8 +325,11 @@ class NEORV32(CPU):
                 if not os.path.exists(source):
                     os.system(f"wget {base_url}/{directory}/{vhd} -P {source_dir}")
 
+        self._patch_litex_wrapper(os.path.join(source_dir, "neorv32_litex_core_complex.vhd"))
+
     def add_soc_components(self, soc):
         soc.bus.add_region("dmem", SoCRegion(origin=self.mem_map["dmem"], size=8*1024, cached=True, linker=True))
+        soc.add_config("CPU_COUNT", self.cpu_count)
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
