@@ -108,14 +108,6 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         """ wrapper to add argument to "Target options group" from outer of this
         class
         """
-        if args[0] in ["--with-jtagbone", "--with-uartbone"]:
-            if args[0] == "--with-jtagbone":
-                self._rm_jtagbone = True
-            if args[0] == "--with-uartbone":
-                self._rm_uartbone = True
-            from litex.compat import compat_notice
-            compat_notice(f"Adding {args[0]} in target", date="2023-10-23", info=f"{args[0]} is now directly added by SoCCore, please remove from target.")
-            return # bypass insert
         if self._target_group is None:
             self._target_group = self.add_argument_group(title="Target options")
 
@@ -160,14 +152,7 @@ class LiteXArgumentParser(argparse.ArgumentParser):
         ======
         soc_core arguments dict
         """
-        soc_arg = soc.soc_core_argdict(self._args) # FIXME: Rename to soc_argdict in the future.
-
-        # Work around for backward compatibility
-        if getattr(self, "_rm_jtagbone", False):
-            soc_arg.pop("with_jtagbone")
-        if getattr(self, "_rm_uartbone", False):
-            soc_arg.pop("with_uartbone")
-        return soc_arg
+        return soc.soc_core_argdict(self._args) # FIXME: Rename to soc_argdict in the future.
 
     @property
     def toolchain_argdict(self):
