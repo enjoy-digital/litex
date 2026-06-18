@@ -14,7 +14,6 @@ from types import SimpleNamespace
 
 from migen import *
 
-from litex.build.efinix.efinity import EfinityToolchain
 from litex.gen import *
 
 from litex import get_data_mod
@@ -545,24 +544,20 @@ class VexiiRiscv(CPU):
             # Debug resets.
             debug_ndmreset      = Signal()
             debug_ndmreset_last = Signal()
-            debug_ndmreset_rise = Signal() # debug_ndmreset_rise is necessary because the PLL which generate the clock will be reseted aswell, so we need to sneak in a single cycle reset :(
+            debug_ndmreset_rise = Signal()
             self.cpu_params.update(
                 i_debugReset        = debug_reset,
                 o_debug_dm_ndmreset = debug_ndmreset,
             )
 
-            # Reset SoC's CRG when debug_ndmreset rising edge.
+            # Request SoC Reset when debug_ndmreset rising edge.
             self.sync.debug_por += debug_ndmreset_last.eq(debug_ndmreset)
             self.comb += debug_ndmreset_rise.eq(debug_ndmreset & ~debug_ndmreset_last)
-            if soc.get_build_name() == "sim":
-                self.comb += If(debug_ndmreset_rise, soc.crg.cd_sys.rst.eq(1))
-            else:
-                if hasattr(soc.crg.pll, "locked") and isinstance(self.platform.toolchain, EfinityToolchain):
-                    self.comb += If(debug_ndmreset, soc.crg.pll.locked.eq(0))
-                elif hasattr(soc.crg, "rst"):
-                    self.comb += If(debug_ndmreset_rise, soc.crg.rst.eq(1))
-                else:
-                    raise Exception("Pll has no reset ?")
+            soc.add_soc_reset_request(
+                name       = "debug_ndmreset",
+                reset      = debug_ndmreset_rise,
+                hold_reset = debug_ndmreset,
+            )
 
         self.soc_bus = soc.bus # FIXME: Save SoC Bus instance to retrieve the final mem layout on finalization.
 

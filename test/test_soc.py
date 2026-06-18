@@ -12,7 +12,7 @@ import unittest
 from contextlib import contextmanager
 from types import SimpleNamespace
 
-from migen import Record, Signal
+from migen import ClockDomain, Record, Signal
 
 from litex.soc.cores.hyperbus import HyperRAM
 from litex.soc.interconnect import axi, wishbone
@@ -86,6 +86,22 @@ class _HyperRamPads:
         self.cs_n  = Signal()
         self.dq    = Record([("oe", 1), ("o", 8), ("i", 8)])
         self.rwds  = Record([("oe", 1), ("o", 1), ("i", 1)])
+
+
+class _CRGWithReset:
+    def __init__(self):
+        self.rst = Signal(name="crg_rst")
+
+
+class _CRGWithSysReset:
+    def __init__(self):
+        self.cd_sys = ClockDomain("sys")
+
+
+class _CRGWithEfinityPLL:
+    def __init__(self):
+        self.rst = Signal(name="crg_rst")
+        self.pll = SimpleNamespace(locked=Signal(name="pll_locked"))
 
 
 def _make_bus_interface(interface_cls, data_width=32, address_width=32):
@@ -210,6 +226,51 @@ class TestSoCVideoFrameBuffer(unittest.TestCase):
 
         with _assert_raises_soc_error(self):
             soc._get_video_framebuffer_default_region("video_framebuffer", 0x00200000)
+
+
+class TestSoCResetRequests(unittest.TestCase):
+    def test_soc_reset_request_registers_source(self):
+        soc   = SoC(_FakePlatform(), sys_clk_freq=1e6)
+        reset = Signal()
+
+        soc.add_soc_reset_request(name="debug", reset=reset)
+
+        self.assertEqual(soc.soc_reset_requests["debug"], (reset, None))
+
+    def test_duplicate_soc_reset_request_is_rejected(self):
+        soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.add_soc_reset_request(name="debug", reset=Signal())
+
+        with _assert_raises_soc_error(self):
+            soc.add_soc_reset_request(name="debug", reset=Signal())
+
+    def test_crg_reset_signal_prefers_explicit_crg_rst(self):
+        soc     = SoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.crg = _CRGWithReset()
+
+        self.assertIs(soc._get_crg_reset_signal(), soc.crg.rst)
+
+    def test_crg_reset_signal_falls_back_to_sys_reset(self):
+        soc     = SoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.crg = _CRGWithSysReset()
+
+        self.assertIs(soc._get_crg_reset_signal(), soc.crg.cd_sys.rst)
+
+    def test_crg_reset_signal_can_disable_sys_reset_fallback(self):
+        soc     = SoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.crg = _CRGWithSysReset()
+
+        self.assertIsNone(soc._get_crg_reset_signal(with_sys_reset_fallback=False))
+
+    def test_crg_reset_hold_signal_uses_efinity_pll_lock(self):
+        from litex.build.efinix.efinity import EfinityToolchain
+
+        platform           = _FakePlatform()
+        platform.toolchain = EfinityToolchain("/tmp/efinity")
+        soc                = SoC(platform, sys_clk_freq=1e6)
+        soc.crg            = _CRGWithEfinityPLL()
+
+        self.assertIs(soc._get_crg_reset_hold_signal(), soc.crg.pll.locked)
 
 
 class TestSoCRegion(unittest.TestCase):

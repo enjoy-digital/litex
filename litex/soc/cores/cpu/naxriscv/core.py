@@ -464,13 +464,14 @@ class NaxRiscv(CPU):
                 o_debug_ndmreset = debug_ndmreset,
             )
 
-            # Reset SoC's CRG when debug_ndmreset rising edge.
+            # Request SoC Reset when debug_ndmreset rising edge.
             self.sync.debug_por += debug_ndmreset_last.eq(debug_ndmreset)
             self.comb += debug_ndmreset_rise.eq(debug_ndmreset & ~debug_ndmreset_last)
-            if soc.get_build_name() == "sim":
-                self.comb += If(debug_ndmreset_rise, soc.crg.cd_sys.rst.eq(1))
-            else:
-                self.comb += If(debug_ndmreset_rise, soc.crg.rst.eq(1))
+            soc.add_soc_reset_request(
+                name       = "debug_ndmreset",
+                reset      = debug_ndmreset_rise,
+                hold_reset = debug_ndmreset,
+            )
 
         self.soc_bus = soc.bus # FIXME: Save SoC Bus instance to retrieve the final mem layout on finalization.
 

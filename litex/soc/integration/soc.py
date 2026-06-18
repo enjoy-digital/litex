@@ -1295,6 +1295,7 @@ class SoC(LiteXModule):
         self.constants    = {}
         self.config       = {}
         self.csr_regions  = {}
+        self.soc_reset_requests = {}
         self.mem_map      = dict(self.mem_map)
 
         # Set Top-Level to LiteXContext.
@@ -1361,6 +1362,14 @@ class SoC(LiteXModule):
     def add_config(self, name, value=None, check_duplicate=True):
         name = "CONFIG_" + name
         self.add_constant(name, value, check_duplicate=check_duplicate)
+
+    def add_soc_reset_request(self, name, reset, hold_reset=None):
+        if name in self.soc_reset_requests.keys():
+            self.logger.error("{} SoC Reset Request already {}.".format(
+                colorer(name),
+                colorer("declared", color="red")))
+            raise SoCError()
+        self.soc_reset_requests[name] = (reset, hold_reset)
 
     def check_bios_requirements(self):
         # Check for required Peripherals.
@@ -1793,12 +1802,63 @@ class SoC(LiteXModule):
             self.irq.add(name, use_loc_if_exists=True)
 
     # SoC finalization -----------------------------------------------------------------------------
+    def _get_crg_reset_signal(self, with_sys_reset_fallback=True):
+        crg_rst = getattr(self.crg, "rst", None)
+        if isinstance(crg_rst, Signal):
+            return crg_rst
+
+        if not with_sys_reset_fallback:
+            return None
+
+        crg_cd_sys = getattr(self.crg, "cd_sys", None)
+        cd_sys_rst = getattr(crg_cd_sys, "rst", None)
+        if isinstance(cd_sys_rst, Signal):
+            return cd_sys_rst
+
+        return None
+
+    def _get_crg_reset_hold_signal(self):
+        try:
+            from litex.build.efinix.efinity import EfinityToolchain
+        except ImportError:
+            return None
+
+        if not isinstance(getattr(self.platform, "toolchain", None), EfinityToolchain):
+            return None
+
+        crg_pll = getattr(self.crg, "pll", None)
+        pll_locked = getattr(crg_pll, "locked", None)
+        if isinstance(pll_locked, Signal):
+            return pll_locked
+
+        return None
+
     def _finalize_reset(self):
-        # Connect soc_rst to CRG's rst if present.
-        if hasattr(self, "ctrl") and hasattr(self, "crg"):
-            crg_rst = getattr(self.crg, "rst", None)
-            if isinstance(crg_rst, Signal):
-                self.comb += If(getattr(self.ctrl, "soc_rst", 0), crg_rst.eq(1))
+        if not hasattr(self, "crg"):
+            return
+
+        crg_rst = self._get_crg_reset_signal(
+            with_sys_reset_fallback=bool(self.soc_reset_requests))
+        crg_rst_hold = self._get_crg_reset_hold_signal()
+        soc_rst      = getattr(getattr(self, "ctrl", None), "soc_rst", None)
+        hold_rst     = None
+
+        for reset, hold_reset in self.soc_reset_requests.values():
+            if (crg_rst_hold is not None) and (hold_reset is not None):
+                hold_rst = hold_reset if hold_rst is None else hold_rst | hold_reset
+            else:
+                soc_rst = reset if soc_rst is None else soc_rst | reset
+
+        # Connect SoC Reset to CRG's rst when present. Some simple/sim CRGs don't expose a
+        # separate rst signal, so fall back to the sys clock-domain reset in this case.
+        if (crg_rst is not None) and (soc_rst is not None):
+            self.comb += If(soc_rst, crg_rst.eq(1))
+
+        # Efinity SoCs keep the PLL running and hold clock-domain resets by forcing the PLL lock
+        # signal low. This avoids reset/clock interlocks when the request comes from debug logic
+        # clocked by sys_clk.
+        if (crg_rst_hold is not None) and (hold_rst is not None):
+            self.comb += If(hold_rst, crg_rst_hold.eq(0))
 
     def _finalize_bus(self):
         csr_origin = self.mem_map.get("csr", None)
