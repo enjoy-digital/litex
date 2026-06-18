@@ -477,6 +477,12 @@ class TestJTAGPHYVerilog(unittest.TestCase):
 class TestJTAGStreamEncoding(unittest.TestCase):
     """Verify jtagstream Tcl uses binary-safe byte construction."""
 
+    def get_openocd_source(self):
+        import inspect
+        import litex.build.openocd as openocd_mod
+
+        return inspect.getsource(openocd_mod)
+
     def test_binary_format_not_format_c(self):
         """jtagstream must use 'binary format c', not 'format %c'.
 
@@ -484,9 +490,7 @@ class TestJTAGStreamEncoding(unittest.TestCase):
         For values 0x80-0xFF this produces a two-byte sequence, corrupting
         the binary stream.  'binary format c' produces a raw byte.
         """
-        import litex.build.openocd as openocd_mod
-        import inspect
-        source = inspect.getsource(openocd_mod)
+        source = self.get_openocd_source()
 
         self.assertIn("binary format c", source,
             "jtagstream Tcl does not use 'binary format c' -- "
@@ -494,6 +498,17 @@ class TestJTAGStreamEncoding(unittest.TestCase):
         self.assertNotIn("format %c", source,
             "jtagstream Tcl still uses 'format %c' -- "
             "this creates UTF-8 codepoints instead of raw bytes")
+
+    def test_openocd_011_and_012_drscan_word_formats_are_supported(self):
+        """jtagstream must accept bare and 0x-prefixed drscan words."""
+        source = self.get_openocd_source()
+
+        self.assertIn("proc jtagstream_word", source,
+            "jtagstream Tcl should normalize OpenOCD drscan words")
+        self.assertIn('string range $word 0 1] "0x"', source,
+            "jtagstream Tcl should accept OpenOCD 0.12-style 0x-prefixed words")
+        self.assertNotIn('"0x${rxj}"', source,
+            "jtagstream Tcl should not blindly prefix drscan words with 0x")
 
 
 if __name__ == "__main__":

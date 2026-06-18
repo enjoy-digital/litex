@@ -136,6 +136,15 @@ class OpenOCD(GenericProgrammer):
         ir       = self.get_ir(chain, config)
         endstate = self.get_endstate(config)
         cfg = """
+proc jtagstream_word {word} {
+    set word [string trim $word]
+    if {[string equal [string range $word 0 1] "0x"] || [string equal [string range $word 0 1] "0X"]} {
+        set word [string range $word 2 end]
+    }
+    scan $word %x value
+    return $value
+}
+
 proc jtagstream_poll {tap tx n} {
     set m [string length $tx]
     set n [expr ($m>$n)?$m:$n]
@@ -162,12 +171,17 @@ proc jtagstream_poll {tap tx n} {
         cfg += """
     #echo $txi:$rxi
     set rx ""
+    set readable 0
     set writable 1
-    foreach {rxj} $rxi {
-        set readable [expr { "0x${rxj}" & 0x200 }]
-        set writable [expr { "0x${rxj}" & $writable }]
+    foreach rxj $rxi {
+        if {[string length $rxj] == 0} {
+            continue
+        }
+        set rxj [jtagstream_word $rxj]
+        set readable [expr { $rxj & 0x200 }]
+        set writable [expr { $rxj & $writable }]
         if {$readable} {
-            append rx [binary format c [expr { ("0x${rxj}" >> 1) & 0xff }]]
+            append rx [binary format c [expr { ($rxj >> 1) & 0xff }]]
         }
     }
     return [list $rx $readable $writable]
