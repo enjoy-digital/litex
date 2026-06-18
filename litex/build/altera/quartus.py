@@ -15,12 +15,32 @@ from shutil import which
 
 from migen.fhdl.structure import _Fragment
 from migen.fhdl.simplify import FullMemoryWE
+from migen.fhdl.specials import Memory
 
 from litex.build.generic_platform import Pins, IOStandard, Misc
 from litex.build.generic_toolchain import GenericToolchain
 from litex.build import tools
 
 # AlteraQuartusToolchain ---------------------------------------------------------------------------
+
+def _use_logic_style_on_small_async_read_memories(fragment):
+    for special in fragment.specials:
+        if not isinstance(special, Memory):
+            continue
+        has_ramstyle = any(
+            isinstance(attr, tuple) and attr[0] == "ramstyle"
+            for attr in getattr(special, "attr", set())
+        )
+        if has_ramstyle:
+            continue
+        if special.depth > 32:
+            continue
+        if not any(port.dat_r is not None and port.async_read for port in special.ports):
+            continue
+        if not hasattr(special, "attr"):
+            special.attr = set()
+        special.attr.add(("ramstyle", "logic"))
+
 
 class AlteraQuartusToolchain(GenericToolchain):
     attr_translate = {
@@ -45,7 +65,12 @@ class AlteraQuartusToolchain(GenericToolchain):
         self._synth_tool = synth_tool
         self._conv_tool  = conv_tool
 
-        if not platform.device.startswith("10M"):
+        if platform.device.startswith("10M"):
+            # Quartus/MAX10 can fail to infer very small mixed sync/async read memories.
+            if not isinstance(fragment, _Fragment):
+                fragment = fragment.get_fragment()
+            _use_logic_style_on_small_async_read_memories(fragment)
+        else:
             # Apply FullMemoryWE on Design (Quartus does not infer memories correctly otherwise).
             FullMemoryWE()(fragment)
 
