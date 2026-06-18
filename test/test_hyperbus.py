@@ -301,7 +301,7 @@ class TestHyperRAM(unittest.TestCase):
         dut = HyperRAM(HyperRamPads(), latency=5, latency_mode="fixed")
         run_simulation(dut, generator(dut))
 
-    def test_hyperram_wishbone_frontend_allows_burst_overlap(self):
+    def test_hyperram_wishbone_frontend_registers_burst_overlap(self):
         def generator(dut):
             yield dut.wishbone.cyc.eq(1)
             yield dut.wishbone.stb.eq(1)
@@ -317,21 +317,13 @@ class TestHyperRAM(unittest.TestCase):
             yield dut.port.req_ready.eq(1)
             yield
             self.assertEqual((yield dut.wishbone.ack), 1)
-            self.assertEqual((yield dut.port.req_valid), 1)
-            self.assertEqual((yield dut.port.req_addr), 1)
+            self.assertEqual((yield dut.port.req_valid), 0)
 
             yield dut.port.rsp_valid.eq(0)
-            yield dut.port.req_ready.eq(0)
-            yield dut.wishbone.we.eq(1)
-            yield dut.wishbone.adr.eq(2)
-            yield dut.wishbone.dat_w.eq(0x12345678)
-            yield dut.wishbone.cti.eq(wishbone.CTI_BURST_INCREMENTING)
             yield dut.port.req_ready.eq(1)
-            yield dut.port.rsp_valid.eq(1)
             yield
-            self.assertEqual((yield dut.wishbone.ack), 1)
             self.assertEqual((yield dut.port.req_valid), 1)
-            self.assertEqual((yield dut.port.req_addr), 2)
+            self.assertEqual((yield dut.port.req_addr), 1)
             yield
 
         dut = HyperRAMWishboneFrontendDUT()

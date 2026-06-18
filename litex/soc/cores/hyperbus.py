@@ -145,12 +145,7 @@ class HyperRAMWishboneFrontend(LiteXModule):
             read_accept.eq( port.req_valid & port.req_ready & ~bus.we),
             write_accept.eq(port.req_valid & port.req_ready &  bus.we),
 
-            # Keep the next Wishbone burst beat visible while returning the current response.
-            # The core can then latch the next address/data without ending the HyperRAM command.
-            port.req_valid.eq(bus.cyc & bus.stb & (
-                (~pending_read & ~pending_write) |
-                ( pending_read &  port.rsp_valid)
-            )),
+            port.req_valid.eq(bus.cyc & bus.stb & ~pending_read & ~pending_write),
             port.req_write.eq(bus.we),
             port.req_addr.eq(bus.adr),
             port.req_wdata.eq(bus.dat_w),
@@ -162,7 +157,7 @@ class HyperRAMWishboneFrontend(LiteXModule):
         self.sync += [
             # Writes can receive their native response in the same cycle they are accepted.
             # Reads always use one pending slot so dat_r is only driven on the ack cycle.
-            If(read_accept,
+            If(read_accept & ~port.rsp_valid,
                 pending_read.eq(1)
             ).Elif(port.rsp_valid & pending_read,
                 pending_read.eq(0)
@@ -175,7 +170,7 @@ class HyperRAMWishboneFrontend(LiteXModule):
         ]
 
         self.comb += [
-            If(pending_read,
+            If(pending_read | read_accept,
                 bus.ack.eq(port.rsp_valid),
                 bus.dat_r.eq(port.rsp_rdata),
             ).Elif(pending_write | write_accept,
@@ -1017,7 +1012,20 @@ class HyperRAMCore(LiteXModule):
             source.dat_r.eq(1),
             *([] if wishbone_bus else [dat_rx_conv.source.ready.eq(1)]),
             If(dat_rx_conv.source.valid,
-                NextState("END")
+                # Wishbone masters normally present the next burst address after the ack cycle.
+                # This drain beat gives that registered next request a chance to keep the
+                # HyperRAM command open without a combinatorial rsp_valid -> req_valid path.
+                If(with_bursting & burst_r & port.req_valid,
+                    port.rsp_valid.eq(1),
+                    port.rsp_rdata.eq(dat_rx_conv.source.dq),
+                    If(port.rsp_ready,
+                        port.req_ready.eq(1),
+                        bus_latch.eq(1),
+                        NextState("DAT-READ")
+                    )
+                ).Else(
+                    NextState("END")
+                )
             )
         )
         fsm.act("END",
