@@ -183,8 +183,6 @@ class S7SystemMonitor(XilinxSystemMonitor):
             self.eos.status.eq((self.eos.status & ~self.eos.rd_stb) | eos),
         ]
 
-class XADC(S7SystemMonitor): pass # For compat.
-
 # Xilinx Ultrascale System Monitor -----------------------------------------------------------------
 
 USSystemMonitorChannels = [

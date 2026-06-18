@@ -37,7 +37,7 @@ def _run(dut, gens, vcd_name=None, clocks=None):
     run_simulation(dut, gens, **kwargs)
 
 
-# SDR outputs lower to an `InferedSDRIO` submodule which defines its own
+# SDR outputs lower to an `InferredSDRIO` submodule which defines its own
 # `cd_sdrio` clock domain.  migen's simulator only ticks the clocks listed in
 # the `clocks` argument, so tests that instantiate SDROutput-based specials
 # must tell the sim about it — otherwise the output register never clocks and
@@ -304,7 +304,7 @@ class _PHYHarness(Module):
 
 class TestVideoGenericPHY(unittest.TestCase):
     """VideoGenericPHY is a thin SDR wrapper: every pixel field of the sink
-    lands on the matching pad one cycle later (InferedSDRIO adds one flop),
+    lands on the matching pad one cycle later (InferredSDRIO adds one flop),
     with r/g/b zeroed when `de` is low and with optional polarity inversion
     on hsync_n / vsync_n pads."""
 
@@ -322,7 +322,7 @@ class TestVideoGenericPHY(unittest.TestCase):
 
         def gen(dut):
             yield from self._drive(dut, r=0xaa, g=0xbb, b=0xcc, de=1, hsync=1, vsync=0)
-            yield                              # InferedSDRIO samples on the edge.
+            yield                              # InferredSDRIO samples on the edge.
             yield                              # Pads now reflect what we drove.
             self.assertEqual((yield dut.pads.r), 0xaa)
             self.assertEqual((yield dut.pads.g), 0xbb)

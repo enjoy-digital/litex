@@ -1523,10 +1523,7 @@ class SoC(LiteXModule):
         return hyperram
 
     # Add CSR Bridge -------------------------------------------------------------------------------
-    def add_csr_bridge(self, name="csr", origin=None, with_register=False, register=None):
-        # `register` is the legacy kwarg name, kept as an alias for back-compat.
-        if register is not None:
-            with_register = register
+    def add_csr_bridge(self, name="csr", origin=None, with_register=False):
         csr_bridge_cls = {
             "wishbone": wishbone.Wishbone2CSR,
             "axi-lite": axi.AXILite2CSR,

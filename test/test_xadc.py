@@ -6,7 +6,7 @@
 
 import unittest
 
-from litex.soc.cores.xadc import XADC, USSystemMonitor, USPSystemMonitor
+from litex.soc.cores.xadc import S7SystemMonitor, USSystemMonitor, USPSystemMonitor
 from litex.tools.litex_json2dts_linux import generate_dts_xadc
 
 
@@ -16,7 +16,7 @@ def get_constants(core):
 
 class TestXADC(unittest.TestCase):
     def test_s7_hwmon_constants(self):
-        constants = get_constants(XADC())
+        constants = get_constants(S7SystemMonitor())
 
         self.assertEqual(constants["hwmon_temp_scale"],      503975)
         self.assertEqual(constants["hwmon_temp_divisor"],    4096)

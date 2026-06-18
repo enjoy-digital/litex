@@ -37,9 +37,6 @@ RS232_IDLE  = 1
 RS232_START = 0
 RS232_STOP  = 1
 
-class RS232PHYInterface(UARTInterface): pass
-
-
 class RS232ClkPhaseAccum(LiteXModule):
     def __init__(self, tuning_word, mode="tx"):
         if mode not in ["tx", "rx"]:

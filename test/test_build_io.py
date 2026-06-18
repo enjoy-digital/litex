@@ -15,9 +15,6 @@ from litex.build.io import (
     DDRTristate,
     DifferentialInput,
     DifferentialOutput,
-    InferedDDRTristate,
-    InferedSDRIO,
-    InferedSDRTristate,
     InferredDDRTristate,
     InferredSDRIO,
     InferredSDRTristate,
@@ -133,11 +130,6 @@ class TestBuildIO(unittest.TestCase):
         self.assertEqual(v.count("always @(posedge "), 2)
         self.assertIn("b <= a;", v)
         self.assertIn("d <= c;", v)
-
-    def test_inferred_aliases_preserve_original_spellings(self):
-        self.assertIs(InferedSDRIO, InferredSDRIO)
-        self.assertIs(InferedSDRTristate, InferredSDRTristate)
-        self.assertIs(InferedDDRTristate, InferredDDRTristate)
 
     def test_sdr_tristate_width_mismatch_rejected(self):
         with self.assertRaisesRegex(ValueError, "SDRTristate signal widths"):

@@ -125,9 +125,6 @@ class InferredSDRIO(Module):
         sync = getattr(self.sync, cd_name)
         sync += o.eq(i)
 
-# Backward-compatible alias for the original misspelling.
-InferedSDRIO = InferredSDRIO
-
 class SDRIO(Special):
     def __init__(self, i, o, clk=None):
         Special.__init__(self)
@@ -163,9 +160,6 @@ class InferredSDRTristate(Module):
             self.specials   += SDRInput(_i, i, clk)
         self.submodules += InferredSDRIO(oe, _oe, clk)
         self.specials   += Tristate(io, _o, _oe, _i)
-
-# Backward-compatible alias for the original misspelling.
-InferedSDRTristate = InferredSDRTristate
 
 class SDRTristate(Special):
     def __init__(self, io, o, oe, i=None, clk=None):
@@ -250,9 +244,6 @@ class InferredDDRTristate(Module):
         elif i_async is not None:
             _i = i_async
         self.specials += Tristate(io, _o, _oe, _i)
-
-# Backward-compatible alias for the original misspelling.
-InferedDDRTristate = InferredDDRTristate
 
 class DDRTristate(Special):
     def __init__(self, io, o1, o2, oe1, oe2=None, i1=None, i2=None, clk=None, i_async=None):
