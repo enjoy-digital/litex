@@ -3566,7 +3566,8 @@ class SoCCore(LiteXSoC):
                 endianness = cpu_cls.endianness,
                 data_width = bus_data_width
             )
-            integrated_rom_size = len(integrated_rom_init)*(bus_data_width//8)
+            integrated_rom_init_size = len(integrated_rom_init)*(bus_data_width//8)
+            integrated_rom_size      = max(integrated_rom_size, integrated_rom_init_size)
         self.integrated_rom_size        = integrated_rom_size
         self.integrated_rom_initialized = integrated_rom_init != []
 

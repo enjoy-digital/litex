@@ -8,6 +8,7 @@ import inspect
 import logging
 import os
 import sys
+import tempfile
 import unittest
 from contextlib import contextmanager
 from types import SimpleNamespace
@@ -965,6 +966,23 @@ class TestSoC(unittest.TestCase):
     def test_soc_core_rejects_cfu_without_cfu_variant(self):
         with _assert_raises_soc_error(self):
             SoCCore(_FakePlatform(), clk_freq=1e6, cpu_type="vexriscv", cpu_cfu="cfu.v")
+
+    def test_soc_core_rom_init_keeps_requested_size(self):
+        with tempfile.NamedTemporaryFile() as init_file:
+            init_file.write(b"\x01\x02\x03\x04")
+            init_file.flush()
+
+            soc = SoCCore(_FakePlatform(),
+                clk_freq            = 1e6,
+                cpu_type            = "vexriscv",
+                integrated_rom_size = 0x20000,
+                integrated_rom_init = init_file.name,
+                uart_name           = "stub",
+                with_ctrl           = False)
+
+        self.assertEqual(soc.integrated_rom_size, 0x20000)
+        self.assertEqual(soc.bus.regions["rom"].size, 0x20000)
+        self.assertTrue(soc.integrated_rom_initialized)
 
     def test_init_ram_rejects_unknown_name(self):
         soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
