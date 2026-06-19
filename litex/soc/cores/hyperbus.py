@@ -706,20 +706,23 @@ class HyperRAMCore(LiteXModule):
     and write operations and interacts with the PHY layer for memory access.
 
     Parameters:
-    - phy           : SDR PHY interface for data transmission and reception.
-    - latency       : Default latency setting.
-    - latency_mode  : Latency mode "fixed" or "variable".
-    - clk_ratio     : Clock ratio "4:1" or "2:1".
-    - with_bursting : Enable or disable burst mode.
-    - bus_standard  : Memory bus standard: "wishbone", "axi-lite" or "axi".
-    - axi_id_width  : AXI ID width when bus_standard is "axi".
+    - phy            : SDR PHY interface for data transmission and reception.
+    - latency        : Default latency setting.
+    - latency_mode   : Latency mode "fixed" or "variable".
+    - clk_ratio      : Clock ratio "4:1" or "2:1".
+    - with_bursting  : Enable or disable burst mode.
+    - bus_standard   : Memory bus standard: "wishbone", "axi-lite" or "axi".
+    - axi_id_width   : AXI ID width when bus_standard is "axi".
+    - cs_high_cycles : Number of sys_clk cycles between commands.
     """
     def __init__(self, phy, latency=7, latency_mode="fixed", clk_ratio="4:1",
-        with_bursting=True, bus_standard="wishbone", axi_id_width=1):
+        with_bursting=True, bus_standard="wishbone", axi_id_width=1, cs_high_cycles=9):
         if bus_standard not in HYPERRAM_BUS_STANDARDS:
             raise ValueError("Unsupported HyperRAM bus standard: {}.".format(bus_standard))
         if axi_id_width <= 0:
             raise ValueError("HyperRAM AXI ID width must be positive.")
+        if cs_high_cycles < 1:
+            raise ValueError("HyperRAM CS high cycles must be positive.")
         wishbone_bus = bus_standard == "wishbone"
 
         self.port   = port   = HyperRAMNativePort()
@@ -974,10 +977,17 @@ class HyperRAMCore(LiteXModule):
         )
 
         # Data Read State.
+        read_burst = (bus_cti == wishbone.CTI_BURST_INCREMENTING)
+        if wishbone_bus:
+            # Wishbone masters such as VexRiscv-SMP can issue adjacent cache-line reads without
+            # CTI burst tags. Allow these reads to keep the HyperRAM command open, but keep writes
+            # explicit-only to avoid merging classic write cycles.
+            read_burst = read_burst | ~bus_we
         self.comb += burst_r.eq(
-            (bus_cti == wishbone.CTI_BURST_INCREMENTING) &
+            read_burst &
             port.req_valid &
-            (port.req_write == bus_we) &
+            ~port.req_write &
+            ~bus_we &
             (port.req_addr == (bus_adr + 1)),
         )
         fsm.act("DAT-READ",
@@ -1030,7 +1040,7 @@ class HyperRAMCore(LiteXModule):
         )
         fsm.act("END",
             NextValue(cycles, cycles + 1),
-            If(cycles == 8, # FIXME.
+            If(cycles == (cs_high_cycles - 1),
                 NextState("IDLE")
             )
         )
@@ -1053,14 +1063,15 @@ class HyperRAM(LiteXModule):
     - latency_mode : Latency mode "fixed" or "variable".
     - sys_clk_freq : System clock frequency.
     - clk_ratio    : Clock ratio "4:1" or "2:1".
-    - bus_standard : Memory bus standard: "wishbone", "axi-lite" or "axi".
-    - axi_id_width : AXI ID width when bus_standard is "axi".
-    - with_csr     : Include CSR support.
-    - dq_i_cd      : Clock domain for data input.
+    - bus_standard   : Memory bus standard: "wishbone", "axi-lite" or "axi".
+    - axi_id_width   : AXI ID width when bus_standard is "axi".
+    - cs_high_cycles : Number of sys_clk cycles between commands.
+    - with_csr       : Include CSR support.
+    - dq_i_cd        : Clock domain for data input.
     """
     def __init__(self, pads, latency=7, latency_mode="fixed", sys_clk_freq=100e6,
         clk_ratio="4:1", with_bursting=True, bus_standard="wishbone", axi_id_width=1,
-        with_csr=True, dq_i_cd=None):
+        cs_high_cycles=9, with_csr=True, dq_i_cd=None):
         # Parameters.
         # -----------
         check_hyperram_latency(latency)
@@ -1112,6 +1123,7 @@ class HyperRAM(LiteXModule):
             with_bursting = with_bursting,
             bus_standard  = bus_standard,
             axi_id_width  = axi_id_width,
+            cs_high_cycles = cs_high_cycles,
         )
         self.bus = core.bus
 

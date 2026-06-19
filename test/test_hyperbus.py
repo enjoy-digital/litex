@@ -16,6 +16,7 @@ from litex.soc.cores.hyperbus import (
     HyperRAMAXIFrontend,
     HyperRAMAXILiteFrontend,
     HyperRAMClkGen,
+    HyperRAMCore,
     HyperRAMNativePort,
     HyperRAMWishboneFrontend,
     hyperam_ios_layout,
@@ -76,6 +77,14 @@ class HyperRAMWishboneFrontendDUT(LiteXModule):
         self.port = HyperRAMNativePort()
         self.frontend = HyperRAMWishboneFrontend(self.wishbone, self.port)
         self.errors = 0
+
+class HyperRAMCoreDUT(LiteXModule):
+    def __init__(self):
+        phy            = Pads()
+        phy.data_width = 16
+        phy.ios        = Record([("rst_n", 1), ("rwds_i", 2)])
+        self.core      = HyperRAMCore(phy, latency=5, latency_mode="fixed")
+        self.bus       = self.core.bus
 
 def axi_aw_send(bus, addr, burst_len=0, burst_type=axi.BURST_INCR, size=2, id=0):
     yield bus.aw.valid.eq(1)
@@ -427,6 +436,62 @@ class TestHyperRAM(unittest.TestCase):
         run_simulation(dut, [fpga_gen(dut), monitor(dut)])
 
         self.assertEqual(len(command_starts), 4)
+
+    def test_hyperram_wishbone_classic_reads_can_auto_continue(self):
+        command_starts = []
+
+        def fpga_gen(dut):
+            yield dut.bus.cyc.eq(1)
+            yield dut.bus.stb.eq(1)
+            yield dut.bus.we.eq(0)
+            yield dut.bus.sel.eq(0xf)
+            yield dut.bus.cti.eq(wishbone.CTI_BURST_NONE)
+            yield dut.bus.adr.eq(0)
+
+            for n in range(4):
+                for _ in range(256):
+                    if (yield dut.bus.ack):
+                        break
+                    yield
+                else:
+                    self.fail("Wishbone classic read timed out.")
+
+                if n == 3:
+                    break
+                yield dut.bus.adr.eq(n + 1)
+                yield
+
+            yield dut.bus.cyc.eq(0)
+            yield dut.bus.stb.eq(0)
+            yield
+
+        @passive
+        def hyperram_gen(dut):
+            dq = 0
+            while True:
+                yield dut.core.source.ready.eq(1)
+                if (yield dut.core.source.valid) and (yield dut.core.source.dat_r):
+                    yield dut.core.sink.valid.eq(1)
+                    yield dut.core.sink.dq.eq(dq)
+                    dq = (dq + 1) & 0xffff
+                else:
+                    yield dut.core.sink.valid.eq(0)
+                yield
+
+        def monitor(dut):
+            was_cmd_address = 0
+            for cycle in range(1024):
+                is_cmd_address = (yield dut.core.fsm.state) == cmd_address
+                if is_cmd_address and not was_cmd_address:
+                    command_starts.append(cycle)
+                was_cmd_address = is_cmd_address
+                yield
+
+        dut = HyperRAMCoreDUT()
+        cmd_address = dut.core.fsm.encoding["CMD-ADDRESS"]
+        run_simulation(dut, [fpga_gen(dut), hyperram_gen(dut), monitor(dut)])
+
+        self.assertEqual(len(command_starts), 1)
 
     def test_hyperram_soc_bus_kwargs_keep_native_slave(self):
         cases = [
