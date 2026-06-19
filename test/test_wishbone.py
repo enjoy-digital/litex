@@ -10,7 +10,7 @@ from migen import *
 
 from litex.gen import *
 
-from litex.soc.interconnect import wishbone
+from litex.soc.interconnect import csr_bus, wishbone
 
 from litex.soc.integration.soc import SoCRegion
 
@@ -144,6 +144,65 @@ class TestWishbone(unittest.TestCase):
                 self.submodules += up_converter
                 wishbone_mem = wishbone.SRAM(32, bus=wb32)
                 self.submodules += wishbone_mem
+
+        dut = DUT()
+        run_simulation(dut, generator(dut))
+
+    def test_wishbone2csr_32_8_aligned_byte_accesses(self):
+        def read_csr_slot(dut, slot):
+            values = yield from wishbone_read_burst(dut.wb, [slot], sel=0b0001)
+            return values[0] & 0xff
+
+        def write_csr_slot(dut, slot, value):
+            yield from wishbone_write_burst(dut.wb, [slot], [value], sel=0b0001)
+
+        def generator(dut):
+            self.assertEqual((yield from read_csr_slot(dut, 0)), 0x11)
+            self.assertEqual((yield from read_csr_slot(dut, 1)), 0x22)
+            self.assertEqual((yield from read_csr_slot(dut, 2)), 0x33)
+            self.assertEqual((yield from read_csr_slot(dut, 3)), 0x44)
+
+            yield from write_csr_slot(dut, 1, 0xaa)
+            self.assertEqual((yield from read_csr_slot(dut, 0)), 0x11)
+            self.assertEqual((yield from read_csr_slot(dut, 1)), 0xaa)
+            self.assertEqual((yield from read_csr_slot(dut, 2)), 0x33)
+            self.assertEqual((yield from read_csr_slot(dut, 3)), 0x44)
+
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.wb  = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.csr = csr_bus.Interface(data_width=8, address_width=14, alignment=32)
+                self.submodules.bridge = wishbone.Wishbone2CSR(self.wb, self.csr)
+                self.mem = Memory(8, 16, init=[0x11, 0x22, 0x33, 0x44])
+                self.submodules.sram = csr_bus.SRAM(self.mem, 0, bus=self.csr)
+
+        dut = DUT()
+        run_simulation(dut, generator(dut))
+
+    def test_wishbone2csr_8_8_aligned_byte_accesses(self):
+        def read_csr_slot(dut, slot):
+            values = yield from wishbone_read_burst(dut.wb, [4*slot], sel=0b1)
+            return values[0]
+
+        def write_csr_slot(dut, slot, value):
+            yield from wishbone_write_burst(dut.wb, [4*slot], [value], sel=0b1)
+
+        def generator(dut):
+            self.assertEqual((yield from read_csr_slot(dut, 0)), 0x11)
+            self.assertEqual((yield from read_csr_slot(dut, 1)), 0x22)
+
+            yield from write_csr_slot(dut, 1, 0xaa)
+            self.assertEqual((yield from read_csr_slot(dut, 0)), 0x11)
+            self.assertEqual((yield from read_csr_slot(dut, 1)), 0xaa)
+            self.assertEqual((yield from read_csr_slot(dut, 2)), 0x33)
+
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.wb  = wishbone.Interface(data_width=8, address_width=32, addressing="word")
+                self.csr = csr_bus.Interface(data_width=8, address_width=14, alignment=32)
+                self.submodules.bridge = wishbone.Wishbone2CSR(self.wb, self.csr)
+                self.mem = Memory(8, 16, init=[0x11, 0x22, 0x33])
+                self.submodules.sram = csr_bus.SRAM(self.mem, 0, bus=self.csr)
 
         dut = DUT()
         run_simulation(dut, generator(dut))

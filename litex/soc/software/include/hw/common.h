@@ -41,17 +41,27 @@ static inline void cdelay(int i) {
 #endif
 
 /* CSR subregisters (a.k.a. "simple CSRs") are embedded inside uint32_t
- * aligned locations: */
+ * aligned locations. Access them with the configured subregister width so
+ * narrow CSR buses don't read/write adjacent subregisters through a wider
+ * CPU/bus access. */
 #define MMPTR(a) (*((volatile uint32_t *)(a)))
+
+#if CONFIG_CSR_DATA_WIDTH == 8
+#define CSR_MMPTR(a) (*((volatile uint8_t *)(a)))
+#elif CONFIG_CSR_DATA_WIDTH == 32
+#define CSR_MMPTR(a) (*((volatile uint32_t *)(a)))
+#else
+#error Unsupported CONFIG_CSR_DATA_WIDTH
+#endif
 
 static inline void csr_write_simple(unsigned long v, unsigned long a)
 {
-	MMPTR(a) = v;
+	CSR_MMPTR(a) = v;
 }
 
 static inline unsigned long csr_read_simple(unsigned long a)
 {
-	return MMPTR(a);
+	return CSR_MMPTR(a);
 }
 
 #endif /* ! __ASSEMBLER__ */

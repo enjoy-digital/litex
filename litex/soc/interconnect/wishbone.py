@@ -782,22 +782,60 @@ class Wishbone2CSR(LiteXModule):
             # If no Wishbone bus provided, create it with default parameters.
             self.wishbone = Interface()
 
-        assert self.wishbone.data_width == self.csr.data_width
+        wishbone_data_width = self.wishbone.data_width
+        csr_data_width      = self.csr.data_width
+        if wishbone_data_width < csr_data_width:
+            raise ValueError("Wishbone data width must be >= CSR data width.")
+        if (wishbone_data_width % csr_data_width) != 0:
+            raise ValueError("Wishbone data width must be a multiple of CSR data width.")
+        if (self.csr.alignment % csr_data_width) != 0:
+            raise ValueError("CSR alignment must be a multiple of CSR data width.")
 
         # # #
 
-        wishbone_adr_shift = {
-            "word" : 0,
-            "byte" : log2_int(self.wishbone.data_width//8),
-        }[self.wishbone.addressing]
+        ratio               = wishbone_data_width//csr_data_width
+        csr_bytes           = csr_data_width//8
+        wishbone_bytes      = wishbone_data_width//8
+        csr_alignment_bytes = self.csr.alignment//8
+
+        selected = Signal(max=max(2, ratio))
+        self.comb += selected.eq(0)
+        for i in reversed(range(ratio)):
+            self.comb += If(self.wishbone.sel[i*csr_bytes:(i + 1)*csr_bytes] != 0,
+                selected.eq(i)
+            )
+
+        def get_csr_adr():
+            # Convert Wishbone addresses to CSR alignment units. CSR addresses are expressed in
+            # CONFIG_CSR_ALIGNMENT-sized slots, independently of the CSR subregister data width.
+            if self.wishbone.addressing == "byte":
+                return self.wishbone.adr[log2_int(csr_alignment_bytes):]
+            if wishbone_bytes >= csr_alignment_bytes:
+                alignment_slots = wishbone_bytes//csr_alignment_bytes
+                if alignment_slots == 1:
+                    return self.wishbone.adr
+                selected_alignment = Signal(max=alignment_slots)
+                self.comb += selected_alignment.eq(
+                    selected >> log2_int(csr_alignment_bytes//csr_bytes))
+                return Cat(selected_alignment, self.wishbone.adr)
+            else:
+                return self.wishbone.adr[log2_int(csr_alignment_bytes//wishbone_bytes):]
+
+        csr_adr = get_csr_adr()
+        dat_ws  = Array(
+            self.wishbone.dat_w[i*csr_data_width:(i + 1)*csr_data_width]
+            for i in range(ratio)
+        )
+        selected_r = Signal(max=max(2, ratio))
 
         # Registered Access.
         if register:
             self.fsm = fsm = FSM(reset_state="IDLE")
             fsm.act("IDLE",
-                NextValue(self.csr.dat_w, self.wishbone.dat_w),
+                NextValue(self.csr.dat_w, dat_ws[selected]),
                 If(self.wishbone.cyc & self.wishbone.stb,
-                    NextValue(self.csr.adr, self.wishbone.adr[wishbone_adr_shift:]),
+                    NextValue(selected_r, selected),
+                    NextValue(self.csr.adr, csr_adr),
                     NextValue(self.csr.re, ~self.wishbone.we & (self.wishbone.sel != 0)),
                     NextValue(self.csr.we,  self.wishbone.we & (self.wishbone.sel != 0)),
                     NextState("WRITE-READ")
@@ -811,16 +849,22 @@ class Wishbone2CSR(LiteXModule):
             )
             fsm.act("ACK",
                 self.wishbone.ack.eq(1),
-                self.wishbone.dat_r.eq(self.csr.dat_r),
+                self.wishbone.dat_r.eq(0),
+                Case(selected_r, {
+                    i: self.wishbone.dat_r[
+                        i*csr_data_width:(i + 1)*csr_data_width
+                    ].eq(self.csr.dat_r)
+                    for i in range(ratio)
+                }),
                 NextState("IDLE")
             )
         # Un-Registered Access.
         else:
             self.fsm = fsm = FSM(reset_state="WRITE-READ")
             fsm.act("WRITE-READ",
-                self.csr.dat_w.eq(self.wishbone.dat_w),
+                self.csr.dat_w.eq(dat_ws[selected]),
                 If(self.wishbone.cyc & self.wishbone.stb,
-                    self.csr.adr.eq(self.wishbone.adr[wishbone_adr_shift:]),
+                    self.csr.adr.eq(csr_adr),
                     self.csr.re.eq(~self.wishbone.we & (self.wishbone.sel != 0)),
                     self.csr.we.eq( self.wishbone.we & (self.wishbone.sel != 0)),
                     NextState("ACK")
@@ -828,7 +872,13 @@ class Wishbone2CSR(LiteXModule):
             )
             fsm.act("ACK",
                 self.wishbone.ack.eq(1),
-                self.wishbone.dat_r.eq(self.csr.dat_r),
+                self.wishbone.dat_r.eq(0),
+                Case(selected, {
+                    i: self.wishbone.dat_r[
+                        i*csr_data_width:(i + 1)*csr_data_width
+                    ].eq(self.csr.dat_r)
+                    for i in range(ratio)
+                }),
                 NextState("WRITE-READ")
             )
 
