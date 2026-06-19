@@ -51,7 +51,7 @@ class VexiiRiscv(CPU):
     with_supervisor  = False
     with_opensbi     = False
     vexii_args       = ""
-    isa_map            = {'i', 'zicsr', 'zifencei'}
+    isa_map            = {'i', 'zicbom', 'zicsr', 'zifencei'}
     internal_mem_map   = dict()
     # vexii params received from vexii:
     xlen               = None
@@ -94,7 +94,7 @@ class VexiiRiscv(CPU):
     def get_gcc_arch():
         # Workaround: add exception for extensions that are not supported
         # by the GCC in default build.
-        ex = ["zicntr", "zicsr", "zifencei", "zihpm", "sscofpmf"]
+        ex = ["zicbom", "zicntr", "zicsr", "zifencei", "zihpm", "sscofpmf"]
 
         return VexiiRiscv.get_arch(ex)
 

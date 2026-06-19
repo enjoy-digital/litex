@@ -325,6 +325,11 @@ int serialboot(void)
 				}
 				memcpy(load_addr, &frame.payload[4], load_size);
 
+#ifdef HAS_CLEAN_CPU_DCACHE_RANGE
+				if(load_size != 0)
+					clean_cpu_dcache_range(load_addr, load_size);
+#endif
+
 				/* Acknowledge and continue */
 				uart_write(SFL_ACK_SUCCESS);
 				break;
