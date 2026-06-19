@@ -431,6 +431,13 @@ class TestLiteXSetup(unittest.TestCase):
         self.assertIn("RISC-V GCC requires manual installation on unknown-os.", output)
         self.assertNotIn("Traceback", output + stderr)
 
+    def test_riscv_toolchain_uses_homebrew_package_on_macos(self):
+        with mock.patch.object(sys, "platform", "darwin"), \
+             mock.patch("subprocess.check_call") as check_call:
+            litex_setup.riscv_gcc_install()
+
+        check_call.assert_called_once_with(["brew", "install", "riscv64-elf-gcc"])
+
     def test_mips_toolchain_uses_ubuntu_mipsel_package(self):
         with mock.patch.object(sys, "platform", "linux"), \
              mock.patch("litex_setup._read_os_release", return_value="ubuntu"), \

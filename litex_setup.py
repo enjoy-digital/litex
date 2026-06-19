@@ -837,7 +837,7 @@ def riscv_gcc_install():
     # Mac OS.
     # -------
     elif sys.platform.startswith("darwin"):
-        toolchain_install_cmd("RISC-V", ["brew", "install", "riscv-tools"])
+        toolchain_install_cmd("RISC-V", ["brew", "install", "riscv64-elf-gcc"])
 
     # Manual installation.
     # --------------------

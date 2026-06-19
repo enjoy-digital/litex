@@ -4,11 +4,15 @@ UNAME_M := $(shell uname -m)
 
 ifeq ($(UNAME_S),Darwin)
 	ifeq ($(UNAME_M),x86_64)
-		CFLAGS += -I/usr/local/include
-		LDFLAGS += -L/usr/local/lib
+		HOMEBREW_PREFIX ?= /usr/local
 	else
-		CFLAGS += -I/opt/homebrew/include
-		LDFLAGS += -L/opt/homebrew/lib
+		HOMEBREW_PREFIX ?= /opt/homebrew
+	endif
+	HOMEBREW_ZLIB_LIB := $(HOMEBREW_PREFIX)/opt/zlib/lib
+	CFLAGS += -I$(HOMEBREW_PREFIX)/include
+	LDFLAGS += -L$(HOMEBREW_PREFIX)/lib -Wl,-rpath,$(HOMEBREW_PREFIX)/lib
+	ifneq ($(wildcard $(HOMEBREW_ZLIB_LIB)/libz.*),)
+		LDFLAGS += -L$(HOMEBREW_ZLIB_LIB) -Wl,-rpath,$(HOMEBREW_ZLIB_LIB)
 	endif
 	LDFLAGS += -ljson-c
 	CFLAGS += -Wall -O3 -ggdb -fPIC
