@@ -147,6 +147,7 @@ class XilinxVivadoToolchain(GenericToolchain):
         super().__init__()
         self.bitstream_commands         = []
         self.additional_commands        = []
+        self.additional_xdc_commands    = XilinxVivadoCommands()
         self.project_commands           = XilinxVivadoCommands()
         self.pre_synthesis_commands     = XilinxVivadoCommands()
         self.pre_optimize_commands      = XilinxVivadoCommands()
@@ -199,6 +200,12 @@ class XilinxVivadoToolchain(GenericToolchain):
 
     def build_io_constraints(self):
         r = _build_xdc(self.named_sc, self.named_pc)
+        additional_xdc_commands = self.additional_xdc_commands.resolve(self._vns)
+        if additional_xdc_commands:
+            if not r.endswith("\n"):
+                r += "\n"
+            r += _xdc_separator("Additional XDC constraints")
+            r += "\n" + "\n\n".join(additional_xdc_commands)
         tools.write_to_file(self._build_name + ".xdc", r)
         return (self._build_name + ".xdc", "XDC")
 
