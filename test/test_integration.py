@@ -283,6 +283,9 @@ def test_cpu(cpu, request, tmp_path):
     variant = TESTED_CPU_VARIANTS.get(cpu, "standard")
     assert boot_test(cpu_type=cpu, cpu_variant=variant, output_dir=str(tmp_path))
 
+def test_csr_data_width_8(tmp_path):
+    assert boot_test(args="--csr-data-width=8", output_dir=str(tmp_path))
+
 @pytest.mark.skipif(
     os.environ.get("LITEX_QEMU_COSIM_TEST") != "1",
     reason="QEMU co-simulation test requires a patched QEMU binary.",
