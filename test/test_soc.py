@@ -406,6 +406,26 @@ class TestSoCBusHandler(unittest.TestCase):
         self.assertIsNone(bus.check_regions_overlap(regions))
         self.assertEqual(bus.check_regions_overlap(regions, check_linker=True), ("boot", "linker"))
 
+    def test_auto_allocation_avoids_existing_linker_regions(self):
+        bus = SoCBusHandler()
+        bus.add_region("io", SoCIORegion(origin=0x80000000, size=0x10000))
+        bus.add_region("ethmac", SoCRegion(origin=None, size=0x2000, cached=False, linker=True))
+        bus.add_region("ethmac_rx", SoCRegion(
+            origin = 0x80000000,
+            size   = 0x1000,
+            mode   = "r",
+            cached = False,
+        ))
+        bus.add_region("ethmac_tx", SoCRegion(
+            origin = 0x80001000,
+            size   = 0x1000,
+            cached = False,
+        ))
+        bus.add_region("ethmac1", SoCRegion(origin=None, size=0x2000, cached=False, linker=True))
+
+        self.assertEqual(bus.regions["ethmac"].origin,  0x80000000)
+        self.assertEqual(bus.regions["ethmac1"].origin, 0x80002000)
+
     def test_region_io_containment_uses_exact_boundaries(self):
         bus       = SoCBusHandler()
         io_region = SoCIORegion(origin=0x80000000, size=0x1000)

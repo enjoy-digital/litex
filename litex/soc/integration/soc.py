@@ -421,7 +421,7 @@ class SoCBusHandler(LiteXModule):
                     continue
                 # Check Candidate does not overlap with allocated existing regions.
                 for _, allocated in self.regions.items():
-                    if self.check_regions_overlap({"0": allocated, "1": candidate}) is not None:
+                    if self.check_regions_overlap({"0": allocated, "1": candidate}, check_linker=True) is not None:
                         origin += size
                         overlap = True
                         break
