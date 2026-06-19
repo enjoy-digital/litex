@@ -945,8 +945,11 @@ class HyperRAMCore(LiteXModule):
                 bus_dat_w.eq(port.req_wdata),
             )
         ]
+        write_burst = bus_cti == wishbone.CTI_BURST_INCREMENTING
+        if wishbone_bus:
+            write_burst = write_burst | bus_we
         self.comb += burst_w.eq(
-            (bus_cti == wishbone.CTI_BURST_INCREMENTING) &
+            write_burst &
             port.req_valid &
             (port.req_write == bus_we) &
             (port.req_addr == (bus_adr + 1)),
