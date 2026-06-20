@@ -51,17 +51,11 @@ class VexiiRiscv(CPU):
     with_supervisor  = False
     with_opensbi     = False
     vexii_args       = ""
-    isa_map            = {'i', 'zicbom', 'zicsr', 'zifencei'}
+    isa_map            = None
     internal_mem_map   = dict()
     # vexii params received from vexii:
     xlen               = None
     internal_bus_width = None
-    with_rvc           = None
-    with_rvm           = None
-    with_rvf           = None
-    with_rvd           = None
-    with_rva           = None
-    with_rvcbom        = None
 
     # ABI.
     @staticmethod
@@ -86,7 +80,11 @@ class VexiiRiscv(CPU):
             if isa in VexiiRiscv.isa_map:
                 arch += isa
 
-        arch += "_" + "_".join(filter(lambda v: len(v) > 1 and not v in ignores, VexiiRiscv.isa_map))
+        extensions = list(filter(lambda v: len(v) > 1 and not v in ignores, VexiiRiscv.isa_map))
+        if "m" in VexiiRiscv.isa_map and "zmmul" in extensions:
+            extensions.remove("zmmul")
+        if extensions:
+            arch += "_" + "_".join(extensions)
 
         return arch
 
@@ -127,7 +125,7 @@ class VexiiRiscv(CPU):
     def gcc_flags(self):
         flags =  f" -march={VexiiRiscv.get_gcc_arch()} -mabi={VexiiRiscv.get_abi()}"
         flags += f" -D__VexiiRiscv__"
-        if VexiiRiscv.with_rvcbom:
+        if "zicbom" in VexiiRiscv.isa_map:
             flags += f" -D__riscv_zicbom__"
         if VexiiRiscv.soc_args.with_aplic:
             flags += f" -D__riscv_aplic__"
@@ -189,53 +187,71 @@ class VexiiRiscv(CPU):
                                 help="Set the io region mapping for peripheral device", metavar=("ADDRESS", "LENGTH")),
 
     @staticmethod
+    def _reset_args():
+        VexiiRiscv.with_supervisor = False
+        VexiiRiscv.with_opensbi    = False
+        VexiiRiscv.vexii_args      = ""
+        VexiiRiscv.isa_map         = None
+
+    @staticmethod
+    def _build_vexii_args(args, isa_map, with_user_isa=True):
+        isa_map = set() if isa_map is None else set(isa_map)
+        vexii_args = ""
+
+        if with_user_isa:
+            isa_map.update(args.isa)
+        isa_map.update(["m", "zihpm", "zicntr"])
+        vexii_args += " --with-mul --with-div --allow-bypass-from=0"
+        vexii_args += " --fetch-l1 --fetch-l1-ways=2"
+        vexii_args += " --lsu-l1 --lsu-l1-ways=2  --with-lsu-bypass"
+        vexii_args += " --relaxed-branch"
+
+        if args.cpu_variant in ["linux", "debian"]:
+            VexiiRiscv.with_opensbi = True
+            VexiiRiscv.with_supervisor = True
+            isa_map.update(["a", "s", "u"])
+            vexii_args += " --fetch-l1-ways=4 --fetch-l1-mem-data-width-min=64"
+            vexii_args += " --lsu-l1-ways=4 --lsu-l1-mem-data-width-min=64"
+
+        if args.cpu_variant in ["debian"]:
+            isa_map.update(["c", "f", "d"])
+            vexii_args += " --xlen=64 --fma-reduced-accuracy --fpu-ignore-subnormal"
+
+        if args.cpu_variant in ["linux", "debian"]:
+            vexii_args += " --with-btb --with-ras --with-gshare"
+
+        if args.with_aia or args.imsic_interrupt_number > 0:
+            isa_map.add("smaia")
+            if "s" in isa_map:
+                isa_map.add("ssaia")
+
+        vexii_args += " --with-isa=" + ",".join(isa_map)
+        VexiiRiscv.isa_map = isa_map
+        return vexii_args
+
+    @staticmethod
     def args_read(args):
         print(args)
 
         vdir = get_data_mod("cpu", "vexiiriscv").data_location
         ndir = os.path.join(vdir, "ext", "VexiiRiscv")
 
-        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "a882924f731d8ad1b5eaff6f098f3b8ac3dbfe43", args.update_repo)
+        NaxRiscv.git_setup("VexiiRiscv", ndir, "https://github.com/SpinalHDL/VexiiRiscv.git", "dev", "235753e24f2d960e49a0852205bae1400bf22c19", args.update_repo)
 
         if not args.cpu_variant:
             args.cpu_variant = "standard"
+
+        VexiiRiscv._reset_args()
 
         if not args.io_map is None:
             VexiiRiscv.io_regions = {int(args.io_map[0], 0): int(args.io_map[1], 0)}
         VexiiRiscv.internal_mem_map.update({devinfo[0]: int(devinfo[1], 0) for devinfo in args.mem_map})
 
-        VexiiRiscv.isa_map.update(args.isa)
-        VexiiRiscv.isa_map.update(["m", "zihpm", "zicntr"])
-        VexiiRiscv.vexii_args += " --with-mul --with-div --allow-bypass-from=0"
-        VexiiRiscv.vexii_args += " --fetch-l1 --fetch-l1-ways=2"
-        VexiiRiscv.vexii_args += " --lsu-l1 --lsu-l1-ways=2  --with-lsu-bypass"
-        VexiiRiscv.vexii_args += " --relaxed-branch"
-
-        if args.cpu_variant in ["linux", "debian"]:
-            VexiiRiscv.with_opensbi = True
-            VexiiRiscv.with_supervisor = True
-            VexiiRiscv.isa_map.update(["a", "s", "u"])
-            VexiiRiscv.vexii_args += " --fetch-l1-ways=4 --fetch-l1-mem-data-width-min=64"
-            VexiiRiscv.vexii_args += " --lsu-l1-ways=4 --lsu-l1-mem-data-width-min=64"
-
-        if args.cpu_variant in ["debian"]:
-            VexiiRiscv.isa_map.update(["c", "f", "d"])
-            VexiiRiscv.vexii_args += " --xlen=64 --fma-reduced-accuracy --fpu-ignore-subnormal"
-
-        if args.cpu_variant in ["linux", "debian"]:
-            VexiiRiscv.vexii_args += " --with-btb --with-ras --with-gshare"
-
-        if args.with_aia or args.imsic_interrupt_number > 0:
-            VexiiRiscv.isa_map.add("smaia")
-            if "s" in VexiiRiscv.isa_map:
-                VexiiRiscv.isa_map.add("ssaia")
-
-        VexiiRiscv.vexii_args += " --with-isa=" + ",".join(VexiiRiscv.isa_map)
-
         VexiiRiscv.soc_args = SimpleNamespace(**{k:getattr(args,k) for k in VexiiRiscv.soc_keys})
         VexiiRiscv.no_netlist_cache = args.no_netlist_cache
-        VexiiRiscv.vexii_args      += " " + args.vexii_args
         VexiiRiscv.update_repo      = args.update_repo
+        VexiiRiscv.vexii_args       = VexiiRiscv._build_vexii_args(args, VexiiRiscv.isa_map)
+        VexiiRiscv.vexii_args      += " " + args.vexii_args
 
         md5_hash = hashlib.md5()
         md5_hash.update(VexiiRiscv.vexii_args.encode('utf-8'))
@@ -244,9 +260,13 @@ class VexiiRiscv(CPU):
         if VexiiRiscv.no_netlist_cache or not os.path.exists(ppath):
             cmd = f"""cd {ndir} && sbt "runMain vexiiriscv.soc.litex.PythonArgsGen {VexiiRiscv.vexii_args} --python-file={str(ppath)}\""""
             subprocess.check_call(cmd, shell=True)
-        # Loads variables like VexiiRiscv.with_rvm, that set the RISC-V extensions.
+        # Loads variables like VexiiRiscv.isa_map, that set the RISC-V extensions.
         with open(ppath) as file:
             exec(file.read())
+
+        # rebuild arguments
+        VexiiRiscv.vexii_args  = VexiiRiscv._build_vexii_args(args, VexiiRiscv.isa_map, with_user_isa=False)
+        VexiiRiscv.vexii_args += " " + args.vexii_args
 
         VexiiRiscv.gcc_triple = CPU_GCC_TRIPLE_RISCV32 if VexiiRiscv.xlen==32 else CPU_GCC_TRIPLE_RISCV64
         VexiiRiscv.linker_output_format = f"elf{VexiiRiscv.xlen}-littleriscv"
