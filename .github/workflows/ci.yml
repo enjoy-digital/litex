@@ -46,7 +46,7 @@ jobs:
       # Install (n)Migen / LiteX / Cores
       - name: Install LiteX
         run: |
-          python3 litex_setup.py --config=full --init --install --user --dev
+          python3 litex_setup.py --config=full --init --install --user --dev --clone-depth=1
 
       # Install GCC Toolchains (cached). The packages below are what
       # `litex_setup.py --gcc={riscv,openrisc,powerpc,mips}` resolves to on
