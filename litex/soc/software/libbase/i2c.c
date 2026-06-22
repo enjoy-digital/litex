@@ -7,26 +7,27 @@
 #include <generated/soc.h>
 #include <generated/csr.h>
 
+#include <system.h>
+
 #ifdef CONFIG_HAS_I2C
 #include <generated/i2c.h>
 
-#define I2C_PERIOD_CYCLES (CONFIG_CLOCK_FREQUENCY / I2C_FREQ_HZ)
-#define I2C_DELAY(n)	  cdelay((n)*I2C_PERIOD_CYCLES/4)
+#define U_SECOND	(1000000)
+#define I2C_PERIOD	(U_SECOND / I2C_FREQ_HZ)
+#define I2C_DELAY(n)	busy_wait_us(n * I2C_PERIOD / 4)
+
+/* Maximum time (in us) a slave may stretch the clock before we give up
+   waiting (SMBus specifies 35ms as the limit). */
+#ifndef I2C_SCL_STRETCH_TIMEOUT_US
+#define I2C_SCL_STRETCH_TIMEOUT_US 35000
+#endif
 
 int current_i2c_dev = DEFAULT_I2C_DEV;
 
-struct i2c_dev *get_i2c_devs(void) { return &i2c_devs; }
+struct i2c_dev *get_i2c_devs(void) { return i2c_devs; }
 int get_i2c_devs_count(void)       { return I2C_DEVS_COUNT; }
 void set_i2c_active_dev(int dev)   { current_i2c_dev = dev; }
 int get_i2c_active_dev(void)       { return current_i2c_dev; }
-
-static inline void cdelay(int i)
-{
-	while(i > 0) {
-		__asm__ volatile(CONFIG_CPU_NOP);
-		i--;
-	}
-}
 
 int i2c_send_init_cmds(void)
 {
@@ -53,7 +54,7 @@ int i2c_send_init_cmds(void)
 				data[0] = i2c_cmd->init_table[(i*2) + 1] & 0xff;
 			}
 
-			if (!i2c_write(i2c_cmd->i2c_addr, addr, data, len))
+			if (!i2c_write(i2c_cmd->i2c_addr, addr, data, len, 1))
 				printf("Error during write at address 0x%04x on i2c dev %d\n",
 						addr, current_i2c_dev);
 		}
@@ -74,6 +75,28 @@ static inline void i2c_oe_scl_sda(bool oe, bool scl, bool sda)
 		((scl & 1) << ops.w_scl_offset) |
 		((sda & 1) << ops.w_sda_offset)
 	);
+}
+
+static inline int i2c_read_sda(void)
+{
+	struct i2c_ops ops = i2c_devs[current_i2c_dev].ops;
+
+	return (ops.read() >> ops.r_sda_offset) & 1;
+}
+
+/* Call after releasing SCL: a slave may hold SCL low to stretch the clock
+   until it is ready. Bounded so a stuck line cannot hang the BIOS; on timeout
+   we proceed (and the transaction will fail with a NACK/bad data as before). */
+static void i2c_wait_scl_high(void)
+{
+	struct i2c_ops ops = i2c_devs[current_i2c_dev].ops;
+	int timeout;
+
+	for (timeout = 0; timeout < I2C_SCL_STRETCH_TIMEOUT_US; timeout++) {
+		if ((ops.read() >> ops.r_scl_offset) & 1)
+			return;
+		busy_wait_us(1);
+	}
 }
 
 // START condition: 1-to-0 transition of SDA when SCL is 1
@@ -105,10 +128,10 @@ static void i2c_transmit_bit(int value)
 	i2c_oe_scl_sda(1, 0, value);
 	I2C_DELAY(1);
 	i2c_oe_scl_sda(1, 1, value);
+	i2c_wait_scl_high();
 	I2C_DELAY(2);
 	i2c_oe_scl_sda(1, 0, value);
 	I2C_DELAY(1);
-	i2c_oe_scl_sda(0, 0, 0);  // release line
 }
 
 // Call when in the middle of SCL low, advances one clk period
@@ -118,9 +141,10 @@ static int i2c_receive_bit(void)
 	i2c_oe_scl_sda(0, 0, 0);
 	I2C_DELAY(1);
 	i2c_oe_scl_sda(0, 1, 0);
+	i2c_wait_scl_high();
 	I2C_DELAY(1);
 	// read in the middle of SCL high
-	value = i2c_devs[current_i2c_dev].ops.read() & 1;
+	value = i2c_read_sda();
 	I2C_DELAY(1);
 	i2c_oe_scl_sda(0, 0, 0);
 	I2C_DELAY(1);
@@ -134,12 +158,14 @@ static bool i2c_transmit_byte(unsigned char data)
 	int ack;
 
 	// SCL should have already been low for 1/4 cycle
-	i2c_oe_scl_sda(0, 0, 0);
+	// Keep SDA low to avoid short spikes from the pull-ups
+	i2c_oe_scl_sda(1, 0, 0);
 	for (i = 0; i < 8; ++i) {
 		// MSB first
 		i2c_transmit_bit((data & (1 << 7)) != 0);
 		data <<= 1;
 	}
+	i2c_oe_scl_sda(0, 0, 0); // release line
 	ack = i2c_receive_bit();
 
 	// 0 from slave means ack
@@ -157,6 +183,7 @@ static unsigned char i2c_receive_byte(bool ack)
 		data |= i2c_receive_bit();
 	}
 	i2c_transmit_bit(!ack);
+	i2c_oe_scl_sda(0, 0, 0); // release line
 
 	return data;
 }
@@ -188,9 +215,13 @@ void i2c_reset(void)
  * Some chips require that after transmiting the address, there will be no STOP in between:
  *   START WR(slaveaddr) WR(addr) START WR(slaveaddr) RD(data) RD(data) ... STOP
  */
-bool i2c_read(unsigned char slave_addr, unsigned char addr, unsigned char *data, unsigned int len, bool send_stop)
+bool i2c_read(unsigned char slave_addr, unsigned int addr, unsigned char *data, unsigned int len, bool send_stop, unsigned int addr_size)
 {
-	int i;
+	int i, j;
+
+	if ((addr_size<1) || (addr_size>4)) {
+		return false;
+	}
 
 	i2c_start();
 
@@ -198,9 +229,11 @@ bool i2c_read(unsigned char slave_addr, unsigned char addr, unsigned char *data,
 		i2c_stop();
 		return false;
 	}
-	if(!i2c_transmit_byte(addr)) {
-		i2c_stop();
-		return false;
+	for (j=addr_size-1;j>=0;j--) {
+		if(!i2c_transmit_byte((unsigned char)(0xff & (addr >> (8*j))))) {
+			i2c_stop();
+			return false;
+		}
 	}
 
 	if (send_stop) {
@@ -227,9 +260,13 @@ bool i2c_read(unsigned char slave_addr, unsigned char addr, unsigned char *data,
  * First writes the memory starting address, then writes the data:
  *   START WR(slaveaddr) WR(addr) WR(data) WR(data) ... STOP
  */
-bool i2c_write(unsigned char slave_addr, unsigned char addr, const unsigned char *data, unsigned int len)
+bool i2c_write(unsigned char slave_addr, unsigned int addr, const unsigned char *data, unsigned int len, unsigned int addr_size)
 {
-	int i;
+	int i, j;
+
+	if ((addr_size<1) || (addr_size>4)) {
+		return false;
+	}
 
 	i2c_start();
 
@@ -237,9 +274,11 @@ bool i2c_write(unsigned char slave_addr, unsigned char addr, const unsigned char
 		i2c_stop();
 		return false;
 	}
-	if(!i2c_transmit_byte(addr)) {
-		i2c_stop();
-		return false;
+	for (j=addr_size-1;j>=0;j--) {
+		if(!i2c_transmit_byte((unsigned char)(0xff & (addr >> (8*j))))) {
+			i2c_stop();
+			return false;
+		}
 	}
 	for (i = 0; i < len; ++i) {
 		if(!i2c_transmit_byte(data[i])) {
@@ -262,7 +301,12 @@ bool i2c_poll(unsigned char slave_addr)
 
     i2c_start();
     result  = i2c_transmit_byte(I2C_ADDR_WR(slave_addr));
-    result |= i2c_transmit_byte(I2C_ADDR_RD(slave_addr));
+    if (!result) {
+        i2c_start();
+        result |= i2c_transmit_byte(I2C_ADDR_RD(slave_addr));
+        if (result)
+           i2c_receive_byte(false);
+    }
     i2c_stop();
 
     return result;

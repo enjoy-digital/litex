@@ -11,6 +11,8 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
@@ -22,6 +24,7 @@ CPU_VARIANTS = ["standard", "standard+fpu", "linux", "linux+fpu", "linux+smp", "
 # Mor1kx -------------------------------------------------------------------------------------------
 
 class MOR1KX(CPU):
+    category             = "softcore"
     family               = "or1k"
     name                 = "mor1kx"
     human_name           = "MOR1KX"
@@ -32,7 +35,7 @@ class MOR1KX(CPU):
     clang_triple         = "or1k-linux"
     linker_output_format = "elf32-or1k"
     nop                  = "l.nop"
-    io_regions           = {0x80000000: 0x80000000} # Origin, Length.
+    io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
 
     # Memory Mapping for Linux variant.
     @property
@@ -41,10 +44,10 @@ class MOR1KX(CPU):
         # address of 0x0. As we are running Linux from the MAIN_RAM region - move it to satisfy
         # that requirement.
         return {
-            "main_ram" : 0x00000000,
-            "rom"      : 0x10000000,
-            "sram"     : 0x50000000,
-            "csr"      : 0xe0000000,
+            "main_ram" : 0x0000_0000,
+            "rom"      : 0x1000_0000,
+            "sram"     : 0x5000_0000,
+            "csr"      : 0xe000_0000,
         }
 
     # GCC Flags.
@@ -81,8 +84,8 @@ class MOR1KX(CPU):
         self.variant      = variant
         self.reset        = Signal()
         self.interrupt    = Signal(32)
-        self.ibus         = ibus = wishbone.Interface()
-        self.dbus         = dbus = wishbone.Interface()
+        self.ibus         = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+        self.dbus         = dbus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.periph_buses = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []           # Memory buses (Connected directly to LiteDRAM).
 
@@ -157,7 +160,7 @@ class MOR1KX(CPU):
             i_irq_i=self.interrupt,
 
             # IBus.
-            o_iwbm_adr_o = Cat(Signal(2), ibus.adr),
+            o_iwbm_adr_o = ibus.adr,
             o_iwbm_dat_o = ibus.dat_w,
             o_iwbm_sel_o = ibus.sel,
             o_iwbm_cyc_o = ibus.cyc,
@@ -171,7 +174,7 @@ class MOR1KX(CPU):
             i_iwbm_rty_i = 0,
 
             # DBus.
-            o_dwbm_adr_o = Cat(Signal(2), dbus.adr),
+            o_dwbm_adr_o = dbus.adr,
             o_dwbm_dat_o = dbus.dat_w,
             o_dwbm_sel_o = dbus.sel,
             o_dwbm_cyc_o = dbus.cyc,

@@ -4,15 +4,27 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define CMD_LINE_BUFFER_SIZE	64
+#define CMD_LINE_BUFFER_SIZE	128
 
-#define PROMPT "\e[92;1mlitex\e[0m> "
+#ifdef BIOS_CONSOLE_NO_ANSI
+#define ANSI_BOLD		""
+#define ANSI_RESET		""
+#define ANSI_LITEX		""
+#define ANSI_CLEAR_SCREEN	""
+#else
+#define ANSI_BOLD		"\e[1m"
+#define ANSI_RESET		"\e[0m"
+#define ANSI_LITEX		"\e[92;1m"
+#define ANSI_CLEAR_SCREEN	"\e[2J\e[;H"
+#endif
+
+#define PROMPT ANSI_LITEX "litex" ANSI_RESET "> "
 
 #define ESC	27
 
 struct esc_cmds {
 	const char *seq;
-	char val;
+	int val;
 };
 
 #define CTL_CH(c)		((c) - 'a' + 1)
@@ -34,14 +46,13 @@ struct esc_cmds {
 #define KEY_PAGEDOWN		136		/* Cursor Key Page Down	*/
 #define KEY_DEL			137		/* Cursor Key Del	*/
 
-#define MAX_CMDBUF_SIZE		256
-
 #define CTL_BACKSPACE		('\b')
 #define DEL			255
 #define DEL7			127
-#define CREAD_HIST_CHAR		('!')
 
-#define HIST_MAX		10
+#ifndef HIST_MAX
+#define HIST_MAX		5
+#endif
 
 #define putnstr(str,n)	do {			\
 		printf ("%.*s", n, str);	\
@@ -49,7 +60,6 @@ struct esc_cmds {
 
 #define getcmd_putch(ch)	putchar(ch)
 #define getcmd_cbeep()		getcmd_putch('\a')
-#define ANSI_CLEAR_SCREEN	"\e[2J\e[;H"
 
 #define BEGINNING_OF_LINE() {			\
 	while (num) {				\
@@ -76,6 +86,9 @@ struct esc_cmds {
 		num = eol_num;			\
 	}					\
 }
+
+// set a function which is called repeatedly as long as there are no new characters to process
+void set_idle_hook(void (*fptr)(void));
 
 int readline(char *buf, int len);
 void hist_init(void);

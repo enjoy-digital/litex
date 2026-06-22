@@ -8,6 +8,8 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
@@ -20,19 +22,20 @@ CPU_VARIANTS = {
 # GCC Flags ----------------------------------------------------------------------------------------
 
 GCC_FLAGS = {
-    #                       /-------- Base ISA
-    #                       |/------- Hardware Multiply + Divide
-    #                       ||/----- Atomics
-    #                       |||/---- Compressed ISA
-    #                       ||||/--- Single-Precision Floating-Point
-    #                       |||||/-- Double-Precision Floating-Point
-    #                       imacfd
-    "standard": "-march=rv32i     -mabi=ilp32",
+    #                       /------------ Base ISA
+    #                       |    /------- Hardware Multiply + Divide
+    #                       |    |/----- Atomics
+    #                       |    ||/---- Compressed ISA
+    #                       |    |||/--- Single-Precision Floating-Point
+    #                       |    ||||/-- Double-Precision Floating-Point
+    #                       i    macfd
+    "standard": "-march=rv32i2p0      -mabi=ilp32",
 }
 
 # FireV ------------------------------------------------------------------------------------------
 
-class firev(CPU):
+class FireV(CPU):
+    category             = "softcore"
     family               = "riscv"
     name                 = "firev"
     human_name           = "firev"
@@ -42,7 +45,7 @@ class firev(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x80000000: 0x80000000} # Origin, Length.
+    io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
 
     # GCC Flags.
     @property
@@ -56,7 +59,7 @@ class firev(CPU):
         self.variant      = variant
         self.human_name   = f"FireV-{variant.upper()}"
         self.reset        = Signal()
-        self.idbus        = idbus = wishbone.Interface()
+        self.idbus        = idbus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.periph_buses = [idbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []      # Memory buses (Connected directly to LiteDRAM).
 
@@ -95,7 +98,7 @@ class firev(CPU):
 
         # Adapt FireV Mem Bus to Wishbone.
         # --------------------------------
-        self.submodules.fsm = fsm = FSM(reset_state="WAIT")
+        self.fsm = fsm = FSM(reset_state="WAIT")
         fsm.act("WAIT",
             If(mbus.out_ram_in_valid,
                 idbus.stb.eq(1),
@@ -112,7 +115,7 @@ class firev(CPU):
         )
         self.comb += [
             idbus.we.eq(mbus.out_ram_rw),
-            idbus.adr.eq(mbus.out_ram_addr[2:]),
+            idbus.adr.eq(mbus.out_ram_addr),
             idbus.sel.eq(mbus.out_ram_wmask),
             idbus.dat_w.eq(mbus.out_ram_data_in),
 

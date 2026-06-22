@@ -9,6 +9,8 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
@@ -20,20 +22,21 @@ CPU_VARIANTS = ["standard", "mdu"]
 # GCC Flags ----------------------------------------------------------------------------------------
 
 GCC_FLAGS = {
-    #                               /-------- Base ISA
-    #                               |/------- Hardware Multiply + Divide
-    #                               ||/----- Atomics
-    #                               |||/---- Compressed ISA
-    #                               ||||/--- Single-Precision Floating-Point
-    #                               |||||/-- Double-Precision Floating-Point
-    #                               imacfd
-    "standard":         "-march=rv32i     -mabi=ilp32",
-    "mdu":              "-march=rv32im    -mabi=ilp32",
+    #                               /------------ Base ISA
+    #                               |    /------- Hardware Multiply + Divide
+    #                               |    |/----- Atomics
+    #                               |    ||/---- Compressed ISA
+    #                               |    |||/--- Single-Precision Floating-Point
+    #                               |    ||||/-- Double-Precision Floating-Point
+    #                               i    macfd
+    "standard":         "-march=rv32i2p0      -mabi=ilp32",
+    "mdu":              "-march=rv32i2p0_m    -mabi=ilp32",
 }
 
 # SERV ---------------------------------------------------------------------------------------------
 
 class SERV(CPU):
+    category             = "softcore"
     family               = "riscv"
     name                 = "serv"
     human_name           = "SERV"
@@ -43,7 +46,7 @@ class SERV(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x80000000: 0x80000000} # Origin, Length.
+    io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
 
     # GCC Flags.
     @property
@@ -56,8 +59,8 @@ class SERV(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.ibus         = ibus = wishbone.Interface()
-        self.dbus         = dbus = wishbone.Interface()
+        self.ibus         = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+        self.dbus         = dbus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.periph_buses = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []           # Memory buses (Connected directly to LiteDRAM).
 
@@ -65,20 +68,20 @@ class SERV(CPU):
 
         self.cpu_params = dict(
             # Clk / Rst
-            i_clk   = ClockSignal(),
-            i_i_rst = ResetSignal() | self.reset,
+            i_clk   = ClockSignal("sys"),
+            i_i_rst = ResetSignal("sys") | self.reset,
 
             # Timer IRQ.
             i_i_timer_irq = 0,
 
             # Ibus.
-            o_o_ibus_adr = Cat(Signal(2), ibus.adr),
+            o_o_ibus_adr = ibus.adr,
             o_o_ibus_cyc = ibus.cyc,
             i_i_ibus_rdt = ibus.dat_r,
             i_i_ibus_ack = ibus.ack,
 
             # Dbus.
-            o_o_dbus_adr = Cat(Signal(2), dbus.adr),
+            o_o_dbus_adr = dbus.adr,
             o_o_dbus_dat = dbus.dat_w,
             o_o_dbus_sel = dbus.sel,
             o_o_dbus_we  = dbus.we,

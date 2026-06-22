@@ -27,12 +27,14 @@ class Author:
     def add_year(self, year):
         self.years.append(year)
         self.years = make_unique(self.years)
+        self.years.sort()
 
 # Use Git Log + Processing to create the list of Contibutors ---------------------------------------
 
 companies = {
-    "Antmicro" : "Antmicro.com",
-    "Google"   : "Google.com",
+    "Antmicro"     : "Antmicro.com",
+    "Google"       : "Google.com",
+    "RapidSilicon" : "RapidSilicon.com",
 }
 
 def list_contributors(path):
@@ -41,7 +43,7 @@ def list_contributors(path):
     os.system(f"git log --follow --pretty=format:\"%an,%ae,%aI\" {path} | sort | uniq > contribs.csv")
 
     # Read .csv and process it.
-    authors = {}
+    contributors = {}
     with open("contribs.csv", newline='') as csvfile:
         reader = csv.reader(csvfile, delimiter=",")
         for line in reader:
@@ -53,13 +55,14 @@ def list_contributors(path):
                 if companies_email.lower() in email:
                     name  = companies_name
                     email = companies_email
-            if name in authors.keys():
-                authors[name].add_year(int(year))
+            if name in contributors.keys():
+                contributors[name].add_year(int(year))
             else:
-                authors[name] = Author(email, int(year))
+                contributors[name] = Author(email, int(year))
 
     # Export Contributors.
-    for name, info in authors.items():
+    for name in sorted(contributors.keys(), key=lambda x:x.upper()):
+        info = contributors[name]
         r = "Copyright (c) "
         if len(info.years) > 1:
             years = f"{info.years[0]}-{info.years[-1]}"

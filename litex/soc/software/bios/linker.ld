@@ -27,6 +27,7 @@ SECTIONS
 		_frodata = .;
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
+		*(.srodata .srodata.*)
 		*(.got .got.*)
 		*(.toc .toc.*)
 
@@ -51,13 +52,42 @@ SECTIONS
 		PROVIDE_HIDDEN (__bios_init_end = .);
 	} > rom
 
+	.boot_methods :
+	{
+		PROVIDE_HIDDEN (__bios_boot_start = .);
+		KEEP(*(.bios_boot))
+		PROVIDE_HIDDEN (__bios_boot_end = .);
+	} > rom
+
+	.preinit_array :
+	{
+		. = ALIGN(8);
+		PROVIDE_HIDDEN (__preinit_array_start = .);
+		KEEP(*(SORT(.preinit_array.*)))
+		KEEP(*(.preinit_array))
+		PROVIDE_HIDDEN (__preinit_array_end = .);
+	} > rom
+
 	.init_array :
 	{
-		. = ALIGN(4);
-		__init_array_start = .;
+		. = ALIGN(8);
+		PROVIDE_HIDDEN (__init_array_start = .);
 		KEEP(*(SORT(.init_array.*)))
 		KEEP(*(.init_array))
-		__init_array_end = .;
+		KEEP(*(SORT(.ctors.*)))
+		KEEP(*(.ctors))
+		PROVIDE_HIDDEN (__init_array_end = .);
+	} > rom
+
+	.fini_array :
+	{
+		. = ALIGN(8);
+		PROVIDE_HIDDEN (__fini_array_start = .);
+		KEEP(*(SORT(.fini_array.*)))
+		KEEP(*(.fini_array))
+		KEEP(*(SORT(.dtors.*)))
+		KEEP(*(.dtors))
+		PROVIDE_HIDDEN (__fini_array_end = .);
 	} > rom
 
 	.data :

@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2015-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2019 Vamsi K Vytla <vkvytla@lbl.gov>
 # SPDX-License-Identifier: BSD-2-Clause
 
@@ -9,8 +9,6 @@ from math import log2
 
 from migen import *
 from migen.genlib.roundrobin import *
-from migen.genlib.record import *
-from migen.genlib.fsm import FSM, NextState
 
 from litex.gen import *
 
@@ -18,17 +16,18 @@ from litex.soc.interconnect import stream
 
 # Status -------------------------------------------------------------------------------------------
 
-class Status(Module):
+class Status(LiteXModule):
     def __init__(self, endpoint):
         self.first   = Signal(reset=1)
         self.last    = Signal()
         self.ongoing = Signal()
 
         ongoing = Signal()
-        self.comb += If(endpoint.valid, self.last.eq(endpoint.last & endpoint.ready))
-        self.sync += ongoing.eq((endpoint.valid | ongoing) & ~self.last)
+        # Derive packet state from accepted beats.
+        self.comb += self.last.eq(endpoint.valid & endpoint.last & endpoint.ready)
         self.comb += self.ongoing.eq((endpoint.valid | ongoing) & ~self.last)
         self.sync += [
+            ongoing.eq(self.ongoing),
             If(self.last,
                 self.first.eq(1)
             ).Elif(endpoint.valid & endpoint.ready,
@@ -38,32 +37,32 @@ class Status(Module):
 
 # Arbiter ------------------------------------------------------------------------------------------
 
-class Arbiter(Module):
-    def __init__(self, masters, slave):
+class Arbiter(LiteXModule):
+    def __init__(self, masters, slave, **kwargs):
         if len(masters) == 0:
             pass
         elif len(masters) == 1:
             self.grant = Signal()
-            self.comb += masters.pop().connect(slave)
+            self.comb += masters.pop().connect(slave, **kwargs)
         else:
-            self.submodules.rr = RoundRobin(len(masters))
+            self.rr = RoundRobin(len(masters))
             self.grant = self.rr.grant
             cases = {}
             for i, master in enumerate(masters):
                 status = Status(master)
                 self.submodules += status
                 self.comb += self.rr.request[i].eq(status.ongoing)
-                cases[i] = [master.connect(slave)]
+                cases[i] = [master.connect(slave, **kwargs)]
             self.comb += Case(self.grant, cases)
 
 # Dispatcher ---------------------------------------------------------------------------------------
 
-class Dispatcher(Module):
-    def __init__(self, master, slaves, one_hot=False):
+class Dispatcher(LiteXModule):
+    def __init__(self, master, slaves, one_hot=False, **kwargs):
         if len(slaves) == 0:
             self.sel = Signal()
-        elif len(slaves) == 1:
-            self.comb += master.connect(slaves.pop())
+        elif len(slaves) == 1 and not one_hot:
+            self.comb += master.connect(slaves.pop(), **kwargs)
             self.sel = Signal()
         else:
             if one_hot:
@@ -78,13 +77,18 @@ class Dispatcher(Module):
 
             sel = Signal.like(self.sel)
             sel_ongoing = Signal.like(self.sel)
+            sel_locked = Signal()
+            # Hold the route from first beat to packet completion.
             self.sync += [
-                If(status.first,
-                    sel_ongoing.eq(self.sel)
+                If(status.last,
+                    sel_locked.eq(0)
+                ).Elif(status.first & master.valid & ~sel_locked,
+                    sel_ongoing.eq(self.sel),
+                    sel_locked.eq(1)
                 )
             ]
             self.comb += [
-                If(status.first,
+                If(~sel_locked,
                     sel.eq(self.sel)
                 ).Else(
                     sel.eq(sel_ongoing)
@@ -96,14 +100,14 @@ class Dispatcher(Module):
                     idx = 2**i
                 else:
                     idx = i
-                cases[idx] = [master.connect(slave)]
+                cases[idx] = [master.connect(slave, **kwargs)]
             cases["default"] = [master.ready.eq(1)]
             self.comb += Case(sel, cases)
 
 # Header -------------------------------------------------------------------------------------------
 
 class HeaderField:
-    def __init__(self, byte, offset, width):
+    def __init__(self, byte=0, offset=0, width=1):
         self.byte   = byte
         self.offset = offset
         self.width  = width
@@ -132,10 +136,10 @@ class Header:
             raise ValueError("Width mismatch on " + name + " field")
         return field
 
-    def encode(self, obj, signal):
+    def encode(self, obj, signal, shift=0):
         r = []
         for k, v in sorted(self.fields.items()):
-            start = v.byte*8 + v.offset
+            start = shift*8 + v.byte*8 + v.offset
             end = start + v.width
             field = self.get_field(obj, k, v.width)
             if self.swap_field_bytes:
@@ -143,10 +147,10 @@ class Header:
             r.append(signal[start:end].eq(field))
         return r
 
-    def decode(self, signal, obj):
+    def decode(self, signal, obj, shift=0):
         r = []
         for k, v in sorted(self.fields.items()):
-            start = v.byte*8 + v.offset
+            start = shift*8 + v.byte*8 + v.offset
             end = start + v.width
             field = self.get_field(obj, k, v.width)
             if self.swap_field_bytes:
@@ -157,7 +161,7 @@ class Header:
 
 # Packetizer ---------------------------------------------------------------------------------------
 
-class Packetizer(Module):
+class Packetizer(LiteXModule):
     def __init__(self, sink_description, source_description, header):
         self.sink   = sink   = stream.Endpoint(sink_description)
         self.source = source = stream.Endpoint(source_description)
@@ -171,6 +175,8 @@ class Packetizer(Module):
         header_words    = (header.length*8)//data_width
         header_leftover = header.length%bytes_per_clk
         aligned         = header_leftover == 0
+        if header_words == 0:
+            raise ValueError(f"Header length ({header.length} bytes) must be >= data width ({data_width} bits).")
 
         # Signals.
         sr       = Signal(header.length*8, reset_less=True)
@@ -186,7 +192,7 @@ class Packetizer(Module):
             self.sync += If(sr_shift, sr.eq(sr[data_width:]))
 
         # FSM.
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm_from_idle = Signal()
         fsm.act("IDLE",
             sink.ready.eq(1),
@@ -194,6 +200,7 @@ class Packetizer(Module):
             If(sink.valid,
                 sink.ready.eq(0),
                 source.valid.eq(1),
+                source.first.eq(1),
                 source.last.eq(0),
                 source.data.eq(self.header[:data_width]),
                 If(source.valid & source.ready,
@@ -209,6 +216,7 @@ class Packetizer(Module):
         )
         fsm.act("HEADER-SEND",
             source.valid.eq(1),
+            source.first.eq(0),
             source.last.eq(0),
             source.data.eq(sr[min(data_width, len(sr)-1):]),
             If(source.valid & source.ready,
@@ -224,6 +232,7 @@ class Packetizer(Module):
         )
         fsm.act("ALIGNED-DATA-COPY",
             source.valid.eq(sink.valid),
+            source.first.eq(0),
             source.last.eq(sink.last),
             source.data.eq(sink.data),
             If(source.valid & source.ready,
@@ -235,9 +244,22 @@ class Packetizer(Module):
         )
         if not aligned:
             header_offset_multiplier = 1 if header_words == 1 else 2
-            self.sync += If(source.ready, sink_d.eq(sink))
+            # Keep the previous *accepted* beat for the unaligned boundary: capturing on
+            # source.ready alone latched don't-care data during bubbles/IDLE (payload corruption)
+            # and pre-captured last during IDLE (livelock on single-beat packets). Clear last once
+            # the packet's final beat has been emitted (the Packetizer does not consume a sink
+            # beat in IDLE, so the stale last would leak into the next packet).
+            self.sync += [
+                If(sink.valid & sink.ready,
+                    sink_d.eq(sink)
+                ),
+                If(source.valid & source.ready & source.last,
+                    sink_d.last.eq(0)
+                )
+            ]
             fsm.act("UNALIGNED-DATA-COPY",
                 source.valid.eq(sink.valid | sink_d.last),
+                source.first.eq(0),
                 source.last.eq(sink_d.last),
                 If(fsm_from_idle,
                     source.data[:max(header_leftover*8, 1)].eq(sr[min(header_offset_multiplier*data_width, len(sr)-1):])
@@ -256,11 +278,14 @@ class Packetizer(Module):
 
         # Error.
         if hasattr(sink, "error") and hasattr(source, "error"):
-            self.comb += source.error.eq(sink.error)
+            if aligned:
+                self.comb += source.error.eq(sink.error)
+            else:
+                self.comb += source.error.eq(Mux(sink_d.last, sink_d.error, sink.error))
 
 # Depacketizer -------------------------------------------------------------------------------------
 
-class Depacketizer(Module):
+class Depacketizer(LiteXModule):
     def __init__(self, sink_description, source_description, header):
         self.sink   = sink   = stream.Endpoint(sink_description)
         self.source = source = stream.Endpoint(source_description)
@@ -274,6 +299,8 @@ class Depacketizer(Module):
         header_words    = (header.length*8)//data_width
         header_leftover = header.length%bytes_per_clk
         aligned         = header_leftover == 0
+        if header_words == 0:
+            raise ValueError(f"Header length ({header.length} bytes) must be >= data width ({data_width} bits).")
 
         # Signals.
         sr                = Signal(header.length*8, reset_less=True)
@@ -281,6 +308,7 @@ class Depacketizer(Module):
         sr_shift_leftover = Signal()
         count             = Signal(max=max(header_words, 2))
         sink_d            = stream.Endpoint(sink_description)
+        data_copy_first   = Signal()
 
         # Header Shift/Decode.
         if (header_words) == 1 and (header_leftover == 0):
@@ -294,7 +322,7 @@ class Depacketizer(Module):
         self.comb += header.decode(self.header, source)
 
         # FSM.
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm_from_idle = Signal()
         fsm.act("IDLE",
             sink.ready.eq(1),
@@ -302,11 +330,16 @@ class Depacketizer(Module):
             If(sink.valid,
                 sr_shift.eq(1),
                 NextValue(fsm_from_idle, 1),
+                NextValue(data_copy_first, 1),
                 If(header_words == 1,
                     NextState("ALIGNED-DATA-COPY" if aligned else "UNALIGNED-DATA-COPY"),
                 ).Else(
                     NextState("HEADER-RECEIVE")
-                )
+                ),
+                # Drop packets that end within the header (header-only/truncated): falling through
+                # would emit the *next* packet's header as payload of the previous one. (With a
+                # single-word unaligned header, last on the first beat is a valid 1-beat packet.)
+                *([If(sink.last, NextState("IDLE"))] if (aligned or (header_words > 1)) else []),
             )
         )
         fsm.act("HEADER-RECEIVE",
@@ -315,17 +348,23 @@ class Depacketizer(Module):
                 NextValue(count, count + 1),
                 sr_shift.eq(1),
                 If(count == (header_words - 1),
+                    NextValue(data_copy_first, 1),
                     NextState("ALIGNED-DATA-COPY" if aligned else "UNALIGNED-DATA-COPY"),
                     NextValue(count, count + 1),
-                )
+                ),
+                # Drop packets that end within the header (see IDLE).
+                If(sink.last, NextState("IDLE")),
             )
         )
         fsm.act("ALIGNED-DATA-COPY",
             source.valid.eq(sink.valid | sink_d.last),
+            source.first.eq(data_copy_first),
             source.last.eq(sink.last | sink_d.last),
             sink.ready.eq(source.ready),
             source.data.eq(sink.data),
             If(source.valid & source.ready,
+               NextValue(data_copy_first, 0),
+               NextValue(fsm_from_idle, 0),
                If(source.last,
                   NextState("IDLE")
                )
@@ -333,9 +372,11 @@ class Depacketizer(Module):
         )
 
         if not aligned:
+            # Keep the previous raw word for the unaligned boundary.
             self.sync += If(sink.valid & sink.ready, sink_d.eq(sink))
             fsm.act("UNALIGNED-DATA-COPY",
                 source.valid.eq(sink.valid | sink_d.last),
+                source.first.eq(data_copy_first & source.valid),
                 source.last.eq(sink.last | sink_d.last),
                 sink.ready.eq(source.ready),
                 source.data.eq(sink_d.data[header_leftover*8:]),
@@ -349,6 +390,8 @@ class Depacketizer(Module):
                     )
                 ),
                 If(source.valid & source.ready,
+                    NextValue(data_copy_first, 0),
+                    NextValue(fsm_from_idle, 0),
                     If(source.last,
                         NextState("IDLE")
                     )
@@ -357,11 +400,14 @@ class Depacketizer(Module):
 
         # Error.
         if hasattr(sink, "error") and hasattr(source, "error"):
-            self.comb += source.error.eq(sink.error)
+            if aligned:
+                self.comb += source.error.eq(sink.error)
+            else:
+                self.comb += source.error.eq(Mux(sink_d.last, sink_d.error, sink.error))
 
 # PacketFIFO ---------------------------------------------------------------------------------------
 
-class PacketFIFO(Module):
+class PacketFIFO(LiteXModule):
     def __init__(self, layout, payload_depth, param_depth=None, buffered=False):
         self.sink   = sink   = stream.Endpoint(layout)
         self.source = source = stream.Endpoint(layout)
@@ -379,15 +425,20 @@ class PacketFIFO(Module):
         # Create the FIFOs.
         payload_description = stream.EndpointDescription(payload_layout=payload_layout)
         param_description   = stream.EndpointDescription(param_layout=param_layout)
-        self.submodules.payload_fifo = payload_fifo = stream.SyncFIFO(payload_description, payload_depth, buffered)
-        self.submodules.param_fifo   = param_fifo   = stream.SyncFIFO(param_description,   param_depth,   buffered)
+        # Allow param dequeue/enqueue overlap on packet boundaries.
+        param_depth         = param_depth + 1 # +1 to allow dequeuing current while enqueuing next.
+        self.payload_fifo = payload_fifo = stream.SyncFIFO(payload_description, payload_depth, buffered)
+        self.param_fifo   = param_fifo   = stream.SyncFIFO(param_description,   param_depth,   buffered)
 
         # Connect Sink to FIFOs.
         self.comb += [
             sink.connect(param_fifo.sink,   keep=set([e[0] for e in param_layout])),
-            sink.connect(payload_fifo.sink, keep=set([e[0] for e in payload_layout] + ["last"])),
-            param_fifo.sink.valid.eq(sink.valid & sink.last),
-            payload_fifo.sink.valid.eq(sink.valid & payload_fifo.sink.ready),
+            sink.connect(payload_fifo.sink, keep=set([e[0] for e in payload_layout] + ["first", "last"])),
+            # Qualify with payload_fifo.sink.ready: with the last beat stalled on a full payload
+            # FIFO, the params would otherwise be (re-)enqueued every cycle, later replaying as
+            # phantom packets with stale payload.
+            param_fifo.sink.valid.eq(sink.valid & sink.last & payload_fifo.sink.ready),
+            payload_fifo.sink.valid.eq(sink.valid & param_fifo.sink.ready),
             sink.ready.eq(param_fifo.sink.ready & payload_fifo.sink.ready),
         ]
 

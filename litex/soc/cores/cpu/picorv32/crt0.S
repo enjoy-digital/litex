@@ -223,6 +223,9 @@ _crt0:
   la t0, _irq
   picorv32_setq_insn(q2, t0)
 
+  /* run startup init hooks */
+  jal ra, litex_startup_init
+
   /* jump to main */
   jal ra, main
 

@@ -10,7 +10,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.build.io import *
 
-# Anlogic AsyncResetSynchronizer ---------------------------------------------------------------------
+# Anlogic AsyncResetSynchronizer -------------------------------------------------------------------
 
 class AnlogicAsyncResetSynchronizerImpl(Module):
     def __init__(self, cd, async_reset):
@@ -45,7 +45,7 @@ class AnlogicAsyncResetSynchronizer:
     def lower(dr):
         return AnlogicAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
 
-# Anlogic Special Overrides --------------------------------------------------------------------------
+# Anlogic Special Overrides ------------------------------------------------------------------------
 
 anlogic_special_overrides = {
     AsyncResetSynchronizer: AnlogicAsyncResetSynchronizer,

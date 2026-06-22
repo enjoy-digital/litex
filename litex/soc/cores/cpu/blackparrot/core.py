@@ -31,15 +31,15 @@
 import os
 import sys
 from shutil import copyfile
+
 from migen import *
+
+from litex.gen import *
 
 from litex import get_data_mod
 from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
-
-class Open(Signal): pass
-
 
 # Variants -----------------------------------------------------------------------------------------
 
@@ -55,6 +55,7 @@ GCC_FLAGS = {
 # BlackParrot --------------------------------------------------------------------------------------
 
 class BlackParrot(CPU):
+    category             = "softcore"
     family               = "riscv"
     name                 = "blackparrot"
     human_name           = "BlackParrotRV64[imafd]"
@@ -64,17 +65,17 @@ class BlackParrot(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV64
     linker_output_format = "elf64-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x50000000: 0x10000000} # Origin, Length.
+    io_regions           = {0x5000_0000: 0x1000_0000} # Origin, Length.
 
     # Memory Mapping.
     @property
     def mem_map(self):
         # Keep the lower 128MBs for SoC IOs auto-allocation.
         return {
-            "csr"      : 0x58000000,
-            "rom"      : 0x70000000,
-            "sram"     : 0x71000000,
-            "main_ram" : 0x80000000,
+            "csr"      : 0x5800_0000,
+            "rom"      : 0x7000_0000,
+            "sram"     : 0x7100_0000,
+            "main_ram" : 0x8000_0000,
         }
 
     # GCC Flags.
@@ -90,7 +91,7 @@ class BlackParrot(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.idbus        = idbus = wishbone.Interface(data_width=64, adr_width=37)
+        self.idbus        = idbus = wishbone.Interface(data_width=64, adr_width=37, addressing="word")
         self.periph_buses = [idbus]
         self.memory_buses = []
 
@@ -141,7 +142,7 @@ class BlackParrot(CPU):
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
-        assert reset_address == 0x70000000, "cpu_reset_addr hardcoded to 7x00000000!"
+        assert reset_address == 0x7000_0000, "cpu_reset_addr hardcoded to 7x00000000!"
 
     @staticmethod
     def add_sources(platform, variant="standard"):
@@ -164,7 +165,7 @@ class BlackParrot(CPU):
                     vdir = os.path.expandvars(line).strip()
                     platform.add_source(vdir, "systemverilog")
                 elif (temp[0] == '/'):
-                    assert("No support for absolute path for now")
+                    raise NotImplementedError("BlackParrot source lists do not support absolute paths yet.")
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
