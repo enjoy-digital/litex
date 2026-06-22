@@ -8,17 +8,55 @@ from migen import *
 
 from litex.soc.interconnect.csr import *
 
-# DAC  ---------------------------------------------------------------------------------------
+# DAC -----------------------------------------------------------------------------------------------
 
 class DAC(Module, AutoCSR):
+    """First-order Sigma-Delta DAC.
 
-    def __init__(self, out, data_width):
-        self.out    = out
+    Provides a small one-bit Sigma-Delta DAC output. When
+    ``with_constant_transition`` is set, the raw Sigma-Delta bitstream is
+    encoded as a 3-cycle symbol:
 
-        self._value = CSRStorage(data_width, reset_less=True, description="Digital value to convert to analog.")
-        value       = Signal(data_width)
-        accum       = Signal(data_width+1)
+    - ``1`` -> ``1, 1, 0``
+    - ``0`` -> ``1, 0, 0``
 
-        self.comb   += value.eq(self._value.storage)
-        self.sync   += accum.eq(accum[0:data_width] + value)
-        self.comb   += out.eq(accum[data_width])
+    This keeps the output transition activity constant, at the cost of output rate/range.
+    """
+    def __init__(self, out, data_width=12, with_csr=True, with_constant_transition=False):
+        self.out   = out
+        self.value = Signal(data_width)
+
+        if with_csr:
+            self._value = CSRStorage(data_width, reset_less=True,
+                description="Digital value to convert to analog.")
+            self.comb += self.value.eq(self._value.storage)
+
+        # # #
+
+        accum      = Signal(data_width + 1, reset_less=True)
+        accum_next = Signal(data_width + 1)
+        sd_bit     = Signal()
+
+        self.comb += [
+            accum_next.eq(accum[:data_width] + self.value),
+            sd_bit.eq(accum[data_width]),
+        ]
+
+        if with_constant_transition:
+            phase = Signal(max=3)
+            self.sync += [
+                If(phase == 2,
+                    phase.eq(0),
+                    accum.eq(accum_next)
+                ).Else(
+                    phase.eq(phase + 1)
+                )
+            ]
+            self.comb += Case(phase, {
+                0 : out.eq(1),
+                1 : out.eq(sd_bit),
+                2 : out.eq(0),
+            })
+        else:
+            self.sync += accum.eq(accum_next)
+            self.comb += out.eq(sd_bit)
