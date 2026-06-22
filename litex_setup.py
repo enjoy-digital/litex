@@ -360,6 +360,8 @@ def litex_setup_init_repos(config="standard", tag=None, dev_mode=False, clone_de
                 clone_cmd += ["--branch", repo.branch]
             if repo.clone == "recursive":
                 clone_cmd.append("--recursive")
+                if repo_clone_depth is not None:
+                    clone_cmd.append("--shallow-submodules")
             clone_cmd.append(repo_url + name + ".git")
             try:
                 subprocess_check_output(clone_cmd, cwd=current_path)

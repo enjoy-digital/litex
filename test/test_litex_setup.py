@@ -253,6 +253,27 @@ class TestLiteXSetup(unittest.TestCase):
         self.assertEqual(self.git_output(repo_path, "rev-parse", "HEAD"), commits[0])
         self.assertEqual(self.git_output(repo_path, "rev-parse", "--is-shallow-repository"), "false")
 
+    def test_init_clone_depth_uses_shallow_submodules_for_recursive_repo(self):
+        litex_setup.git_repos = {
+            "litex": SimpleNamespace(
+                url="https://github.com/enjoy-digital/",
+                branch="master",
+                clone="recursive",
+                tag=None,
+                sha1=None,
+                develop=True,
+                editable=True,
+            ),
+        }
+        litex_setup.install_configs = {"minimal": ["litex"]}
+
+        with mock.patch("litex_setup.subprocess_check_output", return_value=b"") as run:
+            litex_setup.litex_setup_init_repos(config="minimal", clone_depth=1)
+
+        clone_cmd = run.call_args_list[0][0][0]
+        self.assertIn("--recursive", clone_cmd)
+        self.assertIn("--shallow-submodules", clone_cmd)
+
     def test_init_clone_depth_rejects_non_positive_depth(self):
         self.create_remote_only_repo()
 
