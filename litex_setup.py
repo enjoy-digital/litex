@@ -322,9 +322,25 @@ def git_init_error(name, repo_path, action):
     print_status("Check the remote URL, network/SSH access and local path, then retry --init.")
     print_status("If a partial clone was left behind, move or remove that directory before retrying.")
 
+def git_repo_uses_pinned_checkout(repo, tag=None):
+    if repo.tag is not None and (tag is not None or isinstance(repo.tag, str)):
+        return True
+    return repo.sha1 is not None
+
+def git_clone_depth_for_repo(name, repo, tag=None, clone_depth=None):
+    if clone_depth is None:
+        return None
+    if clone_depth <= 0:
+        print_error("--clone-depth must be a positive integer.")
+        raise SetupError
+    if git_repo_uses_pinned_checkout(repo, tag=tag):
+        print_status(f"{name}: using full clone since repository uses a pinned tag/SHA1 checkout.")
+        return None
+    return clone_depth
+
 # Git repositories initialization ------------------------------------------------------------------
 
-def litex_setup_init_repos(config="standard", tag=None, dev_mode=False):
+def litex_setup_init_repos(config="standard", tag=None, dev_mode=False, clone_depth=None):
     print_status("Initializing Git repositories...", underline=True)
     for name in install_configs[config]:
         repo = git_repos[name]
@@ -337,6 +353,11 @@ def litex_setup_init_repos(config="standard", tag=None, dev_mode=False):
             if dev_mode:
                 repo_url = repo_url.replace("https://github.com/", "git@github.com:")
             clone_cmd = ["git", "clone"]
+            repo_clone_depth = git_clone_depth_for_repo(name, repo, tag=tag, clone_depth=clone_depth)
+            if repo_clone_depth is not None:
+                clone_cmd += ["--depth", str(repo_clone_depth)]
+            if repo.branch is not None:
+                clone_cmd += ["--branch", repo.branch]
             if repo.clone == "recursive":
                 clone_cmd.append("--recursive")
             clone_cmd.append(repo_url + name + ".git")
@@ -965,6 +986,8 @@ def main():
         help="Pass pip's --break-system-packages option when installing outside a virtual environment.")
     parser.add_argument("--config",    default="standard",  help="Install config (minimal, standard, full).")
     parser.add_argument("--tag",       default=None,        help="Use version from release tag.")
+    parser.add_argument("--clone-depth", type=int, default=None,
+        help="Use shallow Git clones with this depth during --init when compatible.")
 
     # GCC toolchains.
     parser.add_argument("--gcc", default=None, choices=["riscv", "mips", "powerpc", "openrisc", "lm32"],
@@ -1002,7 +1025,12 @@ def main():
     if args.init:
         ci_run   = (os.environ.get("GITHUB_ACTIONS") == "true")
         dev_mode = args.dev and (not ci_run)
-        litex_setup_init_repos(config=args.config, tag=args.tag, dev_mode=dev_mode)
+        litex_setup_init_repos(
+            config      = args.config,
+            tag         = args.tag,
+            dev_mode    = dev_mode,
+            clone_depth = args.clone_depth,
+        )
 
     # Update.
     if args.update:

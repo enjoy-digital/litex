@@ -97,6 +97,40 @@ class TestLiteXSetup(unittest.TestCase):
         litex_setup.install_configs = {"minimal": ["litex"]}
         return upstream_path, repo_path
 
+    def create_remote_only_repo(self, commit_count=2):
+        remotes_path = os.path.join(self.workspace, "remotes")
+        os.makedirs(remotes_path, exist_ok=True)
+        remote_path   = os.path.join(remotes_path, "litex.git")
+        upstream_path = os.path.join(self.workspace, "upstream")
+
+        self.git(self.workspace, "init", "--bare", remote_path)
+        os.makedirs(upstream_path)
+        self.git(upstream_path, "init", "-b", "master")
+        self.configure_user(upstream_path)
+        self.git(upstream_path, "remote", "add", "origin", remote_path)
+
+        commits = []
+        for n in range(commit_count):
+            self.write_file(os.path.join(upstream_path, "README.md"), "commit-{}\n".format(n))
+            self.git(upstream_path, "add", "README.md")
+            self.git(upstream_path, "commit", "-m", "Commit {}".format(n))
+            commits.append(self.git_output(upstream_path, "rev-parse", "HEAD"))
+        self.git(upstream_path, "push", "-u", "origin", "master")
+
+        litex_setup.git_repos = {
+            "litex": SimpleNamespace(
+                url="file://" + remotes_path + "/",
+                branch="master",
+                clone="regular",
+                tag=None,
+                sha1=None,
+                develop=True,
+                editable=True,
+            ),
+        }
+        litex_setup.install_configs = {"minimal": ["litex"]}
+        return upstream_path, remote_path, commits
+
     def create_recursive_repo(self):
         remotes_path = os.path.join(self.workspace, "remotes")
         os.makedirs(remotes_path, exist_ok=True)
@@ -199,6 +233,37 @@ class TestLiteXSetup(unittest.TestCase):
         self.assertIn("LiteX only performs fast-forward updates", output)
         self.assertIn("git pull --ff-only", output)
         self.assertNotIn("Traceback", output)
+
+    def test_init_clone_depth_creates_shallow_clone(self):
+        self.create_remote_only_repo()
+
+        litex_setup.litex_setup_init_repos(config="minimal", clone_depth=1)
+
+        repo_path = os.path.join(self.workspace, "litex")
+        self.assertEqual(self.git_output(repo_path, "rev-parse", "--is-shallow-repository"), "true")
+        self.assertEqual(self.git_output(repo_path, "rev-list", "--count", "HEAD"), "1")
+
+    def test_init_clone_depth_uses_full_clone_for_pinned_sha(self):
+        _upstream_path, _remote_path, commits = self.create_remote_only_repo()
+        litex_setup.git_repos["litex"].sha1 = int(commits[0], 16)
+
+        litex_setup.litex_setup_init_repos(config="minimal", clone_depth=1)
+
+        repo_path = os.path.join(self.workspace, "litex")
+        self.assertEqual(self.git_output(repo_path, "rev-parse", "HEAD"), commits[0])
+        self.assertEqual(self.git_output(repo_path, "rev-parse", "--is-shallow-repository"), "false")
+
+    def test_init_clone_depth_rejects_non_positive_depth(self):
+        self.create_remote_only_repo()
+
+        output, stderr = self.assert_setup_error(
+            litex_setup.litex_setup_init_repos,
+            config      = "minimal",
+            clone_depth = 0,
+        )
+
+        self.assertIn("--clone-depth must be a positive integer.", output)
+        self.assertNotIn("Traceback", output + stderr)
 
     def test_init_updates_submodules_after_frozen_sha_checkout(self):
         _main_remote, _main_v1, submodule_v1 = self.create_recursive_repo()
