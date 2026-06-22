@@ -687,8 +687,14 @@ static void process_frame(void)
 		struct ip_header *hdr = &rxbuffer->frame.contents.udp.ip;
 		if(hdr->version != IP_IPV4)
 			return;
-		if(ntohl(hdr->dst_ip) != my_ip)
+		if(ntohl(hdr->dst_ip) != my_ip) {
+#ifdef ETH_UDP_BROADCAST
+			if((hdr->proto != IP_PROTO_UDP) || (ntohl(hdr->dst_ip) != IPTOINT(255, 255, 255, 255)))
+				return;
+#else
 			return;
+#endif /* ETH_UDP_BROADCAST */
+		}
 		if (hdr->proto == IP_PROTO_UDP)
 			process_udp();
 		else if (hdr->proto == IP_PROTO_ICMP)
