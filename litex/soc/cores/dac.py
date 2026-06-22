@@ -22,14 +22,12 @@ class DAC(Module, AutoCSR):
 
     This keeps the output transition activity constant, at the cost of output rate/range.
     """
-    def __init__(self, out, data_width=12, with_csr=True, with_constant_transition=False):
-        self.out   = out
+    def __init__(self, out=None, data_width=12, with_csr=True, with_constant_transition=False):
+        if out is None:
+            self.out = out = Signal()
+        else:
+            self.out = out
         self.value = Signal(data_width)
-
-        if with_csr:
-            self._value = CSRStorage(data_width, reset_less=True,
-                description="Digital value to convert to analog.")
-            self.comb += self.value.eq(self._value.storage)
 
         # # #
 
@@ -60,3 +58,11 @@ class DAC(Module, AutoCSR):
         else:
             self.sync += accum.eq(accum_next)
             self.comb += out.eq(sd_bit)
+
+        if with_csr:
+            self.add_csr(data_width)
+
+    def add_csr(self, data_width):
+        self._value = CSRStorage(data_width, reset_less=True,
+            description="Digital value to convert to analog.")
+        self.comb += self.value.eq(self._value.storage)
