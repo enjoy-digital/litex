@@ -202,6 +202,7 @@ class EtherboneReads(Packet):
             base_ret_addr = unpack_uint32_from(ba[:self.addr_size])[0]
         else:
             base_ret_addr = unpack_uint64_from(ba[:self.addr_size])[0]
+        self.base_ret_addr = base_ret_addr
         reads  = []
         offset = self.addr_size
         length = len(ba)
