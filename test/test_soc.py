@@ -1104,6 +1104,15 @@ class TestSoC(unittest.TestCase):
         with _assert_raises_soc_error(self):
             soc.add_ethernet()
 
+    def test_ethernet_dhcp_enables_dynamic_ip_and_udp_broadcast(self):
+        source = inspect.getsource(LiteXSoC.add_ethernet)
+
+        self.assertIn("with_dhcp=False", source)
+        self.assertIn("dynamic_ip = True", source)
+        self.assertIn('self.add_constant("ETH_DYNAMIC_IP")', source)
+        self.assertIn('self.add_constant("ETH_UDP_BROADCAST")', source)
+        self.assertIn('self.add_constant("ETH_WITH_DHCP")', source)
+
     def test_etherbone_requires_phy_before_imports(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
 

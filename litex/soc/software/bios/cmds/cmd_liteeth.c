@@ -200,6 +200,14 @@ static void eth_mac_addr_handler(int nb_params, char **params)
 define_command(eth_mac_addr, eth_mac_addr_handler, "Set the MAC address", LITEETH_CMDS);
 #endif
 
+#ifdef ETH_WITH_DHCP
+static void eth_dhcp_handler(int nb_params, char **params)
+{
+	dhcp_get_ip();
+}
+define_command(eth_dhcp, eth_dhcp_handler, "Get local IP address from DHCP", LITEETH_CMDS);
+#endif
+
 #ifdef ETH_DYNAMIC_IP
 static void eth_ping_handler(int nb_params, char **params)
 {
