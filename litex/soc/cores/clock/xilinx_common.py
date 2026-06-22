@@ -39,19 +39,78 @@ class XilinxClocking(LiteXModule):
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
 
-    def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, reset_buf=None, ce=None):
+    def _check_clkout_buf(self, buf, ce):
+        if buf is None:
+            return None
+        buf = buf.lower()
+        if buf in ["bufgce", "bufgctrl"] and ce is None:
+            raise ValueError("{} requires user to provide a clock enable ce Signal".format(buf.upper()))
+        if buf not in ["bufg", "bufr", "bufh", "bufgce", "bufgctrl", "bufio"]:
+            raise ValueError("Unsupported clock buffer: {}".format(buf))
+        return buf
+
+    def _insert_clkout_buf(self, clkout, clkout_buf, buf, ce=None):
+        if buf == "bufg":
+            self.specials += Instance("BUFG", i_I=clkout, o_O=clkout_buf)
+        elif buf == "bufr":
+            self.specials += Instance("BUFR", i_I=clkout, o_O=clkout_buf)
+        elif buf == "bufh":
+            self.specials += Instance("BUFH", i_I=clkout, o_O=clkout_buf)
+        elif buf == "bufgce":
+            self.specials += Instance("BUFGCE", i_I=clkout, o_O=clkout_buf, i_CE=ce)
+        elif buf == "bufgctrl":
+            self.specials += Instance("BUFGCTRL",
+                p_INIT_OUT = 0,
+                p_PRESELECT_I0 = "FALSE",
+                p_PRESELECT_I1 = "FALSE",
+                i_I0      = clkout,
+                i_I1      = 0,
+                i_CE0     = 1,
+                i_CE1     = 1,
+                i_IGNORE0 = 0,
+                i_IGNORE1 = 0,
+                i_S0      = ce,
+                i_S1      = ~ce,
+                o_O       = clkout_buf,
+            )
+        elif buf == "bufio":
+            self.specials += Instance("BUFIO", i_I=clkout, o_O=clkout_buf)
+
+    def _check_gated_clkout_cds(self, cd, gated_clkouts):
+        clk  = getattr(cd, "clk", None)
+        name = getattr(cd, "name", None) or getattr(clk, "name_override", None)
+        seen = [(cd, clk, name)]
+        for gated_cd in gated_clkouts:
+            gated_clk  = getattr(gated_cd, "clk", None)
+            gated_name = getattr(gated_cd, "name", None) or getattr(gated_clk, "name_override", None)
+            for other_cd, other_clk, other_name in seen:
+                if (gated_cd is other_cd or
+                    (gated_clk is not None and gated_clk is other_clk) or
+                    (gated_name is not None and gated_name == other_name)):
+                    raise ValueError(
+                        "Clock domain {} is already driven by this clocking instance.".format(
+                            gated_name or "<unnamed>"
+                        )
+                    )
+            seen.append((gated_cd, gated_clk, gated_name))
+            check_clkout_cd_unused(self, gated_cd)
+
+    def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, reset_buf=None, ce=None,
+        gated_clkouts=None):
         check_freq_positive(freq, "Output clock frequency")
         check_margin(margin)
         check_clkout_cd_unused(self, cd)
         check_clkout_count(self.nclkouts, self.nclkouts_max)
         if with_reset and reset_buf not in [None, "bufg"]:
             raise ValueError("Unsupported reset clock buffer: {}".format(reset_buf))
-        if buf is not None:
-            buf = buf.lower()
-            if buf == "bufgce" and ce is None:
-                raise ValueError("BUFGCE requires user to provide a clock enable ce Signal")
-            if buf not in ["bufg", "bufr", "bufh", "bufgce", "bufio"]:
-                raise ValueError("Unsupported clock buffer: {}".format(buf))
+        buf = self._check_clkout_buf(buf, ce)
+        if gated_clkouts is None:
+            gated_clkouts = {}
+        if not hasattr(gated_clkouts, "items"):
+            raise ValueError("gated_clkouts must be a dict of ClockDomain: ce Signal entries.")
+        self._check_gated_clkout_cds(cd, gated_clkouts)
+        for gated_cd, gated_ce in gated_clkouts.items():
+            self._check_clkout_buf("bufgctrl", gated_ce)
         register_clkout_cd(self, cd)
         clkout = Signal()
         self.clkouts[self.nclkouts] = ClkOut(clkout, freq, phase, margin)
@@ -63,16 +122,15 @@ class XilinxClocking(LiteXModule):
         else:
             clkout_buf = Signal()
             self.comb += cd.clk.eq(clkout_buf)
-            if buf == "bufg":
-                self.specials += Instance("BUFG", i_I=clkout, o_O=clkout_buf)
-            elif buf == "bufr":
-                self.specials += Instance("BUFR", i_I=clkout, o_O=clkout_buf)
-            elif buf == "bufh":
-                self.specials += Instance("BUFH", i_I=clkout, o_O=clkout_buf)
-            elif buf == "bufgce":
-                self.specials += Instance("BUFGCE", i_I=clkout, o_O=clkout_buf, i_CE=ce)
-            elif buf == "bufio":
-                self.specials += Instance("BUFIO", i_I=clkout, o_O=clkout_buf)
+            self._insert_clkout_buf(clkout, clkout_buf, buf, ce)
+        for gated_cd, gated_ce in gated_clkouts.items():
+            register_clkout_cd(self, gated_cd)
+            if with_reset:
+                gated_cd.rst_buf = reset_buf # FIXME: Improve.
+                self.specials += AsyncResetSynchronizer(gated_cd, ~self.locked)
+            gated_clkout_buf = Signal()
+            self.comb += gated_cd.clk.eq(gated_clkout_buf)
+            self._insert_clkout_buf(clkout, gated_clkout_buf, "bufgctrl", gated_ce)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
 

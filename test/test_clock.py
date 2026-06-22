@@ -62,6 +62,12 @@ class TestClock(unittest.TestCase):
     def assert_frequency_close(self, actual, expected, margin=1e-2):
         self.assertAlmostEqual(actual, expected, delta=expected*margin)
 
+    def get_instance_names(self, module):
+        return [
+            special.of for special in module.get_fragment().specials
+            if isinstance(special, Instance)
+        ]
+
     def get_efinix_pll_block(self, pll):
         return pll.platform.toolchain.ifacewriter.get_block(pll.name)
 
@@ -94,6 +100,67 @@ class TestClock(unittest.TestCase):
         for i in range(mmcm.nclkouts_max):
             mmcm.create_clkout(ClockDomain("clkout{}".format(i)), 200e6)
         mmcm.compute_config()
+
+    def test_s7_clkout_bufgce_uses_bufgce(self):
+        pll = S7PLL()
+        pll.register_clkin(Signal(), 100e6)
+        pll.create_clkout(ClockDomain("sys"), 100e6, buf="bufgce", ce=Signal())
+
+        instances = self.get_instance_names(pll)
+        self.assertEqual(instances.count("BUFGCE"), 1)
+        self.assertEqual(instances.count("BUFGCTRL"), 0)
+
+    def test_s7_clkout_bufgctrl_uses_bufgctrl(self):
+        pll = S7PLL()
+        pll.register_clkin(Signal(), 100e6)
+        pll.create_clkout(ClockDomain("sys"), 100e6, buf="bufgctrl", ce=Signal())
+
+        instances = self.get_instance_names(pll)
+        self.assertEqual(instances.count("BUFGCTRL"), 1)
+
+    def test_s7_clkout_gated_clkouts(self):
+        pll = S7PLL()
+        pll.register_clkin(Signal(), 100e6)
+        pll.create_clkout(ClockDomain("sys"), 100e6, gated_clkouts={
+            ClockDomain("periph0"): Signal(),
+            ClockDomain("periph1"): Signal(),
+        })
+
+        self.assertEqual(pll.nclkouts, 1)
+        instances = self.get_instance_names(pll)
+        self.assertEqual(instances.count("BUFG"), 1)
+        self.assertEqual(instances.count("BUFGCTRL"), 2)
+
+    def test_s7_clkout_bufgctrl_requires_ce(self):
+        pll = S7PLL()
+        pll.register_clkin(Signal(), 100e6)
+        with self.assertRaisesRegex(ValueError, "BUFGCTRL requires"):
+            pll.create_clkout(ClockDomain("sys"), 100e6, buf="bufgctrl")
+
+    def test_s7_clkout_gated_clkouts_require_dict(self):
+        pll = S7PLL()
+        pll.register_clkin(Signal(), 100e6)
+        with self.assertRaisesRegex(ValueError, "gated_clkouts must be a dict"):
+            pll.create_clkout(ClockDomain("sys"), 100e6, gated_clkouts=[
+                (ClockDomain("periph"), Signal()),
+            ])
+
+    def test_s7_clkout_gated_clkouts_require_ce(self):
+        pll = S7PLL()
+        pll.register_clkin(Signal(), 100e6)
+        with self.assertRaisesRegex(ValueError, "BUFGCTRL requires"):
+            pll.create_clkout(ClockDomain("sys"), 100e6, gated_clkouts={
+                ClockDomain("periph"): None,
+            })
+
+    def test_s7_clkout_gated_clkouts_reject_duplicate_domain(self):
+        pll = S7PLL()
+        pll.register_clkin(Signal(), 100e6)
+        with self.assertRaisesRegex(ValueError, "already driven"):
+            pll.create_clkout(ClockDomain("sys"), 100e6, gated_clkouts={
+                ClockDomain("sys"): Signal(),
+            })
+        self.assertEqual(pll.nclkouts, 0)
 
     # Xilinx / Ultrascale
     def test_us_pll(self):
