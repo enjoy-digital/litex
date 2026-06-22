@@ -243,10 +243,10 @@ class XilinxVivadoToolchain(GenericToolchain):
         # Add false path constraints to the XDC file.
         self.platform.add_platform_command(_xdc_separator("False path constraints"))
 
-        # Mark asynchronous inputs to MultiReg as false paths.
+        # Mark asynchronous inputs to first MultiReg stage as false paths.
         self.platform.add_platform_command(
             "set_false_path -quiet "
-            "-to [get_nets -filter {{mr_ff == TRUE}}]"
+            "-to [get_cells -hierarchical -filter {{mr_ff == TRUE}}]"
         )
 
         # Mark asynchronous reset inputs to AsyncResetSynchronizer as false paths.
