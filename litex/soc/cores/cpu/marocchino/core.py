@@ -11,6 +11,8 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU
@@ -33,7 +35,7 @@ class Marocchino(CPU):
     clang_triple         = "or1k-linux"
     linker_output_format = "elf32-or1k"
     nop                  = "l.nop"
-    io_regions           = {0x80000000: 0x80000000} # Origin, Length.
+    io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
 
     # Memory Mapping for Linux variant.
     @property
@@ -42,10 +44,10 @@ class Marocchino(CPU):
         # address of 0x0. As we are running Linux from the MAIN_RAM region - move it to satisfy
         # that requirement.
         return {
-            "main_ram" : 0x00000000,
-            "rom"      : 0x10000000,
-            "sram"     : 0x50000000,
-            "csr"      : 0xe0000000,
+            "main_ram" : 0x0000_0000,
+            "rom"      : 0x1000_0000,
+            "sram"     : 0x5000_0000,
+            "csr"      : 0xe000_0000,
         }
 
     # GCC Flags.
@@ -82,8 +84,8 @@ class Marocchino(CPU):
         self.variant      = variant
         self.reset        = Signal()
         self.interrupt    = Signal(32)
-        self.ibus         = ibus = wishbone.Interface()
-        self.dbus         = dbus = wishbone.Interface()
+        self.ibus         = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+        self.dbus         = dbus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.periph_buses = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []           # Memory buses (Connected directly to LiteDRAM).
 
@@ -115,13 +117,13 @@ class Marocchino(CPU):
             **cpu_args,
 
             # Clk / Rst.
-            i_wb_clk = ClockSignal("sys"),
-            i_wb_rst = ResetSignal("sys") | self.reset,
+            i_wb_clk  = ClockSignal("sys"),
+            i_wb_rst  = ResetSignal("sys") | self.reset,
             i_cpu_clk = ClockSignal("sys"),
             i_cpu_rst = ResetSignal("sys") | self.reset,
 
             # IBus.
-            o_iwbm_adr_o = Cat(Signal(2), ibus.adr),
+            o_iwbm_adr_o = ibus.adr,
             o_iwbm_stb_o = ibus.stb,
             o_iwbm_cyc_o = ibus.cyc,
             o_iwbm_sel_o = ibus.sel,
@@ -135,7 +137,7 @@ class Marocchino(CPU):
             i_iwbm_rty_i = 0,
 
             # DBus.
-            o_dwbm_adr_o = Cat(Signal(2), dbus.adr),
+            o_dwbm_adr_o = dbus.adr,
             o_dwbm_stb_o = dbus.stb,
             o_dwbm_cyc_o = dbus.cyc,
             o_dwbm_sel_o = dbus.sel,

@@ -9,16 +9,28 @@ import os
 import sys
 import math
 import subprocess
+import platform
 from shutil import which, copyfile
 
 from migen.fhdl.structure import _Fragment
 
+from litex.build.generic_toolchain import GenericToolchain
 from litex.build.generic_platform import *
 from litex.build import tools
 
-# Constraints (.cst and .tcl) ----------------------------------------------------------------------
+# Constraints (.cst) -------------------------------------------------------------------------------
 
-def _build_cst(named_sc, named_pc):
+def _is_differential_iostandard(iostandard):
+    name = iostandard.name.upper()
+    return name.endswith("D") or "LVDS" in name
+
+def _use_differential_constraint(other):
+    iostandards = [c for c in other if isinstance(c, IOStandard)]
+    if not iostandards:
+        return True
+    return any(_is_differential_iostandard(iostandard) for iostandard in iostandards)
+
+def _build_cst(named_sc, named_pc, additional_cst_commands, build_name):
     cst = []
 
     flat_sc = []
@@ -29,69 +41,65 @@ def _build_cst(named_sc, named_pc):
         else:
             flat_sc.append((name, pins[0], other))
 
+    def _search_pin_entry(pin_lst, pin_name):
+        for name, pin, other in pin_lst:
+            if pin_name == name:
+                return (name, pin, other)
+        return (None, None, None)
+
     for name, pin, other in flat_sc:
         if pin != "X":
+            t_name = name.split('[') # avoid index pins
+            tmp_name = t_name[0]
+            if tmp_name[-2:] == "_p" and _use_differential_constraint(other):
+                pn = tmp_name[:-2] + "_n"
+                if len(t_name) > 1:
+                    pn += '[' + t_name[1]
+                (_, n_pin, _) = _search_pin_entry(flat_sc, pn)
+                if n_pin is not None:
+                    pin = f"{pin},{n_pin}"
+            elif tmp_name[-2:] == "_n":
+                pp = tmp_name[:-2] + "_p"
+                if len(t_name) > 1:
+                    pp += '[' + t_name[1]
+                (p_name, _, p_other) = _search_pin_entry(flat_sc, pp)
+                if p_name is not None and _use_differential_constraint(p_other):
+                    continue
             cst.append(f"IO_LOC \"{name}\" {pin};")
 
+        other_cst = []
         for c in other:
             if isinstance(c, IOStandard):
-                cst.append(f"IO_PORT \"{name}\" IO_TYPE={c.name};")
+                other_cst.append(f"IO_TYPE={c.name}")
             elif isinstance(c, Misc):
-                cst.append(f"IO_PORT \"{name}\" {c.misc};")
+                other_cst.append(f"{c.misc}")
+        if len(other_cst):
+            t = " ".join(other_cst)
+            cst.append(f"IO_PORT \"{name}\" {t};")
 
     if named_pc:
         cst.extend(named_pc)
 
-    with open("top.cst", "w") as f:
-        f.write("\n".join(cst))
+    cst.extend(additional_cst_commands)
 
-def _build_sdc(clocks, vns):
-    sdc = []
-    for clk, period in sorted(clocks.items(), key=lambda x: x[0].duid):
-        sdc.append(f"create_clock -name {vns.get_name(clk)} -period {str(period)} [get_ports {{{vns.get_name(clk)}}}]")
-    with open("top.sdc", "w") as f:
-        f.write("\n".join(sdc))
-
-# Script -------------------------------------------------------------------------------------------
-
-def _build_tcl(name, partnumber, files, options):
-    tcl = []
-
-    # Set Device.
-    tcl.append(f"set_device -name {name} {partnumber}")
-
-    # Add IOs Constraints.
-    tcl.append("add_file top.cst")
-
-    # Add Timings Constraints.
-    tcl.append("add_file top.sdc")
-
-    # Add Sources.
-    for f, typ, lib in files:
-        # Support windows/powershell
-        if sys.platform == "win32": 
-            f = f.replace("\\", "\\\\")
-        tcl.append(f"add_file {f}")
-
-    # Set Options.
-    for opt, val in options.items():
-        tcl.append(f"set_option -{opt} {val}")
-
-    # Run.
-    tcl.append("run all")
-
-    # Generate .tcl.
-    with open("run.tcl", "w") as f:
-        f.write("\n".join(tcl))
+    tools.write_to_file(build_name + ".cst", "\n".join(cst))
 
 # GowinToolchain -----------------------------------------------------------------------------------
 
-class GowinToolchain:
+class GowinToolchain(GenericToolchain):
     attr_translate = {}
 
     def __init__(self):
+        super().__init__()
         self.options = {}
-        self.clocks  = dict()
+        self.additional_cst_commands = []
+        self.additional_tcl_commands = []
+
+    def finalize(self):
+        if self.platform.verilog_include_paths:
+            self.options["include_path"] = "{" + ";".join(self.platform.verilog_include_paths) + "}"
+
+        self.apply_hyperram_integration_hack(self._build_name + ".v")
 
     def apply_hyperram_integration_hack(self, v_file):
         # FIXME: Gowin EDA expects a very specific HypeRAM integration pattern, modify generated verilog to match it.
@@ -116,85 +124,107 @@ class GowinToolchain:
         tools.replace_in_file(v_file, "[1:0] IO_psram_rwds,", "[1:0] IO_psram_rwds, /* synthesis syn_tristate = 1 */")
         tools.replace_in_file(v_file, "[15:0] IO_psram_dq,",    "[15:0] IO_psram_dq,  /* synthesis syn_tristate = 1 */")
 
-    def build(self, platform, fragment,
-        build_dir  = "build",
-        build_name = "top",
-        run        = True,
-        **kwargs):
+    # Constraints (.cst ) --------------------------------------------------------------------------
 
-        # Create build directory.
-        cwd = os.getcwd()
-        os.makedirs(build_dir, exist_ok=True)
-        os.chdir(build_dir)
+    def build_io_constraints(self):
+        _build_cst(self.named_sc, self.named_pc, self.additional_cst_commands, self._build_name)
+        return (f"{self._build_name}.cst", "CST")
 
-        # Finalize design
-        if not isinstance(fragment, _Fragment):
-            fragment = fragment.get_fragment()
-        platform.finalize(fragment)
+    # Timing Constraints (.sdc ) -------------------------------------------------------------------
 
-        # Generate verilog
-        v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
-        named_sc, named_pc = platform.resolve_signals(v_output.ns)
-        v_file = build_name + ".v"
-        v_output.write(v_file)
-        platform.add_source(v_file)
-        self.apply_hyperram_integration_hack(v_file)
+    def build_timing_constraints(self, vns):
+        sdc = []
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            clk_sig = self._vns.get_name(clk)
+            if name is None:
+                name = clk_sig
+            # Constrain IO clocks with get_ports and internal clocks (ex: PLL outputs) with get_nets.
+            is_port = False
+            for sig, pins, others, resname in self.named_sc:
+                if sig == clk_sig:
+                    is_port = True
+            if is_port:
+                sdc.append(f"create_clock -name {name} -period {str(period)} [get_ports {{{clk_sig}}}]")
+            else:
+                sdc.append(f"create_clock -name {name} -period {str(period)} [get_nets {{{clk_sig}}}]")
+        tools.write_to_file(f"{self._build_name}.sdc", "\n".join(sdc))
+        return (f"{self._build_name}.sdc", "SDC")
 
-        if platform.verilog_include_paths:
-            self.options["include_path"] = "{" + ";".join(platform.verilog_include_paths) + "}"
+    # Project (tcl) --------------------------------------------------------------------------------
 
-        # Generate constraints file.
-        # IOs (.cst).
-        _build_cst(
-            named_sc = named_sc,
-            named_pc = named_pc
+    def build_project(self):
+        tcl = []
+
+        # Set Device.
+        tcl.append(f"set_device -name {self.platform.devicename} {self.platform.device}")
+
+        # Add IOs Constraints.
+        tcl.append(f"add_file {self._build_name}.cst")
+
+        # Add Timings Constraints.
+        tcl.append(f"add_file {self._build_name}.sdc")
+
+        # Add Sources.
+        for f, typ, lib, *_ in self.platform.sources:
+            # Support windows/powershell
+            if sys.platform == "win32":
+                f = f.replace("\\", "\\\\")
+            tcl.append(f"add_file {f}")
+
+        # Set Options.
+        for opt, val in self.options.items():
+            tcl.append(f"set_option -{opt} {val}")
+
+        # Additionals Commands.
+        for additional_tcl_command in self.additional_tcl_commands:
+            tcl.append(additional_tcl_command)
+
+        # Run.
+        tcl.append("run all")
+
+        # Generate .tcl.
+        tools.write_to_file("run.tcl", "\n".join(tcl))
+
+    # Script ---------------------------------------------------------------------------------------
+
+    def build_script(self):
+        return "" # gw_sh use
+
+    def run_script(self, script):
+        # Support Powershell/WSL platform
+        # Some python distros for windows (e.g, oss-cad-suite)
+        # which does not have 'os.uname' support, we should check 'sys.platform' firstly.
+        gw_sh      = "gw_sh"
+        gw_sh_path = which(gw_sh)
+
+        if gw_sh_path is None:
+            msg = "Unable to find Gowin toolchain, please:\n"
+            msg += "- Add Gowin toolchain to your $PATH."
+            raise OSError(msg)
+
+        # Resolve the path in case it is a symlink.
+        gw_sh_path = os.path.realpath(gw_sh_path)
+
+        # Prefer Gowin's bundled libs (avoids Qt/libstdc++ version mismatches).
+        env           = os.environ.copy()
+        export_values = {
+            True:  ["DYLD_LIBRARY_PATH", "DYLD_FRAMEWORK_PATH"],
+            False: ["LD_LIBRARY_PATH"]
+        }[platform.system() == "Darwin"]
+
+        # Based on gw_sh path gowin_lib is 1 directory before
+        # So split path, removes binary name and bin directory
+        # Before rebuilding the path
+        gowin_lib = os.path.join(os.path.dirname(os.path.dirname(gw_sh_path)), "lib")
+
+        if os.path.isdir(gowin_lib):
+            for value in export_values:
+                env[value] = gowin_lib + ((":" + env[value]) if env.get(value) else "")
+        if subprocess.call([gw_sh, "run.tcl"], env=env) != 0:
+            raise OSError("Error occured during Gowin's script execution.")
+
+        # Copy Bitstream to from impl to gateware directory.
+        copyfile(
+            os.path.join("impl", "pnr", "project.fs"),
+            os.path.join(self._build_name + ".fs")
         )
-
-        # Timings (.sdc)
-        _build_sdc(
-            clocks  = self.clocks,
-            vns     = v_output.ns
-        )
-
-        # Generate build script (.tcl)
-        script = _build_tcl(
-            name       = platform.devicename,
-            partnumber = platform.device,
-            files      = platform.sources,
-            options    = self.options)
-
-        # Run
-        if run:
-            # Support Powershell/WSL platform
-            # Some python distros for windows (e.g, oss-cad-suite)
-            # which does not have 'os.uname' support, we should check 'sys.platform' firstly.
-            gw_sh = "gw_sh"
-            if sys.platform.find("linux") >= 0:
-                if os.uname().release.find("WSL") > 0:
-                    gw_sh += ".exe"
-            if which(gw_sh) is None:
-                msg = "Unable to find Gowin toolchain, please:\n"
-                msg += "- Add Gowin toolchain to your $PATH."
-                raise OSError(msg)
-
-            if subprocess.call([gw_sh, "run.tcl"]) != 0:
-                raise OSError("Error occured during Gowin's script execution.")
-
-            # Copy Bitstream to from impl to gateware directory.
-            copyfile(
-                os.path.join(build_dir, "impl", "pnr", "project.fs"),
-                os.path.join(build_dir, build_name + ".fs")
-            )
-
-        os.chdir(cwd)
-
-        return v_output.ns
-
-    def add_period_constraint(self, platform, clk, period):
-        clk.attr.add("keep")
-        period = math.floor(period*1e3)/1e3 # round to lowest picosecond
-        if clk in self.clocks:
-            if period != self.clocks[clk]:
-                raise ValueError("Clock already constrained to {:.2f}ns, new constraint to {:.2f}ns"
-                    .format(self.clocks[clk], period))
-        self.clocks[clk] = period

@@ -16,64 +16,53 @@
 
 static int tab_pressed = 0;
 
-char sl[HIST_DEPTH][CMD_LINE_BUFFER_SIZE];
-int sl_idx = 0;
-
-char out[CMD_LINE_BUFFER_SIZE];
-
-static void string_list_init(void)
+static int command_match(const char *instr, const char *name)
 {
-	int i;
-	for (i = 0; i < HIST_DEPTH; i++)
-		sl[i][0] = 0;
+	return !strncmp(instr, name, strlen(instr));
 }
 
-static int string_list_add(const char *string)
+static int command_complete_suffix(char *instr, char *outstr, int outlen)
 {
-	int i;
-	for (i = 0; i < HIST_DEPTH; i++) {
-		if (sl[i][0] == 0) {
-			strncpy(&sl[i][0], string, CMD_LINE_BUFFER_SIZE);
-			return 0;
+	struct command_struct * const *cmd;
+	const char *name;
+	int pos = strlen(instr);
+	int outpos = 0;
+	int count = 0;
+
+	outstr[0] = 0;
+	for (cmd = __bios_cmd_start; cmd != __bios_cmd_end; cmd++) {
+		name = (*cmd)->name;
+		if (!command_match(instr, name))
+			continue;
+		count++;
+		if (count == 1) {
+			while ((outpos < outlen - 1) && name[pos + outpos]) {
+				outstr[outpos] = name[pos + outpos];
+				outpos++;
+			}
+			outstr[outpos] = 0;
+		} else {
+			int common = 0;
+			while ((common < outpos) && name[pos + common] &&
+			       (outstr[common] == name[pos + common]))
+				common++;
+			outpos = common;
+			outstr[outpos] = 0;
 		}
 	}
-	return -1;
-}
 
-static int string_list_empty(void)
-{
-	int i;
-	for (i = 0; i < HIST_DEPTH; i++)
-		if (sl[i][0] != 0)
-			return 0;
-	return 1;
-}
-
-static int string_list_count(void)
-{
-	int i, count = 0;
-	for (i = 0; i < HIST_DEPTH; i++)
-		if (sl[i][0] != 0)
-			count++;
 	return count;
 }
 
-static char *list_first_entry(void)
+static void command_matches_print_by_column(char *instr)
 {
-	int i;
-	for (i = 0; i < HIST_DEPTH; i++)
-		if (sl[i][0] != 0)
-			return &sl[i][0];
-	return NULL;
-}
+	struct command_struct * const *cmd;
+	int len = 0, num, i = 0;
 
-static void string_list_print_by_column(void)
-{
-	int len = 0, num, i, j;
-
-	for (i = 0; i < HIST_DEPTH; i++) {
-		if (sl[i][0] != 0) {
-			int l = strlen(&sl[i][0]) + 4;
+	for (cmd = __bios_cmd_start; cmd != __bios_cmd_end; cmd++) {
+		const char *name = (*cmd)->name;
+		if (command_match(instr, name)) {
+			int l = strlen(name) + 4;
 			if (l > len)
 				len = l;
 		}
@@ -83,88 +72,44 @@ static void string_list_print_by_column(void)
 		return;
 
 	num = 80 / (len + 1);
+	if (num == 0)
+		num = 1;
 
-	for (j = 0; j < HIST_DEPTH; j++) {
-		if (sl[j][0] != 0) {
+	for (cmd = __bios_cmd_start; cmd != __bios_cmd_end; cmd++) {
+		const char *name = (*cmd)->name;
+		if (command_match(instr, name)) {
 			if (!(++i % num))
-				printf("%s\n", &sl[j][0]);
+				printf("%s\n", name);
 			else
-				printf("%-*s", len, &sl[j][0]);
+				printf("%-*s", len, name);
 		}
 	}
 	if (i % num)
 		printf("\n");
 }
 
-static void command_complete(char *instr)
+int complete(char *instr, char *outstr, int outlen)
 {
-	struct command_struct * const *cmd;
-
-	for (cmd = __bios_cmd_start; cmd != __bios_cmd_end; cmd++)
-		if (!strncmp(instr, (*cmd)->name, strlen(instr)))
-			string_list_add((*cmd)->name);
-}
-
-int complete(char *instr, char **outstr)
-{
-	int pos;
-	char ch;
-	int changed;
-	int outpos = 0;
 	int reprint = 0;
-	char *first_entry;
-	char *entry;
-	int i;
+	int count;
 
-	string_list_init();
-	command_complete(instr);
+	if (outlen <= 0)
+		return 0;
 
-	pos = strlen(instr);
-
-	*outstr = "";
-	if (string_list_empty())
+	outstr[0] = 0;
+	count = command_complete_suffix(instr, outstr, outlen);
+	if (count == 0)
 		reprint = 0;
 	else
 	{
-		out[0] = 0;
-
-		first_entry = list_first_entry();
-
-		while (1) {
-			entry = first_entry;
-			ch = entry[pos];
-			if (!ch)
-				break;
-
-			changed = 0;
-			for (i = 0; i < HIST_DEPTH; i++) {
-				if (sl[i][0] != 0) {
-					if (!sl[i][pos])
-						break;
-					if (ch != sl[i][pos]) {
-						changed = 1;
-						break;
-					}
-				}
-			}
-
-			if (changed)
-				break;
-			out[outpos++] = ch;
-			pos++;
-		}
-
-		if ((string_list_count() != 1) && !outpos && tab_pressed) {
+		if ((count != 1) && !outstr[0] && tab_pressed) {
 			printf("\n");
-			string_list_print_by_column();
+			command_matches_print_by_column(instr);
 			reprint = 1;
 			tab_pressed = 0;
 		}
 
-		out[outpos++] = 0;
-		*outstr = out;
-
-		if (*out == 0)
+		if (outstr[0] == 0)
 			tab_pressed = 1;
 		else
 			tab_pressed = 0;

@@ -1,14 +1,17 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2019-2021 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import math
 from enum import IntEnum
 
 from migen import *
 
 from migen.genlib.cdc import PulseSynchronizer
+
+from litex.gen import *
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import stream
@@ -23,7 +26,7 @@ ICAP_NOOP  = 0x20000000
 ICAP_WRITE = 0x30000000
 ICAP_READ  = 0x28000000
 
-# Configuration Registers (from UG470).
+# Configuration Registers (from UG470 & UG570).
 
 class ICAPRegisters(IntEnum):
     CRC     = 0b00000 # CRC Register.
@@ -47,7 +50,7 @@ class ICAPRegisters(IntEnum):
     CTL1    = 0b11000 # Control Register 1.
     BSPI    = 0b11111 # BPI/SPI Configuration Options Register.
 
-# Commands (from UG470).
+# Commands (from UG470 & UG570).
 
 class ICAPCMDs(IntEnum):
     MFW       = 0b00010 # Multiple Frame Write.
@@ -68,16 +71,16 @@ class ICAPCMDs(IntEnum):
     BSPI_READ = 0b10010 # BPI/SPI re-initiate bitstream read.
     FALL_EDGE = 0b10011 # Switch to negative-edge clocking.
 
-# Xilinx 7-series ----------------------------------------------------------------------------------
+# Xilinx 7-series / Ultrascale (Plus) ICAP ---------------------------------------------------------
 
-class ICAP(Module, AutoCSR):
+class ICAP(LiteXModule):
     """ICAP
 
     Allow writing/reading ICAPE2's registers of Xilinx 7-Series FPGAs.
 
     A warm boot can for example be triggered by writing IPROG CMD (0xf) to CMD register (0b100).
     """
-    def __init__(self, with_csr=True, simulation=False):
+    def __init__(self, with_csr=True, clk_divider=16, primitive="ICAPE2", simulation=False):
         self.write      = Signal()
         self.read       = Signal()
         self.done       = Signal()
@@ -87,11 +90,17 @@ class ICAP(Module, AutoCSR):
 
         # # #
 
-        # Create slow ICAP Clk (sys_clk/16).
-        self.clock_domains.cd_icap = ClockDomain()
-        icap_clk_counter = Signal(4)
+        # Parameters check.
+        if primitive not in ["ICAPE2", "ICAPE3"]:
+            raise ValueError("Unsupported ICAP primitive: {}.".format(primitive))
+        if clk_divider <= 1 or not math.log2(clk_divider).is_integer():
+            raise ValueError("ICAP clock divider must be a power of two > 1.")
+
+        # Create slow ICAP Clk.
+        self.cd_icap = ClockDomain()
+        icap_clk_counter = Signal(int(math.log2(clk_divider)))
         self.sync += icap_clk_counter.eq(icap_clk_counter + 1)
-        self.sync += self.cd_icap.clk.eq(icap_clk_counter[3])
+        self.sync += self.cd_icap.clk.eq(icap_clk_counter[-1])
 
         # Generate ICAP bitstream sequence.
         self._csib  = _csib  = Signal(reset=1)
@@ -209,18 +218,21 @@ class ICAP(Module, AutoCSR):
 
         # ICAP Instance.
         if not simulation:
-            _i_icape2 = Signal(32)
-            _o_icape2 = Signal(32)
-            self.comb += _i_icape2.eq(Cat(*[_i[8*i:8*(i+1)][::-1] for i in range(4)])),
-            self.comb += _o.eq(Cat(*[_o_icape2[8*i:8*(i+1)][::-1] for i in range(4)])),
-            self.specials += Instance("ICAPE2",
-                p_ICAP_WIDTH = "X32",
+            _i_icap = Signal(32)
+            _o_icap = Signal(32)
+            self.comb += _i_icap.eq(Cat(*[_i[8*i:8*(i+1)][::-1] for i in range(4)])),
+            self.comb += _o.eq(Cat(*[_o_icap[8*i:8*(i+1)][::-1] for i in range(4)])),
+            self.params = dict()
+            if primitive == "ICAPE2":
+                self.params.update(p_ICAP_WIDTH="X32")
+            self.params.update(
                 i_CLK   = ClockSignal("icap"),
                 i_CSIB  = _csib,
                 i_RDWRB = _rdwrb,
-                i_I     = _i_icape2,
-                o_O     = _o_icape2,
+                i_I     = _i_icap,
+                o_O     = _o_icap,
             )
+            self.specials += Instance(primitive, **self.params)
 
         # CSR.
         if with_csr:
@@ -229,9 +241,9 @@ class ICAP(Module, AutoCSR):
     def add_csr(self):
         self._addr  = CSRStorage(5,  reset_less=True, description="ICAP Address.")
         self._data  = CSRStorage(32, reset_less=True, description="ICAP Write/Read Data.", write_from_dev=True)
-        self._write = CSRStorage(description="ICAP Control.\n\n Write ``1`` send a write to the ICAP.")
+        self._write = CSRStorage(description="ICAP Control.\n\n Write ``1`` to send a write to the ICAP.")
         self._done  = CSRStatus(reset=1, description="ICAP Status.\n\n Write command done when read as ``1``.")
-        self._read  = CSRStorage(description="ICAP Control.\n\n Read ``1`` send a read from the ICAP.")
+        self._read  = CSRStorage(description="ICAP Control.\n\n Write ``1`` to issue a read from the ICAP.")
 
         self.comb += [
             self.addr.eq(self._addr.storage),
@@ -248,7 +260,7 @@ class ICAP(Module, AutoCSR):
     def add_reload(self):
         self.reload = Signal() # Set to 1 to reload FPGA from logic.
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(self.reload,
                 NextState("RELOAD")
@@ -265,7 +277,7 @@ class ICAP(Module, AutoCSR):
         platform.add_false_path_constraints(self.cd_icap.clk, sys_clk)
 
 
-class ICAPBitstream(Module, AutoCSR):
+class ICAPBitstream(LiteXModule):
     """ICAP Bitstream
 
     Allow sending bitstreams to ICAPE2 of Xilinx 7-Series FPGAs.
@@ -278,14 +290,14 @@ class ICAPBitstream(Module, AutoCSR):
     the ICAPE2.
     """
     def __init__(self, fifo_depth=8, icap_clk_div=4, simulation=False):
-        self.sink_data  = CSRStorage(32, reset_less=True)
-        self.sink_ready = CSRStatus()
+        self.sink_data  = CSRStorage(32, reset_less=True, description="Bitstream FIFO write data.")
+        self.sink_ready = CSRStatus(1,                    description="Bitstream FIFO ready.")
 
         # # #
 
         # Create slow icap_clk (sys_clk/4) ---------------------------------------------------------
         icap_clk_counter = Signal(log2_int(icap_clk_div))
-        self.clock_domains.cd_icap = ClockDomain()
+        self.cd_icap = ClockDomain()
         self.sync += icap_clk_counter.eq(icap_clk_counter + 1)
         self.sync += self.cd_icap.clk.eq(icap_clk_counter[-1])
 
@@ -294,7 +306,7 @@ class ICAPBitstream(Module, AutoCSR):
         fifo = ClockDomainsRenamer({"write": "sys", "read": "icap"})(fifo)
         self.submodules += fifo
         self.comb += [
-            fifo.sink.valid.eq(self.sink_data.re),
+            fifo.sink.valid.eq(self.sink_data.wr_stb),
             fifo.sink.data.eq(self.sink_data.storage),
             self.sink_ready.status.eq(fifo.sink.ready),
         ]

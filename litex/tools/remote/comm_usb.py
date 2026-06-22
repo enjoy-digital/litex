@@ -100,14 +100,14 @@ class CommUSB(CSRBuilder):
         data = []
         length_int = 1 if length is None else length
         for i in range(length_int):
-            value = self.usb_read(addr)
+            value = self.usb_read(addr + 4*i)
             # Note that sometimes, the value ends up as None when the device
             # disconnects during a transaction.  Paper over this fact by
             # replacing it with a sentinal.
             if value is None:
                 value = 0xffffffff
             if self.debug:
-                print("read 0x{:08x} @ 0x{:08x}".format(value, addr))
+                print("read 0x{:08x} @ 0x{:08x}".format(value, addr + 4*i))
             if length is None:
                 return value
             data.append(value)
@@ -140,7 +140,7 @@ class CommUSB(CSRBuilder):
         data = data if isinstance(data, list) else [data]
         length = len(data)
         for i, value in enumerate(data):
-            self.usb_write(addr, value)
+            self.usb_write(addr + 4*i, value)
             if self.debug:
                 print("write 0x{:08x} @ 0x{:08x}".format(value, addr + 4*i))
 

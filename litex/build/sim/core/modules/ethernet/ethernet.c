@@ -16,6 +16,12 @@ struct eth_packet_s {
   struct eth_packet_s *next;
 };
 
+enum ethernet_tx_mode {
+  TX_MODE_AUTO = 0,
+  TX_MODE_BARE,
+  TX_MODE_GMII,
+};
+
 struct session_s {
   char *tx;
   char *tx_valid;
@@ -24,10 +30,14 @@ struct session_s {
   char *rx_valid;
   char *rx_ready;
   char *sys_clk;
+  clk_edge_state_t sys_clk_edge;
   tapcfg_t *tapcfg;
   int fd;
   char databuf[2000];
   int datalen;
+  enum ethernet_tx_mode tx_mode;
+  enum ethernet_tx_mode tx_frame_mode;
+  int tx_preamble_len;
   char inbuf[2000];
   int inlen;
   int insent;
@@ -37,7 +47,7 @@ struct session_s {
 
 static struct event_base *base=NULL;
 
-int litex_sim_module_get_args(char *args, char *arg, char **val)
+static int litex_sim_module_get_args_common(char *args, char *arg, char **val, int required)
 {
   int ret = RC_OK;
   json_object *jsobj = NULL;
@@ -61,8 +71,10 @@ int litex_sim_module_get_args(char *args, char *arg, char **val)
   obj=NULL;
   r = json_object_object_get_ex(jsobj, arg, &obj);
   if(!r) {
-    fprintf(stderr, "Could not find object: \"%s\" (%s)\n", arg, args);
-    ret = RC_JSERROR;
+    if(required) {
+      fprintf(stderr, "Could not find object: \"%s\" (%s)\n", arg, args);
+      ret = RC_JSERROR;
+    }
     goto out;
   }
   value = strdup(json_object_get_string(obj));
@@ -70,6 +82,16 @@ int litex_sim_module_get_args(char *args, char *arg, char **val)
 out:
   *val = value;
   return ret;
+}
+
+int litex_sim_module_get_args(char *args, char *arg, char **val)
+{
+  return litex_sim_module_get_args_common(args, arg, val, 1);
+}
+
+static int litex_sim_module_get_args_optional(char *args, char *arg, char **val)
+{
+  return litex_sim_module_get_args_common(args, arg, val, 0);
 }
 
 static int litex_sim_module_pads_get(struct pad_s *pads, char *name, void **signal)
@@ -95,6 +117,82 @@ static int litex_sim_module_pads_get(struct pad_s *pads, char *name, void **sign
 out:
   *signal=sig;
   return ret;
+}
+
+static void ethernet_tx_reset(struct session_s *s)
+{
+  s->tx_frame_mode   = (s->tx_mode == TX_MODE_GMII) ? TX_MODE_AUTO : s->tx_mode;
+  s->tx_preamble_len = 0;
+}
+
+static void ethernet_tx_append(struct session_s *s, unsigned char c)
+{
+  if(s->datalen < (int)sizeof(s->databuf))
+    s->databuf[s->datalen++] = c;
+}
+
+static void ethernet_tx_append_pending_preamble(struct session_s *s)
+{
+  while(s->tx_preamble_len) {
+    ethernet_tx_append(s, 0x55);
+    s->tx_preamble_len--;
+  }
+}
+
+static void ethernet_tx_byte(struct session_s *s, unsigned char c)
+{
+  switch(s->tx_frame_mode) {
+  case TX_MODE_GMII:
+  case TX_MODE_BARE:
+    ethernet_tx_append(s, c);
+    break;
+  case TX_MODE_AUTO:
+    if(s->tx_mode == TX_MODE_GMII) {
+      if(s->tx_preamble_len < 7) {
+        s->tx_preamble_len++;
+      } else {
+        s->tx_preamble_len = 0;
+        s->tx_frame_mode   = TX_MODE_GMII;
+      }
+      break;
+    }
+    if(s->tx_preamble_len < 7) {
+      if(c == 0x55) {
+        s->tx_preamble_len++;
+      } else {
+        ethernet_tx_append_pending_preamble(s);
+        ethernet_tx_append(s, c);
+        s->tx_frame_mode = TX_MODE_BARE;
+      }
+    } else {
+      if(c == 0xd5) {
+        s->tx_preamble_len = 0;
+        s->tx_frame_mode   = TX_MODE_GMII;
+      } else {
+        ethernet_tx_append_pending_preamble(s);
+        ethernet_tx_append(s, c);
+        s->tx_frame_mode = TX_MODE_BARE;
+      }
+    }
+    break;
+  }
+}
+
+static void ethernet_tx_flush(struct session_s *s)
+{
+  if(s->tx_frame_mode == TX_MODE_AUTO && s->tx_mode != TX_MODE_GMII)
+    ethernet_tx_append_pending_preamble(s);
+
+  if(s->datalen) {
+    int len = s->datalen;
+    if(s->tx_frame_mode == TX_MODE_GMII)
+      len = (s->datalen > 4) ? s->datalen - 4 : 0;
+    if(len)
+      tapcfg_write(s->tapcfg, s->databuf, len);
+    s->datalen = 0;
+  }
+
+  ethernet_tx_reset(s);
 }
 
 static int ethernet_start(void *b)
@@ -133,6 +231,7 @@ static int ethernet_new(void **sess, char *args)
   int ret = RC_OK;
   char *c_tap = NULL;
   char *c_tap_ip = NULL;
+  char *c_tx_mode = NULL;
   struct session_s *s = NULL;
   struct timeval tv = {10, 0};
   if(!sess) {
@@ -157,6 +256,27 @@ static int ethernet_new(void **sess, char *args)
     if(RC_OK != ret)
       goto out;
   }
+  ret = litex_sim_module_get_args_optional(args, "tx_mode", &c_tx_mode);
+  {
+    if(RC_OK != ret)
+      goto out;
+  }
+
+  if(c_tx_mode) {
+    if(!strcmp(c_tx_mode, "auto"))
+      s->tx_mode = TX_MODE_AUTO;
+    else if(!strcmp(c_tx_mode, "bare") || !strcmp(c_tx_mode, "raw"))
+      s->tx_mode = TX_MODE_BARE;
+    else if(!strcmp(c_tx_mode, "gmii") || !strcmp(c_tx_mode, "preamble_crc"))
+      s->tx_mode = TX_MODE_GMII;
+    else {
+      fprintf(stderr, "Unknown Ethernet TX mode: \"%s\"\n", c_tx_mode);
+      ret = RC_INVARG;
+      free(c_tx_mode);
+      goto out;
+    }
+  }
+  ethernet_tx_reset(s);
 
   s->tapcfg = tapcfg_init();
   tapcfg_start(s->tapcfg, c_tap, 0);
@@ -166,6 +286,7 @@ static int ethernet_new(void **sess, char *args)
   tapcfg_iface_set_status(s->tapcfg, TAPCFG_STATUS_ALL_UP);
   free(c_tap);
   free(c_tap_ip);
+  free(c_tx_mode);
 
   s->ev = event_new(base, s->fd, EV_READ | EV_PERSIST, event_handler, s);
   event_add(s->ev, &tv);
@@ -202,24 +323,18 @@ out:
 
 static int ethernet_tick(void *sess, uint64_t time_ps)
 {
-  static clk_edge_state_t edge;
-  char c;
   struct session_s *s = (struct session_s*)sess;
   struct eth_packet_s *pep;
 
-  if(!clk_pos_edge(&edge, *s->sys_clk)) {
+  if(!clk_pos_edge(&s->sys_clk_edge, *s->sys_clk)) {
     return RC_OK;
   }
 
   *s->tx_ready = 1;
   if(*s->tx_valid == 1) {
-    c = *s->tx;
-    s->databuf[s->datalen++]=c;
+    ethernet_tx_byte(s, (unsigned char)*s->tx);
   } else {
-    if(s->datalen) {
-      tapcfg_write(s->tapcfg, s->databuf, s->datalen);
-      s->datalen=0;
-    }
+    ethernet_tx_flush(s);
   }
 
   *s->rx_valid=0;

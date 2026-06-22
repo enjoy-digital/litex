@@ -1,0 +1,1 @@
+`define WT_DCACHE

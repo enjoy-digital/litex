@@ -1,0 +1,1422 @@
+[> Changes since 2026.04 release
+--------------------------------
+
+[> Fixed
+--------
+* **litex/soc/software/liblitespi**                : Made SPI flash quad-enable handling flash-specific to avoid enabling unsupported modes on other flashes ([e0a9476e2](https://github.com/enjoy-digital/litex/commit/e0a9476e2)).
+* **litex/tools/litex_json2dts_linux**             : Added `mono1` framebuffer DTS support and moved the default framebuffer placement near the end of main RAM when possible ([8e9b42fd2](https://github.com/enjoy-digital/litex/commit/8e9b42fd2), [187bf754c](https://github.com/enjoy-digital/litex/commit/187bf754c)).
+* **litex/soc/interconnect/csr**                   : Hardened fixed CSR location handling, fixed `CSRStatus(fields=...).read()` in standalone simulation to return live field values instead of reset values, and preserved explicit CSR gaps in exported layouts ([685ba8115](https://github.com/enjoy-digital/litex/commit/685ba8115), [e463d2eb6](https://github.com/enjoy-digital/litex/commit/e463d2eb6), [fd03f2672](https://github.com/enjoy-digital/litex/commit/fd03f2672)).
+* **litex/soc/interconnect**                       : Validated writable SRAM memory widths to catch unsupported non-byte-multiple configurations early ([4149fb257](https://github.com/enjoy-digital/litex/commit/4149fb257)).
+* **litex/build/gowin**                            : Resolved Gowin toolchain symlinks before deriving tool paths ([PR #2469](https://github.com/enjoy-digital/litex/pull/2469)).
+* **litex/build/lattice/diamond**                  : Emitted false-path constraints for the Diamond backend ([ca37a571c](https://github.com/enjoy-digital/litex/commit/ca37a571c)).
+* **litex/build/sim**                              : Finalized Verilator simulation models on exit, restored concise simulation/clock summary reporting, and terminated stalled child processes cleanly on interrupted run scripts ([539ba50a8](https://github.com/enjoy-digital/litex/commit/539ba50a8), [e685c7a21](https://github.com/enjoy-digital/litex/commit/e685c7a21), [deaf0af75](https://github.com/enjoy-digital/litex/commit/deaf0af75), [49a1d68bd](https://github.com/enjoy-digital/litex/commit/49a1d68bd)).
+* **litex/build/sim/ethernet**                     : Handled GMII preamble/FCS TX frames on TAP while preserving bare Etherbone frames with preamble-like prefixes ([59f129ca2](https://github.com/enjoy-digital/litex/commit/59f129ca2)).
+* **litex/build/xilinx**                           : Lowered 7-Series `SDROutput` to single-edge flip-flops instead of `ODDR(D1=D2)` for better open-toolchain compatibility ([0bdbc0d42](https://github.com/enjoy-digital/litex/commit/0bdbc0d42)).
+* **litex/soc/cores/clock**                        : Rejected duplicate clock output domains across vendor clocking helpers ([45c457fc6](https://github.com/enjoy-digital/litex/commit/45c457fc6)).
+* **litex/soc/cores/cpu/cv32e41p**                 : Kept the default variant on RV32IM and added CI coverage to avoid the upstream compressed-instruction return-address issue ([d86a229ea](https://github.com/enjoy-digital/litex/commit/d86a229ea)).
+* **litex/soc/cores/cpu/vexriscv_smp**             : Rejected SDRAM configurations without byte masks and staged generated cluster netlists in the build directory ([c2120eda8](https://github.com/enjoy-digital/litex/commit/c2120eda8), [e1da240ac](https://github.com/enjoy-digital/litex/commit/e1da240ac)).
+* **litex/soc/cores/cpu/neorv32 / femtorv**        : Fixed NEORV32 downloaded-source reuse, cache-burst Wishbone wiring, NUMA cache and dual-core integration issues, and FemtoRV source/Wishbone read-lane handling ([26a4659a2](https://github.com/enjoy-digital/litex/commit/26a4659a2), [1d9774360](https://github.com/enjoy-digital/litex/commit/1d9774360), [04b5230f6](https://github.com/enjoy-digital/litex/commit/04b5230f6), [63e0f4c16](https://github.com/enjoy-digital/litex/commit/63e0f4c16), [0ae8f9a4d](https://github.com/enjoy-digital/litex/commit/0ae8f9a4d)).
+* **litex/soc/interconnect/axi**                   : Fixed AXI down-converter handling of narrow accesses ([556bba30d](https://github.com/enjoy-digital/litex/commit/556bba30d)).
+* **litex/soc/integration/soc**                    : Filtered parser options by selected CPU and allowed direct IRQ signal integration ([4ed83bd19](https://github.com/enjoy-digital/litex/commit/4ed83bd19), [48b832b7e](https://github.com/enjoy-digital/litex/commit/48b832b7e)).
+* **litex/soc/cores/hyperbus**                     : Restored the Wishbone receive drain after the native bus-interface rework and required explicit incrementing bursts to avoid merging adjacent classic Wishbone accesses ([b52348307](https://github.com/enjoy-digital/litex/commit/b52348307), [5f372ad10](https://github.com/enjoy-digital/litex/commit/5f372ad10)).
+* **litex/soc/software/bios**                      : Kept boot JSON parsing buffers off the stack to reduce BIOS SRAM pressure ([6edc2a956](https://github.com/enjoy-digital/litex/commit/6edc2a956)).
+* **litex/soc/software/libliteeth**                : Hardened netboot packet handling ([add101745](https://github.com/enjoy-digital/litex/commit/add101745)).
+* **litex/build**                                  : Fixed review-found toolchain, programmer, parser and converter issues across Xilinx, Altera/Lattice, Efinix/Gowin, Anlogic, CologneChip, Microsemi, QuickLogic and simulation backends ([0a0bdfa35](https://github.com/enjoy-digital/litex/commit/0a0bdfa35), [ecc03b139](https://github.com/enjoy-digital/litex/commit/ecc03b139), [57f6a431f](https://github.com/enjoy-digital/litex/commit/57f6a431f), [b61186362](https://github.com/enjoy-digital/litex/commit/b61186362), [a9c6d130b](https://github.com/enjoy-digital/litex/commit/a9c6d130b), [ef0706ab](https://github.com/enjoy-digital/litex/commit/ef0706ab)).
+
+[> Added
+--------
+* **litex/soc/cores/hwmon / xadc**                 : Added generic FPGA temperature monitor support, Xilinx hwmon conversion metadata/DTS generation, and initial opt-in Gowin/Intel temperature sensor wrappers with regression coverage ([14cc60dc1](https://github.com/enjoy-digital/litex/commit/14cc60dc1)).
+* **litex/soc/software/libcompiler_rt**            : Added RV64 count helper routines ([a733aaa75](https://github.com/enjoy-digital/litex/commit/a733aaa75)).
+* **litex/soc/integration/export**                 : Added wide CSR field helper support to generated software exports ([cc4a2542b](https://github.com/enjoy-digital/litex/commit/cc4a2542b)).
+* **litex/soc/cores/hyperbus / integration**       : Added native AXI/AXI-Lite HyperRAM support, automatic bus-standard argument selection, and a SoC-level `add_hyperram` helper ([53727e564](https://github.com/enjoy-digital/litex/commit/53727e564), [545985891](https://github.com/enjoy-digital/litex/commit/545985891), [d6a73d241](https://github.com/enjoy-digital/litex/commit/d6a73d241)).
+* **litex/soc/integration/soc**                    : Added slave-bus clock-domain crossing support and a SoC reset request hook ([4a8ae302e](https://github.com/enjoy-digital/litex/commit/4a8ae302e), [973351aa8](https://github.com/enjoy-digital/litex/commit/973351aa8)).
+* **litex/soc/cores/cpu**                          : Added Loongson GS232 and CDIM MIPS CPU integrations plus Linux toolchain/package support and boot coverage ([e90b7e8af](https://github.com/enjoy-digital/litex/commit/e90b7e8af), [b7ed16b19](https://github.com/enjoy-digital/litex/commit/b7ed16b19), [af19e210a](https://github.com/enjoy-digital/litex/commit/af19e210a), [060c51988](https://github.com/enjoy-digital/litex/commit/060c51988), [6e5982265](https://github.com/enjoy-digital/litex/commit/6e5982265), [4a3f398c2](https://github.com/enjoy-digital/litex/commit/4a3f398c2)).
+* **litex/sim / soc/cores/cpu/qemu**               : Added RISC-V QEMU co-simulation CPU support, AXI co-simulation bridge integration, LiteX simulation wiring, and smoke coverage ([b92b7f0f8](https://github.com/enjoy-digital/litex/commit/b92b7f0f8), [464df90e6](https://github.com/enjoy-digital/litex/commit/464df90e6), [6ff0f1560](https://github.com/enjoy-digital/litex/commit/6ff0f1560), [876ddf83e](https://github.com/enjoy-digital/litex/commit/876ddf83e), [da55d8846](https://github.com/enjoy-digital/litex/commit/da55d8846)).
+* **litex/soc/software/bios**                      : Added extensible boot-method registration, documented BIOS configuration flags, reported BIOS SRAM stack margin, and added an option to disable ANSI output ([c612a0194](https://github.com/enjoy-digital/litex/commit/c612a0194), [11a4ddfc0](https://github.com/enjoy-digital/litex/commit/11a4ddfc0), [11f94eaa6](https://github.com/enjoy-digital/litex/commit/11f94eaa6), [b26d1096d](https://github.com/enjoy-digital/litex/commit/b26d1096d)).
+* **litex/soc/software/libc**                      : Added `strtoull` to the picolibc build inputs ([65d7aff3e](https://github.com/enjoy-digital/litex/commit/65d7aff3e)).
+* **litex/tools/litex_json2dts_zephyr**            : Added Zephyr SoC node generation mode ([a2e1675ca](https://github.com/enjoy-digital/litex/commit/a2e1675ca)).
+* **litex/tools/litex_term**                       : Added exit-marker support for scripted terminal sessions ([4a699c4c3](https://github.com/enjoy-digital/litex/commit/4a699c4c3)).
+* **litex/sim / build/sim**                        : Added GTKWave savefile generation, configurable trace timescales, custom Verilator C++ hooks, and custom serial-module clock names ([a6b7c22b4](https://github.com/enjoy-digital/litex/commit/a6b7c22b4), [328da97ab](https://github.com/enjoy-digital/litex/commit/328da97ab), [58026a9f5](https://github.com/enjoy-digital/litex/commit/58026a9f5), [d9e097d7f](https://github.com/enjoy-digital/litex/commit/d9e097d7f)).
+* **litex_setup.py**                               : Added LM32 GCC toolchain installation support ([9b5d907b9](https://github.com/enjoy-digital/litex/commit/9b5d907b9)).
+* **litex/build/xilinx**                           : Exposed open nextpnr arguments in the Xilinx build path and generated rerunnable Xilinx F4PGA `flow.json` / `build_<name>.sh` artifacts ([6c1f7c5f5](https://github.com/enjoy-digital/litex/commit/6c1f7c5f5), [2ae1fe87f](https://github.com/enjoy-digital/litex/commit/2ae1fe87f)).
+* **ci**                                           : Enabled Microwatt and CV32E41P boot coverage, with dedicated IRQ boot coverage ([cfb3c02e3](https://github.com/enjoy-digital/litex/commit/cfb3c02e3), [de10ffc15](https://github.com/enjoy-digital/litex/commit/de10ffc15), [d86a229ea](https://github.com/enjoy-digital/litex/commit/d86a229ea)).
+* **README / doc**                                 : Added Fedora simulator install notes, linked the LiteX Notes blog, and added LiteNVMe to the listed LiteX cores ecosystem ([a35ba0471](https://github.com/enjoy-digital/litex/commit/a35ba0471), [b8c4cf47a](https://github.com/enjoy-digital/litex/commit/b8c4cf47a), [8e4f63ca2](https://github.com/enjoy-digital/litex/commit/8e4f63ca2)).
+
+[> Changed
+----------
+* **litex/soc/integration/soc**                    : Moved the SoCCore API implementation to `soc.py`, kept compatibility imports covered, and switched internal imports to the canonical location ([8c28012c0](https://github.com/enjoy-digital/litex/commit/8c28012c0), [b25fe6e1b](https://github.com/enjoy-digital/litex/commit/b25fe6e1b), [15a9af65f](https://github.com/enjoy-digital/litex/commit/15a9af65f)).
+* **litex/compat / core aliases**                  : Removed the legacy `litex.compat` package/hooks and obsolete compatibility aliases after migrating in-tree users to canonical APIs (`S7DNA`, `S7SystemMonitor`, `UARTInterface`, corrected `Inferred*` spellings, and `with_register`) ([2ebe242f7](https://github.com/enjoy-digital/litex/commit/2ebe242f7), [f12553d69](https://github.com/enjoy-digital/litex/commit/f12553d69)).
+* **litex/soc/interconnect/csr**                   : Added explicit CSR read/write signal aliases and switched internal code to the clearer names while preserving compatibility aliases ([b8fce7555](https://github.com/enjoy-digital/litex/commit/b8fce7555), [2f4d45657](https://github.com/enjoy-digital/litex/commit/2f4d45657)).
+* **litex/soc/cores/uart**                         : Factored UART core selection for clearer UART integration ([b425ca5b5](https://github.com/enjoy-digital/litex/commit/b425ca5b5)).
+* **litex/soc/cores/dma**                          : Added explicit byte-swap control for DMA reader/writer paths while preserving legacy defaults, with endianness regression coverage ([c4baeb3e](https://github.com/enjoy-digital/litex/commit/c4baeb3e), [db2678d1a](https://github.com/enjoy-digital/litex/commit/db2678d1a)).
+* **litex/soc/software**                           : Enabled section garbage-collection inputs for smaller software images ([ef32c90e1](https://github.com/enjoy-digital/litex/commit/ef32c90e1)).
+* **litex/gen/fhdl**                               : Improved write-first memory template generation ([737cf2b97](https://github.com/enjoy-digital/litex/commit/737cf2b97)).
+* **litex/gen/fhdl**                               : Unified combinatorial Verilog generation and normalized inout slices before Verilog emission ([5b641f517](https://github.com/enjoy-digital/litex/commit/5b641f517), [5e10ee3fa](https://github.com/enjoy-digital/litex/commit/5e10ee3fa)).
+* **litex/soc/integration/builder**                : Clarified export-generation option handling and kept generated export paths explicit in builder configurations ([cf9b449fd](https://github.com/enjoy-digital/litex/commit/cf9b449fd)).
+* **litex/build/sim**                              : Enabled simulator tracing by default in generated simulation platforms ([b8941fbfb](https://github.com/enjoy-digital/litex/commit/b8941fbfb)).
+
+[> Ecosystem
+------------
+* **litex-boards**                                 : Fixed several platform/target descriptions, switched targets to exact SDRAM module definitions where appropriate, and added Altera Agilex 5E / brisbaneSilicon BRS-100 GW1NR9 board support ([changes](https://github.com/litex-hub/litex-boards/compare/2026.04...master)).
+* **litex-boards**                                 : Migrated HyperRAM-capable targets to the SoC-level `add_hyperram` helper and switched 7-Series monitor targets to `S7DNA` / `S7SystemMonitor` after LiteX removed compatibility aliases ([12f023fc](https://github.com/litex-hub/litex-boards/commit/12f023fc), [6da4c6bb](https://github.com/litex-hub/litex-boards/commit/6da4c6bb)).
+* **litedram**                                     : Fixed DDR4 RDIMM/SK hynix timing and geometry data, added board-backed SDR/DDR3 module definitions, exposed SDRAM byte-mask capability, and adopted LiteX SoCCore/CSR compatibility updates ([changes](https://github.com/enjoy-digital/litedram/compare/2026.04...master)).
+* **litedram**                                     : Updated the standalone generator FIFO UART path to use `UARTInterface` directly after LiteX removed `RS232PHYInterface` ([04e9834](https://github.com/enjoy-digital/litedram/commit/04e9834)).
+* **liteeth**                                      : Fixed Agilex RGMII builds with the current Agilex PLL, improved DHCP packet handling with TAP/handshake coverage, and adopted LiteX SoCCore/CSR compatibility updates ([changes](https://github.com/enjoy-digital/liteeth/compare/2026.04...master)).
+* **litepcie**                                     : Added optional UltraScale+ PCIe Configuration Management interface exposure, fixed 256/512-bit requester descriptor mapping, and adopted LiteX SoCCore/CSR compatibility updates ([changes](https://github.com/enjoy-digital/litepcie/compare/2026.04...master)).
+* **litesdcard**                                   : Fixed SD write CRC feedback through `pads_out`, made generated DMA Wishbone width configurable, and adopted LiteX SoCCore/CSR compatibility updates ([changes](https://github.com/enjoy-digital/litesdcard/compare/2026.04...master)).
+* **litespi**                                      : Added PUYA/P25Q32H flash support, documented the S25FL-S quad-enable sequence, and adopted LiteX SoCCore/CSR compatibility updates ([changes](https://github.com/litex-hub/litespi/compare/2026.04...master)).
+* **litei2c / liteiclink / litesata / litescope**  : Updated companion cores for the explicit CSR signal aliases and canonical SoCCore imports where applicable ([litei2c](https://github.com/litex-hub/litei2c/compare/2026.04...main), [liteiclink](https://github.com/enjoy-digital/liteiclink/compare/2026.04...master), [litesata](https://github.com/enjoy-digital/litesata/compare/2026.04...master), [litescope](https://github.com/enjoy-digital/litescope/compare/2026.04...master)).
+* **liteeth / litesata**                           : Removed the remaining test dependency on LiteX `stream_sim` by moving the required helpers into the local test suites ([702b182](https://github.com/enjoy-digital/liteeth/commit/702b182), [90601aa](https://github.com/enjoy-digital/litesata/commit/90601aa)).
+* **litenvme**                                     : Added LiteNVMe to the LiteX cores ecosystem after its standalone host-core documentation, hardware bring-up notes, and CI/readme polish matured ([repo](https://github.com/enjoy-digital/litenvme)).
+
+[> 2026.04, released on May 26th 2026
+-------------------------------------
+
+[> Fixed
+--------
+* **litex/soc/software/liblitesdcard**              : Fixed SD card initialization by waiting for the card to become ready ([PR #2420](https://github.com/enjoy-digital/litex/pull/2420)).
+* **litex/soc/cores/cpu/neorv32**                   : Fixed NEORV32 source lists, wrapper interrupt port naming, and VHD2V simulation conversion path ([a266e47e3](https://github.com/enjoy-digital/litex/commit/a266e47e3), [68b659976](https://github.com/enjoy-digital/litex/commit/68b659976), [5f12f510e](https://github.com/enjoy-digital/litex/commit/5f12f510e)).
+* **litex/soc/cores/cpu/gowin_emcu**                : Fixed EMCU IO-region exposure to the AHB2 Master extension and documented the separate APB2 extension windows ([PR #2461](https://github.com/enjoy-digital/litex/pull/2461), [c4f606aa2](https://github.com/enjoy-digital/litex/commit/c4f606aa2)).
+* **litex/soc/cores/clock/xilinx_common**           : Fixed 7-Series MMCM fractional divide handling and restored highest suitable VCO frequency selection ([2fdfa356d](https://github.com/enjoy-digital/litex/commit/2fdfa356d), [9ab47cc52](https://github.com/enjoy-digital/litex/commit/9ab47cc52), [e9324462a](https://github.com/enjoy-digital/litex/commit/e9324462a)).
+* **litex/soc/cores/clock/xilinx_usp**              : Fixed/documented UltraScale+ simulation primitive handling and restored the conservative `SIM_DEVICE` selection after build regressions ([PR #2456](https://github.com/enjoy-digital/litex/pull/2456), [a4658cfd9](https://github.com/enjoy-digital/litex/commit/a4658cfd9), [56b55d7dd](https://github.com/enjoy-digital/litex/commit/56b55d7dd), [4065f0bb4](https://github.com/enjoy-digital/litex/commit/4065f0bb4)).
+* **litex/soc/cores/clock**                         : Fixed Lattice oscillator range limits, tightened PLL API/frequency/phase validation, tolerated Efinix floating-point noise, remapped sparse Efinix feedback outputs, and improved error diagnostics ([d949e1650](https://github.com/enjoy-digital/litex/commit/d949e1650), [54f613c63](https://github.com/enjoy-digital/litex/commit/54f613c63), [97ad6b57a](https://github.com/enjoy-digital/litex/commit/97ad6b57a), [fbe507c89](https://github.com/enjoy-digital/litex/commit/fbe507c89), [30e8b86e3](https://github.com/enjoy-digital/litex/commit/30e8b86e3), [d49e4d026](https://github.com/enjoy-digital/litex/commit/d49e4d026), [0ae3d6749](https://github.com/enjoy-digital/litex/commit/0ae3d6749), [c7a2bd71b](https://github.com/enjoy-digital/litex/commit/c7a2bd71b), [a783810b6](https://github.com/enjoy-digital/litex/commit/a783810b6), [9a1f7745d](https://github.com/enjoy-digital/litex/commit/9a1f7745d)).
+* **litex/soc/cores/gpio**                          : Fixed GPIOTristate sharing by exposing LiteX-style `o`, `oe`, and `i` intermediate signals for user logic and platform lowering ([PR #2458](https://github.com/enjoy-digital/litex/pull/2458), [04ebd7421](https://github.com/enjoy-digital/litex/commit/04ebd7421)).
+* **litex/soc/cores/jtag**                          : Fixed ECP5 JTAG PHY TDO timing, RX ready persistence, and JTAGUART robustness for background operation ([PR #2411](https://github.com/enjoy-digital/litex/pull/2411), [PR #2410](https://github.com/enjoy-digital/litex/pull/2410), [5837a7d1e](https://github.com/enjoy-digital/litex/commit/5837a7d1e)).
+* **litex/build/xilinx/vivado**                     : Fixed timing report typo, aligned CDC timing constraints with Migen-generated structures, and narrowed emitted asynchronous clock groups to relevant clock objects ([4452113fa](https://github.com/enjoy-digital/litex/commit/4452113fa), [eaf58d953](https://github.com/enjoy-digital/litex/commit/eaf58d953), [e0be1da6e](https://github.com/enjoy-digital/litex/commit/e0be1da6e)).
+* **litex/build/microsemi/platform**                : Disabled register initialization in ProASIC3 Verilog generation (unsupported by the device/tool flow) ([a274bc74b](https://github.com/enjoy-digital/litex/commit/a274bc74b)).
+* **litex/build/efinix**                            : Fixed Efinity 2025.2 builds, applied default tool parameters consistently, preserved Verilog library information in project data, restored design-file library helper compatibility, detected the toolchain from PATH, and defaulted Verilog sources to the default library ([PR #2438](https://github.com/enjoy-digital/litex/pull/2438), [b0622815b](https://github.com/enjoy-digital/litex/commit/b0622815b), [8982a6a01](https://github.com/enjoy-digital/litex/commit/8982a6a01), [761f62ca0](https://github.com/enjoy-digital/litex/commit/761f62ca0), [d8ea103d9](https://github.com/enjoy-digital/litex/commit/d8ea103d9), [56b134056](https://github.com/enjoy-digital/litex/commit/56b134056)).
+* **litex/build/io / vendor platforms**             : Fixed IO primitive width/override validation, scalar compatibility aliases, DDR async-input preservation, and per-bit/vendor lowering across generic, Xilinx, Gowin, Efinix, and Lattice paths ([74f37cbae](https://github.com/enjoy-digital/litex/commit/74f37cbae), [1c956bbf9](https://github.com/enjoy-digital/litex/commit/1c956bbf9), [46bc89e77](https://github.com/enjoy-digital/litex/commit/46bc89e77), [6d39206db](https://github.com/enjoy-digital/litex/commit/6d39206db), [cff44200a](https://github.com/enjoy-digital/litex/commit/cff44200a), [beecfc1c8](https://github.com/enjoy-digital/litex/commit/beecfc1c8), [85891a8c7](https://github.com/enjoy-digital/litex/commit/85891a8c7)).
+* **litex/soc/interconnect/wishbone / avalon**      : Fixed burst upconversion and registered burst read handling, with continuous burst and latency regression coverage ([PR #2436](https://github.com/enjoy-digital/litex/pull/2436)).
+* **litex/soc/interconnect/axi / integration**      : Fixed AXIDownConverter FIXED burst handling and replaced AXI-to-Wishbone/AXI-Lite SRAM fallbacks with native AXI paths, with expanded burst/width regression coverage ([94f662d07](https://github.com/enjoy-digital/litex/commit/94f662d07), [2fae162d0](https://github.com/enjoy-digital/litex/commit/2fae162d0), [e8bac9bba](https://github.com/enjoy-digital/litex/commit/e8bac9bba)).
+* **litex/soc/interconnect/axi / dma**              : Fixed AXI up-converter lane writes and aligned Wishbone DMA bursting with the bus capabilities ([1a290a20b](https://github.com/enjoy-digital/litex/commit/1a290a20b), [6b5216421](https://github.com/enjoy-digital/litex/commit/6b5216421)).
+* **litex/tools/litex_term**                        : Fixed serial upload CPU overload by waiting for acknowledgements instead of busy polling ([PR #2450](https://github.com/enjoy-digital/litex/pull/2450)).
+* **litex/tools/litex_term**                        : Fixed crossover UART remote-server port forwarding and base-address parsing while preserving constructor compatibility ([PR #2459](https://github.com/enjoy-digital/litex/pull/2459), [ac8831617](https://github.com/enjoy-digital/litex/commit/ac8831617)).
+* **litex/soc/software/bios / tools/litex_term**    : Fixed serialboot recovery from malformed or timed-out frames, added robust upload abort handling, and restored conservative upload calibration/pacing for USB-ACM links ([PR #2452](https://github.com/enjoy-digital/litex/pull/2452)).
+* **litex/soc/software/bios**                       : Fixed and hardened boot JSON parsing, including malformed-token handling, JSON token helper availability when Ethernet support is disabled, and guarded helper compilation to avoid unused-function warnings in builds without JSON boot backends ([97f23539f](https://github.com/enjoy-digital/litex/commit/97f23539f), [PR #2453](https://github.com/enjoy-digital/litex/pull/2453), [dab2e1341](https://github.com/enjoy-digital/litex/commit/dab2e1341)).
+* **litex/soc/software/bios / libliteeth**          : Hardened console input, dynamic Ethernet address parsing, TFTP/serialboot load bounds, boot-image range validation, manifest error reporting, memory dumps, and UDP packet-length checks ([3f63c2e57](https://github.com/enjoy-digital/litex/commit/3f63c2e57), [caa4eb684](https://github.com/enjoy-digital/litex/commit/caa4eb684), [5b855be2b](https://github.com/enjoy-digital/litex/commit/5b855be2b), [d47d4b3e3](https://github.com/enjoy-digital/litex/commit/d47d4b3e3), [e53d98738](https://github.com/enjoy-digital/litex/commit/e53d98738), [cfb459fa4](https://github.com/enjoy-digital/litex/commit/cfb459fa4), [1a3d8b54a](https://github.com/enjoy-digital/litex/commit/1a3d8b54a), [292aad467](https://github.com/enjoy-digital/litex/commit/292aad467), [b330413c1](https://github.com/enjoy-digital/litex/commit/b330413c1)).
+* **litex/soc/software/liblitedram**                : Fixed BIST build compatibility with recent GCC versions ([PR #2460](https://github.com/enjoy-digital/litex/pull/2460), [6cb62f13e](https://github.com/enjoy-digital/litex/commit/6cb62f13e)).
+* **litex/soc/software/liblitedram**                : Fixed/accelerated GW5 DDR calibration flow with faster tap search, stronger fast-write-leveling checks, burst-detection validation, and post-update DQS buffer resync ([5ee84dfa8](https://github.com/enjoy-digital/litex/commit/5ee84dfa8), [c487019a6](https://github.com/enjoy-digital/litex/commit/c487019a6), [9ee9fb072](https://github.com/enjoy-digital/litex/commit/9ee9fb072), [5af41cab2](https://github.com/enjoy-digital/litex/commit/5af41cab2), [611f22b35](https://github.com/enjoy-digital/litex/commit/611f22b35)).
+* **litex/gen/sim/vcd / build/sim/verilator**       : Fixed simulator failure reporting by preserving Verilator run failures and using the correct temporary VCD path for local outputs ([0d76a09d5](https://github.com/enjoy-digital/litex/commit/0d76a09d5), [9434cd74c](https://github.com/enjoy-digital/litex/commit/9434cd74c)).
+* **litex/gen/fhdl/verilog**                        : Fixed hierarchical tristate and memory ownership in generated Verilog ([7d302fcb](https://github.com/enjoy-digital/litex/commit/7d302fcb), [a7a9d1c7d](https://github.com/enjoy-digital/litex/commit/a7a9d1c7d)).
+* **litex/soc/integration/soc / export**            : Fixed generated export edge cases, bus-handler rollback on failed additions, and AXI-to-AXI-Lite bus adaptation ([8efa3afa8](https://github.com/enjoy-digital/litex/commit/8efa3afa8), [329559c72](https://github.com/enjoy-digital/litex/commit/329559c72), [47d30a0ad](https://github.com/enjoy-digital/litex/commit/47d30a0ad)).
+* **litex/build / tools / remote**                   : Fixed tool/programmer error propagation, OpenOCD verify command formatting, LiteXTerm image validation under optimized Python, platform import error reporting, and PCIe BAR descriptor handling ([25022e301](https://github.com/enjoy-digital/litex/commit/25022e301)).
+* **litex/tools/remote**                            : Fixed shared helper defaults, remote-client CSR-width initialization, timeout handling, PCIe server-info base translation, Etherbone burst chunking, read-merger edge cases, and CLI memory-transfer cleanup while adding focused regression coverage ([a37375e8b](https://github.com/enjoy-digital/litex/commit/a37375e8b), [76ffc6b6d](https://github.com/enjoy-digital/litex/commit/76ffc6b6d), [29f0aed44](https://github.com/enjoy-digital/litex/commit/29f0aed44), [59e8c5e88](https://github.com/enjoy-digital/litex/commit/59e8c5e88), [5fad2627d](https://github.com/enjoy-digital/litex/commit/5fad2627d), [3c0e156ab](https://github.com/enjoy-digital/litex/commit/3c0e156ab)).
+* **litepcie/tlp/packetizer**                       : Fixed 128-bit 4DW payload handling by keeping the payload beat in the DATA state ([00e5bcfe](https://github.com/enjoy-digital/litepcie/commit/00e5bcfe)).
+* **litepcie/software/kernel / liteuart**           : Fixed coherent DMA-buffer mmap handling and improved LiteUART RX/TX polling robustness ([c52a6fe](https://github.com/enjoy-digital/litepcie/commit/c52a6fe), [e5f4760](https://github.com/enjoy-digital/litepcie/commit/e5f4760)).
+* **litepcie/phy/gowin / phy/lattice**              : Fixed Gowin requester identity, MSI vector mapping, and lane swapping; fixed LFCPNX requester-ID handling, RX TLP boundary preservation, PCIe user clock/reset usage, DMA sizing, MSI-X interrupt support, and LMMI requester-ID fixup ([33efe92](https://github.com/enjoy-digital/litepcie/commit/33efe92), [90e2634](https://github.com/enjoy-digital/litepcie/commit/90e2634), [4d5f5b0](https://github.com/enjoy-digital/litepcie/commit/4d5f5b0), [a0655ca](https://github.com/enjoy-digital/litepcie/commit/a0655ca), [63f1cc4](https://github.com/enjoy-digital/litepcie/commit/63f1cc4), [c787773](https://github.com/enjoy-digital/litepcie/commit/c787773), [df33d56](https://github.com/enjoy-digital/litepcie/commit/df33d56), [736d4ff](https://github.com/enjoy-digital/litepcie/commit/736d4ff), [07531c5](https://github.com/enjoy-digital/litepcie/commit/07531c5)).
+* **liteeth/phy/1000basex**                         : Fixed PCS timer scaling and expanded coverage for CDC clocks, gearbox ordering, and LSB-first datapaths ([d341f370](https://github.com/enjoy-digital/liteeth/commit/d341f370), [58304bdd](https://github.com/enjoy-digital/liteeth/commit/58304bdd), [f571f951](https://github.com/enjoy-digital/liteeth/commit/f571f951), [7cbe6e99](https://github.com/enjoy-digital/liteeth/commit/7cbe6e99), [7ccdb530](https://github.com/enjoy-digital/liteeth/commit/7ccdb530), [e81851cc](https://github.com/enjoy-digital/liteeth/commit/e81851cc), [804955c2](https://github.com/enjoy-digital/liteeth/commit/804955c2)).
+* **liteeth/core/ptp / igmp**                       : Hardened PTP/IGMP handling around multicast delay requests, TSU fractional initialization, link-gated reports/joins, datapath width matching, final-byte marking, and counter cleanup ([89317174](https://github.com/enjoy-digital/liteeth/commit/89317174), [4f4285a8](https://github.com/enjoy-digital/liteeth/commit/4f4285a8), [ca1e75ed](https://github.com/enjoy-digital/liteeth/commit/ca1e75ed), [39199eb4](https://github.com/enjoy-digital/liteeth/commit/39199eb4), [fc56e93c](https://github.com/enjoy-digital/liteeth/commit/fc56e93c), [10ea52e9](https://github.com/enjoy-digital/liteeth/commit/10ea52e9), [2e1060ca](https://github.com/enjoy-digital/liteeth/commit/2e1060ca), [e61e7881](https://github.com/enjoy-digital/liteeth/commit/e61e7881), [c40cfbbb](https://github.com/enjoy-digital/liteeth/commit/c40cfbbb)).
+* **litedram/gen**                                  : Fixed import of `get_sdram_phy_settings` after upstream model changes ([PR #375](https://github.com/enjoy-digital/litedram/pull/375)).
+* **litedram/modules**                              : Fixed standalone generator command-latency handling and added ISSI SDRAM modules ([PR #378](https://github.com/enjoy-digital/litedram/pull/378), [PR #379](https://github.com/enjoy-digital/litedram/pull/379), [PR #368](https://github.com/enjoy-digital/litedram/pull/368)).
+* **litedram/phy/gw5ddrphy**                        : Aligned GW5 DDR PHY control latencies with the GW2 DDR PHY ([c7bcb5d](https://github.com/enjoy-digital/litedram/commit/c7bcb5d)).
+* **liteiclink/serwb/phy**                          : Fixed PLL reset deglitching and brute-force clock aligner CDC capture domain handling ([PR #28](https://github.com/enjoy-digital/liteiclink/pull/28), [PR #27](https://github.com/enjoy-digital/liteiclink/pull/27)).
+* **litesdcard/phy**                                : Fixed command-done flag handling after command responses ([PR #54](https://github.com/enjoy-digital/litesdcard/pull/54)).
+* **litespi/phy/generic_sdr**                       : Fixed SDR `no_read`, SPI mode reset/default handling, and clock-generator start/reset corner cases ([PR #96](https://github.com/litex-hub/litespi/pull/96), [PR #97](https://github.com/litex-hub/litespi/pull/97)).
+* **litescope/software/dump**                       : Fixed invalid escape sequence warnings in dump regex handling ([PR #51](https://github.com/enjoy-digital/litescope/pull/51)).
+* **litescope/test**                                : Fixed LiteScope UART simulation waits to notice simulator exits cleanly ([bc74bc4](https://github.com/enjoy-digital/litescope/commit/bc74bc4)).
+* **targets/platforms**                             : Fixed Ethernet support on MNT RKX7, Hyvision PCIe speedgrade handling, Tang Mega 138K PMOD naming, Tang Nano 9K HyperBus fallback behavior, and several target parser/configuration typos ([PR #724](https://github.com/litex-hub/litex-boards/pull/724), [PR #732](https://github.com/litex-hub/litex-boards/pull/732), [448f9d58](https://github.com/litex-hub/litex-boards/commit/448f9d58), [bb16fd91](https://github.com/litex-hub/litex-boards/commit/bb16fd91), [976dccfb](https://github.com/litex-hub/litex-boards/commit/976dccfb)).
+* **Boards/platforms**                              : Fixed additional board-resource and programmer issues across Tang Console/Mega DDR, Hackaday Badge, Spartan-6 iMPACT, Bochen Jingxin, Mozart MX, XTRX, Time Card/Kintex BSCAN, Trenz flash programming, ULX4M CM4, and other platform definitions ([034c5db2](https://github.com/litex-hub/litex-boards/commit/034c5db2), [b1baa138](https://github.com/litex-hub/litex-boards/commit/b1baa138), [92cc0296](https://github.com/litex-hub/litex-boards/commit/92cc0296), [4af612b7](https://github.com/litex-hub/litex-boards/commit/4af612b7), [7a1b5860](https://github.com/litex-hub/litex-boards/commit/7a1b5860), [1f8bd6bb](https://github.com/litex-hub/litex-boards/commit/1f8bd6bb), [0770b5f3](https://github.com/litex-hub/litex-boards/commit/0770b5f3), [df5f3c16](https://github.com/litex-hub/litex-boards/commit/df5f3c16), [a4f73d11](https://github.com/litex-hub/litex-boards/commit/a4f73d11), [ae316654](https://github.com/litex-hub/litex-boards/commit/ae316654)).
+
+[> Added
+--------
+* **litex/gen/fhdl/verilog**                        : Added hierarchical Verilog generation support, including shared-module hierarchy handling and Verilator hierarchical build support ([PR #2422](https://github.com/enjoy-digital/litex/pull/2422)).
+* **litex/build/amaranth2v / soc/cores/cpu**        : Added/introduced the Amaranth-to-Verilog converter flow and switched Minerva/Sentinel/Coreblocks to it with compatibility fallback where needed ([PR #2409](https://github.com/enjoy-digital/litex/pull/2409), [891eb2954](https://github.com/enjoy-digital/litex/commit/891eb2954), [210d2aaab](https://github.com/enjoy-digital/litex/commit/210d2aaab)).
+* **litex/soc/cores/cpu/fazyrv**                    : Added RISC-V compressed instruction support ([PR #2447](https://github.com/enjoy-digital/litex/pull/2447)).
+* **litex/soc/cores/cpu/coreblocks**                : Added Coreblocks PLIC support and refreshed the Coreblocks elaboration/packaging integration ([5b2eaaecd](https://github.com/enjoy-digital/litex/commit/5b2eaaecd), [100c044f6](https://github.com/enjoy-digital/litex/commit/100c044f6)).
+* **litex/soc/cores/usb / luna_cdc_acm**            : Added the LUNA CDC ACM USB-UART wrapper, switched `usb_acm` integration to the LUNA backend, and extended it with external ULPI PHY support, target pad overrides in `add_uart`, and configurable direct/inverted ULPI clock handling ([PR #2418](https://github.com/enjoy-digital/litex/pull/2418), [PR #2432](https://github.com/enjoy-digital/litex/pull/2432), [PR #2433](https://github.com/enjoy-digital/litex/pull/2433)).
+* **litex/soc/integration/soc / add_pcie**          : Added DMA buffering and MSI mapping controls to PCIe integration ([5ad43630a](https://github.com/enjoy-digital/litex/commit/5ad43630a)).
+* **litex/soc/cores/dma**                           : Added optional Wishbone burst tagging support for DMA interfaces ([52e09d8ff](https://github.com/enjoy-digital/litex/commit/52e09d8ff)).
+* **litex/soc/integration/builder**                 : Added `integrated_rom_auto_size` / `--no-integrated-rom-auto-size` control to keep the requested integrated ROM size and pad BIOS contents deterministically ([fe4c87a7d](https://github.com/enjoy-digital/litex/commit/fe4c87a7d)).
+* **litex/soc/integration/builder / build/log**     : Added default live `litex.log` generation under the builder output directory, with stdout/stderr/Python logging capture, early SoC log preservation, `--build-log` / `--no-build-log` controls, and ANSI-free log files while keeping colored console output ([b815e651a](https://github.com/enjoy-digital/litex/commit/b815e651a), [bc629791b](https://github.com/enjoy-digital/litex/commit/bc629791b)).
+* **litex/build/xilinx/vivado**                     : Added helper support for `name`-based false paths and generated clock constraints ([9fe287f26](https://github.com/enjoy-digital/litex/commit/9fe287f26)).
+* **litex/build/colognechip**                       : Added Peppercorn A2/A4 die/clocking controls and switched Peppercorn to the default CologneChip toolchain flow ([PR #2444](https://github.com/enjoy-digital/litex/pull/2444)).
+* **litex/tools/litex_json2dts_zephyr**             : Added UART handler generation support ([PR #2448](https://github.com/enjoy-digital/litex/pull/2448)).
+* **litex/tools/litex_json2dts_zephyr**             : Added `dma-coherent` DeviceTree property generation from CSR JSON metadata ([PR #2455](https://github.com/enjoy-digital/litex/pull/2455)).
+* **litex/soc/cores/clock**                         : Added consistent `name` support across direct-instantiation clock cores (Xilinx, Lattice, Gowin, GateMate/NX) to control generated primitive instance names ([4cd599dae](https://github.com/enjoy-digital/litex/commit/4cd599dae)).
+* **litex/soc/cores/flash**                         : Added initial BPI flash core support ([PR #2414](https://github.com/enjoy-digital/litex/pull/2414)).
+* **litex/soc/cores/led**                           : Added SK2812RGBW serial LED support and shared serial LED infrastructure with parameter validation ([PR #2454](https://github.com/enjoy-digital/litex/pull/2454), [cfa86fa02](https://github.com/enjoy-digital/litex/commit/cfa86fa02), [e52eb60c1](https://github.com/enjoy-digital/litex/commit/e52eb60c1)).
+* **litex/soc/cores/jtag**                          : Added ECP5JTAGPHY with Verilog shift register and AsyncFIFO CDC ([PR #2411](https://github.com/enjoy-digital/litex/pull/2411)).
+* **litex/soc/cores/ram**                           : Added USPHBM2 channel helpers for pseudochannel integration ([011e7c40b](https://github.com/enjoy-digital/litex/commit/011e7c40b)).
+* **litex/soc/integration/soc**                     : Added CSR address helper support for bus masters ([7549f4e7e](https://github.com/enjoy-digital/litex/commit/7549f4e7e)).
+* **litex/soc/software / software/libc**            : Added a minimal libc mode, including float-format support and reduced Meson probing for lightweight picolibc-based builds ([PR #2425](https://github.com/enjoy-digital/litex/pull/2425), [13ffc6be8](https://github.com/enjoy-digital/litex/commit/13ffc6be8), [ab01e78a2](https://github.com/enjoy-digital/litex/commit/ab01e78a2), [316fe0141](https://github.com/enjoy-digital/litex/commit/316fe0141)).
+* **litex/test**                                    : Added broader unit coverage for AXI, Wishbone, CSR, stream, UART, GPIO, video, PWM, DMA, watchdog, frequency-meter, FT245, DShot/ESC, and integration helpers ([85761f161](https://github.com/enjoy-digital/litex/commit/85761f161), [f942aab5f](https://github.com/enjoy-digital/litex/commit/f942aab5f), [86435f3d5](https://github.com/enjoy-digital/litex/commit/86435f3d5), [f813e9c12](https://github.com/enjoy-digital/litex/commit/f813e9c12)).
+* **litex/ci**                                      : Added Rocket Linux generation and ECPIX-5 smoke tests ([9f9776bf1](https://github.com/enjoy-digital/litex/commit/9f9776bf1), [224ff287a](https://github.com/enjoy-digital/litex/commit/224ff287a)).
+* **litex_release.py / doc**                        : Added a dedicated release helper and process documentation with repository listing, tag validation, dry-run/preflight checks, phase resume/cwd-safe bump handling, release state recording, and temporary Git repository regression tests ([9fac358ca](https://github.com/enjoy-digital/litex/commit/9fac358ca), [79b91a108](https://github.com/enjoy-digital/litex/commit/79b91a108), [b50836542](https://github.com/enjoy-digital/litex/commit/b50836542), [6e339715a](https://github.com/enjoy-digital/litex/commit/6e339715a), [afa9b7e36](https://github.com/enjoy-digital/litex/commit/afa9b7e36)).
+* **packaging / release**                           : Added PyPI publishing workflows and metadata support across LiteX, LitePCIe, LiteEth, LiteDRAM, LiteScope, LiteSPI, LiteSDCard, LiteICLink, LiteSATA, LiteJESD204B, LiteI2C, and LiteX-Boards ([714f89031](https://github.com/enjoy-digital/litex/commit/714f89031), [95f4731](https://github.com/enjoy-digital/litepcie/commit/95f4731), [cd479a4](https://github.com/enjoy-digital/liteeth/commit/cd479a4), [28521d8](https://github.com/enjoy-digital/litedram/commit/28521d8), [3f46493](https://github.com/enjoy-digital/litescope/commit/3f46493), [013d90b](https://github.com/litex-hub/litespi/commit/013d90b), [4630ba2](https://github.com/enjoy-digital/litesdcard/commit/4630ba2), [878b9ef](https://github.com/enjoy-digital/liteiclink/commit/878b9ef), [5ada696](https://github.com/enjoy-digital/litesata/commit/5ada696), [193f4d8](https://github.com/enjoy-digital/litejesd204b/commit/193f4d8), [15c7aaa](https://github.com/litex-hub/litei2c/commit/15c7aaa), [25bfc3c3](https://github.com/litex-hub/litex-boards/commit/25bfc3c3)).
+* **doc/coding_style.md**                           : Added LiteX coding style guide and examples for Python/gateware/test changes, plus command-line help text guidance ([1b78f5228](https://github.com/enjoy-digital/litex/commit/1b78f5228), [ac8831617](https://github.com/enjoy-digital/litex/commit/ac8831617)).
+* **litepcie/core / phy**                           : Added initial Root Port support, TLP configuration transactions, and PCIe Gen2 support on Ultrascale/Ultrascale+ PHYs ([0227789](https://github.com/enjoy-digital/litepcie/commit/0227789), [5a5ede7](https://github.com/enjoy-digital/litepcie/commit/5a5ede7), [2d92c7d](https://github.com/enjoy-digital/litepcie/commit/2d92c7d), [2f5097e](https://github.com/enjoy-digital/litepcie/commit/2f5097e), [6417252](https://github.com/enjoy-digital/litepcie/commit/6417252)).
+* **litepcie/software**                             : Added PCIe rescan tooling and shared DMA device file-descriptor support for user software ([43a21eb](https://github.com/enjoy-digital/litepcie/commit/43a21eb), [b5c8f01](https://github.com/enjoy-digital/litepcie/commit/b5c8f01)).
+* **litepcie/tlp**                                  : Added 32-bit datapath support ([PR #163](https://github.com/enjoy-digital/litepcie/pull/163)).
+* **litepcie/phy**                                  : Added direct pclk mux MMCM option for Xilinx PCIe PHY clocking ([8312ab0](https://github.com/enjoy-digital/litepcie/commit/8312ab0)).
+* **litepcie/phy/s7pciephy**                        : Added helper support for 7-Series GT lane LOC constraints, optional PERST refclk gating, and MMCM/device speedgrade exposure ([04105f6](https://github.com/enjoy-digital/litepcie/commit/04105f6), [a9357e9](https://github.com/enjoy-digital/litepcie/commit/a9357e9), [9e5ed80](https://github.com/enjoy-digital/litepcie/commit/9e5ed80)).
+* **liteiclink/serwb/phy**                          : Added Spartan-7 support to the Xilinx 7-Series SERWB PHY ([PR #30](https://github.com/enjoy-digital/liteiclink/pull/30)).
+* **litescope/software/driver/analyzer**            : Added polling delay handling to `wait_done` for more reliable analyzer completion ([PR #48](https://github.com/enjoy-digital/litescope/pull/48)).
+* **litescope/core / software / test**              : Added optional LiteScopeAnalyzer RLE capture support with final-run flushing, driver/CLI controls, decoded sample limiting, and Verilator `litex_sim` UART end-to-end plus randomized/compatibility coverage.
+* **liteeth/core/ptp / igmp / bench**               : Added an IEEE 1588v2 Layer-3 PTP slave core, an IGMP multicast group joiner, and Arty A7 PTP bench/test utilities ([PR #199](https://github.com/enjoy-digital/liteeth/pull/199)).
+* **liteeth/phy**                                   : Added Agilex 3/5 RGMII PHY support and USRGMII IO delay configuration controls ([PR #202](https://github.com/enjoy-digital/liteeth/pull/202), [PR #201](https://github.com/enjoy-digital/liteeth/pull/201)).
+* **litespi/modules**                               : Added W25Q128JW flash support ([PR #98](https://github.com/litex-hub/litespi/pull/98)).
+* **Boards/targets**                                : Added Ethernet/Etherbone support for **Alibaba XCKU3P**, extended **Microphase A7 Lite** peripherals/variants, added initial **YPCB** board support, added HDMI output on **Digilent Genesys2**, added USB-ACM support on **LambdaConcept ECPIX-5**, added PTP support to **Efinix TI375 C529 Dev Kit** and **Acorn Baseboard Mini**, and extended configurable PCIe lane support across Xilinx targets, including PCIe Gen3 x8 on **Alibaba XCKU3P** and configurable lanes on additional Ultrascale+ boards ([PR #724](https://github.com/litex-hub/litex-boards/pull/724), [6b23f9fb](https://github.com/litex-hub/litex-boards/commit/6b23f9fb), [PR #722](https://github.com/litex-hub/litex-boards/pull/722), [PR #728](https://github.com/litex-hub/litex-boards/pull/728), [PR #731](https://github.com/litex-hub/litex-boards/pull/731), [371333e9](https://github.com/litex-hub/litex-boards/commit/371333e9), [391c5c22](https://github.com/litex-hub/litex-boards/commit/391c5c22), [30504c1d](https://github.com/litex-hub/litex-boards/commit/30504c1d), [87410340](https://github.com/litex-hub/litex-boards/commit/87410340), [4e47f7ea](https://github.com/litex-hub/litex-boards/commit/4e47f7ea)).
+* **Boards/targets**                                : Added initial **Terasic Atum A3-Nano** (Agilex 3) board support with SDRAM, Ethernet/Etherbone, HDMI/DVI, SDCard/SPI-SDCard, and OpenFPGALoader/USB-Blaster programming support ([PR #733](https://github.com/litex-hub/litex-boards/pull/733)).
+* **Boards/targets**                                : Added accelerator shell support and switched related targets to LiteX USPHBM2 channel helpers ([b746eced](https://github.com/litex-hub/litex-boards/commit/b746eced), [f2660cd2](https://github.com/litex-hub/litex-boards/commit/f2660cd2), [91d26439](https://github.com/litex-hub/litex-boards/commit/91d26439), [cac91bbd](https://github.com/litex-hub/litex-boards/commit/cac91bbd)).
+* **Boards/platforms**                              : Added and expanded board resources/connectors across Xilinx, Lattice, Digilent, Trenz, MicroFPGA, Microsemi, Alchitry, Numato, Efinix, Sipeed, NetFPGA-SUME, PlutoSDR, and related platform families ([3dc608a8](https://github.com/litex-hub/litex-boards/commit/3dc608a8), [8f98cf7d](https://github.com/litex-hub/litex-boards/commit/8f98cf7d), [2c89c208](https://github.com/litex-hub/litex-boards/commit/2c89c208), [4c6d672e](https://github.com/litex-hub/litex-boards/commit/4c6d672e), [e6eb331a](https://github.com/litex-hub/litex-boards/commit/e6eb331a), [3b6ec4b7](https://github.com/litex-hub/litex-boards/commit/3b6ec4b7), [1b4cb9cd](https://github.com/litex-hub/litex-boards/commit/1b4cb9cd), [7a27e973](https://github.com/litex-hub/litex-boards/commit/7a27e973), [687f868d](https://github.com/litex-hub/litex-boards/commit/687f868d), [43c03b46](https://github.com/litex-hub/litex-boards/commit/43c03b46)).
+* **Boards/test / ci**                              : Added board consistency guardrails, Etherbone static-IP checks, target inventory test-status reporting, and smoke coverage for excluded/no-compile/simple platform builds ([4f7efa16](https://github.com/litex-hub/litex-boards/commit/4f7efa16), [d501a2b3](https://github.com/litex-hub/litex-boards/commit/d501a2b3), [79c80adc](https://github.com/litex-hub/litex-boards/commit/79c80adc), [77fd7177](https://github.com/litex-hub/litex-boards/commit/77fd7177), [70882d44](https://github.com/litex-hub/litex-boards/commit/70882d44), [4645e585](https://github.com/litex-hub/litex-boards/commit/4645e585), [e0fe1803](https://github.com/litex-hub/litex-boards/commit/e0fe1803), [df889e8b](https://github.com/litex-hub/litex-boards/commit/df889e8b), [467110d3](https://github.com/litex-hub/litex-boards/commit/467110d3), [075b2402](https://github.com/litex-hub/litex-boards/commit/075b2402), [1353d875](https://github.com/litex-hub/litex-boards/commit/1353d875)).
+
+[> Changed
+----------
+* **litex/build/converters / build/vhd2v**          : Harmonized converter APIs, normalized aliases/ports/domains/sources handling, stabilized generated file writes, and added compatibility coverage between old/new argument styles ([PR #2409](https://github.com/enjoy-digital/litex/pull/2409), [645157397](https://github.com/enjoy-digital/litex/commit/645157397), [687199df9](https://github.com/enjoy-digital/litex/commit/687199df9), [90a4bcef1](https://github.com/enjoy-digital/litex/commit/90a4bcef1)).
+* **litex/soc/cores/cpu**                           : Refreshed CPU integration by avoiding hard Amaranth import failures during CPU discovery, switching NaxRiscv setup to the default branch, updating the recommended NaxRiscv/VexiiRiscv revisions, and cleaning up VexiiRiscv integration/config handling ([PR #2404](https://github.com/enjoy-digital/litex/pull/2404), [PR #2403](https://github.com/enjoy-digital/litex/pull/2403), [PR #2449](https://github.com/enjoy-digital/litex/pull/2449), [1b4f8629f](https://github.com/enjoy-digital/litex/commit/1b4f8629f)).
+* **litex/software/bios / cpu/cva6**                : Switched CVA6 cache flush handling to `fence.i` ([c18922e6c](https://github.com/enjoy-digital/litex/commit/c18922e6c)).
+* **litex/soc/interconnect/stream / packet / test** : Reworked stream/packet control-path corner cases under backpressure, clarified converter flow, added header encode/decode shift support, and substantially expanded regression coverage for FIFOs, CDC, width converters, routing, and packet boundaries ([07b162232](https://github.com/enjoy-digital/litex/commit/07b162232), [23facc547](https://github.com/enjoy-digital/litex/commit/23facc547), [155efbe8a](https://github.com/enjoy-digital/litex/commit/155efbe8a), [4308d76e7](https://github.com/enjoy-digital/litex/commit/4308d76e7), [35ce65607](https://github.com/enjoy-digital/litex/commit/35ce65607), [e49184d48](https://github.com/enjoy-digital/litex/commit/e49184d48)).
+* **litex/soc/interconnect / cores**                : Reworked user-facing API validation from assert-only checks to explicit exceptions and tightened deprecated argument handling across bus interfaces, GPIO/I2S/UART, DMA/DNA/ICAP, HyperRAM, SPI, BlackParrot, and related helpers ([3a13b4126](https://github.com/enjoy-digital/litex/commit/3a13b4126), [19d3a3566](https://github.com/enjoy-digital/litex/commit/19d3a3566), [d0294db0c](https://github.com/enjoy-digital/litex/commit/d0294db0c), [0f7105aa7](https://github.com/enjoy-digital/litex/commit/0f7105aa7)).
+* **litex/soc/cores/clock**                         : Reworked PLL candidate selection and clock input/output wiring helpers to prefer closest configurations and share named clock-output handling across vendor PLLs ([e7856901f](https://github.com/enjoy-digital/litex/commit/e7856901f), [bff3c6776](https://github.com/enjoy-digital/litex/commit/bff3c6776), [a3aa436bf](https://github.com/enjoy-digital/litex/commit/a3aa436bf), [c19e0f507](https://github.com/enjoy-digital/litex/commit/c19e0f507), [a828694d7](https://github.com/enjoy-digital/litex/commit/a828694d7), [82a2ab677](https://github.com/enjoy-digital/litex/commit/82a2ab677), [5342fa922](https://github.com/enjoy-digital/litex/commit/5342fa922), [ace479841](https://github.com/enjoy-digital/litex/commit/ace479841), [8a0d4b5c9](https://github.com/enjoy-digital/litex/commit/8a0d4b5c9)).
+* **litex/soc/cores/ram / hyperbus**                : Reworked vendor RAM helper selection and hardened FIFO_SYNC_MACRO, Lattice RAM, Efinix HyperRAM, HyperBus timing, initialization-word, and wrapper validation with expanded simulation coverage ([15ace7cb](https://github.com/enjoy-digital/litex/commit/15ace7cb), [592d7458](https://github.com/enjoy-digital/litex/commit/592d7458), [423bab25](https://github.com/enjoy-digital/litex/commit/423bab25), [72c6c559](https://github.com/enjoy-digital/litex/commit/72c6c559), [ae729f46](https://github.com/enjoy-digital/litex/commit/ae729f46), [de49e104](https://github.com/enjoy-digital/litex/commit/de49e104), [691479d5](https://github.com/enjoy-digital/litex/commit/691479d5), [fb8308f4](https://github.com/enjoy-digital/litex/commit/fb8308f4)).
+* **litex/soc/integration/soc**                     : Reworked SoC integration compatibility/error handling, region defaults, DMA-bus sizing, SATA clock requirements, and CSR bridge naming around newer byte-addressed/AXI paths ([4350536ce](https://github.com/enjoy-digital/litex/commit/4350536ce), [d9cee7235](https://github.com/enjoy-digital/litex/commit/d9cee7235), [ab21eddf0](https://github.com/enjoy-digital/litex/commit/ab21eddf0), [6e7c4af92](https://github.com/enjoy-digital/litex/commit/6e7c4af92), [a4f25351a](https://github.com/enjoy-digital/litex/commit/a4f25351a)).
+* **litex/soc/integration / builder / export**      : Further hardened builder/SoC validation, JSON import/export handling, generated software exports, memory image parsing, build-name/CPU reset handling, interrupt and SoC region validation, and optional build paths ([1347fb0b0](https://github.com/enjoy-digital/litex/commit/1347fb0b0), [aaf194e4f](https://github.com/enjoy-digital/litex/commit/aaf194e4f), [195a47df4](https://github.com/enjoy-digital/litex/commit/195a47df4), [4033dff44](https://github.com/enjoy-digital/litex/commit/4033dff44), [15923917a](https://github.com/enjoy-digital/litex/commit/15923917a), [e85638531](https://github.com/enjoy-digital/litex/commit/e85638531)).
+* **litex/soc/integration/soc**                     : Further tightened SoC finalization and helper validation with instance-local maps, reproducible build timestamps, CPU/bus/CSR/memory-origin checks, dependency guards, clearer argument errors, and exact IO-region overlap checks ([d8ec4b756](https://github.com/enjoy-digital/litex/commit/d8ec4b756), [77d05404d](https://github.com/enjoy-digital/litex/commit/77d05404d), [9c1750837](https://github.com/enjoy-digital/litex/commit/9c1750837), [90cd3df9a](https://github.com/enjoy-digital/litex/commit/90cd3df9a), [fd3dec391](https://github.com/enjoy-digital/litex/commit/fd3dec391), [7ddf39fe6](https://github.com/enjoy-digital/litex/commit/7ddf39fe6), [66454b5b2](https://github.com/enjoy-digital/litex/commit/66454b5b2), [dded2e955](https://github.com/enjoy-digital/litex/commit/dded2e955), [119588348](https://github.com/enjoy-digital/litex/commit/119588348), [510193acf](https://github.com/enjoy-digital/litex/commit/510193acf), [5f0d4a1ab](https://github.com/enjoy-digital/litex/commit/5f0d4a1ab)).
+* **litex/build/parser**                            : Forwarded parser kwargs to argparse for better `LiteXArgumentParser` compatibility ([68822d137](https://github.com/enjoy-digital/litex/commit/68822d137)).
+* **litex/build/generic_platform/toolchain**        : Hardened generic platform/toolchain cleanup, caller cwd restoration, connector/resource handling, period-constraint diagnostics, explicit parser argument handling, and log-level validation ([83fd540de](https://github.com/enjoy-digital/litex/commit/83fd540de), [f27751140](https://github.com/enjoy-digital/litex/commit/f27751140), [6107c55d](https://github.com/enjoy-digital/litex/commit/6107c55d)).
+* **litex_setup.py / litex_repos.py**               : Reworked setup repository metadata into a shared `litex_repos.py`, kept standalone `litex_setup.py` auto-update/install flows working, hardened Git/pip/toolchain command execution and failure reporting, added dirty-tree update confirmation and clean expected exits, fixed repository tag fallback handling, added install-time repository preflight checks, and made `--freeze` emit reusable repository definitions ([7430a850e](https://github.com/enjoy-digital/litex/commit/7430a850e), [a859ce1da](https://github.com/enjoy-digital/litex/commit/a859ce1da), [37c57020d](https://github.com/enjoy-digital/litex/commit/37c57020d), [391e49c7b](https://github.com/enjoy-digital/litex/commit/391e49c7b), [786e984da](https://github.com/enjoy-digital/litex/commit/786e984da), [76064094b](https://github.com/enjoy-digital/litex/commit/76064094b), [ae43af472](https://github.com/enjoy-digital/litex/commit/ae43af472), [5e4a4136c](https://github.com/enjoy-digital/litex/commit/5e4a4136c), [ad23dae51](https://github.com/enjoy-digital/litex/commit/ad23dae51)).
+* **litex_setup.py / litex_repos.py**               : Reworked editable/local repository installs for PEP 517 and externally managed Python environments, disabled build isolation for local repos, and restored recursive VexRiscv-SMP clone handling ([2a3ef9680](https://github.com/enjoy-digital/litex/commit/2a3ef9680), [dc5fc1076](https://github.com/enjoy-digital/litex/commit/dc5fc1076), [f507511a9](https://github.com/enjoy-digital/litex/commit/f507511a9), [cdf48cb5d](https://github.com/enjoy-digital/litex/commit/cdf48cb5d), [3214920a7](https://github.com/enjoy-digital/litex/commit/3214920a7), [0b1567556](https://github.com/enjoy-digital/litex/commit/0b1567556), [4b67db328](https://github.com/enjoy-digital/litex/commit/4b67db328)).
+* **litex/build/gowin**                             : Added Gowin toolchain support on macOS by adapting bundled-library selection from the `gw_sh` path ([PR #2445](https://github.com/enjoy-digital/litex/pull/2445)).
+* **litex/ci**                                      : Reworked CI around cached Verilator/OSS CAD Suite/GCC toolchains and sharded pytest-split execution for faster, balanced integration coverage ([65c3d435b](https://github.com/enjoy-digital/litex/commit/65c3d435b), [1376b10ca](https://github.com/enjoy-digital/litex/commit/1376b10ca), [4f7293af1](https://github.com/enjoy-digital/litex/commit/4f7293af1)).
+* **litex/soc/cores/video**                         : Extended VideoTerminal control-sequence/color handling and added regression coverage for video terminal, timing generator, generic PHY, color bars, and TMDS encoder paths ([9bf021f7a](https://github.com/enjoy-digital/litex/commit/9bf021f7a), [08f9c7589](https://github.com/enjoy-digital/litex/commit/08f9c7589), [ea1957a77](https://github.com/enjoy-digital/litex/commit/ea1957a77), [f813e9c12](https://github.com/enjoy-digital/litex/commit/f813e9c12)).
+* **litex/tools/litex_client/server/sim**           : Hardened simulator/server argument validation, server lock cleanup, GUI GPIO-count discovery and XADC updates, and remote/tool exception handling ([fb750462](https://github.com/enjoy-digital/litex/commit/fb750462), [6f634cb1](https://github.com/enjoy-digital/litex/commit/6f634cb1), [5029ed03](https://github.com/enjoy-digital/litex/commit/5029ed03), [48d6319f](https://github.com/enjoy-digital/litex/commit/48d6319f), [71c38b01](https://github.com/enjoy-digital/litex/commit/71c38b01), [4228f769](https://github.com/enjoy-digital/litex/commit/4228f769)).
+* **litex/tools/litex_server / remote/comm_uart**   : Improved remote access throughput by replacing server lock polling with `threading.Lock`, caching server-side read capabilities, batching UARTBone readback, and selecting larger baudrate-aware UARTBone write bursts with a conservative timeout margin ([2bd6295e8](https://github.com/enjoy-digital/litex/commit/2bd6295e8), [fb5887ad7](https://github.com/enjoy-digital/litex/commit/fb5887ad7)).
+* **litex/software/libc / software**                : Updated picolibc 1.8 integration by refreshing makefiles and Meson overlays, fixing build paths, restoring missing stdlib sources/includes, and honoring native libc toolchain selections ([PR #2424](https://github.com/enjoy-digital/litex/pull/2424), [c4e4554cb](https://github.com/enjoy-digital/litex/commit/c4e4554cb), [00639b68d](https://github.com/enjoy-digital/litex/commit/00639b68d), [142204158](https://github.com/enjoy-digital/litex/commit/142204158), [32fc68dc3](https://github.com/enjoy-digital/litex/commit/32fc68dc3), [389204929](https://github.com/enjoy-digital/litex/commit/389204929), [857b8ae51](https://github.com/enjoy-digital/litex/commit/857b8ae51)).
+* **litex/soc/software/liblitedram**                : Documented SDRAM initialization/calibration flow and refreshed calibration handling around fast-write leveling and GW5 DDR updates ([79d3d446b](https://github.com/enjoy-digital/litex/commit/79d3d446b), [c4bbc74d4](https://github.com/enjoy-digital/litex/commit/c4bbc74d4), [5ee84dfa8](https://github.com/enjoy-digital/litex/commit/5ee84dfa8), [c487019a6](https://github.com/enjoy-digital/litex/commit/c487019a6), [9ee9fb072](https://github.com/enjoy-digital/litex/commit/9ee9fb072)).
+* **litepcie/phy/xilinx**                           : Reworked Xilinx PCIe PHY support around unified LiteX-native AXIS adapters across 128/256/512-bit widths, direct PHY mappings with preserved CQ/RC `tuser` metadata, removed legacy adapter wrappers, and added broader adapter property/backpressure coverage plus Verilator linting ([07d16f6](https://github.com/enjoy-digital/litepcie/commit/07d16f6), [0a26ee8](https://github.com/enjoy-digital/litepcie/commit/0a26ee8), [0e24657](https://github.com/enjoy-digital/litepcie/commit/0e24657), [22113a8](https://github.com/enjoy-digital/litepcie/commit/22113a8), [c9cb021](https://github.com/enjoy-digital/litepcie/commit/c9cb021), [0a00eac](https://github.com/enjoy-digital/litepcie/commit/0a00eac)).
+* **litepcie/frontend/dma / tlp / test**            : Reworked DMA progress/status reporting, rounded descriptor lengths to bus words, buffered raw requests before arbitration, improved DMA writer/status timing, and refactored TLP header inserter/extracter paths into generic engines with dedicated unit tests ([aad9c39](https://github.com/enjoy-digital/litepcie/commit/aad9c39), [6740ec5](https://github.com/enjoy-digital/litepcie/commit/6740ec5), [3a76272](https://github.com/enjoy-digital/litepcie/commit/3a76272), [3c0e4b9](https://github.com/enjoy-digital/litepcie/commit/3c0e4b9), [216515d](https://github.com/enjoy-digital/litepcie/commit/216515d), [981164c](https://github.com/enjoy-digital/litepcie/commit/981164c), [PR #154](https://github.com/enjoy-digital/litepcie/pull/154)).
+* **liteeth/mac / frontend/stream / core**          : Added configurable MTU/jumbo-frame support, fixed Stream2UDPTX freeze/truncation on mid-packet disable, and made UDP port CDC depth configurable ([PR #197](https://github.com/enjoy-digital/liteeth/pull/197), [25a4eb6](https://github.com/enjoy-digital/liteeth/commit/25a4eb6)).
+* **litedram/frontend**                             : Reworked narrow Wishbone burst coalescing and CSR registration for current LiteX integration ([916b8b6](https://github.com/enjoy-digital/litedram/commit/916b8b6), [744b143](https://github.com/enjoy-digital/litedram/commit/744b143)).
+* **liteiclink/serdes / serwb**                     : Harmonized SERDES initialization helpers, transceiver wrapper controls, and SERWB wrapper style ([aa9181f](https://github.com/enjoy-digital/liteiclink/commit/aa9181f), [5beb6a7](https://github.com/enjoy-digital/liteiclink/commit/5beb6a7), [619cdef](https://github.com/enjoy-digital/liteiclink/commit/619cdef)).
+* **liteiclink/serwb/kuserdes**                     : Completed UltraScale+ primitive support in KUSERDES and added bitslip handling ([2fd582a](https://github.com/enjoy-digital/liteiclink/commit/2fd582a), [816996a](https://github.com/enjoy-digital/liteiclink/commit/816996a)).
+* **litesata/packaging**                            : Cleaned packaging and test references for the current release flow ([2998b8d](https://github.com/enjoy-digital/litesata/commit/2998b8d)).
+* **litespi/phy/generic_sdr / core**                : Reworked SDR clock divider generation, chip-select timing, and per-core divider selection for better SDR/DDR compatibility ([PR #95](https://github.com/litex-hub/litespi/pull/95)).
+* **Boards/targets / ci**                           : Continued the migration to `LiteXArgumentParser`, standardized target option/help formatting and Ethernet/UART argument behavior, normalized active-low target signal naming, added parser-style CI checks, and updated USB-UART capable boards to the LUNA ACM backend where applicable ([PR #727](https://github.com/litex-hub/litex-boards/pull/727), [PR #726](https://github.com/litex-hub/litex-boards/pull/726), [b02aa763](https://github.com/litex-hub/litex-boards/commit/b02aa763), [5d3bf914](https://github.com/litex-hub/litex-boards/commit/5d3bf914), [453b125c](https://github.com/litex-hub/litex-boards/commit/453b125c)).
+* **Boards/platforms / prog**                       : Switched **Alibaba XCKU3P** and **Kosagi Netv2** programmer flows to include OpenFPGALoader support, modernized OpenOCD config syntax, shipped `prog/*.cfg` files in installs, and reused the new LitePCIe 7-Series GT LOC helper on affected targets ([PR #724](https://github.com/litex-hub/litex-boards/pull/724), [505e1ee2](https://github.com/litex-hub/litex-boards/commit/505e1ee2), [a67e8096](https://github.com/litex-hub/litex-boards/commit/a67e8096), [036a6e5f](https://github.com/litex-hub/litex-boards/commit/036a6e5f)).
+* **Boards/targets**                                : Updated Gowin/TD bitstream extension handling, added DeckLink Quad HDMI Recorder PCIe reset wiring, switched **SQRL FK33** to `add_pcie`, and cleaned platform/target formatting and imports ([765e9b88](https://github.com/litex-hub/litex-boards/commit/765e9b88), [PR #734](https://github.com/litex-hub/litex-boards/pull/734), [3c6dbff5](https://github.com/litex-hub/litex-boards/commit/3c6dbff5), [0d2cdd69](https://github.com/litex-hub/litex-boards/commit/0d2cdd69)).
+
+[> 2025.12, released on January 16th 2026
+-----------------------------------------
+
+[> Fixed
+--------
+* **litex/build/gowin**                             : Prefer Gowin bundled libs to avoid Qt libs conflicts on Ubuntu 22.04 (ex recent Gowin toolchain) ([67932fdfb](https://github.com/enjoy-digital/litex/commit/67932fdfb)).
+* **litex/soc/integration/soc**                     : Fixed AXI-Lite naming regression (axi_lite -> axi-lite) ([d4b3744c8](https://github.com/enjoy-digital/litex/commit/d4b3744c8)).
+* **litex/tools/litex_term**                        : Exit on reader failure to avoid hanging sessions ([PR #2343](https://github.com/enjoy-digital/litex/pull/2343)).
+* **litex/tools/json2dts_zephyr**                   : Fixed MDIO handler in Zephyr DTS generator ([bf5959740](https://github.com/enjoy-digital/litex/commit/bf5959740), [PR #2354](https://github.com/enjoy-digital/litex/pull/2354)).
+* **litex/build/sim/verilator**                     : Fixed GCC 15 build failure due to -Werror=parentheses ([b58b0ab5b](https://github.com/enjoy-digital/litex/commit/b58b0ab5b), [PR #2357](https://github.com/enjoy-digital/litex/pull/2357)).
+* **litex/build/gowin/programmer**                  : Fixed programmer operation (at least on Linux) ([7355f6e9f](https://github.com/enjoy-digital/litex/commit/7355f6e9f)).
+* **litex/build/microsemi/libero_soc**              : Fixed/robustified Libero presence checks (best-effort project generation vs strict run) ([PR #2382](https://github.com/enjoy-digital/litex/pull/2382)).
+* **litex/soc/software/liblitesdcard**              : Wait for data_done at end of write operations ([4c6d72f67](https://github.com/enjoy-digital/litex/commit/4c6d72f67), [PR #2358](https://github.com/enjoy-digital/litex/pull/2358)).
+* **litex/soc/cores/gpio**                          : Use SDRTristate for GPIOTristate (fixes SDRTristate integration issues) ([fe19bfdb2](https://github.com/enjoy-digital/litex/commit/fe19bfdb2), [PR #2367](https://github.com/enjoy-digital/litex/pull/2367)).
+* **litex/soc/cores/cpu/coreblocks**                : Removed most mem_map constraints (fixes constraint-related issues) ([PR #2348](https://github.com/enjoy-digital/litex/pull/2348)).
+* **litex/soc/software/liblitedram**                : Fixed sdram_debug error report ([044d0c7e7](https://github.com/enjoy-digital/litex/commit/044d0c7e7), [PR #2347](https://github.com/enjoy-digital/litex/pull/2347)).
+* **litex/build/altera/common**                     : Implemented dedicated Agilex5SDRInputImpl (fixes SDRInput handling) ([b6e686a91](https://github.com/enjoy-digital/litex/commit/b6e686a91), [PR #2374](https://github.com/enjoy-digital/litex/pull/2374)).
+* **litex/build/lattice/oxide**                     : Added false paths support in generated .pdc (fixes timing issues) ([55e747ce5](https://github.com/enjoy-digital/litex/commit/55e747ce5), [PR #2353](https://github.com/enjoy-digital/litex/pull/2353)).
+* **litex/build/xilinx/vivado**                     : Bypassed “X” pins to avoid critical warnings with Zynq PS pads ([ac937437f](https://github.com/enjoy-digital/litex/commit/ac937437f), [PR #2355](https://github.com/enjoy-digital/litex/pull/2355)).
+* **litex/soc/cores/cpu/zynq7000**                  : Fixed invalid escape sequence warning ([b7e6ed293](https://github.com/enjoy-digital/litex/commit/b7e6ed293)).
+* **litespi/**init****                              : Don’t include mmap without flash to avoid invalid configurations ([PR #92](https://github.com/litex-hub/litespi/pull/92)).
+* **litespi/modules**                               : Completed/fixed IS25WP512M module (opcodes/dummy cycles) ([PR #90](https://github.com/litex-hub/litespi/pull/90)).
+* **litesdcard/core/phy**                           : Added CRC7/Crc16 checks and fixed CMD read/write clocking corner cases (CLK8 sequencing / shortened waits / status forwarding) ([PR #47](https://github.com/enjoy-digital/litesdcard/pull/47), [PR #49](https://github.com/enjoy-digital/litesdcard/pull/49), [PR #51](https://github.com/enjoy-digital/litesdcard/pull/51), [PR #52](https://github.com/enjoy-digital/litesdcard/pull/52)).
+* **litepcie/phy/s7pciephy**                        : Fixed reset forcing behavior; only force pcie_rst_n low when pads.rst_n low, allow override in user designs ([5a50f83](https://github.com/enjoy-digital/litepcie/commit/5a50f83)).
+* **litepcie/tlp/packetizer**                       : Fixed/forced 64-bit on Ultrascale+ for 512-bit datapath ([b4ad313](https://github.com/enjoy-digital/litepcie/commit/b4ad313)).
+* **litei2c/phy/generic**                           : Fixed multiple sink.ready in TX-PRE-WAIT state ([0e47e29](https://github.com/litex-hub/litei2c/commit/0e47e29)).
+* **liteeth/mac/wishbone**                          : Set mode in wishbone.Interface for LiteEthMACWishboneInterface ([PR #195](https://github.com/enjoy-digital/liteeth/pull/195)).
+* **litedram/frontend/fifo**                        : Fixed FIFO stall conditions (with tests) ([PR #373](https://github.com/enjoy-digital/litedram/pull/373)).
+* **platforms/alchitry_pt_v2**                      : Fixed SPI flash pin mappings ([a0a50cce](https://github.com/litex-hub/litex-boards/commit/a0a50cce), [PR #713](https://github.com/litex-hub/litex-boards/pull/713)).
+* **targets/arrow_axe5000**                         : Fixed/add Ethernet via ZiggyBridge-MKR + LAN8720 integration ([PR #710](https://github.com/litex-hub/litex-boards/pull/710)).
+* **platforms/efinix_tz170_j484_dev_kit**           : Fixed FMC HPC pins ([PR #712](https://github.com/litex-hub/litex-boards/pull/712)).
+* **platforms/redpitaya**                           : Removed XCI usage to fix toolchain portability; switched to ps7_config + add_xx calls ([PR #719](https://github.com/litex-hub/litex-boards/pull/719)).
+* **prog/openocd_xcku3p_ft232**                     : Fixed Ultrascale+ OpenOCD usage by requiring CHIP variable ([PR #716](https://github.com/litex-hub/litex-boards/pull/716)).
+
+[> Added
+--------
+* **litex/build/microsemi**                         : Added basic programmer support ([411933d1a](https://github.com/enjoy-digital/litex/commit/411933d1a), [PR #2376](https://github.com/enjoy-digital/litex/pull/2376)).
+* **litex/build/microsemi/libero_soc**              : Added Libero SoC v11.9 support and proASIC3 support ([PR #2379](https://github.com/enjoy-digital/litex/pull/2379)).
+* **litex/tools/litex_sim**                         : Added TCP/PTY UART options ([PR #2330](https://github.com/enjoy-digital/litex/pull/2330)).
+* **litex/soc/cores/cpu/neorv32**                   : Updated NEORV32 to v1.12.6.2 ([PR #2387](https://github.com/enjoy-digital/litex/pull/2387)).
+* **litex/build/openocd**                           : Allowed jtag_uart to work on Catapult v3 boards ([6999d2049](https://github.com/enjoy-digital/litex/commit/6999d2049)).
+* **litex/soc/cores/cpu/zynq7000**                  : Added SDIO support via add_sdio ([PR #2365](https://github.com/enjoy-digital/litex/pull/2365)).
+* **litex/soc/cores/cpu/zynq7000**                  : Added Ethernet support via add_ethernet (GMII/RGMII, MMIO/EMIO, gmii_to_rgmii) ([PR #2362](https://github.com/enjoy-digital/litex/pull/2362)).
+* **litesata/frontend/stream**                      : Added initial streamer modules with LiteSATASectors2Stream and LiteSATAStream2Sectors ([f2fed30](https://github.com/enjoy-digital/litesata/commit/f2fed30)).
+* **litepcie/bench/test_ltssm_tracer**              : Added Xilinx 7-Series support in addition to Ultrascale/Ultrascale+ ([922d525](https://github.com/enjoy-digital/litepcie/commit/922d525)).
+* **Boards/targets**                                : Added support for **Alibaba Cloud XCKU3P** ([PR #715](https://github.com/litex-hub/litex-boards/pull/715)).
+* **Boards/targets**                                : Added initial support for **Microsoft Catapult v3 SmartNIC** ([PR #714](https://github.com/litex-hub/litex-boards/pull/714)).
+* **Boards/targets**                                : Added support for **Alchitry AU v2** ([PR #704](https://github.com/litex-hub/litex-boards/pull/704)).
+* **Boards/targets**                                : Added support for **Alchitry PT v2** ([PR #704](https://github.com/litex-hub/litex-boards/pull/704)).
+* **Boards/targets**                                : Added support for **Microphase A7 Lite** ([PR #706](https://github.com/litex-hub/litex-boards/pull/706)).
+* **Boards/targets**                                : Added support for **Sipeed Slogic16U3** ([b88b033d](https://github.com/litex-hub/litex-boards/commit/b88b033d)).
+* **Boards/targets**                                : Added support for **Sipeed Tang Mega 138K (+ neo dock)** ([PR #718](https://github.com/litex-hub/litex-boards/pull/718)).
+* **Boards/targets**                                : Added support for **Radiona ULX4M-LD v2** updates ([PR #717](https://github.com/litex-hub/litex-boards/pull/717)).
+* **Boards/targets**                                : Added support for **Puzhi Artix-7 A7xxT Development Board** ([PR #697](https://github.com/litex-hub/litex-boards/pull/697)).
+* **Boards/targets**                                : Added support for **OpenSourceSDRLab Kintex-7 FPGA board** ([PR #698](https://github.com/litex-hub/litex-boards/pull/698)).
+* **Boards/targets**                                : Added support for **microphase_a7_lite xc7a200T** ([PR #706](https://github.com/litex-hub/litex-boards/pull/706)).
+* **Boards/targets**                                : Added support for **puzhi_p7_starlite** ([PR #721](https://github.com/litex-hub/litex-boards/pull/721)).
+
+[> Changed
+----------
+* **ci/tooling**                                    : Migrated integration tests from unittest to pytest ([PR #2384](https://github.com/enjoy-digital/litex/pull/2384)).
+* **soc/cores/cpu**                                 : Added integrated_rom_supported parameter and refactored ROM sizing/CPU handling in soc_core ([735b1efa5](https://github.com/enjoy-digital/litex/commit/735b1efa5)).
+* **soc/integration/soc_core**                      : Removed crossover+uartbone backward compatibility (use --uart-name=crossover --with-uartbone) ([363838011](https://github.com/enjoy-digital/litex/commit/363838011)).
+* **soc/cores/uart**                                : Made PHY part of UART module and added compatibility mapping for legacy _phy naming ([1b5fc97f4](https://github.com/enjoy-digital/litex/commit/1b5fc97f4), [6cc971ed7](https://github.com/enjoy-digital/litex/commit/6cc971ed7)).
+* **soc/interconnect/axi**                          : Split read/write arbitration paths and improved mode handling (AXI/AXI-Lite) ([564ec6228](https://github.com/enjoy-digital/litex/commit/564ec6228), [b24bd2d20](https://github.com/enjoy-digital/litex/commit/b24bd2d20)).
+* **soc/cores/dma**                                 : Added mode to Wishbone DMA interface / propagated through SoC integration ([b4120f2e9](https://github.com/enjoy-digital/litex/commit/b4120f2e9)).
+* **tools/remote/comm_pcie**                        : Use BAR size for mmap, improved permission handling, and cleanups/comments ([e5fa4cbaf](https://github.com/enjoy-digital/litex/commit/e5fa4cbaf), [ba2f1e4e9](https://github.com/enjoy-digital/litex/commit/ba2f1e4e9), [d3816c19b](https://github.com/enjoy-digital/litex/commit/d3816c19b)).
+* **soc/integration/export**                        : Added “cores” section to JSON export (core instance name <-> class name mapping) ([PR #2373](https://github.com/enjoy-digital/litex/pull/2373)).
+* **soc/integration/soc**                           : Added data_done IRQ integration for litesdcard ([6a7744a2c](https://github.com/enjoy-digital/litex/commit/6a7744a2c), [PR #2360](https://github.com/enjoy-digital/litex/pull/2360)).
+* **soc/integration/soc**                           : add_sata: Added with_irq parameter to allow disabling IRQ integration ([a429e85d0](https://github.com/enjoy-digital/litex/commit/a429e85d0)).
+* **build/microsemi**                               : Reworked platform/toolchain to accept devices beyond PolarFire ([PR #2375](https://github.com/enjoy-digital/litex/pull/2375)).
+* **build/xilinx/yosys_nextpnr**                    : Reused Vivado signed bitstream script when building Zynq with openxc7 flow ([6e7a8011d](https://github.com/enjoy-digital/litex/commit/6e7a8011d), [PR #2355](https://github.com/enjoy-digital/litex/pull/2355)).
+* **build/xilinx/vivado**                           : Refactored bit.bin generation into dedicated function for reuse by openxc7 ([3a6877e3d](https://github.com/enjoy-digital/litex/commit/3a6877e3d), [PR #2355](https://github.com/enjoy-digital/litex/pull/2355)).
+* **soc/cores/video**                               : VideoGowinHDMIPHY: allow true LVDS vs emulated LVDS selection ([PR #2341](https://github.com/enjoy-digital/litex/pull/2341)).
+* **build/colognechip/common**                      : Mimicked Xilinx same-edge behavior for DDR in/out by adding CC_DFF before/after ([PR #2342](https://github.com/enjoy-digital/litex/pull/2342)).
+* **litesata/frontend/dma**                         : Switched frontend DMA to LiteXModule ([e39a7ea](https://github.com/enjoy-digital/litesata/commit/e39a7ea)).
+* **Boards/platforms**                              : Standardized STARTUPE2 usage approach across Xilinx boards requiring it ([99408f2e](https://github.com/litex-hub/litex-boards/commit/99408f2e)).
+* **platforms/digilent_arty_s7**                    : Removed SPIFlash clk to force STARTUPE2 usage as on other Xilinx platforms ([7cec3e0b](https://github.com/litex-hub/litex-boards/commit/7cec3e0b)).
+* **targets/sqrl_acorn**                            : Made multiboot image generation optional to speed up dev iterations ([064de883](https://github.com/litex-hub/litex-boards/commit/064de883)).
+
+[> 2025.08, released on October 3th 2025
+----------------------------------------
+
+[> Fixed
+--------
+- **tools/json2dts**                               : Fixed sdcard support in device tree generation ([PR #2292](https://github.com/enjoy-digital/litex/pull/2292), [29a8c3cdb](https://github.com/enjoy-digital/litex/commit/29a8c3cdb)).
+- **software/litesdcard**                          : Fixed warnings in litesdcard software ([PR #2273](https://github.com/enjoy-digital/litex/pull/2273)).
+- **cpu/ibex**                                     : Fixed missing add_sources calls ([PR #2268](https://github.com/enjoy-digital/litex/pull/2268)).
+- **tests/test_integration**                       : Fixed file mode to allow reading logs on boot failure ([PR #2264](https://github.com/enjoy-digital/litex/pull/2264)).
+- **build/efinix**                                 : Fixed programmer compatibility and bitstream file copying, added CLKOUT_DYNPHASE_EN support ([PR #2247](https://github.com/enjoy-digital/litex/pull/2247)).
+- **tools/litex_json2dts_linux**                   : Fixed USB OHCI DT naming (mac->usb) and L1 cache size reporting ([PR #2251](https://github.com/enjoy-digital/litex/pull/2251)).
+- **build/colognechip**                            : Fixed DDR inversion issue ([PR #2274](https://github.com/enjoy-digital/litex/pull/2274)).
+- **tests/test_integration**                       : Temporarily disabled coreblocks due to pipx issue ([bc25ed7fd](https://github.com/enjoy-digital/litex/commit/bc25ed7fd)).
+- **platforms/xilinx_zcu106**                      : Fixed user button pin according to user guide ([PR #681](https://github.com/litex-hub/litex-boards/pull/681)).
+- **targets/hyvision_pcie_opt01_revf**             : Fixed J9 pinout for correct board edge alignment ([PR #682](https://github.com/litex-hub/litex-boards/pull/682)).
+- **platforms/berkeleylab_marble**                 : Removed IOSTANDARD from mgtrefclk pins to resolve Vivado warnings ([3e77bc6](https://github.com/litex-hub/litex-boards/commit/3e77bc6)).
+- **litepcie/frontend/dma**                        : Added FIFO resets to LitePCIeDMABuffering to prevent incorrect behavior ([PR #148](https://github.com/enjoy-digital/litepcie/pull/148)).
+- **litesdcard/phy/SDPHYClocker**                  : Fixed clock divider logic for div 0,1,2,3,4,5,8 cases ([PR #40](https://github.com/enjoy-digital/litesdcard/pull/40)).
+- **soc/cores/naxriscv**                           : Fixed git submodule not being set to the right hash ([PR #2332](https://github.com/enjoy-digital/litex/pull/2332)).
+- **bios/isr**                                     : Removed warning for "no previous prototype for 'plic_init' [-Wmissing-prototypes]" ([PR #2333](https://github.com/enjoy-digital/litex/pull/2333)).
+- **tools/litex_json2dts_linux**                   : Fixed clint addition to DTS by checking memory map instead of CPU type ([PR #2335](https://github.com/enjoy-digital/litex/pull/2335)).
+- **soc/interconnect/axi**                         : Fixed AXIInterfaces initialization with correct id_width ([PR #2320](https://github.com/enjoy-digital/litex/pull/2320)).
+- **build/gowin/gowin.py**                         : Fixed WSL issue with Gowin toolchain detection ([PR #2308](https://github.com/enjoy-digital/litex/pull/2308)).
+- **build/efinix**                                 : Fixed get_pad_name_xml for Topaz ([PR #2297](https://github.com/enjoy-digital/litex/pull/2297)).
+- **build/io/efinix**                              : Fixed DDR Input timing ([PR #2311](https://github.com/enjoy-digital/litex/pull/2311)).
+- **build/altera/common**                          : Fixed Agilex5SDRTristateImpl parameters and reset synchronizer ([PR #2318](https://github.com/enjoy-digital/litex/pull/2318)).
+- **soc/cores/ram/efinix_hyperram**                : Fixed clkout frequency and TristateImpl for TSTriple ([PR #2295](https://github.com/enjoy-digital/litex/pull/2295)).
+- **build/vivado**                                 : Fixed synth_ip warning by switching to non-project mode ([PR #2294](https://github.com/enjoy-digital/litex/pull/2294)).
+- **build/vhd2v_converter**                        : Fixed mutable defaults in __init__ ([f8a1a213d](https://github.com/enjoy-digital/litex/commit/f8a1a213d)).
+- **soc/doc**                                      : Fixed CSR register calculation for little endian ordering ([PR #2270](https://github.com/enjoy-digital/litex/pull/2270)).
+- **build/[colognechip,gowin]/common**             : Fixed SDRInput parameters order in SDRTristateImpl ([PR #2328](https://github.com/enjoy-digital/litex/pull/2328)).
+- **soc/cores/clock/intel_agilex**                 : Fixed clkin_name if signal type is ClockSignal ([587b1b374](https://github.com/enjoy-digital/litex/commit/587b1b374)).
+- **bios/litedram**                                : Fixed indexes of csr_rd_buf_uint8 ([420591a1a](https://github.com/enjoy-digital/litex/commit/420591a1a)).
+- **litepcie/phy/xilinx_usp/m_axis_rc_adapt_512b** : Fixed cq/rc typo ([51da1ba](https://github.com/enjoy-digital/litepcie/commit/51da1ba)).
+- **litepcie/phy/s7pciephy**                       : Added false path constraint on pclk_sel signal ([44362da](https://github.com/enjoy-digital/litepcie/commit/44362da)).
+- **litei2c/phy**                                  : Fixed truncating complaint from toolchain ([6fbef5b](https://github.com/litex-hub/litei2c/commit/6fbef5b)).
+- **liteeth/phy/titanium_lvds_1000basex**          : Fixed regression on presented data to Decoder8b10bIdleChecker ([fec700b](https://github.com/enjoy-digital/liteeth/commit/fec700b)).
+- **platforms/berkeleylab_obsidian**               : Fixed configuration of SPI flash ([PR #692](https://github.com/litex-hub/litex-boards/pull/692)).
+- **platforms/colorlight_5a_75e**                  : Fixed typo in connectors ([PR #685](https://github.com/litex-hub/litex-boards/pull/685)).
+- **targets/arrow_axe5000**                        : Fixed call to Agilex5PLL after litex core changes ([PR #694](https://github.com/litex-hub/litex-boards/pull/694)).
+
+[> Added
+--------
+- **sim/verilator**                                : Added state save and load functions for Verilator simulation ([PR #2261](https://github.com/enjoy-digital/litex/pull/2261)).
+- **build/xilinx/vivado**                          : Added Device Image (pdi) generation support for Vivado builds ([PR #2272](https://github.com/enjoy-digital/litex/pull/2272)).
+- **software/bios/liteeth**                        : Added ping command and BIOS support for responding to ping requests ([PR #2287](https://github.com/enjoy-digital/litex/pull/2287)).
+- **cores/cpu/vexiiriscv**                         : Added architecture details in human-readable name ([PR #2286](https://github.com/enjoy-digital/litex/pull/2286)).
+- **tools/json2dts_zephyr**                        : Added default IRQ priority of 1 for PLIC ([PR #2285](https://github.com/enjoy-digital/litex/pull/2285)).
+- **software/litesdcard**                          : Added support for changing PHY modes (x1, x4, x8) ([PR #2275](https://github.com/enjoy-digital/litex/pull/2275)).
+- **soc/cores/prbs**                               : Added errors_width parameter to improve timing in some designs ([bc6a6f015](https://github.com/enjoy-digital/litex/commit/bc6a6f015)).
+- **software/bios/liteeth/udp**                    : Added broadcast support ([PR #2263](https://github.com/enjoy-digital/litex/pull/2263)).
+- **tools/json2dts_zephyr**                        : Updated interrupt naming for SPI flash core ([PR #2271](https://github.com/enjoy-digital/litex/pull/2271)).
+- **soc/cores/spi**                                : Added interrupt support for LiteSPI and moved PHY to core for single CSR slot usage ([2438c558e](https://github.com/enjoy-digital/litex/commit/2438c558e), [befcbbc9b](https://github.com/enjoy-digital/litex/commit/befcbbc9b)).
+- **soc/cores/i2c**                                : Added interrupt support for LiteI2C ([3b4708db4](https://github.com/enjoy-digital/litex/commit/3b4708db4)).
+- **tests/test_integration**                       : Added ibex and vexiiriscv CPUs to boot tests ([d170f08dd](https://github.com/enjoy-digital/litex/commit/d170f08dd), [e3b8bf653](https://github.com/enjoy-digital/litex/commit/e3b8bf653)).
+- **build/tools**                                  : Added _tail_file function and tail_log parameter to subprocess_call_filtered for colored build log output ([f5e5514b3](https://github.com/enjoy-digital/litex/commit/f5e5514b3)).
+- **soc/integration**                              : Exposed check_duplicate argument in add_ip_address_constants and add_mac_address_constants ([PR #2259](https://github.com/enjoy-digital/litex/pull/2259)).
+- **build/lattice/icestorm**                       : Added support for pin pull-up configuration ([PR #2256](https://github.com/enjoy-digital/litex/pull/2256)).
+- **cores/usb_ohci**                               : Added InterruptPin class for standard IRQ allocation ([PR #2252](https://github.com/enjoy-digital/litex/pull/2252)).
+- **tools/litex_json2dts_linux**                   : Added local MAC address to ethernet device tree and L2 cache topology support ([a3b36c125](https://github.com/enjoy-digital/litex/commit/a3b36c125), [2781b0124](https://github.com/enjoy-digital/litex/commit/2781b0124)).
+- **cpu/naxriscv**                                 : Added support for generating cache sections in DTS ([e1986d554](https://github.com/enjoy-digital/litex/commit/e1986d554)).
+- **soc/cores/clock**                              : Added CologneChip GateMatePLL import ([eda4e49b7](https://github.com/enjoy-digital/litex/commit/eda4e49b7)).
+- **litesdcard/phy**                               : Added support for changing modes (x1, x4, x8) ([PR #38](https://github.com/enjoy-digital/litesdcard/pull/38)).
+- **liteiclink/serdes/gtp_7series**                : Added rx_prbs_errors_width parameter to add_prbs_control and add_controls ([ef9c295](https://github.com/enjoy-digital/liteiclink/commit/ef9c295)).
+- **litei2c/master**                               : Added interrupt option ([ad7ec63](https://github.com/litex-hub/litei2c/commit/ad7ec63)).
+- **litepcie/gen**                                 : Added support for specifying DMA data_width in .yml configuration ([2682042](https://github.com/enjoy-digital/litepcie/commit/2682042)).
+- **litepcie/frontend/ptm**                        : Added named Time Clock Domain to avoid conflicts in larger designs ([029a578](https://github.com/enjoy-digital/litepcie/commit/029a578)).
+- **soc/cores/cpu/zynq7000**                       : Added UART, SPI, I2C, and GPIO support with EMIO/PS configurations ([PR #2340](https://github.com/enjoy-digital/litex/pull/2340)).
+- **soc/cores/cpu/coreblocks**                     : Added small_linux config and CoreSoCks wrapper support ([PR #2339](https://github.com/enjoy-digital/litex/pull/2339)).
+- **soc/cores/clock/intel_agilex**                 : Added Altera Agilex PLL core ([PR #2324](https://github.com/enjoy-digital/litex/pull/2324)).
+- **build/altera/quartus**                         : Added noprune attribute support and clock_constraints object ([PR #2336](https://github.com/enjoy-digital/litex/pull/2336)).
+- **build/lattice/trellis**                        : Added argument to override bitstream's IDCODE ([PR #2309](https://github.com/enjoy-digital/litex/pull/2309)).
+- **build/altera/common**                          : Added specials for Agilex DifferentialInput/Output and Tristate Implementation ([PR #2318](https://github.com/enjoy-digital/litex/pull/2318)).
+- **build/lattice**                                : Added SDR tristate specialisation for ECP5 ([PR #2326](https://github.com/enjoy-digital/litex/pull/2326)).
+- **build/altera/quartus**                         : Added selection between quartus_cpf and quartus_pfg for file conversion ([PR #2318](https://github.com/enjoy-digital/litex/pull/2318)).
+- **software/system**                              : Added functions to clean/invalidate/flush cache ([PR #2325](https://github.com/enjoy-digital/litex/pull/2325)).
+- **soc/cores/cpu/vexiiriscv**                     : Added cache management functions ([PR #2325](https://github.com/enjoy-digital/litex/pull/2325)).
+- **liteeth/mac/core**                             : Allowed using core_dw smaller than phy_dw ([PR #177](https://github.com/enjoy-digital/liteeth/pull/177)).
+- **liteeth/mac**                                  : Used one CRC engine for Checker ([PR #183](https://github.com/enjoy-digital/liteeth/pull/183)).
+- **liteeth/phy/rmii**                             : Added use of rx_er if it exists ([PR #194](https://github.com/enjoy-digital/liteeth/pull/194)).
+- **liteeth/phy/titanium/trion rgmii**             : Added improvements and multibit IO support ([PR #181](https://github.com/enjoy-digital/liteeth/pull/181)).
+- **litesdcard/phy**                               : Added CSRs for timeout configuration ([PR #43](https://github.com/enjoy-digital/litesdcard/pull/43)).
+- **litespi/phy/sdr**                              : Added extra_latency like in DDR phy ([PR #89](https://github.com/litex-hub/litespi/pull/89)).
+- **litespi/modules**                              : Added MX25U25645G flash ([PR #88](https://github.com/litex-hub/litespi/pull/88)).
+- **litedram/modules**                             : Added W989D6DBGX6 ([PR #366](https://github.com/enjoy-digital/litedram/pull/366)).
+- **litei2c/clkgen**                               : Added scl_o/oe signals for code simplification and external access ([166e2f6](https://github.com/litex-hub/litei2c/commit/166e2f6)).
+- **liteiclink/serdes/gtx_7series**                : Added rx_prbs_errors_width parameter ([1cddcd4](https://github.com/enjoy-digital/liteiclink/commit/1cddcd4)).
+- **build/radiant**                                : Added false paths to .pdc file generation ([PR #2312](https://github.com/enjoy-digital/litex/pull/2312)).
+- **build/efinix/clock/pll**                       : Added nclkout argument to create_clkout ([PR #2300](https://github.com/enjoy-digital/litex/pull/2300)).
+- **Boards/targets**                               : Added support for **Machdyne Kolsch** ([PR #679](https://github.com/litex-hub/litex-boards/pull/679)).
+- **Boards/targets**                               : Added support for **Alinx AX7203** with platform and target ([PR #678](https://github.com/litex-hub/litex-boards/pull/678)).
+- **Boards/targets**                               : Added HDMI support for Alinx AX7203 ([PR #680](https://github.com/litex-hub/litex-boards/pull/680)).
+- **Boards/targets**                               : Added USB option using PMOD connector JB for Digilent Nexys Video (2 USB-OHCI ports) ([PR #672](https://github.com/litex-hub/litex-boards/pull/672)).
+- **Boards/targets**                               : Added SD card support for CologneChip GateMate EVB ([PR #673](https://github.com/litex-hub/litex-boards/pull/673)).
+- **Boards/targets**                               : Added HyperRAM support for CologneChip GateMate EVB ([PR #670](https://github.com/litex-hub/litex-boards/pull/670)).
+- **Boards/targets**                               : Added missing enable pin for 20 MHz VCXO on BerkeleyLab Marble ([PR #676](https://github.com/litex-hub/litex-boards/pull/676)).
+- **Boards/targets**                               : Added support for **Icepi Zero** ([PR #693](https://github.com/litex-hub/litex-boards/pull/693)).
+- **Boards/targets**                               : Added support for **Berkeley Lab Obsidian A35** ([PR #686](https://github.com/litex-hub/litex-boards/pull/686)).
+- **Boards/targets**                               : Added support for **Efinix TZ170 J484 Dev Kit** ([PR #691](https://github.com/litex-hub/litex-boards/pull/691)).
+- **Boards/targets**                               : Added support for **Arrow AXE5000** (Altera Agilex 5) ([PR #689](https://github.com/litex-hub/litex-boards/pull/689)).
+- **Boards/targets**                               : Added support for **ULX5M-GS** ([PR #688](https://github.com/litex-hub/litex-boards/pull/688)).
+- **Boards/targets**                               : Added support for **QMTech Cyclone10 Starter Kit - 10CL080** ([PR #683](https://github.com/litex-hub/litex-boards/pull/683)).
+
+[> Changed
+----------
+- **soc/litesdcard**                               : Moved litesdcard modules to a parent class for add_sdcard(), renamed irq to ev ([PR #2281](https://github.com/enjoy-digital/litex/pull/2281), [b46e06182](https://github.com/enjoy-digital/litex/commit/b46e06182)).
+- **software/litesdcard**                          : Removed limitations for clock divider ([PR #2276](https://github.com/enjoy-digital/litex/pull/2276)).
+- **cpu/vexiiriscv**                               : Updated recommended commit to latest dev ([ee6c3102b](https://github.com/enjoy-digital/litex/commit/ee6c3102b)).
+- **build/efinix/efinity**                         : Updated to use efx_run for builds, added tail_log parameter for log redirection, and set CLKOUT_DYNPHASE_EN ([PR #2247](https://github.com/enjoy-digital/litex/pull/2247), [83a14dd64](https://github.com/enjoy-digital/litex/commit/83a14dd64)).
+- **build/colognechip**                            : Removed forced ram_style=distributed ([PR #2254](https://github.com/enjoy-digital/litex/pull/2254)).
+- **ci/tooling**                                   : Updated to use GHDL from OSS CAD Suite and bumped to latest version ([5e58ab1ba](https://github.com/enjoy-digital/litex/commit/5e58ab1ba)).
+- **platforms/digilent_nexys_video**               : Added PMOD connectors ([6bbca0e](https://github.com/litex-hub/litex-boards/commit/6bbca0e)).
+- **targets/berkeleylab_marble**                   : Made max I2C interface optional ([74cd48d](https://github.com/litex-hub/litex-boards/commit/74cd48d)).
+- **platforms/berkeleylab_marble/marblemini**      : Removed redundant files ([PR #675](https://github.com/litex-hub/litex-boards/pull/675)).
+- **litesdcard/phy/SDPHYClocker**                  : Reworked clock divider to use down-counter, simplified logic, and ensured frequency <= configured ([PR #40](https://github.com/enjoy-digital/litesdcard/pull/40)).
+- **litesdcard/phy**                               : Set default data_width to 4x ([PR #38](https://github.com/enjoy-digital/litesdcard/pull/38)).
+- **soc/cores/cpu/coreblocks**                     : Updated to 2025-09 with small_linux config and Vivado hacks ([PR #2339](https://github.com/enjoy-digital/litex/pull/2339)).
+- **soc/cores/clock/intel_agilex**                 : Refactored PLL core and updated SDC constraints ([PR #2336](https://github.com/enjoy-digital/litex/pull/2336)).
+- **build/altera/platform**                        : Refactored Agilex special overrides for Agilex 3 support ([PR #2334](https://github.com/enjoy-digital/litex/pull/2334)).
+- **soc/interconnect/axi**                         : Optimized AXI bus with mode, split read/write, and faster read ([PR #2289](https://github.com/enjoy-digital/litex/pull/2289)).
+- **build/colognechip**                            : Enabled multipliers with peppercorn toolchain ([PR #2319](https://github.com/enjoy-digital/litex/pull/2319)).
+- **soc/cores/uart**                               : Switched to EventSourceLevel irq and exposed rx_fifo_rx_we ([PR #2319](https://github.com/enjoy-digital/litex/pull/2319)).
+- **soc/integration/csr**                          : Improved read/write handling for big/little endian ordering ([PR #2270](https://github.com/enjoy-digital/litex/pull/2270)).
+- **soc/ethernet**                                 : Used phy_cd name directly from phy for multiple PHY support ([PR #2163](https://github.com/enjoy-digital/litex/pull/2163)).
+- **soc/litespi**                                  : Improved add_spi_flash with QPI activation, kwargs, and wait for quad mode ([PR #2313](https://github.com/enjoy-digital/litex/pull/2313)).
+- **build/io/Tristate**                            : Added support for i/i1/i2 being None in SDR/DDR Tristate ([PR #2310](https://github.com/enjoy-digital/litex/pull/2310)).
+- **build/efinix/common**                          : Updated to use add_iface_io ([PR #2293](https://github.com/enjoy-digital/litex/pull/2293)).
+- **build/xilinx/vivado**                          : Switched to non-project mode and made verilog headers global ([PR #2294](https://github.com/enjoy-digital/litex/pull/2294)).
+- **soc/cores/ram/efinix_hyperram**                : Modernized PLL uses and exposed CTOR params ([PR #2295](https://github.com/enjoy-digital/litex/pull/2295)).
+- **build/efinix/clock/pll**                       : Used margin for frequency check ([PR #2299](https://github.com/enjoy-digital/litex/pull/2299)).
+- **liteeth/mac/core**                             : Added docstrings and allowed smaller core_dw ([PR #177](https://github.com/enjoy-digital/liteeth/pull/177)).
+- **liteeth/mac/sram**                             : Simplified logic and named memory ([PR #191](https://github.com/enjoy-digital/liteeth/pull/191)).
+- **liteeth/phy/titanium_lvds_1000basex**          : Cleaned up and refactored for readability and reduced resources ([PR #192](https://github.com/enjoy-digital/liteeth/pull/192)).
+- **litesdcard/phy**                               : Made use of LiteXModule ([PR #46](https://github.com/enjoy-digital/litesdcard/pull/46)).
+- **litesdcard/crc16**                             : Moved CRC16 check to phy and reworked tests ([PR #45](https://github.com/enjoy-digital/litesdcard/pull/45)).
+- **litesdcard/core**                              : Moved block delimiter into core ([PR #44](https://github.com/enjoy-digital/litesdcard/pull/44)).
+- **litespi/core/mmap**                            : Excluded write code when disabled ([PR #87](https://github.com/litex-hub/litespi/pull/87)).
+- **litespi/phy**                                  : Added kwargs support ([ef806bd](https://github.com/litex-hub/litespi/commit/ef806bd)).
+- **litei2c/phy/clkgen**                           : Made scl_o a Constant again and removed unused i from SDRTristate ([8b6f5e8](https://github.com/litex-hub/litei2c/commit/8b6f5e8), [c34fdb8](https://github.com/litex-hub/litei2c/commit/c34fdb8)).
+- **ci/github_actions**                            : Bumped actions/setup-python from 5 to 6 ([PR #690](https://github.com/litex-hub/litex-boards/pull/690)).
+- **ci/github_actions**                            : Bumped actions/checkout from 4 to 5 ([PR #687](https://github.com/litex-hub/litex-boards/pull/687)).
+
+
+[> 2025.04, released on May 26th 2025
+-------------------------------------
+
+[> Fixed
+--------
+- **build/io**                               : Fixed length check after wrapping for SDRIO/Tristate to handle int and bool types correctly ([PR #2105](https://github.com/enjoy-digital/litex/pull/2105)).
+- **soc/integration/soc/add_slave**          : Fixed crash when `strip_origin` is *None* by correctly using `self.regions[name]` ([86b052e41](https://github.com/enjoy-digital/litex/commit/86b052e41)).
+- **build/anlogic**                          : Fixed Tang Dynasty programmer exit-hang and corrected “TangDinasty” typo → **TangDynasty** ([79d206fc2](https://github.com/enjoy-digital/litex/commit/79d206fc2), [6f8e65e10](https://github.com/enjoy-digital/litex/commit/6f8e65e10)).
+- **build/io / gen/fhdl/expression**         : Fixed slice-resolution regression introduced by PR #2161 ([666c9b430](https://github.com/enjoy-digital/litex/commit/666c9b430)).
+- **soc/software/bios/litedram**             : Fixed write-levelling helpers being called on DDR2 parts ([e88fbfb95](https://github.com/enjoy-digital/litex/commit/e88fbfb95)).
+- **gcc flags**                              : Fixed wrong `-march` value for *Minerva* and *Sentinel* CPUs ([866d04025](https://github.com/enjoy-digital/litex/commit/866d04025)).
+- **litedram/phy/s7ddrphy**                  : Fixed unintended write-leveling on DDR2 modules ([632e921](https://github.com/enjoy-digital/litedram/commit/632e921)).
+- **liteeth/phy/rmii**                       : Fixed speed-detect FSM corner cases and RX-path glitches ([6e7a70c](https://github.com/enjoy-digital/liteeth/commit/6e7a70c)).
+- **litepcie/software/kernel**               : Fixed `liteuart` build on Linux ≥ 6.10/6.11 ([3b5c70f](https://github.com/enjoy-digital/litepcie/commit/3b5c70f), [be0abeb](https://github.com/enjoy-digital/litepcie/commit/be0abeb)).
+- **tools/json2dts_zephyr**                  : Fixed missing interrupt 0, MDIO handling, and buffer split issues ([2a97b0308](https://github.com/enjoy-digital/litex/commit/2a97b0308)).
+- **misc**                                   : Fixed uptime counter width (now `uint64`) and removed assorted static-analysis warnings ([724034564](https://github.com/enjoy-digital/litex/commit/724034564)).
+
+[> Added
+--------
+- **cores/cpu/ibex**                         : Aligned with latest RTL, fixed file paths, and addressed Verilator parameter type limitation ([PR #2160](https://github.com/enjoy-digital/litex/pull/2160)).
+- **cores/cpu/openc906**                     : Aligned with latest RTL, removed unused file lists, and updated bus conversion logic ([PR #2159](https://github.com/enjoy-digital/litex/pull/2159)).
+- **build/io**                               : Added multibit/bus variants of SDR and DDR IO for Efinix and other platforms ([PR #2105](https://github.com/enjoy-digital/litex/pull/2105)).
+- **gen/fhdl/expression**                    : Resolved slice handling completely to reduce complexity in Verilog files ([PR #2161](https://github.com/enjoy-digital/litex/pull/2161)).
+- **cores/cpu/coreblocks**                   : Added new open-source RISC-V “Coreblocks” CPU support ([fb6d78c92](https://github.com/enjoy-digital/litex/commit/fb6d78c92)).
+- **build/vhd2v_converter**                  : Added `CTOR` argument to bypass source-flattening when desired ([138379f3d](https://github.com/enjoy-digital/litex/commit/138379f3d)).
+- **fhdl/verilog/slice_lowerer**             : Added inversion support and lowering of specials ([7efbd0535](https://github.com/enjoy-digital/litex/commit/7efbd0535), [32041f21c](https://github.com/enjoy-digital/litex/commit/32041f21c)).
+- **build/anlogic**                          : Added *TangDynastyProgrammer* backend and DR1V90 MEG484 device support ([c77f2e834](https://github.com/enjoy-digital/litex/commit/c77f2e834), [2387bc6be](https://github.com/enjoy-digital/litex/commit/2387bc6be)).
+- **build/colognechip**                      : Added native *CC_IOBUF* tristate and open-source *Peppercorn* flow ([62c9b9eb3](https://github.com/enjoy-digital/litex/commit/62c9b9eb3), [1e259f5ef](https://github.com/enjoy-digital/litex/commit/1e259f5ef)).
+- **soc/cores/clock/xilinx_common**          : Added Dynamic-Phase-Shift (DPS) interface exposure ([2c98fed25](https://github.com/enjoy-digital/litex/commit/2c98fed25)).
+- **soc/cores/clock/efinix**                 : Added on-chip flash programmer and *Topaz* FPGA family support ([761184110](https://github.com/enjoy-digital/litex/commit/761184110), [a0159e18a](https://github.com/enjoy-digital/litex/commit/a0159e18a)).
+- **axi/Wishbone2AXILite**                   : Added one-cycle faster implementation ([d631d810b](https://github.com/enjoy-digital/litex/commit/d631d810b)).
+- **litepcie PHYs**                          : Added *Certus Pro-NX* PCIe PHY ([e157d1e](https://github.com/enjoy-digital/litepcie/commit/e157d1e)) and *Gowin Arora V* PCIe PHY ([e14cf57](https://github.com/enjoy-digital/litepcie/commit/e14cf57)).
+- **litepcie/frontend/wishbone**             : Added 64-bit addressing and byte-addressable mode ([5f15aa7](https://github.com/enjoy-digital/litepcie/commit/5f15aa7)).
+- **litescope**                              : Added automatic group data-width padding and `--port` CLI flag ([021a834](https://github.com/enjoy-digital/litescope/commit/021a834)).
+- **litedram**                               : Added DDR2 device *K4T1G164QGBCE7* definition ([118e291](https://github.com/enjoy-digital/litedram/commit/118e291)).
+- **liteeth/phy/rmii**                       : Added automatic 10/100 Mb/s speed-detect FSM ([bbc4eb7](https://github.com/enjoy-digital/liteeth/commit/bbc4eb7)).
+- **litespi**                                : Added unified bus abstraction (PR #81) and offset-less mmap mode (PR #82).
+- **Boards/targets**                         : Added support for **mlkpai FS01 DR1V90M**, **HyVision PCIe opt01 revF**, **Alinx AX7020/7010** (PS7 DDR), **Kintex-7 Base C**, **Colorlight 5A-75E v8.2**, **Certus-Pro-NX Versa**, **Sipeed Tang Console / Mega 138k Pro / Nano 20k**, **Efinix Ti375 C529** (2× SFP, DDR, FMC-LPC) and several others (see commit history).
+
+[> Changed
+----------
+- **gen/fhdl/instance**                      : Switched to using `expression.py` for expression generation ([e71e404ef](https://github.com/enjoy-digital/litex/commit/e71e404ef)).
+- **gen/fhdl**                               : Moved expression generation functions to `expression.py` for better organization ([0bfaf39d5](https://github.com/enjoy-digital/litex/commit/0bfaf39d5)).
+- **build/yosys_nextpnr/xilinx**             : Injects `--freq` automatically from reported Fmax ([fce56fae8](https://github.com/enjoy-digital/litex/commit/fce56fae8)).
+- **tools/json2dts_zephyr**                  : Rewritten for modularity; adds optional overlay and buffer splitting ([778d39d5c](https://github.com/enjoy-digital/litex/commit/778d39d5c)…).
+- **build/common/TristateImpl**              : Added wide-`oe` support and stricter signal-length checks ([913a70962](https://github.com/enjoy-digital/litex/commit/913a70962), [a019fd4ed](https://github.com/enjoy-digital/litex/commit/a019fd4ed)).
+- **Clocking cores**                         : Exposed DPS on Xilinx, enabled PLLA on GW5AT, improved async DDR I/O.
+- **CI/tooling**                             : Migrated CI to Ubuntu 22.04, switched to OSS-CAD-Suite, added Python 3.11 compatibility.
+
+[> 2024.12, released on January 7th 2025
+----------------------------------------
+
+[> Fixed
+--------
+- **tools/litex_client**                     : Fixed error handling and timeout management ([1225bf45](https://github.com/enjoy-digital/litex/commit/1225bf45), [fc529dca](https://github.com/enjoy-digital/litex/commit/fc529dca), [b9cc5c58](https://github.com/enjoy-digital/litex/commit/b9cc5c58)).
+- **soc/cores/led**                          : Fixed WS2812 LED count calculation ([PR #2142](https://github.com/enjoy-digital/litex/pull/2142)).
+- **build/vhd2v_converter**                  : Fixed instance handling and robustness ([PR #2145](https://github.com/enjoy-digital/litex/pull/2145), [8254a349f](https://github.com/enjoy-digital/litex/commit/8254a349f)).
+- **soc/cores/jtag**                         : Fixed ECP5JTAG initialization for Diamond/Trellis toolchains ([4368d5a9e](https://github.com/enjoy-digital/litex/commit/4368d5a9e)).
+- **litespi**                                : Fixed SPI Flash erase functionality and debug output ([e61196b1c](https://github.com/enjoy-digital/litex/commit/e61196b1c), [63fa4fda8](https://github.com/enjoy-digital/litex/commit/63fa4fda8)).
+- **liteeth/phy/pcs_1000basex**              : Fixed deadlock in AUTONEG_WAIT_ABI state and improved RX alignment ([e5746c8](https://github.com/enjoy-digital/liteeth/commit/e5746c8)).
+- **liteeth/phy/pcs_1000basex**              : Fixed RX Config consistency check and cleanup pass ([20e9ea6](https://github.com/enjoy-digital/liteeth/commit/20e9ea6), [cd2274d](https://github.com/enjoy-digital/liteeth/commit/cd2274d)).
+- **litepcie/software/kernel**               : Fixed compilation warnings and removed unused functions ([867c818](https://github.com/enjoy-digital/litepcie/commit/867c818)).
+- **platforms/limesdr_mini_v2**              : Fixed SPI Flash pinout (MOSI <-> MISO) ([3b8c558](https://github.com/litex-hub/litex-boards/commit/3b8c558)).
+- **efinix_trion_t20_bga256_dev_kit**        : Fixed ClockSignal handling ([77cb9a5](https://github.com/litex-hub/litex-boards/commit/77cb9a5)).
+
+[> Added
+--------
+- **cpu/zynqmp**                             : Added SGMII support via PL and optional PTP ([PR #2095](https://github.com/enjoy-digital/litex/pull/2095)).
+- **liteeth/phy**                            : Improved 1000BaseX/2500BaseX PCS/PHYs ([PR #174](https://github.com/enjoy-digital/liteeth/pull/174)).
+- **cpu/urv**                                : Added uRV CPU support (RISC-V CPU use in White Rabbit project) ([PR #2098](https://github.com/enjoy-digital/litex/pull/2098)).
+- **tools/litex_client**                     : Added memory regions table, auto-refresh, and binary file read/write support ([d3258a398](https://github.com/enjoy-digital/litex/commit/d3258a398), [3875a4c1f](https://github.com/enjoy-digital/litex/commit/3875a4c1f), [95f37a82e](https://github.com/enjoy-digital/litex/commit/95f37a82e)).
+- **tools/litex_client**                     : Added endianness configuration for memory accesses ([71e802aec](https://github.com/enjoy-digital/litex/commit/71e802aec)).
+- **cores/clock/intel**                      : Added reset support to Intel PLLs ([PR #2139](https://github.com/enjoy-digital/litex/pull/2139)).
+- **cores/cpu/vexiiriscv**                   : Added PMP support and MACSG (DMA-based Ethernet) support ([PR #2130](https://github.com/enjoy-digital/litex/pull/2130)).
+- **build/altera/quartus**                   : Added `.svf` generation for OpenFPGALoader compatibility ([e91d4d1a3](https://github.com/enjoy-digital/litex/commit/e91d4d1a3)).
+- **build/efinix**                           : Added SEU (Single Event Upset) interface ([PR #2128](https://github.com/enjoy-digital/litex/pull/2128)).
+- **soc/cores/bitbang/i2c**                  : Added `connect_pads` parameter for flexible I2C pad handling ([fdd7c97ce](https://github.com/enjoy-digital/litex/commit/fdd7c97ce)).
+- **platforms/xilinx_zcu102**                : Added all SFP connectors ([0eabebf](https://github.com/litex-hub/litex-boards/commit/0eabebf)).
+- **targets/sipeed_tang_nano_20k**           : Added SPI Flash and HDMI support ([2d25408](https://github.com/litex-hub/litex-boards/commit/2d25408)).
+- **targets/embedfire_rise_pro**             : Added support for EmbedFire Rise Pro ([d7f2b5a](https://github.com/litex-hub/litex-boards/commit/d7f2b5a)).
+- **targets/alibaba_vu13p**                  : Added support for Alibaba VU13P ([e8e833d](https://github.com/litex-hub/litex-boards/commit/e8e833d)).
+- **targets/efinix_ti375_c529_dev_kit**      : Added VexII Ethernet support ([4c61bac](https://github.com/litex-hub/litex-boards/commit/4c61bac)).
+- **targets/efinix_trion_t20_mipi_dev_kit**  : Added simple flash fix ([1727d30](https://github.com/litex-hub/litex-boards/commit/1727d30)).
+- **targets/machdyne_mozart_mx2**            : Added support for Mozart MX2 ([399f10f](https://github.com/litex-hub/litex-boards/commit/399f10f)).
+- **targets/tec0117**                        : Updated to work with Apicula ([9d68972](https://github.com/litex-hub/litex-boards/commit/9d68972)).
+
+[> Changed
+----------
+- **tools/litex_client**                     : Improved GUI presentation and memory region display ([5c156b499](https://github.com/enjoy-digital/litex/commit/5c156b499), [d3258a398](https://github.com/enjoy-digital/litex/commit/d3258a398)).
+- **liteeth/phy/pcs_1000basex**              : Refactored RX Config consistency check and improved timers ([b783639](https://github.com/enjoy-digital/liteeth/commit/b783639), [fe69248](https://github.com/enjoy-digital/liteeth/commit/fe69248)).
+- **liteeth/phy/a7_1000basex**               : Updated ALIGN_COMMA_WORD/RXCDR_CFG settings from Xilinx wizard ([04fc888](https://github.com/enjoy-digital/liteeth/commit/04fc888)).
+- **liteeth/mac/core**                       : Switched to LiteXModule for better modularity ([f30d6ef](https://github.com/enjoy-digital/liteeth/commit/f30d6ef)).
+
+[> 2024.08, released on September 27th 2024
+-------------------------------------------
+	[> Fixed
+	--------
+	- cpu/zynq7000                  : Fixed AXI version to AXI3.
+	- build/vhd2v_converter         : Fixed instance replace robustness.
+	- tools/litex_json2renode       : Corrected VexRiscv variants (#1984).
+	- software/liblitespi           : Fixed xor-used-pow bug (#2001).
+	- soc                           : Fixed AHB2Wishbone bridge creation (#1998).
+	- soc                           : Fixed parameters propagation for AXI data-width conversion (#1997).
+	- soc/cores/clock/colognechip   : Fixed and reworked locked signal handling.
+	- litesdcard                    : Fixed data_i sampling (https://github.com/enjoy-digital/litesdcard/pull/34).
+	- litespi/mmap                  : Fixed dummy bits (https://github.com/litex-hub/litespi/pull/71).
+	- sim/verilator                 : Fixed .fst empty dump with short simulation.
+
+	[> Added
+	--------
+	- cpu/vexiiriscv                : Added initial support (#1923).
+	- builder                       : Added default generation of exports with default names to output_dir (#1978).
+	- litex.gen                     : Added byte size definitions and use them in targets/json2dts.
+	- litepcie                      : Added external QPLL support/sharing for Xilinx Artix7.
+	- cores/zynq7000/mp             : Improved integration, added peripherals supports (#1994).
+	- software/bios                 : Generalized IRQ handling approach between CPUs.
+	- cores/video                   : Added fifo_depth parameter to add_video_framebuffer (#1931).
+	- gen/common                    : Added byte size definitions (KILOBYTE, MEGABYTE, GIGABYTE).
+	- tools/litex_json2dts_linux    : Simplified CPU architecture/RISC-V ISA.
+	- soc                           : Added add_spi_master method (#1985).
+	- tools/litex_json2dts_zephyr   : Added spimaster/spiflash handlers (#1985).
+	- tools/litex_json2renode       : Added .elf bios option (#1984).
+	- cores                         : Added Watchdog core and Zephyr support (#1996).
+	- soc                           : Added add_spi_ram method (#2028).
+	- build                         : Added initial Apicula (Gowin) Platform support (#2036).
+	- build                         : Added initial Agilex5 support.
+	- liteeth/mac                   : Improved broadcast filtering logic in Hybrid Mode (https://github.com/enjoy-digital/liteeth/pull/165).
+	- soc/cores/hyperbus            : Rewritten HyperRAM core to enhance performance and add new features (#2053).
+	- litedram                      : Added bank_byte_alignement parameter for improvded address mapping (https://github.com/enjoy-digital/litedram/pull/360).
+	- build/efinix                  : Added support for more primitives and improved clocking support. (#2060, #2075).
+	- software/bios                 : Added spiram support (#2058).
+	- liteeth/etherbone             : Added 64-bit support to Etherbone.
+	- liteeth/liteeth_gen           : Added XGMII support (PHY handled externally).
+	- soc/interconnect/stream       : Added optional CSR to Multiplexer/Demultiplexer and Crossbar module.
+	- tools/litex_json2dts_zephyr   : Improved support/update ((#1974).
+	- soc/cores/jtag                : Added Spartan7 support (#2076).
+	- liteeth/phy                   : Added 1000BASEX support for Virtex7 (https://github.com/enjoy-digital/liteeth/pull/171).
+	- liteeth/phy                   : Improved RGMII support on Efinix Titanium/Trion (https://github.com/enjoy-digital/liteeth/pull/168).
+	- liteiclink/serdes             : Added GTH/Virtex7 support (https://github.com/enjoy-digital/liteeth/pull/23).
+	- litespi/phy                   : Improved logic and cleanup (https://github.com/litex-hub/litespi/pull/73).
+	- litespi/mmap                  : Added write support for SPIRAM devices (https://github.com/litex-hub/litespi/pull/70).
+	- build/efinix                  : Improved name elaboration for Signals/Clocks to simplify user design.
+
+	[> Changed
+	----------
+	- integration/builder           : Changed export behavior to now generate csr.csv and csr.json by default to output_dir.
+	- csr_bus                       : Added .re signal (#1999).
+
+[> 2024.04, released on June 5th 2024
+-------------------------------------
+	[> Fixed
+	--------
+	- integration/soc               : Fixed typo in cpu mem_bus axi-via-wb downconvert
+	- interconnect/ahb/AHB2Wishbone : Fixed size check that was too restrictive.
+	- liteeth/phy/gw5rgmii          : Fixed Clk assignments.
+	- build/efinix/programmer       : Updated for compatibility with latest Efinity versions.
+	- litespi/software:             : Fixed SPI Flash Clk Divider computation when with L2 Cache.
+	- litepcie/us(p)pciephy         : Fixed x8 / 256-bit wide case.
+	- litex_sim/serial2console      : Fixed RX backpressure handling.
+	- litedram/frontend/avalon      : Fixed and cleaned-up.
+	- litex_sim/video               : Fixed pixel format to RGBA.
+	- build/xilinx/common           : Fixed missing clk parameter on XilinxSDRTristateImpl.
+	- soc/interconnect              : Fixed CSR/LiteXModule issue on WishboneSRAM/AXILiteSRAM.
+
+	[> Added
+	--------
+	- build/openfpgaloader          : Added kwargs support to flash for specific/less common cases.
+	- cpu/gowin_emcu                : Improved/Cleaned-up.
+	- interconnect/ahb              : Added data_width/address_width parameters.
+	- interconnect/ahb              : Added proper byte/sel support to AHB2Wishbone.
+	- cpu/gowin_ae350               : Added initial support.
+	- cpu/naxriscv                  : Updated arch definition and added rvc configuration parameters.
+	- cpu/vexriscv_smp              : Added csr/clint/plic base address configuration parameters.
+	- liteeth/phy                   : Added 7-Series/Ultrascale(+) 2500BaseX PHYs.
+	- litespi/sdrphy:               : Allowed flash parameter to be None.
+	- litespi/integration           : Improved integration and simplifications.
+	- export/builder                : Added import/merge of Sub-SoCs .json files.
+	- cpu/vexriscv_smp              : Added reset_address/vector support.
+	- litex_sim                     : Added jtagremote support.
+	- soc/add_master                : Added region support to allow/limit access to a specific region.
+	- litex_json2dts_linux          : Added ip= bootarg when local/remote ips are defined.
+	- cores/jtag                    : Added JTAGBone support for Zynq.
+	- cores/ram/lattice_nx          : Improved timings.
+	- liteeth_gen                   : Added QPLL/BUFH/BUFG parameters for A7 1000BaseX PHY.
+	- litex_sim                     : Added Video Color Bar support.
+	- cpu/neorv32                   : Updated to v1.9.7.
+	- cores/hyperbus                : Added latency configuration and variable latency support.
+	- cpu/cv32e41p                  : Added ISR support.
+	- litesdcard                    : Improved SDPHYClocker (Timings).
+	- cpu/vexriscv_smp              : Added baremetal IRQ support.
+	- cpu/naxriscv                  : Added baremetal IRQ support.
+	- cpu/zynqmp                    : Added Ethernet, UART, I2C support and improved AXI Master.
+	- build/efinix                  : Added reconfiguration interface support.
+	- build/efinix                  : Added tx_output_load configuration support.
+    - cpu/eos_s3                    : Updated qlal4s3b_cell_macro clock and reset signals.
+    - build/quicklogic              : Updated f4pga Makefile.
+    - build/microsemi               : Updated libero_soc toolchain.
+
+	[> Changed
+	----------
+
+[> 2023.12, released on December 25th 2023
+------------------------------------------
+	[> Fixed
+	--------
+	- liteeth/arp           : Fixed response on table update.
+	- litesata/us(p)sataphy : Fixed data_width=32 case.
+	- clock/lattice_ecp5    : Fixed phase calculation.
+	- interconnect/axi      : Fixed AXILite2CSR read access (1 CSR cycle instead of 2).
+
+	[> Added
+	--------
+	- cpu/naxriscv          : Added SMP support.
+	- cpu/neorv32           : Added Debug support and update core complex.
+	- cpu/vexriscv_smp      : Added hardware breakpoints support.
+	- build/colognechip     : Added initial support.
+	- soc/cores/video       : Added VTG/DMA synchronization stage to VideoFramebuffer.
+	- litepcie/dma          : Improved LitePCIeDMADescriptorSplitter timings.
+	- interconnect/wishbone : Added linear burst support to DownConverter.
+	- integration/SoC       : Added with_jtagbone/with_uartbone support.
+	- soc/cores             : Added Ti60F100 HyperRAM support.
+	- build/xilinx          : Added initial OpenXC7 support (and improved Yosys-NextPnr).
+	- build/efinix          : Added JTAG-UART/JTAGBone support.
+	- interconnect/wishbone : Added byte/word addressing support.
+	- cores/uart            : Added 64-bit addressing support to Stream2Wishbone.
+	- tools                 : Added 64-bit addressing support to litex_server/client.
+	- cores/cpu             : Added 64-bit support to CPUNone.
+	- cores/cpu             : Added KianV (RV32IMA) initial support.
+	- litedram              : Added initial GW5DDRPHY (compiles but not yet working).
+	- build/gowin           : Added GowinTristate implementation.
+	- litepcie              : Simplify/Cleanup Ultrascale(+) integration and allow .xci generation from .tcl.
+	- litepcie              : Initial 64-bit DMA suppport.
+	- bios                  : Added bios_format / --bios-format to allow enabling float/double printf.
+	- soc/cores/clock       : Added proper clock feedback support on Efinix TRIONPLL/TITANIUMPLL.
+	- liteiclink/phy        : Added Efinix support/examples on Trion/Titanium.
+	- liteiclink/serwb      : Reused Etherbone from LiteEth to avoid code duplication.
+	- interconnect          : Added 64-bit support to Wishbone/AXI-Lite/AXI.
+	- jtag                  : Fixed firmware upload over JTAG-UART.
+	- jtag                  : Improved speed (~X16) on JTABone/JTAGUART on all supported devices (Xilinx, Altera, Efinix, etc...)
+	- litesata/phy          : Added GTHE4 support on Ultrascale+.
+	- litex_boards          : Added Machdyne's Mozart with the Sechzig ML1 module support.
+	- liteiclink            : Added clk_ratio of 1:2, 1:4 on Efinix/SerWB to make clocking more flexible.
+
+	[> Changed
+	----------
+	- build/osfpga          : Removed initial support (would need feedbacks/updates).
+	- python3               : Updated minimum python3 version to 3.7 (To allow more than 255 arguments in functions).
+
+[> 2023.08, released on September 14th 2023
+-------------------------------------------
+
+	[> Fixed
+	--------
+	- lattice/programmer  : Fixed ECPDAP frequency specification.
+	- soc/add_spi_sdcard  : Fixed Tristate build.
+	- csr/fields          : Fixed access type checks.
+	- software/liblitespi : Fixed support with debug.
+	- cpu/vexriscv_smp    : Fixed compilation with Gowin toolchain (ex for Tang Nano 20K Linux).
+	- liteiclink/serwb    : Fixed 7-Series initialization corner cases.
+	- liteeth/core/icmp   : Fixed length check on LiteEthICMPEcho before passing data to buffer.
+	- LiteXModule/CSR     : Fixed CSR collection order causing CSR clock domain to be changed.
+	- litepcie/US(P)      : Fixed root cause of possible MSI deadlock.
+	- soc/add_uart        : Fixed stub behavior (sink/source swap).
+	- build/efinix        : Fixed AsyncFIFO issues (Minimum of 2 buffer stages).
+	- software/gcc        : Fixed Ubuntu 22.04 GCC compilation issues.
+	- build/efinix        : Fixed hardcoded version.
+	- litedram/gw2ddrphy  : Fixed latencies and tested on Tang Primer 20K.
+
+	[> Added
+	--------
+	- soc/cores/video              : Added low resolution video modes.
+	- interconnect                 : Added initial AvalonMM support.
+	- soc/interconnect/packet      : Avoided bypass of dispatcher with a single slave.
+	- build/add_period_constraints : Improved generic platform and simplify specific platforms.
+	- gen/fhdl/verilog             : Added parameter to avoid register initialization (required for ASIC).
+	- litedram                     : Added clamshell topology support.
+	- stream/Pipeline              : Added dynamic pipeline creation capability.
+	- build/xilinx/vivado          : Added project commands to allow adding commands just after project creation.
+	- soc/software                 : Moved helpers to hw/common.h.
+	- tools/litex_json2dts_linux   : Added sys_clk to device tree and fixed dts warning.
+	- tools/litex_json2dts_zephyr  : Added LiteSD defines.
+	- build/yosys                  : Added quiet capability.
+	- build/efinix                 : Improved Titanium support (PLL, DRIVE_STRENGTH, SLEW).
+	- build/openfpgaloader         : Added -fpga-part and -index-chain support.
+	- soc/add_spi_flash            : Added software_debug support.
+	- software/liblitespi          : Added read_id support.
+	- litex_boards                 : Added QMtech XC7K325T, VCU128, SITLINV_STVL7325_V2, Enclustra XU8/PE3 support.
+	- liteeth                      : Added Ultrascale+ GTY/GTH SGMII/1000BaseX PHYs.
+	- soc/add_pcie                 : Added msi_type parameter to select MSI, MSI-Multi-Vector or MSI-X.
+	- soc/add_pcie                 : Added msi_width parameter to select MSI width.
+	- litepcie                     : Added 7-Series MSI-X capability/integration.
+	- liteiclink                   : Improved GTH3/GTH4 support and similarity with Wizard's generated code.
+	- liteeth_gen                  : Added SGMII/1000BaseX PHYs support.
+	- litesata/dma                 : Added multi-sector support.
+	- liteeth/mac                  : Added TX Slots write-only mode for improved resource usage when software does not read buffer.
+	- liteeth/core                 : Added DHCP support for CPU-less hardware stack.
+	- liteeth/core/icmp            : Added fifo_depth parameter on LiteEthICMPEcho.
+	- gen/fhdl/verilog             : Improved signal sort by name instead of duid to improve reproducibility.
+	- litedram/frontend/dma        : Added last generation on end of DMA for LiteDRAMDMAReader.
+	- litepcie/frontend/dma        : Added optional integrated data-width converter and data_width parameters to simplify integration/user logic.
+	- soc/add_uartbone/sata/sdcard : Added support for multiple instances in gateware as for the other cores.
+	- liteeth_gen                  : Added raw UDP port support.
+	- build/vivado                 : Added .dcp generation also after synthesis and placement.
+	- gen:                         : Added initial LiteXContext to easily get build properties (platform, device, toolchain, etc...)
+	- litepcie/endpoint/tlp        : Added optional Configuration/PTM TLP support to Packetizer/Depacketizer.
+	- liteth/arp                   : Added proper multi-entries ARP table.
+	- liteiclink/serdes            : Added tx/rx_clk sharing capabilities on Xilinx transceivers.
+	- soc/cores/spi                : Added new SPIMMAP core allowing SPI accesses through MMAP.
+	- soc/interconnect/stream      : Added pipe_valid/pipe_ready parameters to BufferizeEndpoints.
+	- soc/cores/clock              : Added initial GW5A support.
+	- build/efinix                 : Added initial EfinixDDROutput/Input and simplified IOs exclusion.
+	- soc/interconnect             : Improved DMA Bus to use the same Bus Standard than the CPU DMA Bus.
+	- liteeth/phy                  : Added Artix7 2500BASE-X PHY.
+	- liteeth/phy                  : Added Gowin Arora V RGMII PHY (GW5RGMII).
+	- liteeth/phy                  : Added Titanium RGMII PHY (Tested with Ti60 F225 + RGMII adapter board).
+	- build/io                     : Added ClkInput/Ouput IO abstraction to simplify some Efinix designs.
+
+	[> Changed
+	----------
+	- litex/gen                    : Added local version of genlib.cdc/misc to better decouple with Migen and prepare Amaranth's compat use.
+	- soc/add_uartbone             : Renamed name parameter to uart_name (for consistency with other cores).
+
+[> 2023.04, released on May 8th 2023
+------------------------------------
+
+	[> Fixed
+	--------
+	- build/xilinx/vivado : Fixed Verilog include path.
+	- builder/meson       : Fixed version comparison.
+	- liblitedram         : Fixed write leveling with x4 modules.
+	- integration/soc     : Fixed alignment of origin on size.
+	- litex_sim           : Fixed ram_init.
+	- libbase/i2c         : Fixed various issues.
+	- integration/soc     : Fixed/Removed soc_region_cls workaround.
+	- cores/gpio          : Fixed IRQ generation.
+	- litex_sim           : Fixed --with-etherbone.
+	- build/efinix        : Fixed iface.py execution order.
+	- cpu/Vex/NaxRiscv    : Fixed IRQ numbering (0 reserved).
+	- cpu/rocket          : Fixed compilation with newer binutils.
+	- cpu/soc             : Fixed CPU IRQ reservation.
+	- litepcie/software   : Fixed compilation with DMA_CHECK_DATA commented.
+	- litedram/dma        : Fixed rdata connection (omit list update since LiteX AXI changes).
+	- litepcie/US(P)      : Fixed possible MSI deadlock.
+	- cores/usb_ohci      : Fixed build issue (usb_clk_freq wrapped as int).
+
+	[> Added
+	--------
+	- clock/intel         : Added StratixVPLL.
+	- cores/dma           : Added FIFO on WishboneDMAReader to pipeline reads and allow bursting.
+	- liblitedram         : Improved SPD read with sdram_read_spd function.
+	- bios/liblitedram    : Added utils and used them to print memory sizes.
+	- build/parser        : Added a method to search default value for an argument.
+	- litex_setup         : Added Arch Linux RISC-V/OR1K/POWER-PC GCC toolchain install.
+	- cores/pwm           : Added reset signal (to allow external reset/synchronization).
+	- cpu/cva6            : Updated.
+	- cores/prbs          : Improved timings.
+	- litex_sim           : Allowed enabling SDRAM BIST.
+	- liblitedram         : Refactored BIST functions and added sdram_hw_test.
+	- soc/software        : Added extern C (required to link with cpp code).
+	- cpu/VexRiscv-SMP    : Avoided silent generation failure.
+	- cores/spi_flash     : Added Ultrascale support.
+	- clock/gowin_gw1n    : Fixed simulation warnings.
+	- liblitedram         : Various improvements/cleanups.
+	- cpu/Naxriscv        : Exposed FPU parameter.
+	- cores/xadc          : Refactored/Cleaned up.
+	- cores/dna           : Added initial Ultrascale(+) support and reduced default clk_divider to 2.
+	- cores/usb_ohci      : Added support for multiple ports.
+	- litex_cli           : Added binary support for register dump.
+	- cpu/NaxRiscv        : Enabled FPU in crt0.S.
+	- core/icap           : Added initial Ultrascale(+) support and clk_divider parameter.
+	- litex_sim           : Added initial video support.
+	- soc/add_video       : Added framebuffer region definition.
+	- litex_term          : Avoided use of multiprocessing.
+	- cores/esc           : Added initial ESC core with DSHOT 150/300/600 support.
+	- litex_json2dts      : Allowed/Prepared Rocket support and made it more generic.
+	- gen/common          : Added Open/Unsigned/Signed signal definition and updated cores to use it.
+	- global              : Added initial list of sponsors/partners.
+	- build/xilinx        : Improved Xilinx US/US+ support.
+	- build/platform      : Added get_bitstream_extension method.
+	- cpu/VexRiscvSMP     : Added standard variant.
+	- cpu/cva6            : Added 32-bit variant support and various improvements.
+	- clock/gowin         : Added GW2AR support.
+	- build/efinix        : Added option to select active/passive SPI mode.
+	- cores/bitbang       : Added documentation.
+	- litex_term          : Improved connection setup.
+	- clock/gowin         : Improved VCO config computation and added CLKOUTP/CLKOUTD/CLKOUTD3 support.
+	- cpu/rocket          : Reworked variants.
+	- liblitesdcard       : Avoided use of stop transmission for writes when only one block.
+	- installation        : Simplified/Improved ci.yml/MANIFEST.in/setup.py.
+	- cores/pwm           : Added MultiChannelPWM support.
+	- soc/add_pcie        : Exposed more DMA parameters.
+	- litepcie/dma        : Improved LitePCIeDMAStatus timings.
+	- litepcie_gen        : Exposed 64-bit support.
+	- litepcie/dma        : Better configuration decoupling between DMAWriter/Reader.
+	- litepcie/dma        : Allowed software to get DMA status.
+	- litepcie/phy        : Replaced Xilinx generated core on 7-series Verilog with Migen/LiteX code.
+	- litepcie/msi        : Improved MSI filtering.
+	- litepcie_gen        : Added MSI rate limiting on Ultrascale(+) to avoid stall issues.
+	- liteiclink/prbs     : Improved PRBS RX timings.
+	- liteiclink/gty/gth  : Added power-down signal on GTYQuadPLL and GTHQuadPLL.
+	- litelclink/gty/gth  : Integrated 7-series improvements.
+	- litelclink/gty/gth  : Added DRP interface on QuadPLL.
+	- litedram/bist       : Ensured proper completion of writes.
+	- litedram/bist       : Replicated data for large data-width.
+	- litedram/ci         : Allowed tests to run in parallel.
+	- litedram/gw2ddrphy  : Improvements to remove warnings in simulation.
+	- liblitespi/spiflash : Add erasee and write functions.
+	- liblitespi/Spiflash : Add write from sdcard file function.
+
+	[> Changed
+	----------
+	- builder/export      : Added soc-csv/-json/--svd arguments (in addition to csr-xy).
+	- litepcie/phy        : Retained only Gen3/4 support and removed Gen2.
+
+[> 2022.12, released on January 2th 2023
+----------------------------------------
+
+	[> Fixed
+	--------
+	- bios                              : Fix missing CONFIG_BIOS_NO_DELAYS update.
+	- axi/AXIDownConverter              : Fix unaligned accesses.
+	- cpu/rocket                        : Fix fulld/fullq variants typos.
+	- cores/video                       : Fix red/blue channel swap (and apply similar changes to litex_boards).
+	- software/demo                     : Fix compilation with Nix.
+	- cpu/cv32e41p                      : Fix IRQs.
+	- interconnect/csr                  : Allow CSR collection at the top-level.
+	- interconnect/csr                  : Fix CSR with 64-bit bus width.
+	- build/sim                         : Disable more useless warnings (-Wno-COMBDLY and -Wno-CASEINCOMPLETE).
+	- intel                             : Fix constraints issues preventing the build with some boards/versions.
+	- axi/axi_lite                      : Fix combinatorial loop on ax.valid/ax.ready.
+	- soc/cores/video/VideoS7GTPHDMIPHY : Fix typo.
+	- integration/export                : Fix CSR base address definition when with_csr_base_define=False.
+
+
+	[> Added
+	--------
+	- soc                        : Add new "x" (executable) mode to SoCRegion.
+	- cpu/NaxRiscv               : Update to latest and add parameters.
+	- soc                        : Propagate address_width on dynamically created interfaces.
+	- get_mem_data               : Add data_width support.
+	- cores/dma                  : Allow defining ready behavior on idle.
+	- axi                        : Improvements/Simplifications.
+	- axi_stream                 : Improvements/Simplifications.
+	- yosys_nextpnr              : Add flow3 option to abc9 mode.
+	- yosys_nextpnr              : Refactor args.
+	- vivado                     : Allow directive configuration.
+	- jtag                       : Add Efinix JTAG support.
+	- clock/intel                : Improve pll calculation.
+	- stream/ClockDomainCrossing : Expose buffered parameter.
+	- tools/remote               : Add Etherbone packets retransmisson.
+	- build                      : Add VHDL2VConverter to simplify GHDL->Verilog conversion.
+	- cpu/microwatt              : Switch to VHDL2VConverter.
+	- cpu/neorv32                : Switch to VHDL2VConverter.
+	- axi                        : Differentiate AXI3/AXI4.
+	- stream/Monitor             : Add packet count and add reset/latch control from logic.
+	- spi                        : Create spi directory and integrate SPIBone + improvements.
+	- interconnect/csr           : Add optional fixed CSR mapping.
+	- fhdl/verilog               : Improve code presentation/attribute generation.
+	- gen/common                 : Add new LiteXModule to simplify user designs and avoid some Migen common issues.
+	- soc/SoCBusHandler          : Integrate interconnect code to simplify reuse.
+	- gen/common                 : Add reduction functions.
+	- vhd2v                      : Use GHDL directly (Instead of GHDL + Yosys).
+	- cpu/openc906               : Update, add more peripherals to mem_map and add debug variant.
+	- soc/software/i2c           : Add non 8bit i2c mem address support.
+	- gen/fhdl                   : Add LiteXHierarchyExplorer to generate SoC hierarchy.
+	- gen/fhd                    : Add timescale generation.
+	- build                      : Add LitexArgumentParser to customize/simplify argument parsing.
+	- json2renode                : Update.
+	- logging                    : Allow logging level to be configured from user scripts.
+	- soc/cores/cpu              : Allow enabling/disabling reset address check.
+	- integration/export         : Directly generate extract/replace mask from Python.
+	- cpu/zync7000               : Add axi_gp_slave support.
+
+	[> Changed
+	----------
+	- ci       : Bump to Ubutu 22.04.
+	- soc_core : Move add_interrupt/add_wb_master/add_wb_slave/register_mem/register_rom to compat.
+	- software : Do not build software as PIE.
+	- ci       : Add microwatt/neorv32 test + requirements (GHDL).
+	- ci       : Switch GCC toolchain installs to distro install.
+
+
+[> 2022.08, released on September 12th 2022
+-------------------------------------------
+
+	[> Fixed
+	--------
+	- cpu/vexriscv:               Fix compilation with new binutils.
+	- soc/LiteXSocArgumentParser: Fix --cpu-type parsing.
+	- litex_sim:                  Fix --with-ethernet.
+	- liblitesdcard:              Fix SDCard initialization corner cases.
+	- liblitedram:                Enable sdram_init/mr_write for SDRAM.
+	- export/get_memory_x:        Replace SPIFlash with ROM.
+	- soc/cores/video:            Fix operation with some monitors (set data to 0 during blanking).
+	- tools/remote/comm_usb:      Fix multi-word reads/writes.
+	- build/lattice/oxide:        Fix ES posfix on device name.
+	- interconnect/axi:           Fix AXIArbiter corner case.
+	- litex_server/client:        Fix remapping over CommPCIe.
+	- LitePCIe:                   Fix LiteUART support with multi-boards.
+
+	[> Added
+	--------
+	- litex_setup:            Add -tag support for install/update.
+	- tools:                  Add initial LiteX standalone SoC generator.
+	- cores/ram:              Add Xilinx's FIFO_SYNC_MACRO equivalent.
+	- LitePCIe:               Always use 24-bit depth fields on LitePCIeBuffering to simplify software.
+	- gen/fhdl:               Integrate Migen namer to give us more flexibility.
+	- fhdl/memory:            Prefix memory files with build name to simplify reuse/integration.
+	- cpu/rocket:             Add more variants.
+	- cores/video:            Enable driving both + and - diff outs to compensate hardware issues.
+	- build:                  Add intial OSFPGA Foedag/Raptor build backend.
+	- cpu/cva5:               Add initial CVA5 CPU support (ex Taiga).
+	- LiteSATA:               Add IRQ and Identify support.
+	- clock/intel:            Improve to find the best PLL config.
+	- cpu/cva6:               Add initial CVA6 CPU support (ex Ariane).
+	- bios:                   Improve config flags.
+	- tools:                  Add I2s/MMCM support to litex_json2dts_zephyr.
+	- clock/gowin:            Add GW2A support.
+	- bios:                   Disable LTO (does not work in all cases, needs to be investigated).
+	- CI:                     Test more RISC-V CPUs and OpenRisc CPUs in CI.
+	- bios:                   Add CONFIG_NO_BOOT to allow disabling boot sequence.
+	- export:                 Allow disabling CSR_BASE define in csr.h.
+	- build/openocd:          Update for compatibility with upstream OpenOCD.
+	- cpu/openc906:           Add initial OpenC906 support (open version of the Allwinner's D1 chip).
+	- soc:                    Add automatic bridging between AXI <-> AXI-Lite <-> Wishbone.
+	- soc:                    Add AXI-Full bus support.
+	- interconnect:           Add AXI DownConverted and Interconnect/Crossbar.
+	- interconnect:           Create axi directory and split code.
+	- soc:                    Modify SoC finalization order for more flexibility.
+	- soc:                    Add --bus-interconnect parameter to select interconect: shared/crossbar.
+	- valentyusb:             Package and install it with LiteX.
+	- bios/mem_list:          Align Mem Regions.
+	- build:                  Introduce GenericToolchain to cleanup/simplify build backends.
+	- soc/etherbone:          Expose broadcast capability.
+	- build/lattice:          Add MCLK frequency support.
+	- cpu/cva6:               Add IRQ support.
+	- cores/clock:            Add manual placement support to ECP5PLL.
+	- cores/leds:             Add polarity support.
+	- cpu/neorv32:            Switch to new NeoRV32 LiteX Core Complex and add variants support.
+	- cores/gpio:             Add optional reset value.
+	- litex_client:           Add --host support for remote operation.
+	- sim/verilator:          Add jobs number support (to limit RAM usage with large SoCs/CPUs).
+	- soc/SocBusHandler       Add get_address_width method to simplify peripheral integration.
+	- bios:                   Expose BIOS console parameters (to enable/disable history/autocomplete).
+	- bios:                   Expose BIOS LTO configuration.
+	- litex_json2renode:      Update.
+	- build:                  Introduce YosysNextPNRToolchain to cleanup/simplify Yosys support.
+	- bios:                   Add buttons support/command.
+	- litex_client:           Add XADC/Identifier/Leds/Buttons support to GUI.
+	- cpu/NaxRiscv:           Update.
+	- build/generic_platofrm: Add add_connector methode to allow extending connectors.
+	- litex_server/client:    Add initial information exchange between server/client.
+	- LitePCIe:               Improve 64-bit support.
+	- interconnect/axi:       Add missing optional signals.
+	- interconnect/wishbone:  Improve DownConverter efficiency.
+
+	[> Changed
+	----------
+	- LiteX-Boards : Remove short import support on platforms/targets.
+	- tools:         Rename litex_gen to litex_periph_gen.
+	- LiteX-Boards:  Only generate SoC/Software headers when --build is set
+	- Symbiflow:     Rename to F4PGA.
+	- mkmsscimg:     Rename to crcfbigen.
+
+[> 2022.04, released on May 3th 2022
+------------------------------------
+
+	[> Fixed
+	--------
+	- software/bios/mem_write: Fix write address increment.
+	- software/liblitedram:    Improve calibration corner case on 7-series (SDRAM_PHY_DELAY_JUMP).
+	- software/liblitedram:    Fix delay reconfiguration issue on ECP5/DDR3.
+	- cores/jtag:              Fix chain parameter on XilinxJTAG.
+	- soc/arguments:           Fix l2_size handling.
+	- cpu/vexriscv_smp:        Fix pbus_width when using direct LiteDRAM interface.
+	- libbase/i2c/i2c_poll:    Also check for write in i2c_scan (some chips are write only).
+	- build/vivado:            Fix timing constraints application on nets/ports.
+
+    [> Added
+	--------
+	- litex_setup:        Add minimal/standard/full install configs.
+	- soc/arguments:      Improve default/help, add parser groups.
+	- LiteSPI/phy:        Simplify integration on targets.
+	- openocd/stream:     Simplify ECP5 JTAG-UART/JTAGBone use.
+	- tools/litex_cli:    Allow passing reg name to --read/--write.
+	- soc/add_spi_sdcard: Allow optional Tristate (useful on ULX3S).
+	- software/bios:      Add new mem_cmd memory comparison command.
+	- cpu/rocket:         Increase IRQ lines to 8.
+	- cpu/serv:           Add MDU support.
+	- cpu/marocchino:     Add initial support.
+	- cpu/eos_s3:         Add LiteX BIOS/Bare Metal software support.
+	- litex_sim:          Add .json support for --rom/ram/sdram-init.
+	- soc/add_uart:       Allow multiple UARTs in the same design.
+	- cores/cpu:          Add out-of-tree support.
+	- build/xilinx:       Add initial Yosys/NextPnr support on Artix7 (and Zynq7000 with Artix7 fabric).
+	- add_source:         Add optional copy to gateware directory.
+	- cores/jtag:         Add initial JTAG-UART/JTAGBone Altera/Intel support.
+	- LiteScope:          Add Samplerate support.
+	- cores/bitbang:      Add optional I2C initialization by CPU.
+	- libliteeth/tftp:    Add blocksize support an increase to 1024 bytes (allow 64MB filesize).
+	- soc/add_sdram:      Make AXI integration more flexible (remove some specific Rocket hardcoding).
+	- cpu/neorv32:        Add initial support (RV32I, VHDL converted to Verilog through GHDL-Yosys-synth).
+	- cpu/naxriscv:       Add initial support (RV32IMA & RV64IMA, already able to run Linux).
+	- interconnect/axi:   Add AXI UpConverter.
+	- soc/add_sdram:      Allow data_width upconversion directly on AXI (avoid switching to Wishbone).
+	- bios/memtest:       Optimize memspeed loop for better accuracy.
+	- build/sim:          Allow custom modules to be in custom path.
+	- build/OpenFPGA:     Add initial OpenFPGA build backend (Currently targeting SOFA chips).
+	- build/efinix:       Add initial MIPI TX/RX support (and test on Trion/Titanium).
+	- cores/video:        VTG improvements to support more Video chips.
+	- cores/xadc:         Improve Zynq Ultrascale+ support.
+	- LiteScope:          Optimize waveform upload speed.
+	- LitePCIe:           Add LTSSM tracer capability to debug PCIe bringup issues.
+	- cores/hyperbus:     Refactor core and improve performances (Automatic burst detection).
+	- cores/jtag:         Add Zynq UltraScale+.
+	- cores/ram:          Add Ultrascale+ HBM2 wrapper.
+	- litex_json2renode:  Improve and add support for more CPUs.
+	- cores/cpu:          Add initial FireV support.
+	- litex_cli:          Add --csr-csv support and minimal GUI (based on DearPyGui).
+	- litescope_cli:      Add minimal GUI (based on DearPyGui).
+	- build/gowin:        Add powershell support.
+	- LitePCIe:           Add initial 64-bit addressing support (Only for 64-bit datapath for now).
+	- software/bios:      Add Main RAM test (when not pre-initialized).
+	- build/trellis:      Enable bitstream compression on ECP5 by default.
+	- soc/add_etherbone:  Increase buffer_depth to 16 (to improve etherbone bursting).
+	- builder:            Add get_bios_filename/get_bitstream_filename methods to simplify targets.
+	- cpu/vexriscv_smp:   Re-integrate Linux-on-LiteX−VexRiscv specific changes/mapping.
+	- tools/litex_sim:    Allow RAM/SDRAM initialization from .json files (similar to hardware).
+	- soc/cpu:            Expose optional CPU configuration parameters to users (ex VexRiscv-SMP/NaxRiscv).
+	- soc:                Improve logs.
+	- build/Efinix:       Add Atmel programmer.
+	- stream/cdc:         Add optional common reset.
+	- LiteDRAM:           Decouple DQ/DQS widths on S7DDRPHY.
+	- cores/ws2812:       Improve timings at low sys_clk_freq.
+	- soc/builder:        Add --no-compile (similar to --no-compile-gateware --no-compile-software).
+	- software/demo:      Add --mem parameter to allow compilation for execution in ROM/RAM.
+	- cpu/naxrsicv:       Add JTAG debug support.
+	- cores/usb_fifo:     Re-implement FT245PHYSYnchronous.
+	- cores/jtag:         Add JTAGBone/JTAG-UART support on Zynq/ZynqMP.
+	- interconnect/sram:  Add SRAM burst support.
+	- liblitesata:        Improve SATA init.
+	- soc/cpu:            Improve command line listing.
+	- soc/cores/uart:     Decouple data/address width on Stream2Wishbone.
+
+	[> Changed
+	----------
+	- Fully deprecate SoCSDRAM/SPIFlash core (replaced by LiteSPI).
+	- UART "bridge" name deprecated in favor of "crossover" (already supported).
+	- "external" CPU class support deprecated (replaced by out-of-tree support).
+	- lxterm/lxserver/lxsim short names deprecated (used long litex_xy names).
+	- Deprecate JTAG-Atlantic support (Advantageously replaced by JTAG-UART).
+
+[> 2021.12, released on January 5th 2022
+----------------------------------------
+
+	[> Fixed
+	--------
+	- software/linker:      Fix initialized global variables.
+	- build/xilinx:         Fix Ultrascale SDROutput/Input.
+	- cpu/rocket/crt0.s:    Fix alignements.
+	- core/video:           Fix missing ClockDomainsRenamer in specific DRAM's width case.
+	- mor1kx:               Fix --cpu-type=None --with-ethernet case.
+	- build/lattice:        Fix LatticeiCE40SDROutputImpl.
+	- soc/interconnect/axi: Fix 4KB bursts.
+
+	[> Added
+	--------
+	- integration/builder:      Check if full software re-build is required when a CPU is used.
+	- cores/clock:              Add Gowin PLL support.
+	- build/gowin:              Add initial HyperRam support.
+	- build/gowin:              Add differential Input/Output support.
+	- build/lattice:            Add DDRTristate support.
+	- cores/gpio:               Add external Tristate support.
+	- tools/json2dts:           Make it more generic (now also used with OpenRisc/Mor1kx).
+	- cpu/rocket:               Add SMP support (up to quad-core).
+	- software/bios/boot:       Allow frame reception to time out (for litex_term auto-calibration).
+	- tools/litex_term:         Add automatic settings calibration and --safe mode.
+	- build/quicklogic:         Add initial support.
+	- cores/icap/7-Series:      Add register read capability.
+	- cores/video:              Add RGB565 support to VideoFrameBuffer.
+	- soc:                      Raise custom SoCError Exception and disable traceback/exception.
+	- soc/add_pcie:             Automatically set Endpoint's endianness to PHY's endianness.
+	- build/efinix:             Add initial Trion and Titanium support.
+	- fhdl/verilog:             Cleanup/Simplify verilog generation.
+	- fhdl/memory:              Cleanup/Simplify and add support for Efinix case.
+	- cpu/ibex:                 Add interrupt support.
+	- tools/litex_client:       Add --length parameter for MMAP read accesses.
+	- software/bios/cpu:        Add CPU tests in CI.
+	- litex_sim/xgmii_ethernet: Improve models.
+	- litex_setup:              Cleanup/Simplify and switch to proper "--" commands (with retro-compat).
+	- cores/jtag:               Add ECP5 support.
+	- cores/led:                Add WS2812/NeoPixel core.
+	- cpu/femtorv:              Finish integration and add variants support.
+	- cpu/eos-s3:               Add initial support.
+	- build/anlogic:            Add initial support.
+	- cpu/microwatt:            Add Xilinx multiplier support.
+	- cpu/vexriscv/cfu:         Improve integration.
+	- soc/interconnect:         Add initial AHB support (AHB2Wishbone).
+	- cpu/gowin_emcu:           Add initial Gowin EMCU support.
+	- cpu/zynq7000:             Add initial BIOS/software support.
+	- cpu/zynq7000:             Add TCL support.
+	- core/prbs:                Add error behaviour configuration on saturation.
+	- software/bios:            Add write size option to mem_write cmd.
+	- LitePCIe/phy:             Cleanup 7-Series PHY integration.
+	- LitePCIe/dma              Add LitePCIeDMAStatus module.
+	- LitePCIe/software:        Improve kernel/user-space utilities.
+	- LiteDRAM/litedram_gen:    Improve ECP5 support.
+	- LiteDRAM/phy:             Add initial LPDDR5 support.
+	- LiteDRAM/frontend:        Refactor DRAM FIFO and add optional bypass mode.
+	- LiteEth/core:             Add 32-bit/64-bit datapath support.
+	- LiteEth/phy:              Add 10Gbps / Xilinx XGMII support.
+	- LiteEth/phy:              Add 1Gbps  / Efinix RGMII support.
+	- LiteSPI/phy:              Simplify SDR/DDR PHYs.
+	- LiteHyperBus:             Add 16-bit support.
+
+	[> Changed
+	----------
+	- software: Replace libbase with picolibc (new requirements: meson/ninja).
+	- amaranth: Switch from nMigen to Amaranth HDL.
+
+[> 2021.08, released on September 15th 2021
+-------------------------------------------
+
+	[> Fixed
+	--------
+	- wishbone/UpConverter: Fix SEL propagation.
+	- cores/i2s:            Fix SYNC sampling.
+	- BIOS/lib*:            Fix GCC warnings.
+	- cpu/software:         Fix stack alignment issues.
+	- cpu/blackparrot:      Fix integration.
+	- interconnect/axi:     Fix valid signal in connect_to_pads for axi lite.
+	- software/hw/common:   Fix _csr_rd_buf/_csr_wr_buf for sizeof(buf[0]) < CSR_DW_BYTES case.
+	- software/soc.h:       Fix interoperability with assembly.
+	- interconnect/stream:  Fix n=1 case on Multiplexer/Demultiplexer.
+	- interconnect/axi:     Fix BURST_WRAP case on AXIBurst2Beat.
+	- cpu/VexRiscv-SMP:     Fix build without a memory bus.
+	- cpu/software:         Fix CLANG detection.
+	- build/software:       Force a fresh software build when cpu-type/variant is changed.
+	- cores/uart:           Fix TX reset level.
+	- BIOS:                 Fix PHDR link error.
+	- BIOS:                 Fix build-id link error.
+	- LiteDRAM:             Fix Artix7/DDR3 calibraiton at low speed.
+
+	[> Added
+	--------
+	- cores/video:               Add 7-Series HDMI PHY over GTPs.
+	- cores/jtagbone:            Allow JTAG chain selection.
+	- programmer:                Add iCESugar programmer.
+	- cpu/vexriscv:              Add CFU support.
+	- soc/controller:            Add separate SoC/CPU reset fields.
+	- BIOS/liblitedram:          Add debug capabilities, minor improvements.
+	- cpu/femtoRV:               Add initial FemtoRV support.
+	- cores/uart:                Cleaned-up, Add optional TX-Flush.
+	- cores/usb_ohci:            Add initial SpinalHDL's USB OHCI support (integrated in Linux-on-LiteX-Vexriscv).
+	- stream:                    Add Gate Module.
+	- soc/builder:               Allow linking external software packages.
+	- soc/software:              Allow registering init functions.
+	- cores/ram:                 Add init support to Nexus LRAM.
+	- cores/spi:                 Add Manual CS Mode for bulk transfers.
+	- cores/VexRiscv-SMP:        Make [ID]TLB size configurable.
+	- dts:                       Add GPIO IRQ support.
+	- programmer/DFUProg:        Allow to specify alt interace and to not reboot.
+	- cores/clock/ecp5:          Add dynamic phase adjustment signals.
+	- tools/litex_sim:           Mode SDRAM settings to LiteDRAM's DFI model.
+	- build/gowin:               Add AsyncResetSynchronizer/DDRInput/DDROutput implementations.
+	- build/gowin:               Add On-Chip-Oscillator support.
+	- build/gowin:               Add initial timing constraints support.
+	- build/attr_translate:      Simplify/Cleanup.
+	- programmer/OpenFPGALoader: Add cable and freq options.
+	- interconnect/packet:       Improve PacketFIFO to handle payload/param separately.
+	- clock/ecp5:                Add 4-output support.
+	- LiteSPI:                   Simplified/Cleaned-up, new MMAP architecture, applied to LiteX-Boards.
+	- soc:                       Add LiteSPI integration code.
+	- LitePCIe:                  DMA/Controller Simplified/Cleaned-up.
+	- soc/add_cpu:               Add memory mapping overrides to build log and make an exception for the CPUNone case.
+	- programmer:                Add ECPprogProgrammer.
+	- soc/software:              Add Random access option to memtest.
+	- tools:                     Add Renode generator script.
+	- tools:                     Add Zephyr DTS generator script.
+	- build/io:                  Add DDRTristate.
+	- cpu/VexRiscv:              Restructure config flags for dcache/icache presence.
+	- litex_sim:                 Improve RAM/SDRAM integration and make it closer to LiteX-Boards targets.
+	- build/sim:                 Add ODDR/IDDR/DDRSTristate simulation models.
+	- litex_sim:                 Add SPIFlash support.
+	- LiteSPI:                   Add DDR support and integration in LiteX (rate=1:1, 1:2).
+	- build/Vivado:              Make pre_synthesis/placement/routing commands similar to platform_commands.
+	- LiteDRAM:                  Refactor C code generator.
+	- LiteDRAM:                  Improve LPDDR4 support.
+	- LiteDRAM:                  Reduce ECC granularity.
+
+	[> Changed
+	----------
+	- soc_core: --integrated-rom-file argument renamed to --integrated-rom-init.
+
+
+[> 2021.04, released on May 3th 2021
+------------------------------------
+
+	[> Fixed
+	--------
+	- litex_term:         Fix Windows/OS-X support.
+	- soc/USB-ACM:        Fix reset clock domain.
+	- litex_json2dts:     Various fixes/improvements.
+	- cores/clock:        Fix US(P)IDELAYCTRL reset sequence.
+	- cpu/Vexriscv:       Fix Lite variant ABI (has multiplier so can use rv32im).
+	- BIOS:               Fix various compiler warnings.
+	- LiteSDCard:         Fix various issues, enable multiblock reads/writes and improve performance.
+	- CSR:                Fix address wrapping within a CSRBank.
+	- soc/add_etherbone:  Fix UDPIPCore clock domain.
+	- stream/Gearbox:     Fix some un-supported cases.
+	- cpu/VexRiscv-SMP:   Fix build on Intel/Altera devices with specific RAM implementation.
+	- timer:              Fix AutoDoc.
+	- Microwatt/Ethernet: Fix build.
+	- soc/software:       Link with compiler instead of ld.
+
+	[> Added
+	--------
+	- Lattice-NX:             Allow up to 320KB RAMs.
+	- BIOS:                   Allow compilation with UART disabled.
+	- litex_json2dts:         Simplify/Improve and allow VexRiscv/Mor1kx support.
+	- BIOS/i2c:               Improve cmd_i2c.
+	- BIOS/liblitedram:       Various improvements for DDR4/LPDDR.
+	- cores/Timer:            Add initial unit test.
+	- cores:                  Add initial JTAGBone support on Xilinx FPGAs.
+	- litex_term:             Improve JTAG-UART support.
+	- litex_server:           Add JTAGBone support.
+	- VexRiscv-SMP:           Add --without-out-of-order and --with-wishbone-memory capabilities.
+	- BIOS:                   Allow specify TRIPLE with LITEX_ENV_CC_TRIPLE.
+	- litex_client:           Add simple --read/--write support.
+	- OpenFPGALoader:         Add flash method.
+	- litex_sim:              Add GTKWave savefile generator.
+	- litex_term:             Add nios2-terminal support.
+	- cpu/mor1kx:             Add initial SMP support.
+	- interconnect/axi:       Add tkeep support.
+	- cores/gpio:             Add IRQ support to GPIOIn.
+	- cpu:                    Add initial lowRISC's Ibex support.
+	- build/xilinx/Vivado:    Allow tcl script to be added as ip.
+	- cores/uart:             Rewrite PHYs to reduce resource usage and improve readability.
+	- cores/pwm:              Add configurable default enable/width/period values.
+	- cores/leds:             Add optional dimming (through PWM).
+	- soc/add_pcie:           Allow disabling MSI when not required.
+	- export/svd:             Add constants to SVD export.
+	- BIOS:                   Allow dynamic Ethernet IP address.
+	- BIOS:                   Add boot command to boot from memory.
+	- cores:                  Add simple VideoOut core with Terminal, ColorBards, Framebuffer + various PHYs (VGA, DVI, HDMI, etc...).
+	- csr/EventSourceProcess: Add rising edge support and edge selection.
+	- soc/integration:        Cleanup/Simplify soc_core/builder.
+	- soc/integrated_rom:     Add automatic BIOS ROM resize to minimize blockram usage and improve flexibility.
+	- interconnect/axi:       Add AXILite Clock Domain Crossing.
+	- cores/xadc:             Add Ultrascale support.
+	- soc/add_ethernet:       Allow nrxslots/ntxslots configuration.
+	- cpu/VexRiscv-SMP:       Integrate FPU/RVC support.
+	- soc/add_csr:            Add auto-allocation mode and switch to it in LiteX's code base.
+	- soc/BIOS:               Add method to check BIOS requirements during the build and improve error message when not satisfied.
+	- LiteEth:                Add initial timestamping support.
+	- litex_client:           Add optional filter to --regs.
+	- LiteDRAM:               Add LPDDR4 support.
+	- BIOS/netboot:           Allow specifying .json file.
+	- cores/clock:            Add initial Gowin GW1N PLL support.
+	- LiteSDCard:             Add IRQ support.
+
+	[> Changed
+	----------
+	- platforms/targets: Move all platforms/targets to https://github.com/litex-hub/litex-boards.
+	- litex_term:        Remove flashing capability.
+	- cores/uart:        Disable dynamic baudrate by default (Unused and save resources).
+
+[> 2020.12, released on December 30th 2020
+------------------------------------------
+
+	[> Fixed
+	--------
+	- fix SDCard writes.
+	- fix crt0 .data initialize on SERV/Minerva.
+	- fix Zynq7000 AXI HP Slave integration.
+
+	[> Added
+	--------
+	- Wishbone2CSR: Add registered version and use it on system with SDRAM.
+	- litex_json2dts: Add Mor1kx DTS generation support.
+	- Build: Add initial Radiant support for NX FPGA family.
+	- SoC: Allow ROM to be optionally writable (for contents overwrite over UARTBone/Etherbone).
+	- LiteSDCard: Improve BIOS support.
+	- UARTBone: Add clock domain support.
+	- Clocking: Uniformize reset on iCE40PLL/ECP5PLL.
+	- LiteDRAM: Improve calibration and add BIOS debug commands.
+	- Clocking: Add initial Ultrascale+ support.
+	- Sim: Allow dynamic enable/disable of tracing.
+	- BIOS: Improve memtest and report.
+	- BIOS: Rename/reorganize commands.
+	- litex_server: Simplify usage with PCIe and add debug parameter.
+	- LitePCIe: Add Ultrascale(+) support up to Gen3 X16.
+	- LiteSATA: Add BIOS/Boot integration.
+	- Add litex_cli to provides common RemoteClient functions: get identifier, dump regs, etc...
+	- LiteDRAM: Simplify BIST integration.
+	- Toolchains/Programmers: Improve checks/error reporting.
+	- BIOS: add leds command.
+	- SoC: Do a full reset of the SoC on reboot (not only the CPU).
+	- Etherbone: Improve efficiency/performance.
+	- LiteDRAM: Improve DDR4/DDR3 calibration.
+	- Build: Add initial Oxide support for NX FPGA family.
+	- Clock/RAM: Reorganize for better modularity.
+	- SPI-OPI: Various improvements for Betrusted.
+	- litex_json2dts: Improvements to use it with mor1kx and VexRiscv-SMP.
+	- Microwatt: Add IRQ support.
+	- BIOS: Add i2c_scan command.
+	- Builder: Simplify Documentation generation with --doc args on targets.
+	- CSR: Add documentation to EventManager registers.
+	- BIOS: Allow disabling timestamp for reproducible builds.
+	- Symbiflow: Remove workarounds on targets.
+	- litex_server: Simplify use on PCIe, allow direct CommXY use in scripts to bypass litex_server.
+	- Zynq7000: Improve PS7 configuration support (now supporting .xci/preset/dict)
+	- CV32E40P: Improve OBI efficiency.
+	- litex_term: Improve upload speed with CRC check enabled, deprecate --no-crc (no longer useful).
+	- BIOS: Add mem_list command to list available memory and use mem_xy commands on them.
+	- litex_term: Add Crossover and JTAG_UART support.
+	- Software: Add minimal bare metal demo app.
+	- UART: Add Crossover+Bridge support.
+	- VexRiscv-SMP: Integrate AES support.
+	- LitePCIe: Allow AXI mastering from FPGA (AXI-Lite and Full).
+	- mor1kx: Add standard+fpu and linux+fpu variants.
+
+	[> Changed
+	----------
+	- BIOS: commands have been renamed/reorganized.
+	- LiteDRAM: rdcmdphase/wrcmdphase no longer exposed.
+	- CSR: change default csr_data_width from 8 to 32.
+
+[> 2020.08, released on August 7th 2020
+---------------------------------------
+
+	[> Fixed
+	--------
+	- Fix flush_cpu_icache on VexRiscv.
+	- Fix `.data` section placed in rom (#566)
+
+	[> Added
+	--------
+	- Properly integrate Minerva CPU.
+	- Add nMigen dependency.
+	- Pluggable CPUs.
+	- BIOS history, autocomplete.
+	- Improve boards's programmers.
+	- Add Microwatt CPU support (with GHDL-Yosys-plugin support for FOSS toolchains).
+	- Speedup Memtest using an LFSR.
+	- Add LedChaser on boards.
+	- Improve WishboneBridge.
+	- Improve Diamond constraints.
+	- Use InterconnectPointToPoint when 1 master,1 slave and no address translation.
+	- Add CV32E40P CPU support (ex RI5CY).
+	- JTAG UART with uart_name=jtag_uart (validated on Spartan6, 7-Series, Ultrascale(+)).
+	- Add Symbiflow experimental support on Arty.
+	- Add SDCard (SPI and SD modes) boot from FAT/exFAT filesystems with FatFs.
+	- Simplify boot with boot.json configuration file.
+	- Revert to a single crt0 (avoid ctr/xip variants).
+	- Add otional DMA bus for Cache Coherency on CPU(s) with DMA/Cache Coherency interface.
+	- Add AXI-Lite bus standard support.
+	- Add VexRiscv SMP CPU support.
+
+	[> Changed
+	----------
+	- Add --build --load arguments to targets.
+	- Deprecate soc.interconnect.wishbone.UpConverter (will be rewritten if useful).
+	- Deprecate soc.interconnect.wishbone.CSRBank (Does not seem to be used by anyone).
+	- Move soc.interconnect.wishbone2csr.WB2CSR to soc.interconnect.wishbone.Wishbone2CSR.
+	- Move soc.interconnect.wishbonebridge.WishboneStreamingBridge to soc.cores.uart.Stream2Wishbone.
+	- Rename --gateware-toolchain target parameter to --toolchain.
+	- Integrate Zynq's PS7 as a regular CPU (zynq7000) and deprecate SoCZynq.
+
+[> 2020.04, released on April 28th, 2020
+----------------------------------------
+
+	[> Description
+	--------------
+	First release of LiteX and the ecosystem of cores!
+
+	LiteX is a Migen/MiSoC based Core/SoC builder that provides the infrastructure to easily create
+	Cores/SoCs (with or without CPU).
+
+	The common components of a SoC are provided directly:
+	- Buses and Streams (Wishbone, AXI, Avalon-ST)
+	- Interconnect
+	- Common cores (RAM, ROM, Timer, UART, etc...)
+	- CPU wrappers/integration
+	- etc...
+	And SoC creation capabilities can be greatly extended with the ecosystem of LiteX cores (DRAM,
+	PCIe, Ethernet, SATA, etc...) that can be integrated/simulated/build easily with LiteX.
+
+	It also provides build backends for open-source and vendors toolchains.
+
+	[> Fixed
+	--------
+	- NA
+
+	[> Added
+	--------
+	- NA
+
+	[> Changed
+	----------
+	- https://github.com/enjoy-digital/litex/pull/399: Converting LiteX to use Python modules.

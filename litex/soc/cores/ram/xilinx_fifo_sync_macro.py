@@ -1,8 +1,47 @@
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2022 Antmicro <www.antmicro.com>
+# SPDX-License-Identifier: BSD-2-Clause
+
 from migen import *
+
+from litex.gen import *
 
 from litex.soc.interconnect.stream import SyncFIFO
 
-class FIFOSyncMacro(Module, Record):
+
+def _fifo_sync_macro_data_width(fifo_size, data_width, toolchain):
+    if data_width <= 0 or data_width > 72:
+        raise ValueError("FIFOSyncMacro data-width must be > 0 and <= 72.")
+
+    if data_width in range(1, 5):
+        return 4
+    if data_width in range(5, 10):
+        return 8
+    if data_width in range(10, 19):
+        return 16
+    if data_width in range(19, 37):
+        return 32
+    if data_width in range(37, 73):
+        if fifo_size == "36Kb" or toolchain == "vivado":
+            return 64
+        raise ValueError("FIFOSyncMacro accepts data width up to 72 bits only for 36Kb FIFO size.")
+
+
+def _fifo_sync_macro_depth(fifo_size, data_width, toolchain):
+    macro_data_width = _fifo_sync_macro_data_width(fifo_size, data_width, toolchain)
+    fifo_size_kbits  = {"18Kb": 16, "36Kb": 32}[fifo_size]
+    return int(fifo_size_kbits*1024/macro_data_width)
+
+
+def _check_fifo_sync_macro_offset(name, value, fifo_depth):
+    if not 0 <= value <= fifo_depth:
+        raise ValueError(
+            "FIFOSyncMacro {} must be between 0 and FIFO depth ({}).".format(name, fifo_depth))
+
+
+class FIFOSyncMacro(LiteXModule, Record):
     """FIFOSyncMacro
 
     Provides an equivalent of Xilinx' FIFO_SYNC_MACRO which is a unimacro dedicated for 7 series
@@ -12,8 +51,13 @@ class FIFOSyncMacro(Module, Record):
     https://docs.xilinx.com/r/2021.2-English/ug953-vivado-7series-libraries/FIFO_SYNC_MACRO
     """
     def __init__(self, fifo_size="18Kb", data_width=32, almost_empty_offset=0, almost_full_offset=0, do_reg=0, toolchain="vivado"):
-        assert data_width <= 72
-        assert fifo_size in ["18Kb", "36Kb"]
+        if fifo_size not in ["18Kb", "36Kb"]:
+            raise ValueError("Unsupported FIFOSyncMacro FIFO size: {}.".format(fifo_size))
+        if do_reg not in [0, 1]:
+            raise ValueError("FIFOSyncMacro DO_REG must be 0 or 1.")
+        fifo_depth = _fifo_sync_macro_depth(fifo_size, data_width, toolchain)
+        _check_fifo_sync_macro_offset("almost-empty offset", almost_empty_offset, fifo_depth)
+        _check_fifo_sync_macro_offset("almost-full offset",  almost_full_offset,  fifo_depth)
         if do_reg and toolchain != "vivado":
             raise NotImplementedError("FIFOSyncMacro: DO_REG==1 is supported only for Vivado toolchain")
 
@@ -68,25 +112,9 @@ class FIFOSyncMacro(Module, Record):
             else:
                 raise ValueError("FIFOSyncMacro can only be configured to 18Kb or 36Kb of memory")
 
-            if data_width in range(1, 5):
-                macro_data_width = 4
-            elif data_width in range(5, 10):
-                macro_data_width = 8
-            elif data_width in range(10, 19):
-                macro_data_width = 16
-            elif data_width in range(19, 37):
-                macro_data_width = 32
-            elif data_width in range(37, 73):
-                if fifo_size == 36:
-                    macro_data_width = 64
-                else:
-                    raise ValueError("FIFOSyncMacro accepts data width up to 72 bits only for 36Kb FIFO size.")
-            else:
-                raise ValueError("FIFOSyncMacro only accepts data width up to 72 bits.")
+            self.fifo_depth = fifo_depth
 
-            self.fifo_depth = fifo_depth = (int)(fifo_size * 1024 / macro_data_width)
-
-            self.submodules.fifo = fifo = ResetInserter()(SyncFIFO([("data", data_width)], fifo_depth))
+            self.fifo = fifo = ResetInserter()(SyncFIFO([("data", data_width)], fifo_depth))
 
             self.comb += [
                 fifo.reset.eq(self.reset),
@@ -102,7 +130,7 @@ class FIFOSyncMacro(Module, Record):
                 fifo.source.ready.eq(self.rden),
 
                 self.wrerr.eq(~fifo.sink.ready & self.wren),
-                self.rderr.eq(fifo.source.ready & self.rden),
+                self.rderr.eq(~fifo.source.valid & self.rden),
 
                 If(level == 0,
                     self.empty.eq(1)

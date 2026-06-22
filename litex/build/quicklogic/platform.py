@@ -7,19 +7,25 @@
 import os
 
 from litex.build.generic_platform import GenericPlatform
-from litex.build.quicklogic import common, symbiflow
+from litex.build.quicklogic import common, f4pga
 
 # QuickLogicPlatform -------------------------------------------------------------------------------
 
 class QuickLogicPlatform(GenericPlatform):
-    bitstream_ext = ".bit"
+    _bitstream_ext = ".bit"
+    _jtag_support  = False
 
-    def __init__(self, device, *args, toolchain="symbiflow", **kwargs):
-        GenericPlatform.__init__(self, device, *args, **kwargs)
-        if toolchain == "symbiflow":
-            self.toolchain = symbiflow.SymbiflowToolchain()
+    _supported_toolchains = ["f4pga"]
+
+    def __init__(self, *args, toolchain="f4pga", **kwargs):
+        GenericPlatform.__init__(self, *args, **kwargs)
+        if isinstance(toolchain, str):
+            if toolchain == "symbiflow" or toolchain == "f4pga":
+                self.toolchain = f4pga.F4PGAToolchain()
+            else:
+                raise ValueError(f"Unknown toolchain {toolchain}")
         else:
-            raise ValueError(f"Unknown toolchain {toolchain}")
+            self.toolchain = toolchain
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.quicklogic_special_overrides)

@@ -1,0 +1,892 @@
+#!/usr/bin/env python3
+
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
+
+import os
+import re
+import sys
+import json
+import glob
+import argparse
+import tarfile
+import zipfile
+import shutil
+import tempfile
+import urllib.error
+import urllib.request
+import subprocess
+
+import litex_repos
+import litex_setup as setup
+
+# Constants ----------------------------------------------------------------------------------------
+
+PYPI_PHASES         = ["pypi-check", "pypi-build", "pypi-upload"]
+PYPI_DEFAULT_PHASES = ["pypi-check", "pypi-build"]
+
+# Helpers ------------------------------------------------------------------------------------------
+
+def print_banner():
+    b  = []
+    b.append("          __   _ __      _  __         ")
+    b.append("         / /  (_) /____ | |/_/         ")
+    b.append("        / /__/ / __/ -_)>  <           ")
+    b.append("       /____/_/\\__/\\__/_/|_|         ")
+    b.append("     Build your hardware, easily!      ")
+    b.append("          LiteX Release utility.       ")
+    b.append("")
+    print("\n".join(b))
+
+def get_current_tag(repo_path):
+    try:
+        cmd    = ["git", "describe", "--tags", "--abbrev=0"]
+        result = subprocess.check_output(cmd, cwd=repo_path).decode("UTF-8").strip()
+        return result
+    except subprocess.CalledProcessError:
+        return "No tags"
+
+def get_setup_version(setup_path):
+    try:
+        with open(setup_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        match = re.search(r'version\s*=\s*["\']([^"\']+)["\']', content)
+        if match:
+            return match.group(1)
+        return "No version found"
+    except FileNotFoundError:
+        return "No setup.py"
+
+def check_release_tag(tag, allow_invalid_tag=False):
+    if re.match(r"^\d{4}\.(04|08|12)$", tag):
+        return
+    if allow_invalid_tag:
+        return
+    setup.print_error(f"{tag} is not a valid LiteX release tag.")
+    print("Expected YYYY.04, YYYY.08 or YYYY.12.")
+    raise setup.SetupError
+
+def release_repo_names(repos=None, with_pythondata=False):
+    if repos:
+        names = [name.strip() for name in repos.split(",") if name.strip()]
+    else:
+        names = [
+            name
+            for name in litex_repos.install_configs["full"]
+            if (name != "migen") and (litex_repos.git_repos[name].tag is not None)
+        ]
+        if with_pythondata:
+            for name in litex_repos.install_configs["full"]:
+                if (
+                    (name != "migen") and
+                    name.startswith("pythondata-") and
+                    (name not in names)
+                ):
+                    names.append(name)
+    for name in names:
+        if name not in litex_repos.git_repos:
+            setup.print_error(f"{name} is not a known repository.")
+            raise setup.SetupError
+        if name == "migen":
+            setup.print_error("migen is not released by litex_release.py.")
+            raise setup.SetupError
+    return names
+
+def git_output(repo_path, *args, check=True):
+    cmd = ["git"] + list(args)
+    try:
+        output = subprocess.check_output(cmd, cwd=repo_path, stderr=subprocess.STDOUT)
+        return output.decode("UTF-8").strip()
+    except subprocess.CalledProcessError as e:
+        if check:
+            output = e.output.decode("UTF-8", errors="ignore").strip()
+            setup.print_error(f"{repo_path}: {' '.join(cmd)} failed.")
+            if output:
+                print(output)
+            raise setup.SetupError
+        return None
+
+def git_call(repo_path, *args):
+    cmd = ["git"] + list(args)
+    subprocess.check_call(cmd, cwd=repo_path)
+
+def normalize_package_name(name):
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+def repo_build_name(name):
+    return normalize_package_name(name).replace("-", "_")
+
+def get_setup_metadata(repo_path):
+    setup_path = os.path.join(repo_path, "setup.py")
+    if not os.path.exists(setup_path):
+        return {
+            "name"    : None,
+            "version" : None,
+            "error"   : "No setup.py",
+        }
+    cmd = [sys.executable, "setup.py", "--name", "--version"]
+    result = subprocess.run(
+        cmd,
+        cwd    = repo_path,
+        stdout = subprocess.PIPE,
+        stderr = subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        error = result.stderr.decode("UTF-8", errors="ignore").strip()
+        return {
+            "name"    : None,
+            "version" : None,
+            "error"   : error or "setup.py metadata query failed",
+        }
+    lines = [
+        line.strip()
+        for line in result.stdout.decode("UTF-8", errors="ignore").splitlines()
+        if line.strip()
+    ]
+    if len(lines) < 2:
+        return {
+            "name"    : None,
+            "version" : None,
+            "error"   : "setup.py did not report name and version",
+        }
+    return {
+        "name"    : lines[-2],
+        "version" : lines[-1],
+        "error"   : None,
+    }
+
+def python_build_available():
+    result = subprocess.run(
+        [sys.executable, "-m", "build", "--version"],
+        stdout = subprocess.PIPE,
+        stderr = subprocess.PIPE,
+    )
+    return result.returncode == 0
+
+def python_twine_available():
+    result = subprocess.run(
+        [sys.executable, "-m", "twine", "--version"],
+        stdout = subprocess.PIPE,
+        stderr = subprocess.PIPE,
+    )
+    return result.returncode == 0
+
+# Release State ------------------------------------------------------------------------------------
+
+def release_state_filename(tag):
+    safe_tag = tag.replace("/", "_").replace("\\", "_")
+    return f".litex_release_{safe_tag}.json"
+
+def init_release_state(tag, phases, states):
+    repos = []
+    for state in states:
+        repo = {
+            "name"          : state["name"],
+            "path"          : state["repo_path"],
+            "branch"        : state["branch"],
+            "upstream"      : state["upstream"],
+            "last_tag"      : state["last_tag"],
+            "setup_version" : state["setup_version"],
+            "head_before"   : None,
+        }
+        if state["exists"]:
+            repo["head_before"] = git_output(state["repo_path"], "rev-parse", "HEAD", check=False)
+        repos.append(repo)
+    return {
+        "tag"              : tag,
+        "phases"           : phases,
+        "completed_phases" : [],
+        "repositories"     : repos,
+        "events"           : [],
+    }
+
+def save_release_state(state_file, release_state):
+    if state_file is None:
+        return
+    with open(state_file, "w", encoding="utf-8") as f:
+        json.dump(release_state, f, indent=2, sort_keys=True)
+        f.write("\n")
+
+def add_release_event(release_state, state_file, phase, repo, commit=None, tag=None):
+    if release_state is None:
+        return
+    event = {
+        "phase" : phase,
+        "repo"  : repo,
+    }
+    if commit is not None:
+        event["commit"] = commit
+    if tag is not None:
+        event["tag"] = tag
+    release_state["events"].append(event)
+    save_release_state(state_file, release_state)
+
+def complete_release_phase(release_state, state_file, phase):
+    if release_state is None:
+        return
+    if phase not in release_state["completed_phases"]:
+        release_state["completed_phases"].append(phase)
+    save_release_state(state_file, release_state)
+
+# Release Checks -----------------------------------------------------------------------------------
+
+def release_repo_state(name, tag):
+    repo_path = os.path.join(setup.current_path, name)
+    state = {
+        "name"                    : name,
+        "repo_path"               : repo_path,
+        "exists"                  : os.path.exists(repo_path),
+        "last_tag"                : "Not initialized",
+        "setup_version"           : "Not initialized",
+        "branch"                  : "Not initialized",
+        "expected"                : litex_repos.git_repos[name].branch,
+        "upstream"                : None,
+        "ahead"                   : None,
+        "behind"                  : None,
+        "dirty"                   : False,
+        "push_url"                : None,
+        "local_tag"               : False,
+        "remote_tag"              : False,
+        "remote_tag_check_failed" : False,
+    }
+    if not state["exists"]:
+        return state
+
+    state["last_tag"]      = get_current_tag(repo_path)
+    state["setup_version"] = get_setup_version(os.path.join(repo_path, "setup.py"))
+    state["branch"]        = git_output(repo_path, "rev-parse", "--abbrev-ref", "HEAD", check=False) or "unknown"
+    state["upstream"]      = git_output(
+        repo_path,
+        "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}",
+        check = False,
+    )
+    state["dirty"]         = bool(git_output(repo_path, "status", "--porcelain", check=False))
+    state["push_url"]      = git_output(repo_path, "remote", "get-url", "--push", "origin", check=False)
+    state["local_tag"]     = git_output(
+        repo_path,
+        "rev-parse", "-q", "--verify", f"refs/tags/{tag}",
+        check = False,
+    ) is not None
+    remote_tag             = git_output(
+        repo_path,
+        "ls-remote", "--tags", "origin", f"refs/tags/{tag}",
+        check = False,
+    )
+    state["remote_tag"]    = bool(remote_tag)
+    state["remote_tag_check_failed"] = (remote_tag is None)
+    if state["upstream"] is not None:
+        counts = git_output(
+            repo_path,
+            "rev-list", "--left-right", "--count", "HEAD...@{u}",
+            check = False,
+        )
+        if counts is not None:
+            ahead, behind = counts.split()
+            state["ahead"]  = int(ahead)
+            state["behind"] = int(behind)
+    return state
+
+def release_actions(state, tag, phases):
+    actions = []
+    if "bump" in phases:
+        if state["setup_version"] in ["No setup.py", "No version found", "Not initialized"]:
+            actions.append("no-bump")
+        elif state["setup_version"] == tag:
+            actions.append("bump-skip")
+        else:
+            actions.append("bump")
+    if "tag" in phases:
+        actions.append("tag")
+    if "pypi-check" in phases:
+        actions.append("pypi-check")
+    if "pypi-build" in phases:
+        actions.append("pypi-build")
+    if "push" in phases:
+        actions.append("push")
+    if "pypi-upload" in phases:
+        actions.append("pypi-upload")
+    return ",".join(actions) if actions else "check"
+
+def print_release_summary(states, tag, phases):
+    setup.print_status(f"Release {tag} plan...", underline=True)
+    print(setup.colorer(
+        "Repo".ljust(35) +
+        "Branch".ljust(15) +
+        "Upstream".ljust(25) +
+        "Last Tag".ljust(15) +
+        "Version".ljust(15) +
+        "Actions"
+    ))
+    print("-" * 120)
+    for state in states:
+        upstream = state["upstream"] or "-"
+        print(
+            f"{state['name']:<35} "
+            f"{state['branch']:<15} "
+            f"{upstream:<25} "
+            f"{state['last_tag']:<15} "
+            f"{state['setup_version']:<15} "
+            f"{release_actions(state, tag, phases)}"
+        )
+
+def check_release_state(states, tag, phases, allow_dirty=False, allow_branch_mismatch=False, allow_unpushed=False):
+    errors = []
+    for state in states:
+        name = state["name"]
+        if not state["exists"]:
+            errors.append(f"{name}: repository is not initialized.")
+            continue
+        if state["dirty"] and not allow_dirty:
+            errors.append(f"{name}: working tree is not clean.")
+        if state["branch"] != state["expected"] and not allow_branch_mismatch:
+            errors.append(f"{name}: on branch {state['branch']}, expected {state['expected']}.")
+        if state["local_tag"] and "tag" in phases:
+            errors.append(f"{name}: local tag {tag} already exists.")
+        if state["remote_tag"] and ("tag" in phases or "push" in phases):
+            errors.append(f"{name}: remote tag {tag} already exists.")
+        if "push" in phases:
+            if state["remote_tag_check_failed"]:
+                errors.append(f"{name}: could not check remote tag {tag} on origin.")
+            if state["push_url"] is None:
+                errors.append(f"{name}: no push URL configured for origin.")
+            if state["upstream"] is None and not allow_unpushed:
+                errors.append(f"{name}: no upstream branch configured.")
+            if state["behind"] not in [None, 0] and not allow_unpushed:
+                errors.append(f"{name}: branch is behind upstream by {state['behind']} commit(s).")
+            if state["ahead"] not in [None, 0] and "bump" in phases and not allow_unpushed:
+                errors.append(f"{name}: branch is ahead of upstream by {state['ahead']} commit(s).")
+            if "tag" not in phases and not state["local_tag"]:
+                errors.append(f"{name}: local tag {tag} is missing.")
+        if "bump" in phases:
+            setup_path = os.path.join(state["repo_path"], "setup.py")
+            if (
+                os.path.exists(setup_path) and
+                state["setup_version"] == "No version found" and
+                litex_repos.git_repos[name].tag is not None
+            ):
+                errors.append(f"{name}: setup.py has no parseable version.")
+
+    if errors:
+        setup.print_error("Release checks failed:")
+        for error in errors:
+            print(f"  - {error}")
+        raise setup.SetupError
+
+def release_check_repos(repos=None, with_pythondata=False):
+    names = release_repo_names(repos=repos, with_pythondata=with_pythondata)
+    setup.print_status("Checking repositories for release...", underline=True)
+    print(setup.colorer("Repo".ljust(35) + "Last Tag".ljust(17) + "Setup Version"))
+    print("-" * 80)
+    for name in names:
+        repo_path = os.path.join(setup.current_path, name)
+        if not os.path.exists(repo_path):
+            last_tag      = "Not initialized"
+            setup_version = "Not initialized"
+        else:
+            last_tag      = get_current_tag(repo_path)
+            setup_version = get_setup_version(os.path.join(repo_path, "setup.py"))
+        print(f"{name:<35} {last_tag:<15} {setup_version}")
+
+def release_list_repos(repos=None, with_pythondata=False):
+    names = release_repo_names(repos=repos, with_pythondata=with_pythondata)
+    setup.print_status("Release repositories...", underline=True)
+    for name in names:
+        print(name)
+
+# PyPI Checks/Builds -------------------------------------------------------------------------------
+
+def pypi_release_url(package, version, test_pypi=False):
+    base = "https://test.pypi.org/pypi" if test_pypi else "https://pypi.org/pypi"
+    return f"{base}/{normalize_package_name(package)}/{version}/json"
+
+def pypi_release_exists(package, version, test_pypi=False):
+    request = urllib.request.Request(
+        pypi_release_url(package, version, test_pypi=test_pypi),
+        headers = {"User-Agent": "litex-release"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return response.status == 200
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return False
+        raise
+
+def pypi_metadata_for_state(state, tag=None, phases=None):
+    metadata = get_setup_metadata(state["repo_path"])
+    if (
+        (tag is not None) and
+        (phases is not None) and
+        ("bump" in phases) and
+        (state["setup_version"] not in ["No setup.py", "No version found", "Not initialized"])
+    ):
+        metadata = dict(metadata)
+        metadata["version"] = tag
+    return metadata
+
+def print_pypi_summary(states, tag=None, phases=None, test_pypi=False):
+    target = "TestPyPI" if test_pypi else "PyPI"
+    setup.print_status(f"{target} package plan...", underline=True)
+    print(setup.colorer(
+        "Repo".ljust(35) +
+        "Package".ljust(35) +
+        "Version"
+    ))
+    print("-" * 90)
+    for state in states:
+        if not state["exists"]:
+            print(f"{state['name']:<35} {'Not initialized':<35} -")
+            continue
+        metadata = pypi_metadata_for_state(state, tag=tag, phases=phases)
+        package  = metadata["name"] or metadata["error"]
+        version  = metadata["version"] or "-"
+        print(f"{state['name']:<35} {package:<35} {version}")
+
+def check_pypi_state(states, tag=None, phases=None, test_pypi=False, allow_existing=False, check_remote=True):
+    errors = []
+    for state in states:
+        name = state["name"]
+        if not state["exists"]:
+            errors.append(f"{name}: repository is not initialized.")
+            continue
+        metadata = pypi_metadata_for_state(state, tag=tag, phases=phases)
+        if metadata["error"] is not None:
+            errors.append(f"{name}: {metadata['error']}.")
+            continue
+        package = metadata["name"]
+        version = metadata["version"]
+        if not package or not version:
+            errors.append(f"{name}: missing package name or version.")
+            continue
+        if not check_remote:
+            continue
+        try:
+            exists = pypi_release_exists(package, version, test_pypi=test_pypi)
+        except Exception as e:
+            errors.append(f"{name}: could not check {package} {version} on PyPI: {e}.")
+            continue
+        if exists and not allow_existing:
+            errors.append(f"{name}: {package} {version} already exists on PyPI.")
+
+    if errors:
+        setup.print_error("PyPI checks failed:")
+        for error in errors:
+            print(f"  - {error}")
+        raise setup.SetupError
+
+def artifact_members(path):
+    if path.endswith(".whl"):
+        with zipfile.ZipFile(path, "r") as z:
+            return z.namelist()
+    if path.endswith((".tar.gz", ".tgz")):
+        with tarfile.open(path, "r:gz") as t:
+            return t.getnames()
+    return []
+
+def artifact_contains_package(members, package_name, sdist=False):
+    module_name = package_name.replace("-", "_")
+    for member in members:
+        parts = member.split("/")
+        if sdist:
+            if len(parts) >= 2 and parts[1] == module_name:
+                return True
+        else:
+            if parts and parts[0] == module_name:
+                return True
+    return False
+
+def check_artifact_contents(path, package_name):
+    members = artifact_members(path)
+    errors  = []
+    is_sdist = path.endswith((".tar.gz", ".tgz"))
+    for member in members:
+        parts = member.split("/")
+        if member.endswith((".pyc", ".pyo")) or "__pycache__" in parts:
+            errors.append(f"{path}: contains bytecode/cache file {member}")
+            break
+        rel_parts = parts[1:] if is_sdist else parts
+        if rel_parts and rel_parts[0] in ["bench", "examples", "test", "tests"]:
+            errors.append(f"{path}: contains top-level {rel_parts[0]} directory")
+            break
+    if not artifact_contains_package(members, package_name, sdist=is_sdist):
+        errors.append(f"{path}: does not contain package module for {package_name}")
+    if package_name.startswith("pythondata-"):
+        module_name = package_name.replace("-", "_")
+        data_files = []
+        for member in members:
+            parts = member.split("/")
+            if is_sdist and len(parts) >= 3 and parts[1] == module_name:
+                rel = "/".join(parts[2:])
+            elif (not is_sdist) and len(parts) >= 2 and parts[0] == module_name:
+                rel = "/".join(parts[1:])
+            else:
+                continue
+            if rel and not rel.endswith(".py") and ".dist-info/" not in member:
+                data_files.append(member)
+        if not data_files:
+            errors.append(f"{path}: pythondata package has no packaged data files")
+    return errors
+
+def export_repo_tree(repo_path, work_path):
+    archive = subprocess.Popen(
+        ["git", "archive", "--format=tar", "HEAD"],
+        cwd    = repo_path,
+        stdout = subprocess.PIPE,
+    )
+    extract = subprocess.run(
+        ["tar", "-xf", "-", "-C", work_path],
+        stdin  = archive.stdout,
+        stdout = subprocess.PIPE,
+        stderr = subprocess.PIPE,
+    )
+    archive.stdout.close()
+    archive_rc = archive.wait()
+    if archive_rc != 0 or extract.returncode != 0:
+        error = extract.stderr.decode("UTF-8", errors="ignore").strip()
+        raise setup.SetupError(f"Could not export {repo_path}: {error}")
+
+def build_repo_artifacts(state, dist_root):
+    name      = state["name"]
+    repo_path = state["repo_path"]
+    repo_dist = os.path.join(dist_root, repo_build_name(name))
+    if os.path.exists(repo_dist):
+        shutil.rmtree(repo_dist)
+    os.makedirs(repo_dist, exist_ok=True)
+
+    with tempfile.TemporaryDirectory(prefix=f"litex-release-{name}-") as work_path:
+        export_repo_tree(repo_path, work_path)
+        metadata = get_setup_metadata(work_path)
+        if metadata["error"] is not None:
+            raise setup.SetupError(f"{name}: {metadata['error']}.")
+
+        build_module = python_build_available()
+        if build_module:
+            cmd = [
+                sys.executable, "-m", "build",
+                "--sdist", "--wheel",
+                "--outdir", repo_dist,
+            ]
+        else:
+            cmd = [
+                sys.executable, "setup.py",
+                "sdist", "--dist-dir", repo_dist,
+                "bdist_wheel", "--dist-dir", repo_dist,
+            ]
+        setup.print_status(f"Building {name} PyPI artifacts...")
+        subprocess.check_call(cmd, cwd=work_path)
+
+    artifacts = sorted(
+        glob.glob(os.path.join(repo_dist, "*.tar.gz")) +
+        glob.glob(os.path.join(repo_dist, "*.whl"))
+    )
+    if not artifacts:
+        raise setup.SetupError(f"{name}: no PyPI artifacts were built.")
+    errors = []
+    for artifact in artifacts:
+        errors += check_artifact_contents(artifact, metadata["name"])
+    if errors:
+        setup.print_error(f"{name}: artifact checks failed:")
+        for error in errors:
+            print(f"  - {error}")
+        raise setup.SetupError
+    if python_twine_available():
+        subprocess.check_call([sys.executable, "-m", "twine", "check"] + artifacts)
+    else:
+        setup.print_warning("twine is not installed; skipping twine check.")
+    return artifacts
+
+def release_pypi_build(states, tag, dist_dir):
+    dist_root = os.path.abspath(dist_dir or os.path.join(".litex_release_dist", tag))
+    os.makedirs(dist_root, exist_ok=True)
+    setup.print_status(f"PyPI artifact directory: {dist_root}")
+    built = []
+    for state in states:
+        built += build_repo_artifacts(state, dist_root)
+    setup.print_status("Built PyPI artifacts:")
+    for artifact in built:
+        print(f"  - {artifact}")
+    return built
+
+def release_pypi_upload(states, tag, dist_dir, test_pypi=False, skip_existing=False):
+    dist_root = os.path.abspath(dist_dir or os.path.join(".litex_release_dist", tag))
+    artifacts = []
+    for state in states:
+        repo_dist = os.path.join(dist_root, repo_build_name(state["name"]))
+        artifacts += sorted(glob.glob(os.path.join(repo_dist, "*.tar.gz")))
+        artifacts += sorted(glob.glob(os.path.join(repo_dist, "*.whl")))
+    if not artifacts:
+        raise setup.SetupError(f"No PyPI artifacts found in {dist_root}. Run --pypi-build first.")
+    cmd = [sys.executable, "-m", "twine", "upload"]
+    if test_pypi:
+        cmd += ["--repository", "testpypi"]
+    if skip_existing:
+        cmd.append("--skip-existing")
+    cmd += artifacts
+    subprocess.check_call(cmd)
+
+# Release ------------------------------------------------------------------------------------------
+
+def release_repos(tag, repos=None, with_pythondata=False, dry_run=False, phases=None, no_push=False,
+    allow_dirty=False, allow_branch_mismatch=False, allow_unpushed=False, allow_invalid_tag=False,
+    state_file=None, pypi_dist_dir=None, test_pypi=False, allow_existing_pypi=False,
+    no_pypi_remote_check=False, pypi_skip_existing=False):
+
+    check_release_tag(tag, allow_invalid_tag=allow_invalid_tag)
+    phases = phases or ["bump", "tag", "push"]
+    if no_push and "push" in phases:
+        phases.remove("push")
+    names = release_repo_names(repos=repos, with_pythondata=with_pythondata)
+    states = [release_repo_state(name, tag) for name in names]
+
+    print_release_summary(states, tag, phases)
+    check_release_state(
+        states,
+        tag,
+        phases,
+        allow_dirty            = allow_dirty,
+        allow_branch_mismatch = allow_branch_mismatch,
+        allow_unpushed         = allow_unpushed,
+    )
+    if any(phase in phases for phase in PYPI_PHASES):
+        print_pypi_summary(states, tag=tag, phases=phases, test_pypi=test_pypi)
+        check_pypi_state(
+            states,
+            tag           = tag,
+            phases        = phases,
+            test_pypi     = test_pypi,
+            allow_existing = allow_existing_pypi,
+            check_remote   = not no_pypi_remote_check,
+        )
+
+    if dry_run:
+        setup.print_status("Dry-run complete, no repository was modified.")
+        return
+
+    if phases == ["pypi-check"]:
+        setup.print_status("PyPI checks complete.")
+        return
+
+    setup.print_status(f"Making release {tag}...", underline=True)
+    confirm = input("Please confirm by pressing Y:")
+    if confirm.upper() != "Y":
+        setup.print_status("Not confirmed, exiting.")
+        return
+
+    release_state = None
+    if state_file is not None:
+        release_state = init_release_state(tag, phases, states)
+        save_release_state(state_file, release_state)
+        setup.print_status(f"Release state file: {state_file}")
+
+    if "bump" in phases:
+        for state in states:
+            name      = state["name"]
+            repo_path = state["repo_path"]
+            cwd       = os.getcwd()
+            try:
+                os.chdir(repo_path)
+                setup_path = os.path.join(repo_path, "setup.py")
+                if not os.path.exists(setup_path):
+                    setup.print_status(f"No setup.py in {name}, skipping bump.")
+                    continue
+                current_version = get_setup_version(setup_path)
+                if current_version == "No version found":
+                    setup.print_status(f"No version in {name} setup.py, skipping bump.")
+                    continue
+                if current_version == tag:
+                    setup.print_status(f"Version in {name} already at {tag}, skipping bump.")
+                    continue
+
+                setup.print_status(f"Bumping version in {name} setup.py from {current_version} to {tag}...")
+                with open(setup_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                new_content = re.sub(r'version\s*=\s*["\'][^"\']+["\']', f'version = "{tag}"', content)
+                with open(setup_path, "w", encoding="utf-8") as f:
+                    f.write(new_content)
+                git_call(repo_path, "add", "setup.py")
+                git_call(repo_path, "commit", "-m", f"Bump to version {tag}")
+                add_release_event(
+                    release_state,
+                    state_file,
+                    "bump",
+                    name,
+                    commit = git_output(repo_path, "rev-parse", "HEAD"),
+                )
+            finally:
+                os.chdir(cwd)
+        complete_release_phase(release_state, state_file, "bump")
+
+    if "tag" in phases:
+        for state in states:
+            name      = state["name"]
+            repo_path = state["repo_path"]
+            setup.print_status(f"Tagging {name} Git repository as {tag}...")
+            git_call(repo_path, "tag", tag)
+            add_release_event(
+                release_state,
+                state_file,
+                "tag",
+                name,
+                tag = tag,
+            )
+        complete_release_phase(release_state, state_file, "tag")
+
+    if "pypi-build" in phases:
+        release_pypi_build(states, tag, pypi_dist_dir)
+        complete_release_phase(release_state, state_file, "pypi-build")
+
+    if "push" in phases:
+        for state in states:
+            name      = state["name"]
+            repo_path = state["repo_path"]
+            setup.print_status(f"Pushing {name} Git repository...")
+            git_call(repo_path, "push")
+            git_call(repo_path, "push", "origin", tag)
+            add_release_event(
+                release_state,
+                state_file,
+                "push",
+                name,
+                commit = git_output(repo_path, "rev-parse", "HEAD"),
+                tag    = tag,
+            )
+        complete_release_phase(release_state, state_file, "push")
+
+    if "pypi-upload" in phases:
+        release_pypi_upload(
+            states,
+            tag,
+            pypi_dist_dir,
+            test_pypi      = test_pypi,
+            skip_existing  = pypi_skip_existing,
+        )
+        complete_release_phase(release_state, state_file, "pypi-upload")
+
+def release_phases(args):
+    phases = []
+    normal_phase_selected = args.bump or args.tag or args.push
+    pypi_phase_selected   = args.pypi or args.pypi_check or args.pypi_build or args.pypi_upload
+    if args.pypi and not normal_phase_selected:
+        phases += ["bump", "tag", "push"]
+    if args.bump:
+        phases.append("bump")
+    if args.tag:
+        phases.append("tag")
+    if args.push:
+        phases.append("push")
+    if args.pypi:
+        phases += PYPI_DEFAULT_PHASES
+    if args.pypi_check:
+        phases.append("pypi-check")
+    if args.pypi_build:
+        phases.append("pypi-build")
+    if args.pypi_upload:
+        phases.append("pypi-upload")
+    if not phases and not pypi_phase_selected:
+        phases = ["bump", "tag", "push"]
+    if args.no_push and "push" in phases:
+        phases.remove("push")
+    if args.no_push and args.push:
+        setup.print_error("--no-push and --push cannot be used together.")
+        raise setup.SetupError
+    deduped = []
+    for phase in phases:
+        if phase not in deduped:
+            deduped.append(phase)
+    return deduped
+
+
+# Run ----------------------------------------------------------------------------------------------
+
+def main():
+    print_banner()
+    parser = argparse.ArgumentParser()
+
+    # Release repositories.
+    parser.add_argument("--list-repos",      action="store_true", help="List repositories selected for release.")
+    parser.add_argument("--check",           action="store_true", help="Check repositories before release.")
+    parser.add_argument("--repos",           default=None,        help="Comma-separated release repository allow-list.")
+    parser.add_argument("--with-pythondata", action="store_true", help="Also include pythondata repositories.")
+
+    # Release flow.
+    parser.add_argument("--release",       default=None,        help="Make release.")
+    parser.add_argument("--dry-run",       action="store_true", help="Print release plan and checks without modifying repositories.")
+    parser.add_argument("--no-push",       action="store_true", help="Create local release commits/tags without pushing.")
+    parser.add_argument("--bump",          action="store_true", help="Run release version-bump phase.")
+    parser.add_argument("--tag",           action="store_true", help="Run release tag phase.")
+    parser.add_argument("--push",          action="store_true", help="Run release push phase.")
+
+    # PyPI flow.
+    parser.add_argument("--pypi",                 action="store_true", help="Run PyPI check and build phases.")
+    parser.add_argument("--pypi-check",           action="store_true", help="Check PyPI package metadata and version availability.")
+    parser.add_argument("--pypi-build",           action="store_true", help="Build PyPI sdist/wheel artifacts.")
+    parser.add_argument("--pypi-upload",          action="store_true", help="Upload previously built PyPI artifacts.")
+    parser.add_argument("--pypi-dist-dir",        default=None,        help="Directory for PyPI artifacts.")
+    parser.add_argument("--test-pypi",            action="store_true", help="Check/upload against TestPyPI.")
+    parser.add_argument("--allow-existing-pypi",  action="store_true", help="Allow package versions already present on PyPI.")
+    parser.add_argument("--no-pypi-remote-check", action="store_true", help="Skip PyPI remote version availability checks.")
+    parser.add_argument("--pypi-skip-existing",   action="store_true", help="Pass --skip-existing to twine upload.")
+
+    # Release checks.
+    parser.add_argument("--allow-invalid-tag",     action="store_true", help="Allow release tags outside YYYY.04/YYYY.08/YYYY.12.")
+    parser.add_argument("--allow-dirty",           action="store_true", help="Allow dirty working trees during release.")
+    parser.add_argument("--allow-branch-mismatch", action="store_true", help="Allow branches different from litex_setup.py defaults.")
+    parser.add_argument("--allow-unpushed",        action="store_true", help="Allow repositories without clean upstream synchronization.")
+    parser.add_argument("--state-file",            default=None,        help="Release state file path.")
+
+    # Development mode.
+    parser.add_argument("--dev", action="store_true", help=argparse.SUPPRESS)
+    args = parser.parse_args()
+
+    # Location.
+    setup.litex_setup_location_check()
+
+    # List.
+    if args.list_repos:
+        release_list_repos(
+            repos=args.repos,
+            with_pythondata=args.with_pythondata,
+        )
+
+    # Check.
+    if args.check:
+        release_check_repos(
+            repos=args.repos,
+            with_pythondata=args.with_pythondata,
+        )
+
+    # Release.
+    if args.release:
+        state_file = args.state_file
+        if (state_file is None) and (not args.dry_run):
+            state_file = os.path.abspath(release_state_filename(args.release))
+        release_repos(
+            tag                   = args.release,
+            repos                 = args.repos,
+            with_pythondata       = args.with_pythondata,
+            dry_run               = args.dry_run,
+            phases                = release_phases(args),
+            no_push               = args.no_push,
+            allow_dirty            = args.allow_dirty,
+            allow_branch_mismatch = args.allow_branch_mismatch,
+            allow_unpushed         = args.allow_unpushed,
+            allow_invalid_tag      = args.allow_invalid_tag,
+            state_file             = state_file,
+            pypi_dist_dir          = args.pypi_dist_dir,
+            test_pypi              = args.test_pypi,
+            allow_existing_pypi    = args.allow_existing_pypi,
+            no_pypi_remote_check   = args.no_pypi_remote_check,
+            pypi_skip_existing     = args.pypi_skip_existing,
+        )
+    elif (
+        args.dry_run or args.bump or args.tag or args.push or args.no_push or
+        args.pypi or args.pypi_check or args.pypi_build or args.pypi_upload
+    ):
+        setup.print_error("--release is required with release action options.")
+        raise setup.SetupError
+
+if __name__ == "__main__":
+    main()

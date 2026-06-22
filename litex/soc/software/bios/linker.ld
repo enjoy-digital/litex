@@ -27,6 +27,7 @@ SECTIONS
 		_frodata = .;
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
+		*(.srodata .srodata.*)
 		*(.got .got.*)
 		*(.toc .toc.*)
 
@@ -49,6 +50,13 @@ SECTIONS
 		PROVIDE_HIDDEN (__bios_init_start = .);
 		KEEP(*(.bios_init))
 		PROVIDE_HIDDEN (__bios_init_end = .);
+	} > rom
+
+	.boot_methods :
+	{
+		PROVIDE_HIDDEN (__bios_boot_start = .);
+		KEEP(*(.bios_boot))
+		PROVIDE_HIDDEN (__bios_boot_end = .);
 	} > rom
 
 	.data :

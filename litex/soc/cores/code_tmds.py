@@ -5,10 +5,9 @@
 # Copyright (c) 2016-2021 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-from functools import reduce
-from operator import add
-
 from migen import *
+
+from litex.gen import *
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -16,7 +15,7 @@ control_tokens = [0b1101010100, 0b0010101011, 0b0101010100, 0b1010101011]
 
 # TMDS Encoder -------------------------------------------------------------------------------------
 
-class TMDSEncoder(Module):
+class TMDSEncoder(LiteXModule):
     def __init__(self):
         self.d   = Signal(8)
         self.c   = Signal(2)
@@ -30,7 +29,7 @@ class TMDSEncoder(Module):
         d   = Signal(8)
         n1d = Signal(max=9)
         self.sync += [
-            n1d.eq(reduce(add, [self.d[i] for i in range(8)])),
+            n1d.eq(Reduce("ADD", [self.d[i] for i in range(8)])),
             d.eq(self.d)
         ]
 
@@ -51,8 +50,8 @@ class TMDSEncoder(Module):
         n0q_m = Signal(max=9)
         n1q_m = Signal(max=9)
         self.sync += [
-            n0q_m.eq(reduce(add, [~q_m[i] for i in range(8)])),
-            n1q_m.eq(reduce(add, [q_m[i] for i in range(8)])),
+            n0q_m.eq(Reduce("ADD", [~q_m[i] for i in range(8)])),
+            n1q_m.eq(Reduce("ADD", [q_m[i] for i in range(8)])),
             q_m_r.eq(q_m)
         ]
 

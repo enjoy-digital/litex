@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 #include <libbase/console.h>
 #include <libbase/crc.h>
@@ -15,21 +16,52 @@
 
 extern unsigned int _ftext, _edata_rom;
 
+#define BIOS_SECTION_WIDTH 42
 #define NUMBER_OF_BYTES_ON_A_LINE 16
-void dump_bytes(unsigned int *ptr, int count, unsigned long addr)
+
+static void print_repeat(char c, int count)
 {
-	char *data = (char *)ptr;
-	int line_bytes = 0, i = 0;
+	for (int i = 0; i < count; i++)
+		putchar(c);
+}
+
+void bios_print_section(const char *name)
+{
+	int fill = BIOS_SECTION_WIDTH - strlen(name) - 6;
+	int left = fill/2;
+	int right = fill - left;
+
+	printf("--");
+	print_repeat('=', left);
+	printf(" " ANSI_BOLD "%s" ANSI_RESET " ", name);
+	print_repeat('=', right);
+	printf("--\n");
+}
+
+void bios_print_status(const char *label, int success)
+{
+	printf("%s: %s\n", label, success ? "OK" : "failed");
+}
+
+void dump_bytes(unsigned int *ptr, unsigned int count, unsigned long addr)
+{
+	unsigned char *dptr = (unsigned char *)ptr;
+	unsigned char data[NUMBER_OF_BYTES_ON_A_LINE];
+	unsigned int line_bytes = 0, i = 0;
+
 
 	fputs("Memory dump:", stdout);
 	while (count > 0) {
-		line_bytes =
-			(count > NUMBER_OF_BYTES_ON_A_LINE)?
-				NUMBER_OF_BYTES_ON_A_LINE : count;
+			line_bytes =
+				(count > NUMBER_OF_BYTES_ON_A_LINE)?
+					NUMBER_OF_BYTES_ON_A_LINE : count;
+		for (i = 0; i < line_bytes; i++)
+			data[i] = *dptr++;
+
 
 		printf("\n0x%08lx  ", addr);
 		for (i = 0; i < line_bytes; i++)
-			printf("%02x ", *(unsigned char *)(data+i));
+			printf("%02x ", (unsigned char)data[i]);
 
 		for (; i < NUMBER_OF_BYTES_ON_A_LINE; i++)
 			printf("   ");
@@ -37,16 +69,15 @@ void dump_bytes(unsigned int *ptr, int count, unsigned long addr)
 		printf(" ");
 
 		for (i = 0; i<line_bytes; i++) {
-			if ((*(data+i) < 0x20) || (*(data+i) > 0x7e))
+			if ((data[i] < 0x20) || (data[i] > 0x7e))
 				printf(".");
 			else
-				printf("%c", *(data+i));
+				printf("%c", data[i]);
 		}
 
 		for (; i < NUMBER_OF_BYTES_ON_A_LINE; i++)
 			printf(" ");
 
-		data += (char)line_bytes;
 		count -= line_bytes;
 		addr += line_bytes;
 	}
@@ -86,6 +117,9 @@ int get_param(char *buf, char **cmd, char **params)
 	for (i = 0; i < MAX_PARAM; i++)
 		params[i] = NULL;
 
+	while ((*buf == ' ') && (*buf != 0))
+		buf++;
+
 	*cmd = buf;
 
 	while ((*buf != ' ') && (*buf !=0))
@@ -103,6 +137,11 @@ int get_param(char *buf, char **cmd, char **params)
 
 		if (*buf == 0)
 			return nb_param;
+
+		if (nb_param >= MAX_PARAM) {
+			printf("Warning: too many parameters (max %d), excess ignored\n", MAX_PARAM);
+			return nb_param;
+		}
 
 		params[nb_param++] = buf;
 
