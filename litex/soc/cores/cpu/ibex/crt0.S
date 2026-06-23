@@ -118,6 +118,7 @@ bss_loop:
   j bss_loop
 bss_done:
 
+  call litex_startup_init
   call main
 
 infinit_loop:

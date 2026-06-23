@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <startup.h>
 #include "system.h"
 #include "generated/soc.h"
 
@@ -19,6 +20,7 @@ void _start(void) {
     for (uint32_t *x = &_fbss; x < &_ebss; x ++)
         *x = 0;
 
+    litex_startup_init();
     __asm__("bl main");
     while(1);
 }

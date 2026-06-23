@@ -128,6 +128,7 @@ bss_done:
                  // NOTE: must still enable mstatus.MIE!
   csrw mie,t0
 
+  call litex_startup_init
   call main
 infinit_loop:
   j infinit_loop

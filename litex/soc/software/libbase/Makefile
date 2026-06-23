@@ -10,6 +10,7 @@ OBJECTS =  \
 	progress.o \
 	memtest.o  \
 	uart.o     \
+	startup.o  \
 	spiflash.o \
 	i2c.o \
 	isr.o \

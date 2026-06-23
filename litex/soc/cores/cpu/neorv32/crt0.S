@@ -55,6 +55,7 @@ data_init:
 	li t0, MIE_MEIE
 	csrs mie, t0
 
+	call litex_startup_init
 	call main
 1:	j 1b
 

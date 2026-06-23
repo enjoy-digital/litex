@@ -118,6 +118,7 @@ bss_loop:
 bss_done:
   li a0, 0xFFFF0880  //FFFF0880 enable timer + external interrupt + fast interrupt sources (until mstatus.MIE is set, they will never trigger an interrupt)
   csrw mie,a0
+  call litex_startup_init
   j main
 infinit_loop:
   j infinit_loop

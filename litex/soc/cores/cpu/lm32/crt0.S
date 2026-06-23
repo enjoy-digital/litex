@@ -141,6 +141,7 @@ _crt0:
 	bi      .clearBSS
 
 .callMain:
+	calli   litex_startup_init
 	bi      main
 
 .save_all:

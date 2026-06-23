@@ -38,7 +38,11 @@ bss_loop:
 	b	bss_loop
 bss_done:
 
+  la  $t9, litex_startup_init
+  jalr $t9
+  nop
   la  $t9, main
   jalr $t9
+  nop
 inf_loop:
   b inf_loop

@@ -109,6 +109,7 @@ bss_done:
                  // NOTE: must still enable mstatus.MIE!
   csrw mie,t0
 
+  call litex_startup_init
   call main
 inf_loop:
   j inf_loop
@@ -229,6 +230,7 @@ bss_done:
                  // NOTE: must still enable mstatus.MIE!
   csrw mie,t0
 
+  call litex_startup_init
   call main
 inf_loop:
   j inf_loop

@@ -79,6 +79,7 @@ _start:
 	/* setup stack */
 	ld	%r1,_fstack@got(%r2)
 	subi  %r1,%r1,0x100
+	bl	litex_startup_init
 	bl	main
 	b .
 
