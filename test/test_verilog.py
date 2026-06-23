@@ -3,7 +3,7 @@ import unittest
 
 from migen import *
 
-from litex.gen.fhdl.verilog import convert
+from litex.gen.fhdl.verilog import VerilogTime, convert
 
 
 class _SlicedCombTarget(Module):
@@ -31,6 +31,16 @@ class _SyncOutput(Module):
         self.sync += self.o.eq(self.i)
 
 
+class _DisplayTime(Module):
+    def __init__(self):
+        self.clock_domains.cd_sys = ClockDomain()
+        self.clk   = Signal(name="clk")
+        self.value = Signal(8, name="value")
+
+        self.comb += self.cd_sys.clk.eq(self.clk)
+        self.sync += Display("time=%t value=%d", VerilogTime(), self.value)
+
+
 class TestVerilog(unittest.TestCase):
     def test_sliced_comb_target_is_declared_as_reg(self):
         dut = _SlicedCombTarget()
@@ -50,6 +60,13 @@ class TestVerilog(unittest.TestCase):
         self.assertNotRegex(v, r"output wire\s+o")
         self.assertIn("always @(posedge sys_clk) begin", v)
         self.assertIn("o <= i;", v)
+
+    def test_display_can_emit_verilog_time(self):
+        dut = _DisplayTime()
+        v = convert(dut, ios={dut.clk, dut.value}, name="top").main_source
+
+        self.assertIn('$display("time=%t value=%d", $time, value);', v)
+        self.assertNotIn('"$time"', v)
 
 
 if __name__ == "__main__":

@@ -95,6 +95,15 @@ def _generate_timescale(time_unit="1ns", time_precision="1ps"):
     return r
 
 # ------------------------------------------------------------------------------------------------ #
+#                                      DISPLAY HELPERS                                             #
+# ------------------------------------------------------------------------------------------------ #
+
+class VerilogTime:
+    """Expression for Verilog `$time` in Display() statements."""
+
+    pass
+
+# ------------------------------------------------------------------------------------------------ #
 #                                         HIERARCHY                                                #
 # ------------------------------------------------------------------------------------------------ #
 
@@ -300,6 +309,8 @@ def _generate_node(ns, at, level, node, target_filter=None):
             s += ", "
             if isinstance(arg, Signal):
                 s += ns.get_name(arg)
+            elif isinstance(arg, VerilogTime):
+                s += "$time"
             else:
                 s += str(arg)
         return _tab*level + "$display(" + s + ");\n"
