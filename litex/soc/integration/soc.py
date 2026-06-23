@@ -2381,7 +2381,7 @@ class LiteXSoC(SoC):
             )
 
     # Add Ethernet ---------------------------------------------------------------------------------
-    def add_ethernet(self, name="ethmac", phy=None, phy_cd=None, dynamic_ip=False, software_debug=False,
+    def add_ethernet(self, name="ethmac", phy=None, phy_cd=None, dynamic_ip=False, with_dhcp=False, software_debug=False,
         data_width              = 8,
         nrxslots                = 2, rxslots_read_only  = True,
         ntxslots                = 2, txslots_write_only = False,
@@ -2473,13 +2473,20 @@ class LiteXSoC(SoC):
         if self.irq.enabled:
             self.irq.add(name, use_loc_if_exists=True)
 
-        # Dynamic IP (if enabled).
+        # Dynamic IP/DHCP (if enabled).
+        if with_dhcp:
+            dynamic_ip = True
+
         if dynamic_ip:
             if local_ip is not None:
                 self.logger.error("Ethernet {} cannot be used with {}.".format(
                     colorer("local_ip"), colorer("dynamic_ip", color="red")))
                 raise SoCError()
             self.add_constant("ETH_DYNAMIC_IP")
+
+        if with_dhcp:
+            self.add_constant("ETH_UDP_BROADCAST")
+            self.add_constant("ETH_WITH_DHCP")
 
         # Local/Remote IP Configuration (optional).
         if local_ip:

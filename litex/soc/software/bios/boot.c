@@ -31,6 +31,9 @@
 
 #include <libliteeth/udp.h>
 #include <libliteeth/tftp.h>
+#ifdef ETH_WITH_DHCP
+#include <libliteeth/dhcp.h>
+#endif
 
 #include <liblitesdcard/spisdcard.h>
 #include <liblitesdcard/sdcard.h>
@@ -674,6 +677,24 @@ void set_mac_addr(const char * mac_address)
 	}
 }
 
+#endif
+
+#ifdef ETH_WITH_DHCP
+void dhcp_get_ip(void)
+{
+	uint32_t ip;
+
+	if(dhcp_resolve(macadr, &ip) != 0) {
+		net_init();
+		return;
+	}
+
+	local_ip[0] = (ip >> 24) & 0xff;
+	local_ip[1] = (ip >> 16) & 0xff;
+	local_ip[2] = (ip >>  8) & 0xff;
+	local_ip[3] = (ip >>  0) & 0xff;
+	net_init();
+}
 #endif
 
 static void netboot_from_json(const char * filename, unsigned int ip, unsigned short tftp_port)

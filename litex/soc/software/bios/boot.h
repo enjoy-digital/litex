@@ -25,6 +25,9 @@ extern const struct boot_method *const __bios_boot_end[];
 void set_local_ip(const char * ip_address);
 void set_remote_ip(const char * ip_address);
 void set_mac_addr(const char * mac_address);
+#ifdef ETH_WITH_DHCP
+void dhcp_get_ip(void);
+#endif
 
 // Apply local IP and MAC-address to UDP driver
 void net_init(void);
