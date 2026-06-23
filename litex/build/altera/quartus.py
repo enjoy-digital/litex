@@ -23,6 +23,13 @@ from litex.build import tools
 
 # AlteraQuartusToolchain ---------------------------------------------------------------------------
 
+def _get_quartus_ip_dir(tool):
+    tool_path = which(tool)
+    if tool_path is None:
+        return None
+    return os.path.normpath(os.path.join(os.path.dirname(tool_path), "..", "..", "ip"))
+
+
 def _use_logic_style_on_small_async_read_memories(fragment):
     for special in fragment.specials:
         if not isinstance(special, Memory):
@@ -56,6 +63,7 @@ class AlteraQuartusToolchain(GenericToolchain):
         self.additional_sdc_commands = []
         self.additional_qsf_commands = []
         self.cst                     = []
+        self.ip_dir                  = _get_quartus_ip_dir(self._synth_tool)
 
     def build(self, platform, fragment,
         synth_tool = "quartus_map",
@@ -64,6 +72,8 @@ class AlteraQuartusToolchain(GenericToolchain):
 
         self._synth_tool = synth_tool
         self._conv_tool  = conv_tool
+        if self.ip_dir is None:
+            self.ip_dir = _get_quartus_ip_dir(self._synth_tool)
 
         if platform.device.startswith("10M"):
             # Quartus/MAX10 can fail to infer very small mixed sync/async read memories.

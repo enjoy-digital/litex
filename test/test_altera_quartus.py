@@ -1,9 +1,10 @@
 import unittest
+from unittest import mock
 
 from migen import Memory
 from migen.fhdl.structure import _Fragment
 
-from litex.build.altera.quartus import _use_logic_style_on_small_async_read_memories
+from litex.build.altera.quartus import AlteraQuartusToolchain, _use_logic_style_on_small_async_read_memories
 
 
 def _memory_fragment(depth=8, async_read=True, attr=None):
@@ -16,6 +17,20 @@ def _memory_fragment(depth=8, async_read=True, attr=None):
 
 
 class TestAlteraQuartus(unittest.TestCase):
+    def test_ip_dir_is_none_when_quartus_is_not_found(self):
+        with mock.patch("litex.build.altera.quartus.which", return_value=None):
+            toolchain = AlteraQuartusToolchain()
+
+        self.assertIsNone(toolchain.ip_dir)
+
+    def test_ip_dir_uses_quartus_install_directory(self):
+        quartus_map = "/opt/intelFPGA_lite/22.1/quartus/bin/quartus_map"
+
+        with mock.patch("litex.build.altera.quartus.which", return_value=quartus_map):
+            toolchain = AlteraQuartusToolchain()
+
+        self.assertEqual("/opt/intelFPGA_lite/22.1/ip", toolchain.ip_dir)
+
     def test_small_async_read_memories_use_logic_style(self):
         memory, fragment = _memory_fragment()
 
