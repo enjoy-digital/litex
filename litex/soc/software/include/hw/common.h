@@ -54,14 +54,27 @@ static inline void cdelay(int i) {
 #error Unsupported CONFIG_CSR_DATA_WIDTH
 #endif
 
+static inline void csr_io_fence(void)
+{
+#ifdef __blackparrot__
+	__asm__ volatile("fence iorw, iorw" ::: "memory");
+#endif
+}
+
 static inline void csr_write_simple(unsigned long v, unsigned long a)
 {
 	CSR_MMPTR(a) = v;
+	csr_io_fence();
 }
 
 static inline unsigned long csr_read_simple(unsigned long a)
 {
-	return CSR_MMPTR(a);
+	unsigned long r;
+
+	csr_io_fence();
+	r = CSR_MMPTR(a);
+	csr_io_fence();
+	return r;
 }
 
 #endif /* ! __ASSEMBLER__ */
