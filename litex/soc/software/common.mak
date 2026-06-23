@@ -66,7 +66,8 @@ CXX_INCLUDES = -I$(LIBBASE_DIRECTORY) \
                $(CXX_STANDARD_INCLUDES) \
                -isystem $(PICOLIBC_DIRECTORY)/libc/include
 BASEFLAGS = $(DEPFLAGS) -Os $(CPUFLAGS) -g3 -no-pie -fomit-frame-pointer -Wall \
-            -fno-builtin -fno-stack-protector -ffunction-sections -fdata-sections
+            -fno-builtin -fno-stack-protector -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
+            -ffunction-sections -fdata-sections
 COMMONFLAGS = $(BASEFLAGS) $(INCLUDES)
 CXXCOMMONFLAGS = $(BASEFLAGS) $(CXX_INCLUDES)
 ifeq ($(LTO), 1)

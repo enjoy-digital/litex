@@ -201,6 +201,8 @@ class TestSoftwareMakefiles(unittest.TestCase):
 
         self.assertIn("-ffunction-sections", common_mak)
         self.assertIn("-fdata-sections", common_mak)
+        self.assertIn("-U_FORTIFY_SOURCE", common_mak)
+        self.assertIn("-D_FORTIFY_SOURCE=0", common_mak)
         self.assertIn("CXX_STANDARD_INCLUDE_DIRS", common_mak)
         self.assertIn("-nostdinc++", common_mak)
 
