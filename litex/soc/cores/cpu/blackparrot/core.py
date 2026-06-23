@@ -31,15 +31,15 @@
 import os
 import sys
 from shutil import copyfile
+
 from migen import *
+
+from litex.gen import *
 
 from litex import get_data_mod
 from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
-
-class Open(Signal): pass
-
 
 # Variants -----------------------------------------------------------------------------------------
 
@@ -91,7 +91,7 @@ class BlackParrot(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.idbus        = idbus = wishbone.Interface(data_width=64, adr_width=37)
+        self.idbus        = idbus = wishbone.Interface(data_width=64, adr_width=37, addressing="word")
         self.periph_buses = [idbus]
         self.memory_buses = []
 
@@ -165,7 +165,7 @@ class BlackParrot(CPU):
                     vdir = os.path.expandvars(line).strip()
                     platform.add_source(vdir, "systemverilog")
                 elif (temp[0] == '/'):
-                    assert("No support for absolute path for now")
+                    raise NotImplementedError("BlackParrot source lists do not support absolute paths yet.")
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")

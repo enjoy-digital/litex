@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <startup.h>
 
 extern uint32_t _fdata_rom, _fdata, _edata, _fbss, _ebss;
 
@@ -18,6 +19,7 @@ void Reset_Handler(void) {
   for (uint32_t *x = &_fbss; x < &_ebss; x ++)
     *x = 0;
 
+  litex_startup_init();
 #ifndef __NO_SYSTEM_INIT
   SystemInit();
 #endif

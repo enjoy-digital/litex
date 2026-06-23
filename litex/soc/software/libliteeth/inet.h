@@ -23,6 +23,10 @@
 #ifndef __INET_H
 #define __INET_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 
 static __inline uint16_t __bswap_16(uint16_t __x)
@@ -67,5 +71,9 @@ static uint16_t ntohs(uint16_t n)
     union { int i; char c; } u = { 1 };
     return u.c ? bswap_16(n) : n;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __INET_H */

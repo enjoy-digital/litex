@@ -13,8 +13,14 @@ from litex.build.altera import common, quartus
 # AlteraPlatform -----------------------------------------------------------------------------------
 
 class AlteraPlatform(GenericPlatform):
-    bitstream_ext = ".sof"
+    _bitstream_ext = {
+        "sram"  : ".sof",
+        "flash" : ".rbf"
+    }
     create_rbf    = True
+    create_svf    = True
+
+    _supported_toolchains = ["quartus"]
 
     def __init__(self, *args, toolchain="quartus", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
@@ -29,21 +35,20 @@ class AlteraPlatform(GenericPlatform):
 
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict(common.altera_special_overrides)
+        if self.device[:3] in ["A5E", "A3C"]:
+            so.update(common.agilex5_special_overrides)
         so.update(special_overrides)
         return GenericPlatform.get_verilog(self, *args,
             special_overrides = so,
             attr_translate    = self.toolchain.attr_translate,
-            **kwargs)
-
+            **kwargs
+        )
 
     def build(self, *args, **kwargs):
         return self.toolchain.build(self, *args, **kwargs)
 
-    def add_period_constraint(self, clk, period):
-        if clk is None: return
-        if hasattr(clk, "p"):
-            clk = clk.p
-        self.toolchain.add_period_constraint(self, clk, period)
+    def add_period_constraint(self, clk, period, keep=False, name=None):
+        self.toolchain.add_period_constraint(self, clk, period, keep=keep, name=name)
 
     def add_false_path_constraint(self, from_, to):
         if hasattr(from_, "p"):
@@ -60,3 +65,11 @@ class AlteraPlatform(GenericPlatform):
         for pad in common.altera_reserved_jtag_pads:
             r[pad] = self.request(pad)
         return r
+
+    @classmethod
+    def fill_args(cls, toolchain, parser):
+        quartus.fill_args(parser)
+
+    @classmethod
+    def get_argdict(cls, toolchain, args):
+        return quartus.get_argdict(args)
