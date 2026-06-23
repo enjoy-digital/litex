@@ -21,8 +21,7 @@ from migen import *
 
 from litex.build.generic_platform import *
 
-from litex.soc.integration.soc_core import *
-from litex.soc.integration.soc import SoCRegion
+from litex.soc.integration.soc import *
 from litex.soc.integration.builder import *
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect import axi
@@ -76,8 +75,8 @@ class LiteXSoCGenerator(SoCMini):
 
         # MMAP Slave Interface ---------------------------------------------------------------------
         s_bus = {
-            "wishbone" : wishbone.Interface(),
-            "axi-lite" : axi.AXILiteInterface(),
+            "wishbone" : wishbone.Interface(data_width=32, address_width=32, addressing="word"),
+            "axi-lite" : axi.AXILiteInterface(data_width=32, address_width=32),
 
         }[kwargs["bus_standard"]]
         self.bus.add_master(name="mmap_s", master=s_bus)
@@ -88,8 +87,8 @@ class LiteXSoCGenerator(SoCMini):
         # MMAP Master Interface --------------------------------------------------------------------
         # FIXME: Allow Region configuration.
         m_bus = {
-            "wishbone" : wishbone.Interface(),
-            "axi-lite" : axi.AXILiteInterface(),
+            "wishbone" : wishbone.Interface(data_width=32, address_width=32, addressing="word"),
+            "axi-lite" : axi.AXILiteInterface(data_width=32, address_width=32),
 
         }[kwargs["bus_standard"]]
         wb_region = SoCRegion(origin=0x2000_0000, size=0x1000_0000, cached=True) # FIXME.
@@ -101,8 +100,8 @@ class LiteXSoCGenerator(SoCMini):
 # Build --------------------------------------------------------------------------------------------
 def main():
     # Arguments.
-    from litex.soc.integration.soc import LiteXSoCArgumentParser
-    parser = LiteXSoCArgumentParser(description="LiteX standalone SoC generator")
+    from litex.build.parser import LiteXArgumentParser
+    parser = LiteXArgumentParser(description="LiteX standalone SoC generator")
     target_group = parser.add_argument_group(title="Generator options")
     target_group.add_argument("--name",          default="litex_soc", help="SoC Name.")
     target_group.add_argument("--build",         action="store_true", help="Build SoC.")

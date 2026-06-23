@@ -7,8 +7,6 @@
 .global smp_lottery_args
 .global smp_slave
 
-.option arch,+zicsr
-
 _start:
   j crt_init
   nop
@@ -104,6 +102,12 @@ bss_loop:
   j bss_loop
 bss_done:
 
+  call plic_init // initialize external interrupt controller
+  li t0, 0x800   // external interrupt sources only (using LiteX timer);
+                 // NOTE: must still enable mstatus.MIE!
+  csrw mie,t0
+
+  call litex_startup_init
   call main
 infinit_loop:
   j infinit_loop

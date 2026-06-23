@@ -1,0 +1,97 @@
+/*
+ * LiteX minimal picolibc configuration for BIOS/demo builds.
+ *
+ * This mirrors the subset of meson-generated picolibc.h options that the
+ * curated minimal libc build depends on, while avoiding the meson probe pass.
+ */
+
+#pragma once
+
+#undef ATOMIC_UNGETC
+#define FAST_STRCMP
+#undef MISSING_SYSCALL_NAMES
+#undef NEWLIB_GLOBAL_ERRNO
+#undef NEWLIB_TLS
+#undef PICOLIBC_TLS
+#define POSIX_IO
+#define PREFER_SIZE_OVER_SPEED
+#undef REENTRANT_SYSCALLS_PROVIDED
+#define TINY_STDIO
+#undef _ATEXIT_DYNAMIC_ALLOC
+#define _ELIX_LEVEL 0
+#undef _FSEEK_OPTIMIZATION
+#undef _FVWRITE_IN_STREAMIO
+#define _HAVE_ALIAS_ATTRIBUTE
+#define _HAVE_ALLOC_SIZE
+#define _HAVE_ATTRIBUTE_ALWAYS_INLINE
+#define _HAVE_ATTRIBUTE_GNU_INLINE
+#define _HAVE_BITFIELDS_IN_PACKED_STRUCTS
+#define _HAVE_BUILTIN_ADD_OVERFLOW
+#define _HAVE_BUILTIN_ALLOCA
+#define _HAVE_BUILTIN_COPYSIGN
+#define _HAVE_BUILTIN_COPYSIGNL
+#define _HAVE_BUILTIN_CTZ
+#define _HAVE_BUILTIN_CTZL
+#define _HAVE_BUILTIN_CTZLL
+#define _HAVE_BUILTIN_EXPECT
+#define _HAVE_BUILTIN_FFS
+#define _HAVE_BUILTIN_FFSL
+#define _HAVE_BUILTIN_FFSLL
+#define _HAVE_BUILTIN_FINITEL
+#define _HAVE_BUILTIN_ISFINITE
+#define _HAVE_BUILTIN_ISINF
+#define _HAVE_BUILTIN_ISINFL
+#define _HAVE_BUILTIN_ISNAN
+#define _HAVE_BUILTIN_ISNANL
+#define _HAVE_BUILTIN_MUL_OVERFLOW
+#define _HAVE_CC_INHIBIT_LOOP_TO_LIBCALL
+#define _HAVE_COMPLEX
+#undef _HAVE_FCNTL
+#define _HAVE_FORMAT_ATTRIBUTE
+#define _HAVE_IEEEFP_FUNCS
+#define _HAVE_INITFINI_ARRAY
+#define _HAVE_INIT_FINI
+#define _HAVE_LONG_DOUBLE
+#undef _HAVE_NO_BUILTIN_ATTRIBUTE
+#undef _HAVE_PICOLIBC_TLS_API
+#undef _HAVE_SEMIHOST
+#define _HAVE_WEAK_ATTRIBUTE
+#undef _ICONV_ENABLE_EXTERNAL_CCS
+#define _IEEE_LIBM
+#define _IO_FLOAT_EXACT
+#undef _LDBL_EQ_DBL
+#define _LITE_EXIT
+#undef _MB_CAPABLE
+#define _MB_LEN_MAX 1
+#undef _NANO_FORMATTED_IO
+#define _NANO_MALLOC
+#define _NEWLIB_VERSION "4.1.0"
+#define _PICOLIBC_MINOR__ 7
+#define _PICOLIBC_VERSION "1.7.9"
+#define _PICOLIBC__ 1
+#define _PICO_EXIT
+#undef _REENT_GLOBAL_ATEXIT
+#undef _RETARGETABLE_LOCKING
+#undef _UNBUF_STREAM_OPT
+#define _WANT_IO_C99_FORMATS
+#define _WANT_IO_LONG_LONG
+#undef _WANT_IO_POS_ARGS
+#undef _WANT_MATH_ERRNO
+#undef _WANT_REENT_SMALL
+#undef _WANT_REGISTER_FINI
+#undef _WANT_USE_LONG_TIME_T
+#undef _WIDE_ORIENT
+#undef __HAVE_LOCALE_INFO_EXTENDED__
+#undef __HAVE_LOCALE_INFO__
+#define __NEWLIB_MINOR__ 1
+#define __NEWLIB_PATCHLEVEL__ 0
+#define __NEWLIB__ 4
+#undef __OBSOLETE_MATH
+#undef __OBSOLETE_MATH_DOUBLE
+#undef __OBSOLETE_MATH_FLOAT
+#undef __PICOLIBC_CRT_RUNTIME_SIZE
+#define __PICOLIBC_MINOR__ 7
+#define __PICOLIBC_PATCHLEVEL__ 9
+#define __PICOLIBC_VERSION__ "1.7.9"
+#define __PICOLIBC__ 1
+#define __SINGLE_THREAD__

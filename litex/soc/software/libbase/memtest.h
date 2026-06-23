@@ -1,13 +1,14 @@
 #ifndef __MEMTEST_H
 #define __MEMTEST_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 
 #include <generated/csr.h>
 #include <generated/soc.h>
-
-#define max(x, y) (((x) > (y)) ? (x) : (y))
-#define min(x, y) (((x) < (y)) ? (x) : (y))
 
 #ifndef MEMTEST_DATA_SIZE
 #define MEMTEST_DATA_SIZE (2*1024*1024)
@@ -32,5 +33,9 @@ int memtest_data(unsigned int *addr, unsigned long size, int random, struct memt
 
 void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool random);
 int memtest(unsigned int *addr, unsigned long maxsize);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __MEMTEST_H */

@@ -24,6 +24,7 @@ def main():
     # use yosys to convert verilog to json
     yosys_v2j = "\n".join([
         "read_verilog -sv {}".format(verilog_file),
+        "proc",
         "write_json {}.json".format(verilog_file)
     ])
     tools.write_to_file("yosys_v2j.ys", yosys_v2j)

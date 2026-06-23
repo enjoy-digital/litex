@@ -3,6 +3,7 @@
 #
 # Copyright (c) 2021 Dolu1990 <charles.papon.90@gmail.com>
 # Copyright (c) 2021 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2023 Lone Dynamics Corporation <info@lonedynamics.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -11,30 +12,49 @@ from migen import *
 
 from litex import get_data_mod
 
+from litex.gen import *
+
 from litex.soc.interconnect import wishbone
 
 from litex.build.io import SDRTristate
 
 # USB OHCI -----------------------------------------------------------------------------------------
+class InterruptPin:
+    """
+    Dummy signal module that maps onto the EventManager "irq" pin, but without the CSR overhead
+    """
+    def __init__(self):
+        self.irq = Signal()
 
-class USBOHCI(Module):
+class USBOHCI(LiteXModule):
     def __init__(self, platform, pads, usb_clk_freq=48e6, dma_data_width=32):
         self.pads           = pads
-        self.usb_clk_freq   = usb_clk_freq
+        self.usb_clk_freq   = int(usb_clk_freq)
         self.dma_data_width = dma_data_width
 
-        self.wb_ctrl = wb_ctrl = wishbone.Interface(data_width=32)
-        self.wb_dma  = wb_dma  = wishbone.Interface(data_width=dma_data_width)
+        self.wb_ctrl = wb_ctrl = wishbone.Interface(data_width=32,             address_width=32, addressing="word")
+        self.wb_dma  = wb_dma  = wishbone.Interface(data_width=dma_data_width, address_width=32, addressing="word")
 
         self.interrupt = Signal()
 
+        # Add "ev" object so we can use the normal interrupt allocation
+        self.ev    = InterruptPin()
+        self.comb += self.ev.irq.eq(self.interrupt)
+
         # # #
 
-        usb_ios = Record([
-            ("dp_i",  1), ("dp_o",  1), ("dp_oe", 1),
-            ("dm_i",  1), ("dm_o",  1), ("dm_oe", 1),
-        ])
+        # Parameters.
+        nports = len(pads.dp)
 
+        # USB IOs.
+        usb_ios = {}
+        for i in range(nports):
+            usb_ios[i] = Record([
+                ("dp_i", 1), ("dp_o", 1), ("dp_oe", 1),
+                ("dm_i", 1), ("dm_o", 1), ("dm_oe", 1),
+            ])
+
+        # USB OHCI Core Instance.
         self.specials += Instance(self.get_netlist_name(),
             # Clk / Rst.
             i_phy_clk    = ClockSignal("usb"),
@@ -69,25 +89,31 @@ class USBOHCI(Module):
             o_io_interrupt = self.interrupt,
 
             # USB
-            i_io_usb_0_dp_read        = usb_ios.dp_i,
-            o_io_usb_0_dp_write       = usb_ios.dp_o,
-            o_io_usb_0_dp_writeEnable = usb_ios.dp_oe,
-            i_io_usb_0_dm_read        = usb_ios.dm_i,
-            o_io_usb_0_dm_write       = usb_ios.dm_o,
-            o_io_usb_0_dm_writeEnable = usb_ios.dm_oe,
+            **{f"i_io_usb_{n}_dp_read"        : usb_ios[n].dp_i  for n in range(nports)},
+            **{f"o_io_usb_{n}_dp_write"       : usb_ios[n].dp_o  for n in range(nports)},
+            **{f"o_io_usb_{n}_dp_writeEnable" : usb_ios[n].dp_oe for n in range(nports)},
+            **{f"i_io_usb_{n}_dm_read"        : usb_ios[n].dm_i  for n in range(nports)},
+            **{f"o_io_usb_{n}_dm_write"       : usb_ios[n].dm_o  for n in range(nports)},
+            **{f"o_io_usb_{n}_dm_writeEnable" : usb_ios[n].dm_oe for n in range(nports)},
+
         )
-        self.specials += SDRTristate(
-            io = pads.dp,
-            o  = usb_ios.dp_o,
-            oe = usb_ios.dp_oe,
-            i  = usb_ios.dp_i,
-        )
-        self.specials += SDRTristate(
-            io = pads.dm,
-            o  = usb_ios.dm_o,
-            oe = usb_ios.dm_oe,
-            i  = usb_ios.dm_i,
-        )
+
+        # USB Tristates.
+        for i in range(nports):
+            self.specials += SDRTristate(
+                io = pads.dp[i],
+                o  = usb_ios[i].dp_o,
+                oe = usb_ios[i].dp_oe,
+                i  = usb_ios[i].dp_i,
+                clk = ClockSignal("usb")
+            )
+            self.specials += SDRTristate(
+                io = pads.dm[i],
+                o  = usb_ios[i].dm_o,
+                oe = usb_ios[i].dm_oe,
+                i  = usb_ios[i].dm_i,
+                clk = ClockSignal("usb")
+            )
 
         self.add_sources(platform)
 

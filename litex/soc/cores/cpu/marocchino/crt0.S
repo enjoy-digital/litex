@@ -187,6 +187,8 @@ _crt0:
      l.nop
 
 .callMain:
+    l.jal   litex_startup_init
+     l.nop
     l.j     main
      l.nop
 

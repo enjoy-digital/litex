@@ -4,6 +4,7 @@
 # Copyright (c) 2020 Antmicro <www.antmicro.com>
 # Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
+# Copyright (c) 2023 Hans Baier <hansfbaier@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -17,8 +18,10 @@ from shutil import which
 from migen.fhdl.structure import _Fragment, wrap, Constant
 from migen.fhdl.specials import Instance
 
+from litex.build.yosys_nextpnr_toolchain import YosysNextPNRToolchain
+from litex.build.yosys_nextpnr_toolchain import yosys_nextpnr_args, yosys_nextpnr_argdict
 from litex.build.generic_platform import *
-from litex.build.xilinx.vivado import _xdc_separator, _format_xdc, _build_xdc
+from litex.build.xilinx.vivado import _xdc_separator, _format_xdc, _build_xdc, signed_bitstream_script
 from litex.build import tools
 from litex.build.xilinx import common
 
@@ -26,239 +29,222 @@ from litex.build.xilinx import common
 def _unwrap(value):
     return value.value if isinstance(value, Constant) else value
 
-# Makefile -----------------------------------------------------------------------------------------
 
-class _MakefileGenerator:
-    class Var(NamedTuple):
-        name: str
-        value: Union[str, List[str]] = ""
-
-    class Rule(NamedTuple):
-        target: str
-        prerequisites: List[str] = []
-        commands: List[str] = []
-        phony: bool = False
-
-    def __init__(self, ast):
-        self.ast = ast
-
-    def generate(self):
-        makefile = []
-        for entry in self.ast:
-            if isinstance(entry, str):
-                makefile.append(entry)
-            elif isinstance(entry, self.Var):
-                if not entry.value:
-                    makefile.append(f"{entry.name} :=")
-                elif isinstance(entry.value, list):
-                    indent = " " * (len(entry.name) + len(" := "))
-                    line = f"{entry.name} := {entry.value[0]}"
-                    for value in entry.value[1:]:
-                        line += " \\"
-                        makefile.append(line)
-                        line = indent + value
-                    makefile.append(line)
-                elif isinstance(entry.value, str):
-                    makefile.append(f"{entry.name} := {entry.value}")
-                else:
-                    raise
-            elif isinstance(entry, self.Rule):
-                makefile.append("")
-                if entry.phony:
-                    makefile.append(f".PHONY: {entry.target}")
-                makefile.append(" ".join([f"{entry.target}:", *entry.prerequisites]))
-                for cmd in entry.commands:
-                    makefile.append(f"\t{cmd}")
-
-        return "\n".join(makefile)
+_openxc7_default_prjxray_db_dir = "/snap/openxc7/current/opt/nextpnr-xilinx/external/prjxray-db/"
+_openxc7_runtime_chipdb_dir     = "${CHIPDB:?Set CHIPDB to your nextpnr-xilinx chipdb directory}"
+_openxc7_runtime_prjxray_db_dir = "${PRJXRAY_DB_DIR:-" + _openxc7_default_prjxray_db_dir + "}"
 
 
-def _run_make():
-    make_cmd = ["make", "-j1"]
+# YosysNextpnrToolchain ----------------------------------------------------------------------------
 
-    if which("nextpnr-xilinx") is None:
-        msg = "Unable to find Yosys+Nextpnr toolchain, please:\n"
-        msg += "- Add Yosys and Nextpnr tools to your $PATH."
-        raise OSError(msg)
-
-    if tools.subprocess_call_filtered(make_cmd, common.colors) != 0:
-        raise OSError("Error occured during yosys or nextpnr script execution.")
-
-# YosysNextpnrToolchain -------------------------------------------------------------------------------
-
-class YosysNextpnrToolchain:
+class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
     attr_translate = {
-        #"keep":            ("dont_touch", "true"),
-        #"no_retiming":     ("dont_touch", "true"),
-        #"async_reg":       ("async_reg",  "true"),
-        #"mr_ff":           ("mr_ff",      "true"), # user-defined attribute
-        #"ars_ff1":         ("ars_ff1",    "true"), # user-defined attribute
-        #"ars_ff2":         ("ars_ff2",    "true"), # user-defined attribute
-        #"no_shreg_extract": None
+        "keep": ("keep", "true"),
     }
 
-    def __init__(self):
-        self.clocks = dict()
-        self.false_paths = set()
-        self.symbiflow_device = None
-        self.bitstream_device = None
-        self._partname = None
+    family     = "xilinx"
+    synth_fmt  = "json"
+    constr_fmt = "xdc"
+    pnr_fmt    = "fasm"
+    packer_cmd = "xc7frames2bit"
 
-    def _check_properties(self, platform):
-        if not self.symbiflow_device:
-            try:
-                self.symbiflow_device = {
-                    # FIXME: fine for now since only a few devices are supported, do more clever device re-mapping.
-                    "xc7a35ticsg324-1L" : "xc7a35t",
-                    "xc7a100tcsg324-1"  : "xc7a35t",
-                    "xc7z010clg400-1"   : "xc7z010",
-                    "xc7z020clg400-1"   : "xc7z020",
-                }[platform.device]
-            except KeyError:
-                raise ValueError(f"symbiflow_device is not specified")
-        if not self.bitstream_device:
-            try:
-                # bitstream_device points to a directory in prjxray database
-                # available bitstream_devices: artix7, kintex7, zynq7
-                self.bitstream_device = {
-                    "xc7a": "artix7", # xc7a35t, xc7a50t, xc7a100t, xc7a200t
-                    "xc7z": "zynq7", # xc7z010, xc7z020
-                }[platform.device[:4]]
-            except KeyError:
-                raise ValueError(f"Unsupported device: {platform.device}")
-        # FIXME: prjxray-db doesn't have xc7a35ticsg324-1L - use closest replacement
-        self._partname = {
-            "xc7a35ticsg324-1L" : "xc7a35tcsg324-1",
-            "xc7a100tcsg324-1"  : "xc7a100tcsg324-1",
-            "xc7a200t-sbg484-1" : "xc7a200tsbg484-1",
-            "xc7z010clg400-1"   : "xc7z010clg400-1",
-            "xc7z020clg400-1"   : "xc7z020clg400-1",
-        }.get(platform.device, platform.device)
+    def __init__(self, toolchain):
+        assert toolchain in ["yosys+nextpnr", "openxc7"]
+        self.is_openxc7 = toolchain == "openxc7"
+        super().__init__()
+        self.dbpart = None
+        self._xc7family = None
+        self._clock_constraints = ""
+        self.additional_xdc_commands = []
+        self._pre_packer_cmd = ["fasm2frames" if self.is_openxc7 else "fasm2frames.py"]
+        self._synth_opts = "-flatten -abc9 -arch xc7 "
 
-    def _generate_makefile(self, platform, build_name):
-        Var = _MakefileGenerator.Var
-        Rule = _MakefileGenerator.Rule
+    xc7_family_map = {
+        "a": "artix7",
+        "k": "kintex7",
+        "s": "spartan7",
+        "z": "zynq7"
+    }
 
-        makefile = _MakefileGenerator([
-            "# Autogenerated by LiteX / git: " + tools.get_litex_git_revision() + "\n",
-            Var("TOP", build_name),
-            Var("PARTNAME", self._partname),
-            Var("DEVICE", self.symbiflow_device),
-            Var("BITSTREAM_DEVICE", self.bitstream_device),
-            "",
-            Var("DB_DIR", "/usr/share/nextpnr/prjxray-db"), #FIXME: resolve path
-            Var("CHIPDB_DIR", "/usr/share/nextpnr/xilinx-chipdb"), #FIXME: resolve path
-            "",
-            Var("VERILOG", [f for f,language,_ in platform.sources if language in ["verilog", "system_verilog"]]),
-            Var("MEM_INIT", [f"{name}" for name in os.listdir() if name.endswith(".init")]),
-            Var("SDC", f"{build_name}.sdc"),
-            Var("XDC", f"{build_name}.xdc"),
-            Var("ARTIFACTS", [
-                    "$(TOP).fasm", "$(TOP).frames", 
-                    "*.bit", "*.fasm", "*.json", "*.log", "*.rpt",
-                    "constraints.place"
-                ]),
+    @property
+    def device(self):
+        return  {
+            "xc7a35ticsg324-1L": "xc7a35tcsg324-1",
+            "xc7a200t-sbg484-1": "xc7a200tsbg484-1",
+        }.get(self.platform.device, self.platform.device)
 
-            Rule("all", ["$(TOP).bit"], phony=True),
-            Rule("$(TOP).json", ["$(VERILOG)", "$(MEM_INIT)", "$(XDC)"], commands=[
-                    #"symbiflow_synth -t $(TOP) -v $(VERILOG) -d $(BITSTREAM_DEVICE) -p $(PARTNAME) -x $(XDC) > /dev/null"
-                    #yosys -p "synth_xilinx -flatten -abc9 -nosrl -noclkbuf -nodsp -iopad -nowidelut" #forum: symbiflow_synth
-                    'yosys -p "synth_xilinx -flatten -abc9 -nobram -arch xc7 -top $(TOP); write_json $(TOP).json" $(VERILOG) > /dev/null'
-                ]),
-            Rule("$(TOP).fasm", ["$(TOP).json"], commands=[
-                    #"symbiflow_write_fasm -e $(TOP).eblif -d $(DEVICE) > /dev/null"
-                    'nextpnr-xilinx --chipdb $(CHIPDB_DIR)/$(DEVICE).bin --xdc $(XDC) --json $(TOP).json --write $(TOP)_routed.json --fasm $(TOP).fasm > /dev/null'
-                ]),
-            Rule("$(TOP).frames", ["$(TOP).fasm"], commands=[
-                    'fasm2frames.py --part $(PARTNAME) --db-root $(DB_DIR)/$(BITSTREAM_DEVICE) $(TOP).fasm > $(TOP).frames'
-                ]),
-            Rule("$(TOP).bit", ["$(TOP).frames"], commands=[
-                    #"symbiflow_write_bitstream -d $(BITSTREAM_DEVICE) -f $(TOP).fasm -p $(PARTNAME) -b $(TOP).bit > /dev/null"
-                    'xc7frames2bit --part_file $(DB_DIR)/$(BITSTREAM_DEVICE)/$(PARTNAME)/part.yaml --part_name $(PARTNAME) --frm_file $(TOP).frames --output_file $(TOP).bit > /dev/null'
-                ]),
-            Rule("clean", phony=True, commands=[
-                    "rm -f $(ARTIFACTS)"
-                ]),
-        ])
+    def _check_properties(self):
+        pattern = re.compile("xc7([aksz])([0-9]+)(.*)-([0-9])")
+        g = pattern.search(self.platform.device)
+        if g is None:
+            raise OSError(f"Unsupported device {self.platform.device}")
+        if not self.dbpart:
+            self.dbpart = f"xc7{g.group(1)}{g.group(2)}{g.group(3)}"
 
-        tools.write_to_file("Makefile", makefile.generate())
+        if not self._xc7family:
+            fam = g.group(1)
+            self._xc7family = self.xc7_family_map[fam]
 
-    def _build_clock_constraints(self, platform):
-        platform.add_platform_command(_xdc_separator("Clock constraints"))
-        #for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
-        #    platform.add_platform_command(
-        #        "create_clock -period " + str(period) +
-        #        " {clk}", clk=clk)
-        pass #clock constraints not supported
+    def build_timing_constraints(self, vns):
+        max_freq = 0
+        xdc      = []
+        xdc.append(_xdc_separator("Clock constraints"))
+
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            clk_sig = self._vns.get_name(clk)
+            # Search for the highest frequency.
+            freq = 1e3 / period
+            if freq > max_freq:
+                max_freq = freq
+            if name is None:
+                name = clk_sig
+            xdc.append("create_clock -name {name} -period {period} [get_ports {clk}]".format(
+                name   = name,
+                period = period,
+                clk    = clk_sig))
+
+        # FIXME: NextPNRWrapper is constructed at finalize level, too early
+        # to update self._pnr_opts. The solution is to update _nextpnr instance.
+        if max_freq > 0:
+            self._nextpnr._pnr_opts += f" --freq {round(max_freq, 3)}"
+        # generate sdc
+        xdc += self.additional_xdc_commands
+        self._clock_constraints = "\n".join(xdc)
+
+    def build_io_constraints(self):
+        tools.write_to_file(self._build_name + ".xdc", _build_xdc(self.named_sc, self.named_pc) + self._clock_constraints)
+        return (self._build_name + ".xdc", "XDC")
 
     def _fix_instance(self, instance):
         pass
 
-    def build(self, platform, fragment,
-        build_dir  = "build",
-        build_name = "top",
-        run        = True,
-        enable_xpm = False,
-        **kwargs):
-
-        self._check_properties(platform)
-
-        # Create build directory
-        os.makedirs(build_dir, exist_ok=True)
-        cwd = os.getcwd()
-        os.chdir(build_dir)
-
-        # Finalize design
-        if not isinstance(fragment, _Fragment):
-            fragment = fragment.get_fragment()
-        platform.finalize(fragment)
-
+    def finalize(self):
         # toolchain-specific fixes
-        for instance in fragment.specials:
+        for instance in self.fragment.specials:
             if isinstance(instance, Instance):
                 self._fix_instance(instance)
 
-        # Generate timing constraints
-        self._build_clock_constraints(platform)
+        run = getattr(self, "_run", True)
 
-        # Generate verilog
-        v_output = platform.get_verilog(fragment, name=build_name, **kwargs)
-        named_sc, named_pc = platform.resolve_signals(v_output.ns)
-        v_file = build_name + ".v"
-        v_output.write(v_file)
-        platform.add_source(v_file)
+        if self.is_openxc7:
+            chipdb_dir = os.environ.get('CHIPDB')
+            if run and (chipdb_dir is None or chipdb_dir == ""):
+                raise OSError(
+                    "Error: please specify the directory, where you store your "
+                    "nextpnr-xilinx chipdb files in the environment variable "
+                    "CHIPDB (directory may be empty)"
+                )
+            chipdb_arg_dir = chipdb_dir or _openxc7_runtime_chipdb_dir
+        else:
+            chipdb_dir = "/usr/share/nextpnr/xilinx-chipdb"
+            chipdb_arg_dir = chipdb_dir
 
-        self._generate_makefile(
-            platform   = platform,
-            build_name = build_name
+        chipdb     = os.path.join(chipdb_dir,     self.dbpart) + ".bin" if chipdb_dir else None
+        chipdb_arg = os.path.join(chipdb_arg_dir, self.dbpart) + ".bin"
+        if run and not os.path.exists(chipdb):
+            if self.is_openxc7:
+                print(f"Chip database file '{chipdb}' not found, generating...")
+                pypy3 = os.environ.get('PYPY3')
+                if pypy3 is None or pypy3 == "":
+                    pypy3 = which("pypy3")
+                    if pypy3 is None:
+                        pypy3 = "python3"
+
+                nextpnr_xilinx_python_dir = os.environ.get('NEXTPNR_XILINX_PYTHON_DIR')
+                if nextpnr_xilinx_python_dir is None or nextpnr_xilinx_python_dir == "":
+                    nextpnr_xilinx_python_dir = "/snap/openxc7/current/opt/nextpnr-xilinx/python"
+                bba = self.dbpart + ".bba"
+                bbaexport = [
+                    pypy3,
+                    os.path.join(nextpnr_xilinx_python_dir, "bbaexport.py"),
+                    "--device", self.device,
+                    "--bba",    bba,
+                ]
+                print(str(bbaexport))
+                if subprocess.run(bbaexport).returncode != 0:
+                    raise OSError(f"Error occured during bbaexport's execution for '{chipdb}'.")
+                if subprocess.run(["bbasm", "-l", bba, chipdb]).returncode != 0:
+                    raise OSError(f"Error occured during bbasm's execution for '{chipdb}'.")
+                os.remove(bba)
+            else:
+                raise OSError(f"Chip database file '{chipdb}' not found. Please check your toolchain installation!")
+
+        # pnr options
+        self._pnr_opts += "--chipdb {chipdb} --write {top}_routed.json".format(
+            top    = self._build_name,
+            chipdb = chipdb_arg
         )
 
-        # Generate design constraints
-        tools.write_to_file(build_name + ".xdc", _build_xdc(named_sc, named_pc))
+        if self.is_openxc7:
+            prjxray_db_dir = os.environ.get('PRJXRAY_DB_DIR')
+            if prjxray_db_dir is None or prjxray_db_dir == "":
+                prjxray_db_dir = _openxc7_default_prjxray_db_dir
+            prjxray_db_arg_dir = (
+                os.environ.get('PRJXRAY_DB_DIR') or
+                _openxc7_runtime_prjxray_db_dir
+            )
+        else:
+            prjxray_db_dir = "/usr/share/nextpnr/prjxray-db/"
+            prjxray_db_arg_dir = prjxray_db_dir
 
-        if run:
-            _run_make()
+        if run and not os.path.isdir(prjxray_db_dir):
+            raise OSError(f"{prjxray_db_dir} does not exist on your system. \n" + \
+                    "Do you have the openXC7 toolchain installed? \n" + \
+                    "You can get it here: https://github.com/openXC7/toolchain-installer")
 
-        os.chdir(cwd)
+        # pre packer options
+        self._pre_packer_opts[self._pre_packer_cmd[0]] = (
+            "--part {part} --db-root {db_root} "
+            "{top}.fasm > {top}.frames"
+        ).format(
+            part    = self.device,
+            db_root = os.path.join(prjxray_db_arg_dir, self._xc7family),
+            top     = self._build_name
+        )
+        # packer options
+        self._packer_opts += (
+            "--part_file {db_dir}/{part}/part.yaml "
+            "--part_name {part} "
+            "--frm_file {top}.frames "
+            "--output_file {top}.bit"
+        ).format(
+            db_dir = os.path.join(prjxray_db_arg_dir, self._xc7family),
+            part   = self.device,
+            top    = self._build_name
+        )
 
-        return v_output.ns
+        return YosysNextPNRToolchain.finalize(self)
 
-    def add_period_constraint(self, platform, clk, period):
-        clk.attr.add("keep")
-        period = math.floor(period*1e3)/1e3 # round to lowest picosecond
-        if clk in self.clocks:
-            if period != self.clocks[clk]:
-                raise ValueError("Clock already constrained to {:.2f}ns, new constraint to {:.2f}ns"
-                    .format(self.clocks[clk], period))
-        self.clocks[clk] = period
+    def build_script(self):
+        build_filename = YosysNextPNRToolchain.build_script(self)
+        # Zynq7000/ZynqMP specific (signed bitstream).
+        if self.platform.device[0:4] in ["xc7z", "xczu"]:
+            with open(build_filename, "a") as fd:
+                script_contents = signed_bitstream_script(self.platform, self._build_name)
+                fd.write(script_contents)
+
+        return build_filename
+
+    def build(self, platform, fragment,
+        enable_xpm = False,
+        **kwargs):
+
+        self.platform = platform
+        self._run     = kwargs.get("run", True)
+        self._check_properties()
+
+        return YosysNextPNRToolchain.build(self, platform, fragment, **kwargs)
 
     def add_false_path_constraint(self, platform, from_, to):
-        # FIXME: false path constraints are currently not supported by the symbiflow toolchain
+        # FIXME: false path constraints are currently not supported by the toolchain
+        print("WARNING: false path constraints are not supported by the yosys+nextpnr toolchain and are ignored.")
         return
 
-def symbiflow_build_args(parser):
-    pass
+
+def xilinx_yosys_nextpnr_args(parser):
+    toolchain_group = parser.add_argument_group(title="Yosys/NextPNR toolchain options")
+    yosys_nextpnr_args(toolchain_group)
 
 
-def symbiflow_build_argdict(args):
-    return dict()
+def xilinx_yosys_nextpnr_argdict(args):
+    return yosys_nextpnr_argdict(args)

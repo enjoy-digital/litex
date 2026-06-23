@@ -8,9 +8,17 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
+
+from litex.gen import *
+
+from litex.soc.cores.ram.common import check_value, split_init_data
 from litex.soc.interconnect import wishbone
 
 kB = 1024
+NX_LRAM_SIZE       = 64*kB
+NX_LRAM_DATA_WIDTH = 32
+NX_INITVAL_BITS    = 4096
+NX_INITVAL_COUNT   = 0x80
 
 """
 NX family-specific Wishbone interface to the LRAM primitive.
@@ -30,38 +38,43 @@ def initval_parameters(contents, width):
     alternating sequences of 8 bits of padding and 32 bits of real data,
     making up 64KiB altogether.
     """
-    assert width in [32, 64]
+    check_value("NX LRAM init width", width, [32, 64])
     # Each LRAM is 64KiB == 524288 bits
-    assert len(contents) == 524288 // width
-    chunk_size = 4096 // width
+    if len(contents) != NX_LRAM_SIZE*8//width:
+        raise ValueError(
+            "Invalid NX LRAM init length for {}-bit width: {}.".format(width, len(contents)))
+    chunk_size = NX_INITVAL_BITS//width
     parameters = []
-    for i in range(0x80):
+    for i in range(NX_INITVAL_COUNT):
         name = 'INITVAL_{:02X}'.format(i)
         offset = chunk_size * i
         if width == 32:
-            value = '0x' + ''.join('00{:08X}'.format(contents[offset + j])
+            value = '0x' + ''.join('00{:08X}'.format(contents[offset + j] & 0xffffffff)
                                    for j in range(chunk_size - 1, -1, -1))
         elif width == 64:
-            value = '0x' + ''.join('00{:08X}00{:08X}'.format(contents[offset + j] >> 32, contents[offset + j] | 0xFFFFFF)
+            value = '0x' + ''.join('00{:08X}00{:08X}'.format(
+                                    (contents[offset + j] >> 32) & 0xffffffff,
+                                    contents[offset + j] & 0xffffffff)
                                    for j in range(chunk_size - 1, -1, -1))
         parameters.append(Instance.Parameter(name, value))
     return parameters
 
 
-class NXLRAM(Module):
-    def __init__(self, width=32, size=128*kB, init=[]):
-        self.bus = wishbone.Interface(width)
-        assert width in [32, 64]
+class NXLRAM(LiteXModule):
+    def __init__(self, width=32, size=128*kB, init=None):
+        self.bus = wishbone.Interface(data_width=width, address_width=32, addressing="word")
+        check_value("NX LRAM width", width, [32, 64])
         self.width = width
         self.size = size
 
         if width == 32:
-            assert size in [64*kB, 128*kB, 192*kB, 256*kB, 320*kB]
-            self.depth_cascading = size//(64*kB)
+            check_value("NX LRAM size for 32-bit width", size,
+                [64*kB, 128*kB, 192*kB, 256*kB, 320*kB])
+            self.depth_cascading = size//NX_LRAM_SIZE
             self.width_cascading = 1
         if width == 64:
-            assert size in [128*kB, 256*kB]
-            self.depth_cascading = size//(128*kB)
+            check_value("NX LRAM size for 64-bit width", size, [128*kB, 256*kB])
+            self.depth_cascading = size//(2*NX_LRAM_SIZE)
             self.width_cascading = 2
 
         self.lram_blocks = []
@@ -79,7 +92,7 @@ class NXLRAM(Module):
                     If(self.bus.adr[14:14+self.depth_cascading.bit_length()] == d,
                         cs.eq(1),
                         wren.eq(self.bus.we & self.bus.stb & self.bus.cyc),
-                        self.bus.dat_r[32*w:32*(w+1)].eq(dataout)
+                        self.bus.dat_r[32*w:32*(w+1)].eq(dataout),
                     ),
                 ]
                 lram_block = Instance("SP512K",
@@ -98,16 +111,24 @@ class NXLRAM(Module):
                 self.lram_blocks[d].append(lram_block)
                 self.specials += lram_block
 
+        # The SoC memory region is expected to bound accesses. Out-of-range
+        # wrapper accesses still acknowledge, but do not select an LRAM block.
         self.sync += self.bus.ack.eq(self.bus.stb & self.bus.cyc & ~self.bus.ack)
 
-        if init != []:
+        if init is not None:
             self.add_init(init)
 
     def add_init(self, data):
-        # Pad it out to make slicing easier below.
-        data += [0] * (self.size // self.width * 8 - len(data))
-        for d in range(self.depth_cascading):
-            for w in range(self.width_cascading):
-                offset = d * self.width_cascading * 64*kB + w * 64*kB
-                chunk = data[offset:offset + 64*kB]
-                self.lram_blocks[d][w].items += initval_parameters(chunk, self.width)
+        # Split user words into physical 32-bit LRAM blocks. Depth cascading
+        # advances to the next 64KiB block, width cascading selects word lanes.
+        chunks = split_init_data(
+            data             = data,
+            data_width       = self.width,
+            block_data_width = NX_LRAM_DATA_WIDTH,
+            block_words      = NX_LRAM_SIZE//(NX_LRAM_DATA_WIDTH//8),
+            depth_cascading  = self.depth_cascading,
+            width_cascading  = self.width_cascading,
+        )
+        for d, depth_chunks in enumerate(chunks):
+            for w, chunk in enumerate(depth_chunks):
+                self.lram_blocks[d][w].items += initval_parameters(chunk, 32)

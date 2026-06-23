@@ -4,13 +4,17 @@
 #ifndef __SDCARD_H
 #define __SDCARD_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <generated/csr.h>
 
 #define CLKGEN_STATUS_BUSY		0x1
 #define CLKGEN_STATUS_PROGDONE	0x2
 #define CLKGEN_STATUS_LOCKED	0x4
 
-#ifdef CSR_SDCORE_BASE
+#ifdef CSR_SDCARD_BASE
 
 #define SD_CMD_RESPONSE_SIZE 16
 
@@ -27,6 +31,10 @@
 #define SD_SPEED_SDR50  2
 #define SD_SPEED_SDR104 3
 #define SD_SPEED_DDR50  4
+
+#define SD_PHY_SPEED_1X 0b00
+#define SD_PHY_SPEED_4X 0b01
+#define SD_PHY_SPEED_8X 0b10
 
 #define SD_DRIVER_STRENGTH_B 0
 #define SD_DRIVER_STRENGTH_A 1
@@ -52,6 +60,7 @@
 #define SDCARD_CTRL_RESPONSE_SHORT      1
 #define SDCARD_CTRL_RESPONSE_LONG       2
 #define SDCARD_CTRL_RESPONSE_SHORT_BUSY 3
+#define SDCARD_CTRL_RESPONSE_CRC        4
 
 /*-----------------------------------------------------------------------*/
 /* SDCard command helpers                                                */
@@ -101,10 +110,14 @@ void sdcard_decode_csd(void);
 /*-----------------------------------------------------------------------*/
 
 int sdcard_init(void);
-void sdcard_read(uint32_t sector, uint32_t count, uint8_t* buf);
-void sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf);
+int sdcard_read(uint32_t sector, uint32_t count, uint8_t* buf);
+int sdcard_write(uint32_t sector, uint32_t count, uint8_t* buf);
 void fatfs_set_ops_sdcard(void);
 
-#endif /* CSR_SDCORE_BASE */
+#endif /* CSR_SDCARD_BASE */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __SDCARD_H */

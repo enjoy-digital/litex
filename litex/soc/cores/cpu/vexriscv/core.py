@@ -14,9 +14,15 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
+
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *
+
+from litex.soc.integration.soc import SoCRegion
+
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
 # Variants -----------------------------------------------------------------------------------------
@@ -46,49 +52,51 @@ CPU_VARIANTS = {
 # GCC Flags ----------------------------------------------------------------------------------------
 
 GCC_FLAGS = {
-    #                               /-------- Base ISA
-    #                               |/------- Hardware Multiply + Divide
-    #                               ||/----- Atomics
-    #                               |||/---- Compressed ISA
-    #                               ||||/--- Single-Precision Floating-Point
-    #                               |||||/-- Double-Precision Floating-Point
-    #                               imacfd
-    "minimal":          "-march=rv32i      -mabi=ilp32",
-    "minimal+debug":    "-march=rv32i      -mabi=ilp32",
-    "lite":             "-march=rv32im     -mabi=ilp32",
-    "lite+debug":       "-march=rv32im     -mabi=ilp32",
-    "standard":         "-march=rv32im     -mabi=ilp32",
-    "standard+debug":   "-march=rv32im     -mabi=ilp32",
-    "imac":             "-march=rv32imac   -mabi=ilp32",
-    "imac+debug":       "-march=rv32imac   -mabi=ilp32",
-    "full":             "-march=rv32im     -mabi=ilp32",
-    "full+cfu":         "-march=rv32im     -mabi=ilp32",
-    "full+debug":       "-march=rv32im     -mabi=ilp32",
-    "full+cfu+debug":   "-march=rv32im     -mabi=ilp32",
-    "linux":            "-march=rv32ima    -mabi=ilp32",
-    "linux+debug":      "-march=rv32ima    -mabi=ilp32",
-    "linux+no-dsp":     "-march=rv32ima    -mabi=ilp32",
-    "secure":           "-march=rv32ima    -mabi=ilp32",
-    "secure+debug":     "-march=rv32ima    -mabi=ilp32",
+    #                                  /---------- Base ISA
+    #                                  |    /----- Hardware Multiply + Divide
+    #                                  |    |/---- Atomics
+    #                                  |    ||/--- Compressed ISA
+    #                                  |    |||/-- Single-Precision Floating-Point
+    #                                  |    ||||/- Double-Precision Floating-Point
+    #                                  i    macfd
+    "minimal":              "-march=rv32i2p0       -mabi=ilp32",
+    "minimal+debug":        "-march=rv32i2p0       -mabi=ilp32",
+    "minimal+debug+hwbp":   "-march=rv32i2p0       -mabi=ilp32",
+    "lite":                 "-march=rv32i2p0_m     -mabi=ilp32",
+    "lite+debug":           "-march=rv32i2p0_m     -mabi=ilp32",
+    "lite+debug+hwbp":      "-march=rv32i2p0_m     -mabi=ilp32",
+    "standard":             "-march=rv32i2p0_m     -mabi=ilp32",
+    "standard+debug":       "-march=rv32i2p0_m     -mabi=ilp32",
+    "imac":                 "-march=rv32i2p0_mac   -mabi=ilp32",
+    "imac+debug":           "-march=rv32i2p0_mac   -mabi=ilp32",
+    "full":                 "-march=rv32i2p0_m     -mabi=ilp32",
+    "full+cfu":             "-march=rv32i2p0_m     -mabi=ilp32",
+    "full+debug":           "-march=rv32i2p0_m     -mabi=ilp32",
+    "full+cfu+debug":       "-march=rv32i2p0_m     -mabi=ilp32",
+    "linux":                "-march=rv32i2p0_ma    -mabi=ilp32",
+    "linux+debug":          "-march=rv32i2p0_ma    -mabi=ilp32",
+    "linux+no-dsp":         "-march=rv32i2p0_ma    -mabi=ilp32",
+    "secure":               "-march=rv32i2p0_ma    -mabi=ilp32",
+    "secure+debug":         "-march=rv32i2p0_ma    -mabi=ilp32",
 }
 
 # VexRiscv Timer -----------------------------------------------------------------------------------
 
-class VexRiscvTimer(Module, AutoCSR):
+class VexRiscvTimer(LiteXModule):
     def __init__(self):
         self._latch    = CSR()
-        self._time     = CSRStatus(64)
-        self._time_cmp = CSRStorage(64, reset=2**64-1)
+        self._time     = CSRStatus(64, description="Latched VexRiscv timer value.")
+        self._time_cmp = CSRStorage(64, reset=2**64-1, description="VexRiscv timer compare value.")
         self.interrupt = Signal()
 
         # # #
 
         time = Signal(64)
         self.sync += time.eq(time + 1)
-        self.sync += If(self._latch.re, self._time.status.eq(time))
+        self.sync += If(self._latch.wr_stb, self._time.status.eq(time))
 
         time_cmp = Signal(64, reset=2**64-1)
-        self.sync += If(self._latch.re, time_cmp.eq(self._time_cmp.storage))
+        self.sync += If(self._latch.wr_stb, time_cmp.eq(self._time_cmp.storage))
 
         self.comb += self.interrupt.eq(time >= time_cmp)
 
@@ -132,8 +140,8 @@ class VexRiscv(CPU, AutoCSR):
         self.external_variant = None
         self.reset            = Signal()
         self.interrupt        = Signal(32)
-        self.ibus             = ibus = wishbone.Interface()
-        self.dbus             = dbus = wishbone.Interface()
+        self.ibus             = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        self.dbus             = dbus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.periph_buses     = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses     = []           # Memory buses (Connected directly to LiteDRAM).
 
@@ -186,7 +194,7 @@ class VexRiscv(CPU, AutoCSR):
         self.cpu_params.update(i_externalResetVector=Signal(32, reset=reset_address))
 
     def add_timer(self):
-        self.submodules.timer = VexRiscvTimer()
+        self.timer = VexRiscvTimer()
         self.cpu_params.update(i_timerInterrupt=self.timer.interrupt)
 
     def add_debug(self):
@@ -202,6 +210,7 @@ class VexRiscv(CPU, AutoCSR):
         self.o_cmd_ready           = Signal()
         self.o_rsp_data            = Signal(32)
         self.o_resetOut            = Signal()
+        self.o_halted              = Signal()
 
         reset_debug_logic = Signal()
 
@@ -209,10 +218,10 @@ class VexRiscv(CPU, AutoCSR):
         self.transfer_in_progress  = Signal()
         self.transfer_wait_for_ack = Signal()
 
-        self.debug_bus = wishbone.Interface()
+        self.debug_bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
 
         self.sync += self.debug_bus.dat_r.eq(self.o_rsp_data)
-        self.sync += debug_reset.eq(reset_debug_logic | ResetSignal())
+        self.sync += debug_reset.eq(reset_debug_logic)
 
         self.sync += [
             # CYC is held high for the duration of the transfer.
@@ -260,17 +269,18 @@ class VexRiscv(CPU, AutoCSR):
         ]
 
         self.cpu_params.update(
-            i_reset = ResetSignal() | self.reset | debug_reset,
+            i_reset                         = ResetSignal("sys") | self.reset | debug_reset,
             i_iBusWishbone_ERR              = self.ibus.err | ibus_err,
             i_dBusWishbone_ERR              = self.dbus.err | dbus_err,
-            i_debugReset                    = ResetSignal(),
+            i_debugReset                    = ResetSignal("sys") | self.reset,
             i_debug_bus_cmd_valid           = self.i_cmd_valid,
             i_debug_bus_cmd_payload_wr      = self.i_cmd_payload_wr,
             i_debug_bus_cmd_payload_address = self.i_cmd_payload_address,
             i_debug_bus_cmd_payload_data    = self.i_cmd_payload_data,
             o_debug_bus_cmd_ready           = self.o_cmd_ready,
             o_debug_bus_rsp_data            = self.o_rsp_data,
-            o_debug_resetOut                = self.o_resetOut
+            o_debug_resetOut                = self.o_resetOut,
+            o_halted                        = self.o_halted,
         )
 
     def add_cfu(self, cfu_filename):
@@ -312,7 +322,7 @@ class VexRiscv(CPU, AutoCSR):
             i_rsp_ready                = cfu_bus.rsp.ready,
             o_rsp_payload_outputs_0    = cfu_bus.rsp.payload.outputs_0,
             i_clk                      = ClockSignal("sys"),
-            i_reset                    = ResetSignal("sys"),
+            i_reset                    = ResetSignal("sys") | self.reset,
         )
         self.platform.add_source(cfu_filename)
 
@@ -334,11 +344,11 @@ class VexRiscv(CPU, AutoCSR):
         vdir = get_data_mod("cpu", "vexriscv").data_location
         platform.add_source(os.path.join(vdir, cpu_filename))
 
-    def add_soc_components(self, soc, soc_region_cls):
+    def add_soc_components(self, soc):
         # Connect Debug interface to SoC.
         if "debug" in self.variant:
             soc.bus.add_slave("vexriscv_debug", self.debug_bus, region=
-                soc_region_cls(
+                SoCRegion(
                     origin = soc.mem_map.get("vexriscv_debug"),
                     size   = 0x100,
                     cached = False

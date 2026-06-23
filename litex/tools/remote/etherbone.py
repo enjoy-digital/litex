@@ -59,11 +59,14 @@ def get_field_data(field, datas):
 
 pack_to_uint32 = struct.Struct('>I').pack
 unpack_uint32_from = struct.Struct('>I').unpack
+pack_to_uint64 = struct.Struct('>Q').pack
+unpack_uint64_from = struct.Struct('>Q').unpack
 
 # Packet -------------------------------------------------------------------------------------------
 
 class Packet(list):
-    def __init__(self, init=[]):
+    def __init__(self, init=None):
+        init = [] if init is None else init
         self.ongoing = False
         self.done    = False
         self.bytes   = init
@@ -88,13 +91,17 @@ class EtherboneRead:
 # Etherbone Writes ---------------------------------------------------------------------------------
 
 class EtherboneWrites(Packet):
-    def __init__(self, init=[], base_addr=0, datas=[]):
+    def __init__(self, addr_size=4, init=None, base_addr=0, datas=None):
+        init  = [] if init  is None else init
+        datas = [] if datas is None else datas
         if isinstance(datas, list) and len(datas) > 255:
             raise ValueError(f"Burst size of {len(datas)} exceeds maximum of 255 allowed by Etherbone.")
+        assert addr_size in [1, 2, 4, 8]
         Packet.__init__(self, init)
         self.base_addr = base_addr
         self.writes    = []
         self.encoded   = init != []
+        self.addr_size = addr_size
         for data in datas:
             self.add(EtherboneWrite(data))
 
@@ -111,7 +118,10 @@ class EtherboneWrites(Packet):
         if self.encoded:
             raise ValueError
         ba = bytearray()
-        ba += pack_to_uint32(self.base_addr)
+        if self.addr_size == 4:
+            ba += pack_to_uint32(self.base_addr)
+        else:
+            ba += pack_to_uint64(self.base_addr)
         for write in self.writes:
             ba += pack_to_uint32(write.data)
         self.bytes   = ba
@@ -121,9 +131,12 @@ class EtherboneWrites(Packet):
         if not self.encoded:
             raise ValueError
         ba = self.bytes
-        self.base_addr = unpack_uint32_from(ba[:4])[0]
+        if self.addr_size == 4:
+            self.base_addr = unpack_uint32_from(ba[:self.addr_size])[0]
+        else:
+            self.base_addr = unpack_uint64_from(ba[:self.addr_size])[0]
         writes = []
-        offset = 4
+        offset = self.addr_size
         length = len(ba)
         while length > offset:
             writes.append(EtherboneWrite(unpack_uint32_from(ba[offset:offset+4])[0]))
@@ -142,13 +155,17 @@ class EtherboneWrites(Packet):
 # Etherbone Reads ----------------------------------------------------------------------------------
 
 class EtherboneReads(Packet):
-    def __init__(self, init=[], base_ret_addr=0, addrs=[]):
+    def __init__(self, addr_size=4, init=None, base_ret_addr=0, addrs=None):
+        init  = [] if init  is None else init
+        addrs = [] if addrs is None else addrs
         if isinstance(addrs, list) and len(addrs) > 255:
             raise ValueError(f"Burst size of {len(addrs)} exceeds maximum of 255 allowed by Etherbone.")
+        assert addr_size in [1, 2, 4, 8]
         Packet.__init__(self, init)
         self.base_ret_addr = base_ret_addr
-        self.reads   = []
-        self.encoded = init != []
+        self.reads     = []
+        self.encoded   = init != []
+        self.addr_size = addr_size
         for addr in addrs:
             self.add(EtherboneRead(addr))
 
@@ -165,9 +182,15 @@ class EtherboneReads(Packet):
         if self.encoded:
             raise ValueError
         ba = bytearray()
-        ba += pack_to_uint32(self.base_ret_addr)
+        if (self.addr_size == 4):
+            ba += pack_to_uint32(self.base_ret_addr)
+        else:
+            ba += pack_to_uint64(self.base_ret_addr)
         for read in self.reads:
-            ba += pack_to_uint32(read.addr)
+            if self.addr_size == 4:
+                ba += pack_to_uint32(read.addr)
+            else:
+                ba += pack_to_uint64(read.addr)
         self.bytes   = ba
         self.encoded = True
 
@@ -175,13 +198,21 @@ class EtherboneReads(Packet):
         if not self.encoded:
             raise ValueError
         ba = self.bytes
-        base_ret_addr = unpack_uint32_from(ba[:4])[0]
+        if self.addr_size == 4:
+            base_ret_addr = unpack_uint32_from(ba[:self.addr_size])[0]
+        else:
+            base_ret_addr = unpack_uint64_from(ba[:self.addr_size])[0]
+        self.base_ret_addr = base_ret_addr
         reads  = []
-        offset = 4
+        offset = self.addr_size
         length = len(ba)
         while length > offset:
-            reads.append(EtherboneRead(unpack_uint32_from(ba[offset:offset+4])[0]))
-            offset += 4
+            v = ba[offset:offset+self.addr_size]
+            if self.addr_size == 4:
+                reads.append(EtherboneRead(unpack_uint32_from(v)[0]))
+            else:
+                reads.append(EtherboneRead(unpack_uint64_from(v)[0]))
+            offset += self.addr_size
         self.reads   = reads
         self.encoded = False
 
@@ -196,7 +227,10 @@ class EtherboneReads(Packet):
 # Etherbone Record ---------------------------------------------------------------------------------
 
 class EtherboneRecord(Packet):
-    def __init__(self, init=[]):
+    def __init__(self, addr_size=4, init=None):
+        init = [] if init is None else init
+        assert addr_size in [1, 2, 4, 8]
+
         Packet.__init__(self, init)
         self.writes      = None
         self.reads       = None
@@ -210,6 +244,7 @@ class EtherboneRecord(Packet):
         self.wcount      = 0
         self.rcount      = 0
         self.encoded     = init != []
+        self.addr_size   = addr_size
 
     def decode(self):
         if not self.encoded:
@@ -223,14 +258,20 @@ class EtherboneRecord(Packet):
 
         # Decode writes
         if self.wcount:
-            self.writes = EtherboneWrites(self.bytes[offset:offset + 4*(self.wcount+1)])
-            offset += 4*(self.wcount+1)
+            init_length = (4 * self.wcount) + (self.addr_size)
+            self.writes = EtherboneWrites(
+                addr_size = self.addr_size,
+                init      = self.bytes[offset:offset + init_length])
+            offset += init_length
             self.writes.decode()
 
         # Decode reads
         if self.rcount:
-            self.reads = EtherboneReads(self.bytes[offset:offset + 4*(self.rcount+1)])
-            offset += 4*(self.rcount+1)
+            init_length = (self.rcount + 1) * self.addr_size
+            self.reads = EtherboneReads(
+                addr_size = self.addr_size,
+                init      = self.bytes[offset:offset + init_length])
+            offset += init_length
             self.reads.decode()
 
         self.encoded = False
@@ -283,15 +324,18 @@ class EtherboneRecord(Packet):
 # Etherbone Packet ---------------------------------------------------------------------------------
 
 class EtherbonePacket(Packet):
-    def __init__(self, init=[]):
+    def __init__(self, addr_width=32, init=None):
+        init = [] if init is None else init
+        assert addr_width in [8, 16, 32, 64]
+
         Packet.__init__(self, init)
         self.encoded = init != []
         self.records = []
 
         self.magic     = etherbone_magic
         self.version   = etherbone_version
-        self.addr_size = 32//8
-        self.port_size = 32//8
+        self.addr_size = addr_width//8
+        self.port_size = 4 # FIXME: use data_size
         self.nr        = 0
         self.pr        = 0
         self.pf        = 0
@@ -311,14 +355,14 @@ class EtherbonePacket(Packet):
         # Decode records
         length = len(ba)
         while length > offset:
-            record = EtherboneRecord(ba[offset:])
+            record = EtherboneRecord(addr_size=self.addr_size, init=ba[offset:])
             record.decode()
             self.records.append(record)
             offset += etherbone_record_header.length
             if record.wcount:
-                offset += 4*(record.wcount + 1)
+                offset += (4*record.wcount) + self.addr_size
             if record.rcount:
-                offset += 4*(record.rcount + 1)
+                offset += (record.rcount + 1) * self.addr_size
 
         self.encoded = False
 
@@ -362,22 +406,33 @@ class EtherboneIPC:
     def send_packet(self, socket, packet):
         socket.sendall(packet.bytes)
 
-    def receive_packet(self, socket):
+    def receive_packet(self, socket, addr_size):
+        assert addr_size in [1, 2, 4, 8]
         header_length = etherbone_packet_header_length + etherbone_record_header_length
-        packet        = bytes()
-        while len(packet) < header_length:
-            chunk = socket.recv(header_length - len(packet))
-            if len(chunk) == 0:
-                return 0
-            else:
-                packet += chunk
-        wcount, rcount = struct.unpack(">BB", packet[header_length-2:])
-        counts = wcount + rcount
-        packet_size = header_length + 4*(counts + 1)
-        while len(packet) < packet_size:
-            chunk = socket.recv(packet_size - len(packet))
-            if len(chunk) == 0:
-                return 0
-            else:
-                packet += chunk
-        return packet
+        packet = bytes()
+        try:
+            while len(packet) < header_length:
+                chunk = socket.recv(header_length - len(packet))
+                if len(chunk) == 0:
+                    return 0
+                else:
+                    packet += chunk
+
+            wcount, rcount = struct.unpack(">BB", packet[header_length - 2:])
+            packet_size = header_length
+            if wcount != 0:
+                packet_size += 4 * (wcount) + addr_size
+            if rcount != 0:
+                packet_size += (rcount + 1) * addr_size
+
+            while len(packet) < packet_size:
+                chunk = socket.recv(packet_size - len(packet))
+                if len(chunk) == 0:
+                    return 0
+                else:
+                    packet += chunk
+
+            return packet
+
+        except TimeoutError:
+            return 0

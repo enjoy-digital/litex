@@ -5,15 +5,19 @@
 # Copyright (c) 2020 Antmicro <www.antmicro.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import math
+import warnings
+from enum import Enum
+
 from migen.genlib.cdc import MultiReg
+
+from litex.gen import *
 
 from litex.soc.cores.clock import *
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr_eventmanager import *
 
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
-from enum import Enum
-import math
 
 from litex.soc.cores.ram.xilinx_fifo_sync_macro import FIFOSyncMacro
 
@@ -21,10 +25,15 @@ class I2S_FORMAT(Enum):
     I2S_STANDARD = 1
     I2S_LEFT_JUSTIFIED = 2
 
-class S7I2S(Module, AutoCSR, AutoDoc):
+class S7I2S(LiteXModule):
     def __init__(self, pads, fifo_depth=256, controller=False, master=False, concatenate_channels=True, sample_width=16, frame_format=I2S_FORMAT.I2S_LEFT_JUSTIFIED, lrck_ref_freq=100e6, lrck_freq=44100, bits_per_channel=28, document_interrupts=False, toolchain="vivado"):
-        if master == True:
-            print("Master/slave terminology deprecated, please use controller/peripheral. Please see http://oshwa.org/a-resolution-to-redefine-spi-signal-names.")
+        if master:
+            warnings.warn(
+                "Master/slave terminology deprecated, please use controller/peripheral. "
+                "Please see http://oshwa.org/a-resolution-to-redefine-spi-signal-names.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             controller = True
 
         self.intro = ModuleDoc("""Intro
@@ -34,10 +43,10 @@ class S7I2S(Module, AutoCSR, AutoDoc):
 
         When device is configured as controller you can manipulate LRCK and SCLK signals using below variables.
 
-        - lrck_ref_freq - is a reference signal that is required to achive desired LRCK and SCLK frequencies.
-                         Have be the same as your sys_clk.
+        - lrck_ref_freq - is a reference signal that is required to achieve desired LRCK and SCLK frequencies.
+                         Must be the same as your sys_clk.
         - lrck_freq - this variable defines requested LRCK frequency. Mind you, that based on sys_clk frequency,
-                         configured value will be more or less acurate.
+                         configured value will be more or less accurate.
         - bits_per_channel - defines SCLK frequency. Mind you, that based on sys_clk frequency,
                          the requested amount of bits per channel may vary from configured.
 
@@ -56,7 +65,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
         Sample width can be any of 1 to 32 bits.
 
         When sample_width is less than or equal to 16-bit and concatenate_channels is enabled,
-        sending and reciving channels is performed atomically. eg. both samples are transfered from/to fifo in single operation.
+        sending and receiving channels is performed atomically. e.g. both samples are transferred from/to fifo in single operation.
 
         System Interface
         ----------------
@@ -161,7 +170,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
         self.comb += [rising_edge.eq(clk_pin & ~clk_d), falling_edge.eq(~clk_pin & clk_d)]
 
         # Wishbone bus
-        self.bus = bus = wishbone.Interface()
+        self.bus = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         rd_ack = Signal()
         wr_ack = Signal()
         self.comb += [
@@ -200,13 +209,13 @@ class S7I2S(Module, AutoCSR, AutoDoc):
             ]
 
         # Interrupts
-        self.submodules.ev = EventManager()
+        self.ev = EventManager()
         if hasattr(pads, 'rx'):
             self.ev.rx_ready = EventSourcePulse(description="Indicates FIFO is ready to read")  # Rising edge triggered
             self.ev.rx_error = EventSourcePulse(description="Indicates an Rx error has happened (over/underflow)")
         if hasattr(pads, 'tx'):
             self.ev.tx_ready = EventSourcePulse(description="Indicates enough space available for next Tx quanta of {} words".format(fifo_depth))
-            self.ev.tx_error = EventSourcePulse(description="Indicates a Tx error has happened (over/underflow")
+            self.ev.tx_error = EventSourcePulse(description="Indicates a Tx error has happened (over/underflow)")
         self.ev.finalize()
 
         # build the RX subsystem
@@ -251,7 +260,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                 )
             ]
 
-            self.submodules.rx_fifo = fifo = FIFOSyncMacro("18Kb", data_width=fifo_data_width,
+            self.rx_fifo = fifo = FIFOSyncMacro("18Kb", data_width=fifo_data_width,
                 almost_empty_offset=8, almost_full_offset=(512 - fifo_depth), toolchain=toolchain)
             self.comb += fifo.reset.eq(rx_reset)
 
@@ -293,7 +302,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
             rx_delay_cnt = Signal()
             rx_delay_val = 1 if frame_format == I2S_FORMAT.I2S_STANDARD else 0
 
-            self.submodules.rxi2s = rxi2s = FSM(reset_state="IDLE")
+            self.rxi2s = rxi2s = FSM(reset_state="IDLE")
             rxi2s.act("IDLE",
                 NextValue(fifo.wr_d, 0),
                 If(self.rx_ctl.fields.enable,
@@ -454,7 +463,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
                 )
             ]
 
-            self.submodules.tx_fifo = fifo = FIFOSyncMacro("18Kb", data_width=fifo_data_width,
+            self.tx_fifo = fifo = FIFOSyncMacro("18Kb", data_width=fifo_data_width,
                 almost_empty_offset=(512 - fifo_depth), almost_full_offset=8, toolchain=toolchain)
             self.comb += fifo.reset.eq(tx_reset)
 
@@ -495,7 +504,7 @@ class S7I2S(Module, AutoCSR, AutoDoc):
             tx_cnt = Signal(tx_cnt_width)
             tx_buf = Signal(tx_buf_width)
             sample_msb = fifo_data_width - 1
-            self.submodules.txi2s = txi2s = FSM(reset_state="IDLE")
+            self.txi2s = txi2s = FSM(reset_state="IDLE")
             txi2s.act("IDLE",
                 If(self.tx_ctl.fields.enable,
                     If(rising_edge & (~sync_pin if frame_format == I2S_FORMAT.I2S_STANDARD else sync_pin),

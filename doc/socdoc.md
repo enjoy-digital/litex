@@ -122,14 +122,14 @@ register listings. You can add additional modules by passing an array to
 `generate_docs()`. For example, to add `mathjax` support:
 
 ```python
-    generate_docs("build/documentation", sphinx_extensions=['sphinx.ext.mathjax'])
+    generate_docs(soc, "build/documentation", sphinx_extensions=['sphinx.ext.mathjax'])
 ```
 
 You may need to pass additional configuration to `conf.py`. In this case, pass it
 as `sphinx_extra_config`. For example:
 
 ```python
-    generate_docs("build/documentation",
+    generate_docs(soc, "build/documentation",
             sphinx_extensions=['sphinx_math_dollar', 'sphinx.ext.mathjax'],
             sphinx_extra_config=r"""
    mathjax_config = {

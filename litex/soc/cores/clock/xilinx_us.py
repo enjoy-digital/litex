@@ -4,10 +4,12 @@
 # Copyright (c) 2018-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+from litex.gen import *
+
 from litex.soc.cores.clock.common import *
 from litex.soc.cores.clock.xilinx_common import *
 
-# Xilinx / Ultrascale ------------------------------------------------------------------------------
+# Xilinx / Ultrascale PLL --------------------------------------------------------------------------
 
 # TODO:
 # - use Ultrascale primitives instead of 7-Series' ones. (Vivado recognize and convert them).
@@ -15,10 +17,11 @@ from litex.soc.cores.clock.xilinx_common import *
 class USPLL(XilinxClocking):
     nclkouts_max = 6
 
-    def __init__(self, speedgrade=-1):
+    def __init__(self, speedgrade=-1, name=None):
         self.logger = logging.getLogger("USPLL")
         self.logger.info("Creating USPLL, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
+        self.name = name
         self.divclk_divide_range = (1, 56+1)
         self.clkin_freq_range = {
             -1: (70e6,  800e6),
@@ -51,20 +54,23 @@ class USPLL(XilinxClocking):
             i_CLKFBIN       = pll_fb,
             o_CLKFBOUT      = pll_fb,
         )
-        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+        for n, clkout in sorted(self.clkouts.items()):
             self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)]  = config["clkout{}_phase".format(n)]
-            self.params["o_CLKOUT{}".format(n)]        = clk
-        self.specials += Instance("PLLE2_ADV", **self.params)
+            self.params["o_CLKOUT{}".format(n)]        = clkout.clk
+        self.specials += Instance("PLLE2_ADV", name=self.name or "", **self.params)
 
+
+# Xilinx / Ultrascale MMCM -------------------------------------------------------------------------
 
 class USMMCM(XilinxClocking):
     nclkouts_max = 7
 
-    def __init__(self, speedgrade=-1):
+    def __init__(self, speedgrade=-1, name=None):
         self.logger = logging.getLogger("USMMCM")
         self.logger.info("Creating USMMCM, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
+        self.name = name
         self.divclk_divide_range = (1, 106+1)
         self.clkin_freq_range = {
             -1: (10e6,  800e6),
@@ -97,19 +103,20 @@ class USMMCM(XilinxClocking):
             i_CLKFBIN         = mmcm_fb,
             o_CLKFBOUT        = mmcm_fb,
         )
-        for n, (clk, f, p, m) in sorted(self.clkouts.items()):
+        for n, clkout in sorted(self.clkouts.items()):
             if n == 0:
                 self.params["p_CLKOUT{}_DIVIDE_F".format(n)] = config["clkout{}_divide".format(n)]
             else:
                 self.params["p_CLKOUT{}_DIVIDE".format(n)] = config["clkout{}_divide".format(n)]
             self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
-            self.params["o_CLKOUT{}".format(n)]       = clk
-        self.specials += Instance("MMCME2_ADV", **self.params)
+            self.params["o_CLKOUT{}".format(n)]       = clkout.clk
+        self.specials += Instance("MMCME2_ADV", name=self.name or "", **self.params)
 
+# Xilinx / Ultrascale IDELAY CTRL ------------------------------------------------------------------
 
-class USIDELAYCTRL(Module):
+class USIDELAYCTRL(LiteXModule):
     def __init__(self, cd_ref, cd_sys, reset_cycles=64, ready_cycles=64):
-        self.clock_domains.cd_ic = ClockDomain()
+        self.cd_ic = ClockDomain()
         ic_reset_counter = Signal(max=reset_cycles, reset=reset_cycles-1)
         ic_reset         = Signal(reset=1)
         cd_ref_sync      = getattr(self.sync, cd_ref.name)
