@@ -551,13 +551,38 @@ class StrideConverter(LiteXModule):
             self.comb += converter.sink.data.eq(sink.payload.raw_bits())
 
 
-        # Cast converter.source to source (raw bits --> user fields)
-        self.comb += [
-            source.valid.eq(converter.source.valid),
-            source.first.eq(converter.source.first),
-            source.last.eq(converter.source.last),
-            converter.source.ready.eq(source.ready)
-        ]
+        # Cast converter.source to source (raw bits --> user fields).
+        with_last_be = (
+            converter.cls == _DownConverter and
+            hasattr(sink,   "last_be") and
+            hasattr(source, "last_be") and
+            len(sink.last_be) == (converter.ratio*len(source.last_be))
+        )
+        if with_last_be:
+            last_be_drop       = Signal()
+            last_be_packet_end = Signal()
+            # Stop on the narrow slice carrying last_be and drain remaining slices internally.
+            self.comb += [
+                last_be_packet_end.eq(sink.last & (source.last_be != 0)),
+                source.valid.eq(converter.source.valid & ~last_be_drop),
+                source.first.eq(converter.source.first & ~last_be_drop),
+                source.last.eq(converter.source.last | last_be_packet_end),
+                converter.source.ready.eq(source.ready | last_be_drop)
+            ]
+            self.sync += If(converter.source.valid & converter.source.ready,
+                If(last_be_drop,
+                    If(converter.source.last, last_be_drop.eq(0))
+                ).Elif(last_be_packet_end & ~converter.source.last,
+                    last_be_drop.eq(1)
+                )
+            )
+        else:
+            self.comb += [
+                source.valid.eq(converter.source.valid),
+                source.first.eq(converter.source.first),
+                source.last.eq(converter.source.last),
+                converter.source.ready.eq(source.ready)
+            ]
         if converter.cls == _UpConverter:
             ratio = converter.ratio
             for i in range(ratio):
