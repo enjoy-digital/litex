@@ -78,7 +78,7 @@ class VexiiRiscv(CPU):
     # Arch.
     @staticmethod
     def get_arch(ignores = []):
-        arch = f"rv{VexiiRiscv.xlen}i"
+        arch = f"rv{VexiiRiscv.xlen}i2p0_"
 
         # s/u is not accepted by the ISA string
         isas = "mafdcvh"
@@ -97,15 +97,17 @@ class VexiiRiscv(CPU):
 
     # Arch for GCC march.
     def get_gcc_arch():
-        # Workaround: Assume only allowed supported single letter extension for BIOS
-        arch = f"rv{VexiiRiscv.xlen}i2p0_"
-
-        isas = "mafdcvh"
-        for isa in isas:
+        # Keep BIOS/toolchain flags conservative. Vexii can expose privileged
+        # or recent extensions that the default GCC might not support.
+        arch = f"rv{VexiiRiscv.xlen}i2p0"
+        isas = ""
+        for isa in "mafdc":
             if isa in VexiiRiscv.isa_map:
-                arch += isa
+                isas += isa
 
-        return arch + "_zifencei_zicsr"
+        if isas:
+            arch += "_" + isas
+        return arch
 
     # Memory Mapping.
     @property
@@ -195,7 +197,7 @@ class VexiiRiscv(CPU):
         add_soc_arg("--l2-self-flush", default=None,        help="VexiiRiscv L2 ways will self flush on from,to,cycles")
         # Vexii: interrupts
         add_soc_arg("--with-aplic",                  action="store_true",   help="Enable APLIC.")
-        add_soc_arg("--imsic-interrupts", dest="imsic_interrupt_number", default=0, type=int, help="VexiiRiscv IMSIC interrupts, 0 disables this feature.")
+        add_soc_arg("--imsic-interrupts", dest="imsic_interrupt_number", socgen_name="imsic-interrupt-number", default=0, type=int, help="VexiiRiscv IMSIC interrupts, 0 disables this feature.")
         # Vexii: peripherals
         add_soc_arg("--vexii-video", dest="video",  action="append", default=[], help="Add the memory coherent video controller")
         add_soc_arg("--vexii-macsg", dest="mac_sg", action="append", default=[], help="Add the memory coherent ethernet mac")
