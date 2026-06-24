@@ -1,12 +1,18 @@
 import sys
 
-# Migen/Python 3.14+ patch -------------------------------------------------------------------------
-try:
-    import migen.fhdl.tracer
-    if "LOAD_FAST_BORROW" not in migen.fhdl.tracer._load_build_opcodes:
-        migen.fhdl.tracer._load_build_opcodes["LOAD_FAST_BORROW"] = migen.fhdl.tracer._bytecode_length_version_guard(3)
-except ImportError:
-    pass
+# Migen/Python 3.14+ Compatibility -----------------------------------------------------------------
+
+def _migen_python_compat():
+    try:
+        from migen.fhdl import tracer
+    except ImportError:
+        return
+
+    for opcode in ["LOAD_FAST_BORROW", "LOAD_FAST_CHECK"]:
+        tracer._load_build_opcodes.setdefault(opcode, tracer._bytecode_length_version_guard(3))
+
+
+_migen_python_compat()
 
 from litex.tools.litex_client import RemoteClient
 
