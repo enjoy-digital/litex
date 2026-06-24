@@ -78,7 +78,7 @@ class VexiiRiscv(CPU):
     # Arch.
     @staticmethod
     def get_arch(ignores = []):
-        arch = f"rv{VexiiRiscv.xlen}i2p0_"
+        arch = f"rv{VexiiRiscv.xlen}i"
 
         # s/u is not accepted by the ISA string
         isas = "mafdcvh"
@@ -97,11 +97,15 @@ class VexiiRiscv(CPU):
 
     # Arch for GCC march.
     def get_gcc_arch():
-        # Workaround: add exception for extensions that are not supported
-        # by the GCC in default build.
-        ex = ["zicbom", "zicntr", "zicsr", "zifencei", "zihpm", "sscofpmf"]
+        # Workaround: Assume only allowed supported single letter extension for BIOS
+        arch = f"rv{VexiiRiscv.xlen}i2p0_"
 
-        return VexiiRiscv.get_arch(ex)
+        isas = "mafdcvh"
+        for isa in isas:
+            if isa in VexiiRiscv.isa_map:
+                arch += isa
+
+        return arch + "_zifencei_zicsr"
 
     # Memory Mapping.
     @property
