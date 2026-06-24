@@ -195,7 +195,7 @@ class VexiiRiscv(CPU):
         add_soc_arg("--l2-self-flush", default=None,        help="VexiiRiscv L2 ways will self flush on from,to,cycles")
         # Vexii: interrupts
         add_soc_arg("--with-aplic",                  action="store_true",   help="Enable APLIC.")
-        add_soc_arg("--imsic-interrupts", dest="imsic_interrupt_number", forward=False, default=0, type=int, help="VexiiRiscv IMSIC interrupts, 0 disables this feature.")
+        add_soc_arg("--imsic-interrupts", dest="imsic_interrupt_number", default=0, type=int, help="VexiiRiscv IMSIC interrupts, 0 disables this feature.")
         # Vexii: peripherals
         add_soc_arg("--vexii-video", dest="video",  action="append", default=[], help="Add the memory coherent video controller")
         add_soc_arg("--vexii-macsg", dest="mac_sg", action="append", default=[], help="Add the memory coherent ethernet mac")
