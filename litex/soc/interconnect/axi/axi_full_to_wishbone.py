@@ -19,10 +19,18 @@ from litex.soc.interconnect.axi.axi_lite_to_wishbone import *
 # AXI to Wishbone ----------------------------------------------------------------------------------
 
 class AXI2Wishbone(LiteXModule):
-    def __init__(self, axi, wishbone, base_address=0x00000000):
+    supports_low_latency = True
+
+    def __init__(self, axi, wishbone,
+        base_address = 0x00000000,
+        low_latency  = False,
+    ):
         axi_lite          = AXILiteInterface(axi.data_width, axi.address_width)
         axi2axi_lite      = AXI2AXILite(axi, axi_lite)
-        axi_lite2wishbone = AXILite2Wishbone(axi_lite, wishbone, base_address)
+        axi_lite2wishbone = AXILite2Wishbone(axi_lite, wishbone,
+            base_address = base_address,
+            low_latency  = low_latency,
+        )
         self.submodules += axi2axi_lite, axi_lite2wishbone
 
 # Wishbone to AXI ----------------------------------------------------------------------------------

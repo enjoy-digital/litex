@@ -196,6 +196,7 @@ class SoCBusHandler(LiteXModule):
         bursting         = False,
         interconnect     = "shared", interconnect_register=True,
         arbiter          = "default",
+        low_latency      = False,
         reserved_regions = None,
     ):
         self.logger = logging.getLogger(name)
@@ -276,6 +277,7 @@ class SoCBusHandler(LiteXModule):
         self.interconnect          = interconnect
         self.interconnect_register = interconnect_register
         self.arbiter               = arbiter
+        self.low_latency           = low_latency
         self.masters               = {}
         self.slaves                = {}
         self.regions               = {}
@@ -661,7 +663,10 @@ class SoCBusHandler(LiteXModule):
                         colorer(type(master).__name__),
                         colorer(type(slave).__name__)))
                     raise SoCError()
-                bridge = bridge_cls(master, slave)
+                bridge_kwargs = {}
+                if getattr(bridge_cls, "supports_low_latency", False):
+                    bridge_kwargs["low_latency"] = self.low_latency
+                bridge = bridge_cls(master, slave, **bridge_kwargs)
                 self.submodules += bridge
                 return adapted_interface
 
@@ -1281,6 +1286,7 @@ class SoC(LiteXModule):
         bus_bursting         = False,
         bus_interconnect     = "shared",
         bus_arbiter          = "default",
+        bus_low_latency      = False,
         bus_reserved_regions = None,
 
         csr_data_width       = 32,
@@ -1332,6 +1338,7 @@ class SoC(LiteXModule):
             bursting         = bus_bursting,
             interconnect     = bus_interconnect,
             arbiter          = bus_arbiter,
+            low_latency      = bus_low_latency,
             reserved_regions = bus_reserved_regions,
            )
 
@@ -3464,6 +3471,7 @@ class SoCCore(LiteXSoC):
         bus_bursting               = False,
         bus_interconnect           = "shared",
         bus_arbiter                = "default",
+        bus_low_latency            = False,
 
         # CPU parameters.
         cpu_type                   = "vexriscv",
@@ -3545,6 +3553,7 @@ class SoCCore(LiteXSoC):
             bus_bursting         = bus_bursting,
             bus_interconnect     = bus_interconnect,
             bus_arbiter          = bus_arbiter,
+            bus_low_latency      = bus_low_latency,
             bus_reserved_regions = {},
 
             csr_data_width       = csr_data_width,
@@ -3740,6 +3749,7 @@ def soc_core_args(parser, cpu_type="vexriscv", cpu_variant=None):
     soc_group.add_argument("--bus-bursting",      action="store_true",                                                               help="Enable burst cycles on the bus if supported.")
     soc_group.add_argument("--bus-interconnect",  default="shared",                   choices=SoCBusHandler.supported_interconnect,  help="Select bus interconnect.")
     soc_group.add_argument("--bus-arbiter",       default="default",                  choices=SoCBusHandler.supported_arbiter,        help="Select bus arbiter.")
+    soc_group.add_argument("--bus-low-latency",  action="store_true",                                                               help="Enable low-latency bus bridges when available.")
 
     # CPU parameters.
     soc_group.add_argument("--cpu-type",                 default="vexriscv",                 help="Select CPU: {}.".format(", ".join(map(str, cpu.CPUS.keys()))))
