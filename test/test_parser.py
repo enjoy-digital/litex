@@ -128,6 +128,16 @@ class TestLiteXArgumentParserCPUArguments(unittest.TestCase):
         self.assertEqual(args.cpu_variant, "full+cfu")
         self.assertEqual(args.cpu_cfu,  "cfu.v")
 
+    def test_bus_arbiter_is_forwarded_to_soc_argdict(self):
+        parser = self.make_parser()
+
+        parser.parse_args([
+            "--bus-arbiter=transaction",
+            "--no-build-log",
+        ])
+
+        self.assertEqual(parser.soc_argdict["bus_arbiter"], "transaction")
+
 
 class TestLiteXArgumentParserXilinxToolchainArguments(unittest.TestCase):
     def make_parser(self):

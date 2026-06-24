@@ -308,6 +308,20 @@ class TestSoCBusHandler(unittest.TestCase):
         with _assert_raises_soc_error(self):
             SoCBusHandler(standard="axi", addressing="word")
 
+    def test_bus_arbiter_transaction_is_wishbone_only(self):
+        self.assertEqual(SoCBusHandler(standard="wishbone").arbiter, "default")
+        self.assertEqual(
+            SoCBusHandler(
+                standard = "wishbone",
+                arbiter  = "transaction",
+            ).arbiter,
+            "transaction",
+        )
+        with _assert_raises_soc_error(self):
+            SoCBusHandler(standard="axi-lite", arbiter="transaction")
+        with _assert_raises_soc_error(self):
+            SoCBusHandler(standard="axi", arbiter="transaction")
+
     def test_address_width_conversion_between_bus_standards(self):
         wishbone_bus = SoCBusHandler(standard="wishbone", data_width=32, address_width=32)
         axi_bus      = SoCBusHandler(standard="axi",      data_width=64, address_width=32)

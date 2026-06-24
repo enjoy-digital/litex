@@ -575,6 +575,53 @@ class TestWishbone(unittest.TestCase):
 # Arbiter ------------------------------------------------------------------------------------------
 
 class TestWishboneArbiter(unittest.TestCase):
+    def grant_after_termination_test(self, mode, termination, expected_grant):
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.m0     = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.m1     = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.target = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+                self.arbiter = wishbone.Arbiter(
+                    masters = [self.m0, self.m1],
+                    target  = self.target,
+                    mode    = mode,
+                )
+
+        dut = DUT()
+
+        def gen():
+            yield dut.m0.cyc.eq(1)
+            yield dut.m1.cyc.eq(1)
+            yield
+            self.assertEqual((yield dut.arbiter.rr.grant), 0)
+            yield getattr(dut.target, termination).eq(1)
+            yield
+            yield
+            self.assertEqual((yield dut.arbiter.rr.grant), expected_grant)
+
+        run_simulation(dut, gen())
+
+    def test_cycle_mode_keeps_grant_until_current_master_withdraws(self):
+        self.grant_after_termination_test(
+            mode           = "cycle",
+            termination    = "ack",
+            expected_grant = 0,
+        )
+
+    def test_transaction_mode_can_switch_after_ack(self):
+        self.grant_after_termination_test(
+            mode           = "transaction",
+            termination    = "ack",
+            expected_grant = 1,
+        )
+
+    def test_transaction_mode_can_switch_after_err(self):
+        self.grant_after_termination_test(
+            mode           = "transaction",
+            termination    = "err",
+            expected_grant = 1,
+        )
+
     def test_two_masters_one_slave(self):
         # Two masters share a single SRAM slave via a round-robin Arbiter. Each master does a
         # write followed by a read at its own address and must see its own value.
