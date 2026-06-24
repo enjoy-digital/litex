@@ -97,11 +97,17 @@ class VexiiRiscv(CPU):
 
     # Arch for GCC march.
     def get_gcc_arch():
-        # Workaround: add exception for extensions that are not supported
-        # by the GCC in default build.
-        ex = ["zicbom", "zicntr", "zicsr", "zifencei", "zihpm", "sscofpmf"]
+        # Keep BIOS/toolchain flags conservative. Vexii can expose privileged
+        # or recent extensions that the default GCC might not support.
+        arch = f"rv{VexiiRiscv.xlen}i2p0"
+        isas = ""
+        for isa in "mafdc":
+            if isa in VexiiRiscv.isa_map:
+                isas += isa
 
-        return VexiiRiscv.get_arch(ex)
+        if isas:
+            arch += "_" + isas
+        return arch
 
     # Memory Mapping.
     @property
@@ -191,7 +197,7 @@ class VexiiRiscv(CPU):
         add_soc_arg("--l2-self-flush", default=None,        help="VexiiRiscv L2 ways will self flush on from,to,cycles")
         # Vexii: interrupts
         add_soc_arg("--with-aplic",                  action="store_true",   help="Enable APLIC.")
-        add_soc_arg("--imsic-interrupts", dest="imsic_interrupt_number", forward=False, default=0, type=int, help="VexiiRiscv IMSIC interrupts, 0 disables this feature.")
+        add_soc_arg("--imsic-interrupts", dest="imsic_interrupt_number", socgen_name="imsic-interrupt-number", default=0, type=int, help="VexiiRiscv IMSIC interrupts, 0 disables this feature.")
         # Vexii: peripherals
         add_soc_arg("--vexii-video", dest="video",  action="append", default=[], help="Add the memory coherent video controller")
         add_soc_arg("--vexii-macsg", dest="mac_sg", action="append", default=[], help="Add the memory coherent ethernet mac")
