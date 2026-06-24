@@ -374,13 +374,20 @@ class InterconnectPointToPoint(LiteXModule):
 
 
 class Arbiter(LiteXModule):
-    def __init__(self, masters=None, target=None, controllers=None):
+    def __init__(self, masters=None, target=None, controllers=None, mode="cycle"):
         assert target is not None
         assert (masters is not None) or (controllers is not None)
         if controllers is not None:
             masters = controllers
 
-        self.rr = roundrobin.RoundRobin(len(masters))
+        if mode == "cycle":
+            self.rr = roundrobin.RoundRobin(len(masters))
+        elif mode == "transaction":
+            self.rr = roundrobin.RoundRobin(len(masters), roundrobin.SP_CE)
+            cycs = Array(m.cyc for m in masters)
+            self.comb += self.rr.ce.eq(target.ack | target.err | ~cycs[self.rr.grant])
+        else:
+            raise ValueError(f"Unsupported Wishbone Arbiter mode: {mode}.")
 
         # mux master->slave signals
         for name, size, direction in _layout:
@@ -446,18 +453,18 @@ class Decoder(LiteXModule):
 
 
 class InterconnectShared(LiteXModule):
-    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
+    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6, arbiter="cycle"):
         data_width, addressing = get_check_parameters(ports=masters + [s for _, s in slaves])
         adr_width = max([m.adr_width for m in masters])
         shared = Interface(data_width=data_width, adr_width=adr_width, addressing=addressing)
-        self.arbiter = Arbiter(masters, shared)
+        self.arbiter = Arbiter(masters, shared, mode=arbiter)
         self.decoder = Decoder(shared, slaves, register)
         if timeout_cycles is not None:
             self.timeout = Timeout(shared, timeout_cycles)
 
 
 class Crossbar(LiteXModule):
-    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
+    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6, arbiter="cycle"):
         data_width, addressing = get_check_parameters(ports=masters + [s for _, s in slaves])
         matches, busses = zip(*slaves)
         adr_width = max([m.adr_width for m in masters])
@@ -468,7 +475,7 @@ class Crossbar(LiteXModule):
             self.submodules += Decoder(master, row, register)
         # arbitrate each access column onto its slave
         for column, bus in zip(zip(*access), busses):
-            self.submodules += Arbiter(column, bus)
+            self.submodules += Arbiter(column, bus, mode=arbiter)
 
 # Wishbone Data Width Converter --------------------------------------------------------------------
 

@@ -184,6 +184,7 @@ class SoCBusHandler(LiteXModule):
     supported_address_width = [32, 64]
     supported_addressing    = ["word", "byte"]
     supported_interconnect  = ["shared", "crossbar"]
+    supported_arbiter       = ["default", "transaction"]
 
     # Creation -------------------------------------------------------------------------------------
     def __init__(self, name="SoCBusHandler",
@@ -194,6 +195,7 @@ class SoCBusHandler(LiteXModule):
         timeout          = int(1e6),
         bursting         = False,
         interconnect     = "shared", interconnect_register=True,
+        arbiter          = "default",
         reserved_regions = None,
     ):
         self.logger = logging.getLogger(name)
@@ -253,6 +255,17 @@ class SoCBusHandler(LiteXModule):
             raise SoCError()
         if timeout is not None:
             timeout = int(timeout)
+        if arbiter not in self.supported_arbiter:
+            self.logger.error("Unsupported {} {}, supported are: {:s}".format(
+                colorer("Bus Arbiter", color="red"),
+                colorer(arbiter),
+                colorer(", ".join(self.supported_arbiter))))
+            raise SoCError()
+        if standard != "wishbone" and arbiter != "default":
+            self.logger.error("{} can only be used with {} Bus.".format(
+                colorer("Bus Arbiter", color="red"),
+                colorer("Wishbone")))
+            raise SoCError()
 
         # Create Bus
         self.standard              = standard
@@ -262,6 +275,7 @@ class SoCBusHandler(LiteXModule):
         self.bursting              = bursting
         self.interconnect          = interconnect
         self.interconnect_register = interconnect_register
+        self.arbiter               = arbiter
         self.masters               = {}
         self.slaves                = {}
         self.regions               = {}
@@ -902,12 +916,18 @@ class SoCBusHandler(LiteXModule):
                     "shared"  : interconnect_shared_cls,
                     "crossbar": interconnect_crossbar_cls,
                 }[self.interconnect]
-                self._interconnect = interconnect_cls(
+                interconnect_kwargs = dict(
                     masters        = list(self.masters.values()),
                     slaves         = [(self.regions[n].decoder(self), s) for n, s in self.slaves.items()],
                     register       = self.interconnect_register,
-                    timeout_cycles = self.timeout
+                    timeout_cycles = self.timeout,
                 )
+                if self.standard == "wishbone":
+                    interconnect_kwargs["arbiter"] = {
+                        "default"     : "cycle",
+                        "transaction" : "transaction",
+                    }[self.arbiter]
+                self._interconnect = interconnect_cls(**interconnect_kwargs)
             self.logger.info("Interconnect: {} ({} <-> {}).".format(
                 colorer(self._interconnect.__class__.__name__),
                 colorer(len(self.masters)),
@@ -1260,6 +1280,7 @@ class SoC(LiteXModule):
         bus_timeout          = int(1e6),
         bus_bursting         = False,
         bus_interconnect     = "shared",
+        bus_arbiter          = "default",
         bus_reserved_regions = None,
 
         csr_data_width       = 32,
@@ -1310,6 +1331,7 @@ class SoC(LiteXModule):
             timeout          = bus_timeout,
             bursting         = bus_bursting,
             interconnect     = bus_interconnect,
+            arbiter          = bus_arbiter,
             reserved_regions = bus_reserved_regions,
            )
 
@@ -3441,6 +3463,7 @@ class SoCCore(LiteXSoC):
         bus_timeout                = int(1e6),
         bus_bursting               = False,
         bus_interconnect           = "shared",
+        bus_arbiter                = "default",
 
         # CPU parameters.
         cpu_type                   = "vexriscv",
@@ -3521,6 +3544,7 @@ class SoCCore(LiteXSoC):
             bus_timeout          = bus_timeout,
             bus_bursting         = bus_bursting,
             bus_interconnect     = bus_interconnect,
+            bus_arbiter          = bus_arbiter,
             bus_reserved_regions = {},
 
             csr_data_width       = csr_data_width,
@@ -3715,6 +3739,7 @@ def soc_core_args(parser, cpu_type="vexriscv", cpu_variant=None):
     soc_group.add_argument("--bus-timeout",       default=int(1e6),    type=auto_int,                                                help="Bus timeout in cycles.")
     soc_group.add_argument("--bus-bursting",      action="store_true",                                                               help="Enable burst cycles on the bus if supported.")
     soc_group.add_argument("--bus-interconnect",  default="shared",                   choices=SoCBusHandler.supported_interconnect,  help="Select bus interconnect.")
+    soc_group.add_argument("--bus-arbiter",       default="default",                  choices=SoCBusHandler.supported_arbiter,        help="Select bus arbiter.")
 
     # CPU parameters.
     soc_group.add_argument("--cpu-type",                 default="vexriscv",                 help="Select CPU: {}.".format(", ".join(map(str, cpu.CPUS.keys()))))
