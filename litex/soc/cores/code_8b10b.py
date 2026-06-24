@@ -30,6 +30,9 @@ from litex.soc.interconnect import stream
 def K(x, y):
     return (y << 5) | x
 
+def D(x, y):
+    return (y << 5) | x
+
 def disparity(word, nbits):
     n0 = 0
     n1 = 0
@@ -150,7 +153,7 @@ table_4b3b_kp[0b0111] = 0b111
 # Single Encoder -----------------------------------------------------------------------------------
 
 @CEInserter()
-class SingleEncoder(Module):
+class SingleEncoder(LiteXModule):
     def __init__(self, lsb_first=False):
         self.d        = Signal(8)
         self.k        = Signal()
@@ -249,7 +252,7 @@ class SingleEncoder(Module):
 
 # Encoder ------------------------------------------------------------------------------------------
 
-class Encoder(Module):
+class Encoder(LiteXModule):
     def __init__(self, nwords=1, lsb_first=False):
         self.ce = Signal(reset=1)
         self.d  = [Signal(8) for _ in range(nwords)]
@@ -280,8 +283,8 @@ class Encoder(Module):
 
 # Decoder ------------------------------------------------------------------------------------------
 
-class Decoder(Module):
-    def __init__(self, lsb_first=False):
+class Decoder(LiteXModule):
+    def __init__(self, lsb_first=False, sync=True):
         self.ce      = Signal(reset=1)
         self.input   = Signal(10)
         self.d       = Signal(8)
@@ -289,6 +292,9 @@ class Decoder(Module):
         self.invalid = Signal()
 
         # # #
+
+        # Destination Domain.
+        self.dom = self.sync if sync else self.comb
 
         input_msb_first = Signal(10)
         if lsb_first:
@@ -303,12 +309,12 @@ class Decoder(Module):
         code3b = Signal(3, reset_less=True)
 
         mem_6b5b  = Memory(5, len(table_6b5b), init=table_6b5b)
-        port_6b5b = mem_6b5b.get_port(has_re=True)
+        port_6b5b = mem_6b5b.get_port(has_re=True, async_read=not sync)
         self.specials += mem_6b5b, port_6b5b
         self.comb += port_6b5b.adr.eq(code6b)
         self.comb += port_6b5b.re.eq(self.ce)
 
-        self.sync += If(self.ce,
+        self.dom += If(self.ce,
             self.k.eq(0),
             If(code6b == 0b001111,
                 self.k.eq(1),
@@ -334,7 +340,7 @@ class Decoder(Module):
         # Basic invalid symbols detection: check that we have 4,5 or 6 ones in the symbol. This does
         # not report all invalid symbols but still allow detecting issues with the link.
         ones = Signal(4, reset_less=True)
-        self.sync += If(self.ce, ones.eq(Reduce("ADD", [self.input[i] for i in range(10)])))
+        self.dom  += If(self.ce, ones.eq(Reduce("ADD", [self.input[i] for i in range(10)])))
         self.comb += self.invalid.eq((ones != 4) & (ones != 5) & (ones != 6))
 
 
@@ -349,8 +355,7 @@ class StreamEncoder(stream.PipelinedActor):
         # # #
 
         # Encoders
-        encoder = Encoder(nwords, True)
-        self.submodules += encoder
+        self.encoder = encoder = Encoder(nwords, True)
 
         # Control
         self.comb += encoder.ce.eq(self.pipe_ce)

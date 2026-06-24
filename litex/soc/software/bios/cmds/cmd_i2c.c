@@ -34,31 +34,36 @@ static void i2c_write_handler(int nb_params, char **params)
 	unsigned char write_params[32];  // also indirectly limited by CMD_LINE_BUFFER_SIZE
 
 	if (nb_params < 3) {
-		printf("i2c_write <slaveaddr7bit> <addr> <addr_size> [<data>, ...]");
+		printf("i2c_write <slaveaddr7bit> <addr> <addr_size> [<data>, ...]\n");
 		return;
 	}
 
 	addr = strtoul(params[1], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect value of parameter addr");
+		printf("Error: invalid addr\n");
 		return;
 	}
 
-	if (nb_params - 1 > sizeof(write_params)) {
-		printf("Max data length is %zu", sizeof(write_params));
+	if (nb_params > (int)sizeof(write_params)) {
+		printf("Error: maximum data length is %zu\n", sizeof(write_params) - 3);
 		return;
 	}
 
 	for (i = 0; i < nb_params; ++i) {
 		write_params[i] = strtoul(params[i], &c, 0);
 		if (*c != 0) {
-			printf("Incorrect value of parameter %d", i);
+			printf("Error: invalid parameter %d\n", i);
 			return;
 		}
 	}
 
+	if ((write_params[2] < 1) || (write_params[2] > 4)) {
+		printf("Error: addr_size needs to be between 1 and 4\n");
+		return;
+	}
+
 	if (!i2c_write(write_params[0], addr, &write_params[3], nb_params - 3, write_params[2])) {
-		printf("Error during I2C write");
+		printf("Error: I2C write failed\n");
 		return;
 	}
 }
@@ -81,36 +86,36 @@ static void i2c_read_handler(int nb_params, char **params)
 	unsigned int addr_size = 1;
 
 	if (nb_params < 3) {
-		printf("i2c_read <slaveaddr7bit> <addr> <len> [<send_stop>] [<addr_size>]");
+		printf("i2c_read <slaveaddr7bit> <addr> <len> [<send_stop>] [<addr_size>]\n");
 		return;
 	}
 
 	slave_addr = strtoul(params[0], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect slave address");
+		printf("Error: invalid slave address\n");
 		return;
 	}
 
 	addr = strtoul(params[1], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect memory address");
+		printf("Error: invalid memory address\n");
 		return;
 	}
 
 	len = strtoul(params[2], &c, 0);
 	if (*c != 0) {
-		printf("Incorrect data length");
+		printf("Error: invalid data length\n");
 		return;
 	}
 	if (len > sizeof(buf)) {
-		printf("Max data count is %zu", sizeof(buf));
+		printf("Error: maximum data count is %zu\n", sizeof(buf));
 		return;
 	}
 
 	if (nb_params > 3) {
 		send_stop = strtoul(params[3], &c, 0) != 0;
 		if (*c != 0) {
-			printf("Incorrect send_stop value");
+			printf("Error: invalid send_stop value\n");
 			return;
 		}
 	}
@@ -118,17 +123,17 @@ static void i2c_read_handler(int nb_params, char **params)
 	if (nb_params > 4) {
 		addr_size = strtoul(params[4], &c, 0);
 		if (*c != 0) {
-			printf("Incorrect addr_size value");
+			printf("Error: invalid addr_size value\n");
 			return;
 		}
 		if ((addr_size<1) || (addr_size>4)) {
-			printf("addr_size needs to be between 1 and 4");
+			printf("Error: addr_size needs to be between 1 and 4\n");
 			return;
 		}
 	}
 
 	if (!i2c_read(slave_addr, addr, buf, len, send_stop, addr_size)) {
-		printf("Error during I2C read");
+		printf("Error: I2C read failed\n");
 		return;
 	}
 
@@ -183,7 +188,7 @@ static void i2c_dev_handler(int nb_params, char **params)
 	if (nb_params == 1) {
 		dev_index = strtoul(params[0], &c, 0);
 		if ((*c != 0) || (dev_index >= get_i2c_devs_count())) {
-			printf("Incorrect device index");
+			printf("Error: invalid device index\n");
 			return;
 		}
 		set_i2c_active_dev(dev_index);

@@ -49,6 +49,13 @@ SECTIONS
    PROVIDE_HIDDEN (__bios_init_end = .);
 } > sram
 
+.boot_methods (ALIGN(64)) :
+{
+   PROVIDE_HIDDEN (__bios_boot_start = .);
+   KEEP(*(.bios_boot))
+   PROVIDE_HIDDEN (__bios_boot_end = .);
+} > sram
+
 .fini (ALIGN(64)) : {
    KEEP (*(.fini))
 } > sram

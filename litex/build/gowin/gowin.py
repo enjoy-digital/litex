@@ -9,6 +9,7 @@ import os
 import sys
 import math
 import subprocess
+import platform
 from shutil import which, copyfile
 
 from migen.fhdl.structure import _Fragment
@@ -17,6 +18,71 @@ from litex.build.generic_toolchain import GenericToolchain
 from litex.build.generic_platform import *
 from litex.build import tools
 
+# Constraints (.cst) -------------------------------------------------------------------------------
+
+def _is_differential_iostandard(iostandard):
+    name = iostandard.name.upper()
+    return name.endswith("D") or "LVDS" in name
+
+def _use_differential_constraint(other):
+    iostandards = [c for c in other if isinstance(c, IOStandard)]
+    if not iostandards:
+        return True
+    return any(_is_differential_iostandard(iostandard) for iostandard in iostandards)
+
+def _build_cst(named_sc, named_pc, additional_cst_commands, build_name):
+    cst = []
+
+    flat_sc = []
+    for name, pins, other, resource in named_sc:
+        if len(pins) > 1:
+            for i, p in enumerate(pins):
+                flat_sc.append((f"{name}[{i}]", p, other))
+        else:
+            flat_sc.append((name, pins[0], other))
+
+    def _search_pin_entry(pin_lst, pin_name):
+        for name, pin, other in pin_lst:
+            if pin_name == name:
+                return (name, pin, other)
+        return (None, None, None)
+
+    for name, pin, other in flat_sc:
+        if pin != "X":
+            t_name = name.split('[') # avoid index pins
+            tmp_name = t_name[0]
+            if tmp_name[-2:] == "_p" and _use_differential_constraint(other):
+                pn = tmp_name[:-2] + "_n"
+                if len(t_name) > 1:
+                    pn += '[' + t_name[1]
+                (_, n_pin, _) = _search_pin_entry(flat_sc, pn)
+                if n_pin is not None:
+                    pin = f"{pin},{n_pin}"
+            elif tmp_name[-2:] == "_n":
+                pp = tmp_name[:-2] + "_p"
+                if len(t_name) > 1:
+                    pp += '[' + t_name[1]
+                (p_name, _, p_other) = _search_pin_entry(flat_sc, pp)
+                if p_name is not None and _use_differential_constraint(p_other):
+                    continue
+            cst.append(f"IO_LOC \"{name}\" {pin};")
+
+        other_cst = []
+        for c in other:
+            if isinstance(c, IOStandard):
+                other_cst.append(f"IO_TYPE={c.name}")
+            elif isinstance(c, Misc):
+                other_cst.append(f"{c.misc}")
+        if len(other_cst):
+            t = " ".join(other_cst)
+            cst.append(f"IO_PORT \"{name}\" {t};")
+
+    if named_pc:
+        cst.extend(named_pc)
+
+    cst.extend(additional_cst_commands)
+
+    tools.write_to_file(build_name + ".cst", "\n".join(cst))
 
 # GowinToolchain -----------------------------------------------------------------------------------
 
@@ -26,6 +92,8 @@ class GowinToolchain(GenericToolchain):
     def __init__(self):
         super().__init__()
         self.options = {}
+        self.additional_cst_commands = []
+        self.additional_tcl_commands = []
 
     def finalize(self):
         if self.platform.verilog_include_paths:
@@ -59,38 +127,26 @@ class GowinToolchain(GenericToolchain):
     # Constraints (.cst ) --------------------------------------------------------------------------
 
     def build_io_constraints(self):
-        cst = []
-
-        flat_sc = []
-        for name, pins, other, resource in self.named_sc:
-            if len(pins) > 1:
-                for i, p in enumerate(pins):
-                    flat_sc.append((f"{name}[{i}]", p, other))
-            else:
-                flat_sc.append((name, pins[0], other))
-
-        for name, pin, other in flat_sc:
-            if pin != "X":
-                cst.append(f"IO_LOC \"{name}\" {pin};")
-
-            for c in other:
-                if isinstance(c, IOStandard):
-                    cst.append(f"IO_PORT \"{name}\" IO_TYPE={c.name};")
-                elif isinstance(c, Misc):
-                    cst.append(f"IO_PORT \"{name}\" {c.misc};")
-
-        if self.named_pc:
-            cst.extend(self.named_pc)
-
-        tools.write_to_file(f"{self._build_name}.cst", "\n".join(cst))
+        _build_cst(self.named_sc, self.named_pc, self.additional_cst_commands, self._build_name)
         return (f"{self._build_name}.cst", "CST")
 
     # Timing Constraints (.sdc ) -------------------------------------------------------------------
 
     def build_timing_constraints(self, vns):
         sdc = []
-        for clk, period in sorted(self.clocks.items(), key=lambda x: x[0].duid):
-            sdc.append(f"create_clock -name {vns.get_name(clk)} -period {str(period)} [get_ports {{{vns.get_name(clk)}}}]")
+        for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
+            clk_sig = self._vns.get_name(clk)
+            if name is None:
+                name = clk_sig
+            # Constrain IO clocks with get_ports and internal clocks (ex: PLL outputs) with get_nets.
+            is_port = False
+            for sig, pins, others, resname in self.named_sc:
+                if sig == clk_sig:
+                    is_port = True
+            if is_port:
+                sdc.append(f"create_clock -name {name} -period {str(period)} [get_ports {{{clk_sig}}}]")
+            else:
+                sdc.append(f"create_clock -name {name} -period {str(period)} [get_nets {{{clk_sig}}}]")
         tools.write_to_file(f"{self._build_name}.sdc", "\n".join(sdc))
         return (f"{self._build_name}.sdc", "SDC")
 
@@ -109,7 +165,7 @@ class GowinToolchain(GenericToolchain):
         tcl.append(f"add_file {self._build_name}.sdc")
 
         # Add Sources.
-        for f, typ, lib in self.platform.sources:
+        for f, typ, lib, *_ in self.platform.sources:
             # Support windows/powershell
             if sys.platform == "win32":
                 f = f.replace("\\", "\\\\")
@@ -118,6 +174,10 @@ class GowinToolchain(GenericToolchain):
         # Set Options.
         for opt, val in self.options.items():
             tcl.append(f"set_option -{opt} {val}")
+
+        # Additionals Commands.
+        for additional_tcl_command in self.additional_tcl_commands:
+            tcl.append(additional_tcl_command)
 
         # Run.
         tcl.append("run all")
@@ -134,16 +194,33 @@ class GowinToolchain(GenericToolchain):
         # Support Powershell/WSL platform
         # Some python distros for windows (e.g, oss-cad-suite)
         # which does not have 'os.uname' support, we should check 'sys.platform' firstly.
-        gw_sh = "gw_sh"
-        if sys.platform.find("linux") >= 0:
-            if os.uname().release.find("WSL") > 0:
-                gw_sh += ".exe"
-        if which(gw_sh) is None:
+        gw_sh      = "gw_sh"
+        gw_sh_path = which(gw_sh)
+
+        if gw_sh_path is None:
             msg = "Unable to find Gowin toolchain, please:\n"
             msg += "- Add Gowin toolchain to your $PATH."
             raise OSError(msg)
 
-        if subprocess.call([gw_sh, "run.tcl"]) != 0:
+        # Resolve the path in case it is a symlink.
+        gw_sh_path = os.path.realpath(gw_sh_path)
+
+        # Prefer Gowin's bundled libs (avoids Qt/libstdc++ version mismatches).
+        env           = os.environ.copy()
+        export_values = {
+            True:  ["DYLD_LIBRARY_PATH", "DYLD_FRAMEWORK_PATH"],
+            False: ["LD_LIBRARY_PATH"]
+        }[platform.system() == "Darwin"]
+
+        # Based on gw_sh path gowin_lib is 1 directory before
+        # So split path, removes binary name and bin directory
+        # Before rebuilding the path
+        gowin_lib = os.path.join(os.path.dirname(os.path.dirname(gw_sh_path)), "lib")
+
+        if os.path.isdir(gowin_lib):
+            for value in export_values:
+                env[value] = gowin_lib + ((":" + env[value]) if env.get(value) else "")
+        if subprocess.call([gw_sh, "run.tcl"], env=env) != 0:
             raise OSError("Error occured during Gowin's script execution.")
 
         # Copy Bitstream to from impl to gateware directory.

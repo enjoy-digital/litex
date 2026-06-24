@@ -1,13 +1,15 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2018-2022 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2018-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2020 Antmicro <www.antmicro.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 """AXI4-Full/Lite support for LiteX"""
 
 from migen import *
+
+from litex.gen import *
 
 from litex.soc.interconnect import stream
 from litex.build.generic_platform import *
@@ -57,7 +59,8 @@ class AXIStreamInterface(stream.Endpoint):
         return ios
 
     def connect_to_pads(self, pads, mode="master"):
-        assert mode in ["slave", "master"]
+        if mode not in ["slave", "master"]:
+            raise ValueError("Unsupported AXI-Stream pads mode: {}.".format(mode))
         r = []
         if mode == "master":
             # Control Signals.

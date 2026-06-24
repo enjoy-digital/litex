@@ -5,13 +5,15 @@
 # Copyright (c) 2017 William D. Jones <thor0505@comcast.net>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
+
 from litex.build.generic_platform import GenericPlatform
 from litex.build.lattice import common, diamond, icestorm, trellis, radiant, oxide
 
 # LatticePlatform ----------------------------------------------------------------------------------
 
 class LatticePlatform(GenericPlatform):
-    bitstream_ext = ".bit"
+    _bitstream_ext = ".bit"
 
     _supported_toolchains = {
         "ice40" : ["icestorm"],
@@ -21,12 +23,15 @@ class LatticePlatform(GenericPlatform):
 
     def __init__(self, *args, toolchain="diamond", **kwargs):
         GenericPlatform.__init__(self, *args, **kwargs)
+        self.ips      = set()
+        self.sdcs     = set()
+        self.strategy = set()
         if toolchain == "diamond":
             self.toolchain = diamond.LatticeDiamondToolchain()
         elif toolchain == "trellis":
             self.toolchain = trellis.LatticeTrellisToolchain()
         elif toolchain == "icestorm":
-            self.bitstream_ext = ".bin"
+            self._bitstream_ext = ".bin"
             self.toolchain = icestorm.LatticeIceStormToolchain()
         elif toolchain == "radiant":
             self.toolchain = radiant.LatticeRadiantToolchain()
@@ -35,6 +40,15 @@ class LatticePlatform(GenericPlatform):
         else:
             raise ValueError(f"Unknown toolchain {toolchain}")
 
+    def add_ip(self, filename):
+        self.ips.add((os.path.abspath(filename)))
+
+    def add_sdc(self, filename):
+        self.sdcs.add((os.path.abspath(filename)))
+
+    def add_strategy(self, filename, strategy_name):
+        self.strategy.add((os.path.abspath(filename), strategy_name))
+
     def get_verilog(self, *args, special_overrides=dict(), **kwargs):
         so = dict()  # No common overrides between ECP5 and iCE40.
         so.update(self.toolchain.special_overrides)
@@ -42,16 +56,11 @@ class LatticePlatform(GenericPlatform):
         return GenericPlatform.get_verilog(self, *args,
             special_overrides = so,
             attr_translate    = self.toolchain.attr_translate,
-            **kwargs)
+            **kwargs
+        )
 
     def build(self, *args, **kwargs):
         return self.toolchain.build(self, *args, **kwargs)
-
-    def add_period_constraint(self, clk, period):
-        if clk is None: return
-        if hasattr(clk, "p"):
-            clk = clk.p
-        self.toolchain.add_period_constraint(self, clk, period)
 
     def add_false_path_constraint(self, from_, to):
         if hasattr(from_, "p"):

@@ -30,6 +30,7 @@ class SimPlatform(GenericPlatform):
             raise ValueError(f"Unknown toolchain {toolchain}")
         # we must always request the sim_trace signal
         self.trace = self.request("sim_trace")
+        self.trace.reset = 1
 
     def request(self, name, number=None, loose=False):
         index = ""

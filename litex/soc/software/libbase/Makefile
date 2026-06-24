@@ -5,13 +5,16 @@ OBJECTS =  \
 	crc16.o    \
 	crc32.o    \
 	console.o  \
+	format.o   \
 	system.o   \
 	progress.o \
 	memtest.o  \
 	uart.o     \
+	startup.o  \
 	spiflash.o \
 	i2c.o \
-	isr.o
+	isr.o \
+	hyperram.o
 
 all: libbase.a
 

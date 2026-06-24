@@ -4,64 +4,277 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
+    # Four-way test split: each shard installs LiteX once and runs a
+    # quarter of the test suite with pytest-xdist `-n auto` on top. On a
+    # 4-core runner that means 16 effective workers across the four shards.
+    # test_integration's ~30 parametrized boot tests — which dominate
+    # wall-clock — end up ~7-8 per shard instead of ~30, roughly quartering
+    # the test phase. No cross-job orchestration needed (no artifact,
+    # shared state only via the Verilator / OSS CAD Suite caches).
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4]
     steps:
       # Checkout Repository
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Setup CCache
-        uses: hendrikmuhs/ccache-action@v1
-
-      - uses: ghdl/setup-ghdl-ci@nightly
-        with:
-          backend: llvm
+        uses: hendrikmuhs/ccache-action@v1.2
 
       # Install Tools
       - name: Install Tools
         run: |
-          sudo apt-get install wget build-essential python3 ninja-build
+          sudo apt-get install wget build-essential ninja-build help2man
+          sudo apt-get install pkg-config python3-venv libglib2.0-dev libpixman-1-dev libfdt-dev device-tree-compiler
           sudo apt-get install libevent-dev libjson-c-dev flex bison
-          sudo apt-get install libfl-dev libfl2 zlibc zlib1g-dev
-          pip3 install setuptools
-          pip3 install requests
-          pip3 install pexpect
-          pip3 install meson
+          sudo apt-get install libfl-dev libfl2 zlib1g-dev
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+          cache: "pip"
+          cache-dependency-path: "setup.py"
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install setuptools wheel requests pexpect meson distlib pytest pytest-xdist pytest-split
 
       # Install (n)Migen / LiteX / Cores
       - name: Install LiteX
         run: |
-          python3 litex_setup.py --config=full --init --install --user
+          python3 litex_setup.py --config=full --init --install --user --dev --clone-depth=1
 
-      # Install GCC Toolchains
+      # Install GCC Toolchains (cached). The packages below are what
+      # `litex_setup.py --gcc={riscv,openrisc,powerpc,mips}` resolves to on
+      # Ubuntu — bypass litex_setup here so the cache action can see the
+      # concrete package list and handle restore. On cache hit the .debs
+      # are replayed from cache; on miss apt install runs and repopulates.
       - name: Install GCC Toolchains
-        run: |
-          python3 litex_setup.py --gcc=riscv
-          sudo mkdir /usr/local/riscv
-          sudo cp -r $PWD/../riscv64-*/* /usr/local/riscv
-          python3 litex_setup.py --gcc=openrisc
-          sudo mkdir /usr/local/openrisc
-          sudo cp -r $PWD/../openrisc-*/* /usr/local/openrisc
-          sudo apt install gcc-powerpc64le-linux-gnu binutils-multiarch
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: gcc-riscv64-unknown-elf gcc-or1k-elf gcc-powerpc64le-linux-gnu gcc-mipsel-linux-gnu binutils-multiarch
+          version: 1.0
 
-      # Build / Install Verilator
+      # Install LM32 GCC Toolchain. Ubuntu does not currently package
+      # lm32-elf-gcc, so use the LiteX-Hub Conda package and expose only
+      # the lm32-elf-* tools to the regular test environment.
+      - name: Setup Conda for LM32 Toolchain
+        uses: conda-incubator/setup-miniconda@v4
+        with:
+          auto-update-conda: false
+          activate-environment: litex-toolchains
+          python-version: "3.9"
+          channels: litex-hub,conda-forge
+          channel-priority: flexible
+
+      - name: Install LM32 GCC Toolchain
+        shell: bash -el {0}
+        run: |
+          python3 litex_setup.py --dev --gcc=lm32
+          sudo ln -sf "$CONDA_PREFIX/bin"/lm32-elf-* /usr/local/bin/
+
+      # Cache OSS CAD Suite (keyed on pinned release version — cache hit
+      # skips the ~500 MB download from the YosysHQ release bucket).
+      - name: Cache OSS CAD Suite
+        id: oss-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/oss-cad-suite
+          key: oss-cad-suite-2025-05-30-ubuntu22
+
+      # Install OSS CAD Suite (only on cache miss). Direct curl to $HOME —
+      # deterministic install path, no tool-cache indirection.
+      - name: Install OSS CAD Suite
+        if: steps.oss-cache.outputs.cache-hit != 'true'
+        run: |
+          URL="https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2025-05-30/oss-cad-suite-linux-x64-20250530.tgz"
+          curl -fsSL "$URL" | tar xz -C "$HOME"
+
+      # Forward OSS CAD Suite env (PATH / LD_LIBRARY_PATH / GHDL_PREFIX / etc.)
+      # to subsequent steps. Runs whether cache hit or miss.
+      - name: Export OSS CAD Suite env
+        run: |
+          source "$HOME/oss-cad-suite/environment"
+          {
+            echo "PATH=$PATH"
+            for v in LD_LIBRARY_PATH PKG_CONFIG_PATH GHDL_PREFIX PY_VCD_PATH YOSYSHQ_ROOT; do
+              if [ -n "${!v:-}" ]; then
+                echo "$v=${!v}"
+              fi
+            done
+          } >> "$GITHUB_ENV"
+
+#      # Build / Install GHDL
+#      - name: Build GHDL
+#        run: |
+#          sudo apt-get install gnat llvm
+#          git clone https://github.com/ghdl/ghdl.git
+#          cd ghdl
+#          git checkout 1fc1bccd1a7c256c531bdd6dc8f9641f90eb8ea0
+#          ./configure --with-llvm-config
+#          make
+#          sudo make install
+
+      # Cache Verilator install (keyed on pinned commit SHA — cache hit
+      # skips the ~15 min build. Bumping the SHA invalidates the cache).
+      - name: Cache Verilator install
+        id: verilator-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/verilator-install
+          key: verilator-ubuntu22-7d2d32420a630befa4097170ecbf227e04e32522
+
+      # Build / Install Verilator (only on cache miss). `--prefix` under /tmp
+      # so the install tree is a self-contained cacheable directory.
       - name: Build Verilator
+        if: steps.verilator-cache.outputs.cache-hit != 'true'
         run: |
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           git clone https://github.com/verilator/verilator
           cd verilator
+          git checkout 7d2d32420a630befa4097170ecbf227e04e32522
           autoconf
-          ./configure
+          ./configure --prefix=/tmp/verilator-install
           make -j$(nproc)
-          sudo make install
+          make install
+
+      # Copy verilator (cached or freshly built) into the standard location.
+      - name: Install Verilator into /usr/local
+        run: sudo cp -a /tmp/verilator-install/. /usr/local/
 
       # Install Project
       - name: Install Project
         run: python3 setup.py develop --user
 
-      # Test
-      - name: Run Tests
+      # Build the patched QEMU once for the dedicated co-simulation
+      # integration test. The regular pytest shards skip this test unless
+      # LITEX_QEMU_COSIM_TEST is set by the step below.
+      - name: Build patched QEMU
+        if: matrix.group == 1
+        env:
+          LD_LIBRARY_PATH: ""
+          PKG_CONFIG_PATH: ""
         run: |
-          export PATH=/usr/local/riscv/bin:$PATH
-          export PATH=/usr/local/openrisc/bin:$PATH
-          python3 setup.py test
+          export PATH="${pythonLocation}/bin:${HOME}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          qemu_root="${RUNNER_TEMP}/qemu-litex"
+          # Use a mirrored 8.2.x archive so CI is not dependent on download.qemu.org.
+          # Keep parallelism low: this build only feeds one smoke test and can
+          # otherwise hit memory pressure on hosted runners.
+          qemu_build_log="${RUNNER_TEMP}/qemu-litex-build.log"
+          set +e
+          python3 litex/build/sim/qemu/build_qemu_litex.py \
+            --source=archive \
+            --qemu-ref=v8.2.2 \
+            --archive-url=https://sources.cdn.openwrt.org/qemu-8.2.2.tar.xz \
+            --src-dir="${qemu_root}/src" \
+            --install-dir="${qemu_root}/install" \
+            --targets=riscv32-softmmu \
+            --minimal-devices \
+            --system-fdt \
+            --disable-download \
+            --jobs=2 2>&1 | tee "${qemu_build_log}"
+          qemu_build_status=${PIPESTATUS[0]}
+          set -e
+          if [ "${qemu_build_status}" -ne 0 ]; then
+            qemu_build_tail="$(python3 -c 'import pathlib, sys; s = pathlib.Path(sys.argv[1]).read_text(errors="replace").replace("\r", "\n"); s = "\n".join(s.splitlines()[-80:]); print(s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))' "${qemu_build_log}")"
+            echo "::error title=Patched QEMU build failed::${qemu_build_tail}"
+            exit "${qemu_build_status}"
+          fi
+
+      - name: Check patched QEMU
+        if: matrix.group == 1
+        env:
+          LD_LIBRARY_PATH: ""
+          PKG_CONFIG_PATH: ""
+        run: |
+          export PATH="${pythonLocation}/bin:${HOME}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          qemu_root="${RUNNER_TEMP}/qemu-litex"
+          qemu_check_log="${RUNNER_TEMP}/qemu-litex-check.log"
+          set +e
+          python3 litex/build/sim/qemu/check_qemu_litex.py --variants=rv32 --qemu-dir="${qemu_root}/install/bin" 2>&1 | tee "${qemu_check_log}"
+          qemu_check_status=${PIPESTATUS[0]}
+          set -e
+          if [ "${qemu_check_status}" -ne 0 ]; then
+            qemu_check_tail="$(python3 -c 'import pathlib, sys; s = pathlib.Path(sys.argv[1]).read_text(errors="replace").replace("\r", "\n"); s = "\n".join(s.splitlines()[-80:]); print(s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))' "${qemu_check_log}")"
+            echo "::error title=Patched QEMU check failed::${qemu_check_tail}"
+            exit "${qemu_check_status}"
+          fi
+
+      - name: Run QEMU Co-Simulation Integration Test
+        if: matrix.group == 1
+        env:
+          LITEX_QEMU_COSIM_TEST: "1"
+          LD_LIBRARY_PATH: ""
+          PKG_CONFIG_PATH: ""
+        run: |
+          export PATH="${RUNNER_TEMP}/qemu-litex/install/bin:${pythonLocation}/bin:${HOME}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          python3 -m pytest -v test/test_integration.py::test_qemu_cpu
+
+      # Generate .test_durations so pytest-split's least_duration algorithm
+      # can pack shards optimally (longest tests first, fill remaining
+      # capacity with small tests). The alternative was a committed JSON
+      # with one entry per test — it would rot every time a test was added
+      # or renamed. Instead we emit it fresh each run from a tiny per-CPU
+      # duration table. Unknown CPUs default to a medium cost so new
+      # additions to TESTED_CPUS don't break balancing — they just aren't
+      # optimally placed until added here.
+      - name: Generate .test_durations
+        run: |
+          python3 - <<'PY'
+          import json, subprocess
+          out = subprocess.check_output(
+              ["python3", "-m", "pytest", "--collect-only", "-q"]
+          ).decode()
+          tests = [l.strip() for l in out.splitlines()
+                   if l.startswith("test/") and "::" in l]
+          # Rough per-CPU boot-time estimates (seconds). Order of magnitude
+          # matters more than precision — least_duration only uses these
+          # to rank. Refine from `--durations=0` log output if desired.
+          BOOT_TIMES = {
+              "blackparrot":  180,
+              "cdim":         180,
+              "cv32e40p":    120, "cv32e41p":    120,
+              "cva6":        480,
+              "femtorv":      60, "firev":        60, "serv":         45,
+              "gs232":        180,
+              "sentinel":    120, "minerva":     120, "lm32":        120,
+              "marocchino":  120, "mor1kx":       60, "microwatt":    300,
+              "vexriscv":    120, "neorv32":     150, "ibex":        150,
+              "picorv32":     60,
+              "naxriscv":    240, "vexiiriscv":  240, "vexriscv_smp":360,
+          }
+          d = {}
+          for t in tests:
+              if "::test_cpu[" in t:
+                  cpu = t.split("[", 1)[1].rstrip("]")
+                  d[t] = float(BOOT_TIMES.get(cpu, 120))
+              elif "::test_buses[" in t:
+                  d[t] = 100.0  # same default CPU, different bus cfg
+              elif "::test_csr_data_width_8" in t:
+                  d[t] = 120.0  # same default CPU, 8-bit CSR cfg
+              elif any(name in t for name in (
+                  "::test_linux_on_litex_rocket_ecpix5_generation",
+                  "::test_linux_on_litex_rocket_nexys_video_generation",
+              )):
+                  d[t] = 30.0   # software compile + no-gateware-compile generation smoke test
+              else:
+                  d[t] = 1.0    # in-process Migen sims are near-instant
+          with open(".test_durations", "w") as f:
+              json.dump(d, f, indent=2, sort_keys=True)
+          print(f"generated .test_durations for {len(d)} tests")
+          PY
+
+      # Test: pytest-xdist `-n auto` distributes across the runner's 4
+      # cores inside each shard; pytest-split `--splits 4 --group N`
+      # distributes across the four matrix shards using the .test_durations
+      # generated above. `--durations=0` logs every test's runtime — use
+      # it to refine the BOOT_TIMES table above if the shards are uneven.
+      - name: Run Tests (shard ${{ matrix.group }}/4)
+        run: |
+          python3 -m pytest -v -n auto --durations=0 \
+            --splits 4 --group ${{ matrix.group }} \
+            --splitting-algorithm least_duration

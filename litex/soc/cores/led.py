@@ -5,20 +5,39 @@
 # Copyright (c) 2022 Wolfgang Nagele <mail@wnagele.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import math
-
 from migen import *
-from migen.genlib.misc import WaitTimer
+
+from litex.gen import *
+from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect.csr import *
-from litex.soc.interconnect import wishbone
+from litex.soc.interconnect import axi, wishbone
 
 # Led Chaser ---------------------------------------------------------------------------------------
 
 _CHASER_MODE  = 0
 _CONTROL_MODE = 1
 
-class LedChaser(Module, AutoCSR):
+def _get_word_address(address):
+    if address is None:
+        raise ValueError("bus_base must be specified when bus_mastering=True")
+    if isinstance(address, int):
+        if address & 0x3:
+            raise ValueError("bus_base must be 32-bit aligned")
+        return address >> 2
+    return address[2:]
+
+def _validate_nleds(nleds):
+    if nleds <= 0:
+        raise ValueError("nleds must be greater than 0")
+
+def _timer_count(timing, sys_clk_freq, name, latency=0):
+    count = int(timing*sys_clk_freq - latency)
+    if count <= 0:
+        raise ValueError(f"sys_clk_freq too low for {name} timing")
+    return count
+
+class LedChaser(LiteXModule):
     def __init__(self, pads, sys_clk_freq, period=1e0, polarity=0):
         self.pads     = pads
         self.polarity = polarity
@@ -30,12 +49,12 @@ class LedChaser(Module, AutoCSR):
 
         chaser = Signal(self.n)
         mode   = Signal(reset=_CHASER_MODE)
-        timer  = WaitTimer(int(period*sys_clk_freq/(2*self.n)))
+        timer  = WaitTimer(period*sys_clk_freq/(2*self.n))
         leds   = Signal(self.n)
         self.submodules += timer
         self.comb += timer.wait.eq(~timer.done)
         self.sync += If(timer.done, chaser.eq(Cat(~chaser[-1], chaser)))
-        self.sync += If(self._out.re, mode.eq(_CONTROL_MODE))
+        self.sync += If(self._out.wr_stb, mode.eq(_CONTROL_MODE))
         self.comb += [
             If(mode == _CONTROL_MODE,
                 leds.eq(self._out.storage)
@@ -47,7 +66,7 @@ class LedChaser(Module, AutoCSR):
 
     def add_pwm(self, default_width=512, default_period=1024, with_csr=True):
         from litex.soc.cores.pwm import PWM
-        self.submodules.pwm = PWM(
+        self.pwm = PWM(
             with_csr       = with_csr,
             default_enable = 1,
             default_width  = default_width,
@@ -57,125 +76,71 @@ class LedChaser(Module, AutoCSR):
         self.comb += If(~self.pwm.pwm, self.pads.eq(self.polarity*(2**self.n-1)))
 
 
-# WS2812/NeoPixel ----------------------------------------------------------------------------------
+# Serial LED Base ----------------------------------------------------------------------------------
 
-class WS2812(Module):
-    """WS2812/NeoPixel Led Driver.
+class _SerialLed(LiteXModule):
+    def __init__(self, pad, nleds, sys_clk_freq, data_width, timings, mem_name,
+        bus_mastering=False, bus_base=None, init=None, bus_standard="wishbone"):
+        _validate_nleds(nleds)
 
-    Description
-    -----------
-
-                ┌──────┐   ┌──────┐   ┌──────┐   ┌──────┐   ┌──────┐
-                │DI  DO│   │DI  DO│   │DI  DO│   │DI  DO│   │DI  DO│     Next leds
-        FPGA ───►      ├───►      ├───►      ├───►      ├───►      ├───►     or
-                │ LED0 │   │ LED1 │   │ LED2 │   │ LED3 │   │ LED4 │   end of chain.
-                └──────┘   └──────┘   └──────┘   └──────┘   └──────┘
-                 24-bit     24-bit     24-bit     24-bit     24-bit
-
-    WS2812/NeoPixel Leds are smart RGB Leds controlled over a simple one wire protocol:
-     - Each Led will "digest" a 24-bit control word:  (MSB) G-R-B (LSB).
-     - Leds can be chained through DIN->DOUT connection.
-
-     Each control sequence is separated by a reset code: Line low for > 50us (old) or > 280us (new).
-     Ones are transmitted as:
-                       ┌─────┐
-                       │ T0H │           │  T0H = 400ns +-150ns
-                       │     │    T0L    │  T0L = 800ns +-150ns
-                             └───────────┘
-     Zeros are transmitted as:
-                       ┌──────────┐
-                       │   T1H    │      │  T1H = 850ns +-150ns
-                       │          │ T1L  │  T1L = 450ns +-150ns
-                                  └──────┘
-
-    Hardware Revisions
-    ------------------
-    Different revision of WS2812 have been released over the years. Unfortunately not all of them
-    have compatible timings, especially on reset that has a minimal width of 50us on older models
-    and 280us on newer models. By default, the core will use the timings of the newer models since
-    also working on older models. Reset pulse and refresh rate can be improve for older models by
-    setting revision to "old".
-
-    Integration
-    -----------
-
-     The core handles the WS2812 protocol and exposes the Led chain as an MMAPed peripheral:
-
-                                         32-bit
-                                       00_GG_RR_BB
-                                      ┌───────────┐
-                             Base + 0 │   LED0    │
-                                      ├───────────┤
-                             Base + 4 │   LED1    │
-                                      ├───────────┤
-                             Base + 8 │   LED2    │
-                                      └───────────┘
-                               ...        ...
-
-     It can be simply integrated in a LiteX SoC with:
-         self.submodules.ws2812 = WS2812(platform.request("x"), nleds=32, sys_clk_freq=sys_clk_freq)
-         self.bus.add_slave(name="ws2812", slave=self.ws2812.bus, region=SoCRegion(
-             origin = 0x2000_0000,
-             size   = 32*4,
-         ))
-
-     Each Led can then be directly controlled from the Bus of the SoC.
-
-     Parameters
-     ----------
-     pad : Signal, in
-         FPGA DOut.
-     nleds : int, in
-         Number of Leds in the chain.
-     sys_clk_freq: int, in
-         System Clk Frequency.
-    """
-    def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None, revision="new", init=None):
         if bus_mastering:
-            self.bus  = bus = wishbone.Interface(data_width=32)
+            bus_base = _get_word_address(bus_base)
+            self.bus = bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         else:
             # Memory.
-            mem = Memory(32, nleds, init=init)
-            port = mem.get_port()
-            self.specials += mem, port
+            mem_depth = max(nleds, 2)
+            self.mem  = mem  = Memory(data_width, mem_depth, init=init, name=mem_name)
+            self.port = port = mem.get_port()
+            if "csr" not in bus_standard:
+                self.autocsr_exclude = {"mem"}
 
-            # Wishone Memory.
-            self.submodules.wb_mem = wishbone.SRAM(
-                mem_or_size = mem,
-                read_only   = False,
-                bus         = wishbone.Interface(data_width=32)
-            )
-            self.bus = self.wb_mem.bus
+                ram_cls = {
+                    "wishbone": wishbone.SRAM,
+                    "axi-lite": axi.AXILiteSRAM,
+                    "axi"     : axi.AXILiteSRAM, # FIXME: Use AXI-Lite for now, create AXISRAM.
+                }[bus_standard]
+                interface_cls = {
+                    "wishbone": wishbone.Interface,
+                    "axi-lite": axi.AXILiteInterface,
+                    "axi"     : axi.AXILiteInterface, # FIXME: Use AXI-Lite for now, create AXISRAM.
+                }[bus_standard]
 
+                # Wishbone Memory.
+                self.bus_mem = ram_cls(
+                    mem_or_size = mem,
+                    read_only   = False,
+                    bus         = interface_cls(data_width=32, address_width=32)
+                )
+                self.bus = self.bus_mem.bus
 
         # Internal Signals.
-        led_count  = Signal(max=nleds)
-        led_data   = Signal(24)
+        led_count  = Signal(max=max(nleds, 2))
+        led_data   = Signal(data_width)
         xfer_start = Signal()
         xfer_done  = Signal()
-        xfer_data  = Signal(24)
+        xfer_data  = Signal(data_width)
 
-        # Timings
-        self.trst = trst = {"old": 50e-6*1.25, "new": 280e-6*1.25}[revision]
-        self.t0h  = t0h  = 0.40e-6
-        self.t0l  = t0l  = 0.85e-6
-        self.t1h  = t1h  = 0.80e-6
-        self.t1l  = t1l  = 0.45e-6
+        # Timings.
+        self.trst = trst = timings["trst"]
+        self.t0h  = t0h  = timings["t0h"]
+        self.t0l  = t0l  = timings["t0l"]
+        self.t1h  = t1h  = timings["t1h"]
+        self.t1l  = t1l  = timings["t1l"]
 
         # Timers.
-        trst_timer = WaitTimer(int(trst*sys_clk_freq))
+        trst_timer = WaitTimer(_timer_count(trst, sys_clk_freq, "trst"))
         self.submodules += trst_timer
 
-        t0h_timer = WaitTimer(int(t0h*sys_clk_freq))
-        t0l_timer = WaitTimer(int(t0l*sys_clk_freq) - 1) # Compensate Xfer FSM latency.
+        t0h_timer = WaitTimer(_timer_count(t0h, sys_clk_freq, "t0h"))
+        t0l_timer = WaitTimer(_timer_count(t0l, sys_clk_freq, "t0l", latency=1))
         self.submodules += t0h_timer, t0l_timer
 
-        t1h_timer = WaitTimer(int(t1h*sys_clk_freq))
-        t1l_timer = WaitTimer(int(t1l*sys_clk_freq) - 1) # Compensate Xfer FSM latency.
+        t1h_timer = WaitTimer(_timer_count(t1h, sys_clk_freq, "t1h"))
+        t1l_timer = WaitTimer(_timer_count(t1l, sys_clk_freq, "t1l", latency=1))
         self.submodules += t1h_timer, t1l_timer
 
         # Main FSM.
-        self.submodules.fsm = fsm = FSM(reset_state="RST")
+        self.fsm = fsm = FSM(reset_state="RST")
         fsm.act("RST",
             NextValue(led_count, 0),
             trst_timer.wait.eq(xfer_done),
@@ -184,12 +149,12 @@ class WS2812(Module):
             )
         )
         if bus_mastering:
-             fsm.act("LED-READ",
+            fsm.act("LED-READ",
                 bus.stb.eq(1),
                 bus.cyc.eq(1),
                 bus.we.eq(0),
                 bus.sel.eq(2**(bus.data_width//8)-1),
-                bus.adr.eq(bus_base[2:] + led_count),
+                bus.adr.eq(bus_base + led_count),
                 If(bus.ack,
                     NextValue(led_data, bus.dat_r),
                     NextState("LED-SEND")
@@ -221,13 +186,13 @@ class WS2812(Module):
         )
 
         # XFER FSM.
-        xfer_bit = Signal(5)
+        xfer_bit = Signal(max=data_width)
         xfer_fsm = FSM(reset_state="IDLE")
         self.submodules += xfer_fsm
         xfer_fsm.act("IDLE",
             xfer_done.eq(1),
             If(xfer_start,
-                NextValue(xfer_bit, 24-1),
+                NextValue(xfer_bit, data_width-1),
                 NextValue(xfer_data, led_data),
                 NextState("RUN")
             )
@@ -261,4 +226,187 @@ class WS2812(Module):
                     NextState("IDLE")
                 )
             )
+        )
+
+
+# WS2812/NeoPixel ----------------------------------------------------------------------------------
+
+class WS2812(_SerialLed):
+    """WS2812/NeoPixel Led Driver.
+
+    Description
+    -----------
+
+                ┌──────┐   ┌──────┐   ┌──────┐   ┌──────┐   ┌──────┐
+                │DI  DO│   │DI  DO│   │DI  DO│   │DI  DO│   │DI  DO│     Next leds
+        FPGA ───►      ├───►      ├───►      ├───►      ├───►      ├───►     or
+                │ LED0 │   │ LED1 │   │ LED2 │   │ LED3 │   │ LED4 │   end of chain.
+                └──────┘   └──────┘   └──────┘   └──────┘   └──────┘
+                 24-bit     24-bit     24-bit     24-bit     24-bit
+
+    WS2812/NeoPixel Leds are smart RGB Leds controlled over a simple one wire protocol:
+     - Each Led will "digest" a 24-bit control word:  (MSB) G-R-B (LSB).
+     - Leds can be chained through DIN->DOUT connection.
+
+     Each control sequence is separated by a reset code: Line low for > 50us (old) or > 280us (new).
+     Zeros are transmitted as:
+                       ┌─────┐
+                       │ T0H │           │  T0H = 400ns +-150ns
+                       │     │    T0L    │  T0L = 800ns +-150ns
+                             └───────────┘
+     Ones are transmitted as:
+                       ┌──────────┐
+                       │   T1H    │      │  T1H = 850ns +-150ns
+                       │          │ T1L  │  T1L = 450ns +-150ns
+                                  └──────┘
+
+    Hardware Revisions
+    ------------------
+    Different revision of WS2812 have been released over the years. Unfortunately not all of them
+    have compatible timings, especially on reset that has a minimal width of 50us on older models
+    and 280us on newer models. By default, the core will use the timings of the newer models since
+    also working on older models. Reset pulse and refresh rate can be improve for older models by
+    setting revision to "old".
+
+    Integration
+    -----------
+
+     The core handles the WS2812 protocol and exposes the Led chain as an MMAPed peripheral:
+
+                                         32-bit
+                                       00_GG_RR_BB
+                                      ┌───────────┐
+                             Base + 0 │   LED0    │
+                                      ├───────────┤
+                             Base + 4 │   LED1    │
+                                      ├───────────┤
+                             Base + 8 │   LED2    │
+                                      └───────────┘
+                               ...        ...
+
+     It can be simply integrated in a LiteX SoC with:
+         self.ws2812 = WS2812(platform.request("x"), nleds=32, sys_clk_freq=sys_clk_freq)
+         self.bus.add_slave(name="ws2812", slave=self.ws2812.bus, region=SoCRegion(
+             origin = 0x2000_0000,
+             size   = 32*4,
+         ))
+
+     Each Led can then be directly controlled from the Bus of the SoC.
+
+     Parameters
+     ----------
+     pad : Signal, in
+         FPGA DOut.
+     nleds : int, in
+         Number of Leds in the chain.
+     sys_clk_freq: int, in
+         System Clk Frequency.
+    """
+    def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None, revision="new", init=None, bus_standard="wishbone"):
+        if revision not in ["old", "new"]:
+            raise ValueError("revision must be 'old' or 'new'")
+
+        _SerialLed.__init__(self,
+            pad           = pad,
+            nleds         = nleds,
+            sys_clk_freq  = sys_clk_freq,
+            data_width    = 24,
+            timings       = {
+                "trst": {"old": 50e-6*1.25, "new": 280e-6*1.25}[revision],
+                "t0h" : 0.40e-6,
+                "t0l" : 0.85e-6,
+                "t1h" : 0.80e-6,
+                "t1l" : 0.45e-6,
+            },
+            mem_name      = "ws2812_mem",
+            bus_mastering = bus_mastering,
+            bus_base      = bus_base,
+            init          = init,
+            bus_standard  = bus_standard,
+        )
+
+
+# SK2812RGBW ---------------------------------------------------------------------------------------
+
+class SK2812RGBW(_SerialLed):
+    """SK2812RGBW Led Driver.
+
+    Description
+    -----------
+
+                ┌──────┐   ┌──────┐   ┌──────┐   ┌──────┐   ┌──────┐
+                │DI  DO│   │DI  DO│   │DI  DO│   │DI  DO│   │DI  DO│     Next leds
+        FPGA ───►      ├───►      ├───►      ├───►      ├───►      ├───►     or
+                │ LED0 │   │ LED1 │   │ LED2 │   │ LED3 │   │ LED4 │   end of chain.
+                └──────┘   └──────┘   └──────┘   └──────┘   └──────┘
+                 32-bit     32-bit     32-bit     32-bit     32-bit
+
+    SK2812RGBW Leds are smart RGBW Leds controlled over a simple one wire protocol:
+     - Each Led will "digest" a 32-bit control word:  (MSB) R-G-B-W (LSB).
+     - Leds can be chained through DIN->DOUT connection.
+
+     Each control sequence is separated by a reset code: Line low for > 80us.
+     Zeros are transmitted as:
+                       ┌─────┐
+                       │ T0H │           │  T0H = 300ns +-150ns
+                       │     │    T0L    │  T0L = 900ns +-150ns
+                             └───────────┘
+     Ones are transmitted as:
+                       ┌─────────┐
+                       │   T1H   │       │  T1H = 600ns +-150ns
+                       │         │  T1L  │  T1L = 600ns +-150ns
+                                 └───────┘
+
+    Integration
+    -----------
+
+     The core handles the SK2812RGBW protocol and exposes the Led chain as an MMAPed peripheral:
+
+                                         32-bit
+                                       RR_GG_BB_WW
+                                      ┌───────────┐
+                             Base + 0 │   LED0    │
+                                      ├───────────┤
+                             Base + 4 │   LED1    │
+                                      ├───────────┤
+                             Base + 8 │   LED2    │
+                                      └───────────┘
+                               ...        ...
+
+     It can be simply integrated in a LiteX SoC with:
+         self.sk2812rgbw = SK2812RGBW(platform.request("x"), nleds=32, sys_clk_freq=sys_clk_freq)
+         self.bus.add_slave(name="sk2812rgbw", slave=self.sk2812rgbw.bus, region=SoCRegion(
+             origin = 0x2000_0000,
+             size   = 32*4,
+         ))
+
+     Each Led can then be directly controlled from the Bus of the SoC.
+
+     Parameters
+     ----------
+     pad : Signal, in
+         FPGA DOut.
+     nleds : int, in
+         Number of Leds in the chain.
+     sys_clk_freq: int, in
+         System Clk Frequency.
+    """
+    def __init__(self, pad, nleds, sys_clk_freq, bus_mastering=False, bus_base=None, init=None, bus_standard="wishbone"):
+        _SerialLed.__init__(self,
+            pad           = pad,
+            nleds         = nleds,
+            sys_clk_freq  = sys_clk_freq,
+            data_width    = 32,
+            timings       = {
+                "trst": 80e-6*1.25,
+                "t0h" : 0.30e-6,
+                "t0l" : 0.90e-6,
+                "t1h" : 0.60e-6,
+                "t1l" : 0.60e-6,
+            },
+            mem_name      = "sk2812rgbw_mem",
+            bus_mastering = bus_mastering,
+            bus_base      = bus_base,
+            init          = init,
+            bus_standard  = bus_standard,
         )

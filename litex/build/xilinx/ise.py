@@ -40,6 +40,8 @@ class XilinxISEToolchain(GenericToolchain):
         self.xst_opt      = "-ifmt MIXED\n-use_new_parser yes\n-opt_mode SPEED\n-register_balancing yes"
         self.map_opt      = "-ol high -w"
         self.par_opt      = "-ol high -w"
+        self.synplify_cmd = "synplify_premier_dp"
+        self.synplify_opt = ""
         self.ngdbuild_opt = ""
         self.bitgen_opt   = "-g Binary:Yes -w"
         self.ise_commands = ""
@@ -49,6 +51,10 @@ class XilinxISEToolchain(GenericToolchain):
     def build(self, platform, fragment,
         mode           = "xst",
         **kwargs):
+        if mode == "edif":
+            raise NotImplementedError("ISE EDIF mode is no longer supported.")
+        if mode not in ["xst", "cpld", "yosys", "synplify"]:
+            raise ValueError(f"Unsupported ISE synthesis mode: {mode}.")
         self._mode = mode
         self._isemode = mode if mode in ["xst", "cpld"] else "edif"
         if mode == "yosys":
@@ -71,7 +77,7 @@ class XilinxISEToolchain(GenericToolchain):
 
     def _format_ucf(self, signame, pin, others, resname):
         fmt_c = []
-        for c in [Pins(pin)] + others:
+        for c in ([] if pin is None else [Pins(pin)]) + others:
             fc = self._format_constraint(c)
             if fc is not None:
                 fmt_c.append(fc)
@@ -83,21 +89,28 @@ class XilinxISEToolchain(GenericToolchain):
     def build_io_constraints(self):
         r = ""
         for sig, pins, others, resname in self.named_sc:
+            if "X" in pins:
+                r += "# " + sig + " skipped (no physical pin).\n"
+                continue
             if len(pins) > 1:
                 for i, p in enumerate(pins):
                     r += self._format_ucf(sig + "(" + str(i) + ")", p, others, resname)
-            else:
+            elif pins:
                 r += self._format_ucf(sig, pins[0], others, resname)
+            else:
+                r += self._format_ucf(sig, None, others, resname)
         if self.named_pc:
             r += "\n" + "\n\n".join(self.named_pc)
         tools.write_to_file(self._build_name + ".ucf", r)
         return (self._build_name + ".ucf", "UCF")
 
-    # Project (.xst) -------------------------------------------------------------------------------
+    # Project (.xst/.prj) --------------------------------------------------------------------------
 
     def build_project(self):
+        if self._mode == "synplify":
+            return self._build_synplify_project()
         if self._mode not in ["xst", "cpld"]:
-            return ("", "")
+            return
         prj_contents = ""
         for filename, language, library, *copy in self.platform.sources:
             prj_contents += language + " " + library + " " + tools.cygpath(filename) + "\n"
@@ -117,24 +130,83 @@ class XilinxISEToolchain(GenericToolchain):
             xst_contents += "}"
         tools.write_to_file(self._build_name + ".xst", xst_contents)
 
+    def _build_synplify_project(self):
+        device = self.platform.device
+        if not device.startswith(("xc6s", "xa6s", "xq6s")):
+            raise ValueError(
+                "Synplify support is currently only available for Spartan-6 ISE designs."
+            )
+        part, package, speed = self._split_synplify_spartan6_device(device)
+        technology = "spartan6"
+
+        prj_contents = """
+set_option -technology {technology}
+set_option -part {part}
+set_option -package {package}
+set_option -speed_grade {speed}
+set_option -vlog_std v2001
+set_option -compiler_compatible 1
+set_option -automatic_compile_point 1
+set_option -top_module {build_name}
+project -result_file {build_name}.edif
+""".format(
+            build_name = self._build_name,
+            package    = package,
+            part       = part,
+            speed      = speed,
+            technology = technology,
+        )
+        if self.platform.verilog_include_paths:
+            prj_contents += "set_option -include_path {"
+            for path in self.platform.verilog_include_paths:
+                prj_contents += tools.cygpath(path) + ";"
+            prj_contents += "}\n"
+        if self.synplify_opt:
+            prj_contents += self.synplify_opt + "\n"
+        for filename, language, library, *copy in self.platform.sources:
+            if language is not None:
+                prj_contents += "add_file -{} {{{}}}\n".format(language, tools.cygpath(filename))
+        tools.write_to_file(self._build_name + "_synplify.prj", prj_contents)
+
+    @staticmethod
+    def _split_synplify_spartan6_device(device):
+        part    = device.split("-")[0]
+        package = None
+        speed   = None
+
+        for item in device.split("-")[1:]:
+            if item and item[0].isdigit():
+                speed = "-" + item
+            else:
+                package = item
+
+        if package is None or speed is None:
+            raise ValueError(
+                f"Unable to parse Spartan-6 device string for Synplify: {device}."
+            )
+        return part, package, speed
 
     # ISE Run --------------------------------------------------------------------------------------
 
     def build_script(self):
         if sys.platform == "win32" or sys.platform == "cygwin":
             script_ext = ".bat"
-            shell = ["cmd", "/c"]
             build_script_contents = "@echo off\nrem Autogenerated by LiteX / git: " + tools.get_litex_git_revision() + "\n"
             fail_stmt = " || exit /b"
         else:
             script_ext = ".sh"
-            shell = ["bash"]
             build_script_contents = "# Autogenerated by LiteX / git: " + tools.get_litex_git_revision() + "\nset -e\n"
             if os.getenv("LITEX_ENV_ISE", False):
-                build_script_contents += "source " + os.path.join(os.getenv("LITEX_ENV_ISE"), "settings64.sh\n")
+                build_script_contents += "source \"" + os.path.join(os.getenv("LITEX_ENV_ISE"), "settings64.sh") + "\"\n"
             fail_stmt = ""
         if self._mode == "yosys":
             build_script_contents += common._build_yosys_project(self.platform, "-ise ", self._build_name) + fail_stmt
+        if self._mode == "synplify":
+            build_script_contents += "{cmd} -batch -runall {build_name}_synplify.prj{fail_stmt}\n".format(
+                build_name = self._build_name,
+                cmd        = self.synplify_cmd,
+                fail_stmt  = fail_stmt,
+            )
         if self._isemode == "edif":
             ext = "ngo"
             build_script_contents += """
@@ -148,7 +220,7 @@ xst -ifn {build_name}.xst{fail_stmt}
 
         # This generates a .v file for post synthesis simulation
         build_script_contents += """
-netgen -ofmt verilog -w -sim {build_name}.{ext} {build_name}_synth.v
+netgen -ofmt verilog -w -sim {build_name}.{ext} {build_name}_synth.v{fail_stmt}
 """
 
         build_script_contents += """
@@ -176,22 +248,13 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
         return build_script_file
 
     def run_script(self, script):
-        if self._mode == "edif":
-           # Generate edif
-           e_output = self.platform.get_edif(self._fragment)
-           self._vns = e_output.ns
-           self.named_sc, self.named_pc = self.platform.resolve_signals(self._vns)
-           e_file = build_name + ".edif"
-           e_output.write(e_file)
-           self.build_io_constraints()
-
         if sys.platform == "win32" or sys.platform == "cygwin":
             shell = ["cmd", "/c"]
         else:
             shell = ["bash"]
         command = shell + [script]
 
-        if which("ise") is None and os.getenv("LITEX_ENV_ISE", False) == False:
+        if which("ise") is None and not os.getenv("LITEX_ENV_ISE", ""):
             msg = "Unable to find or source ISE toolchain, please either:\n"
             msg += "- Source ISE's settings manually.\n"
             msg += "- Or set LITEX_ENV_ISE environment variant to ISE's settings path.\n"
@@ -205,8 +268,13 @@ bitgen {bitgen_opt} {build_name}.ncd {build_name}.bit{fail_stmt}
     # constraints and other constraints otherwise it will be unable to trace
     # them through clock objects like DCM and PLL objects.
 
-    def add_period_constraint(self, platform, clk, period):
-        clk.attr.add("keep")
+    def add_period_constraint(self, platform, clk, period, keep=True, name=None):
+        if clk is None:
+            return
+        if hasattr(clk, "p"):
+            clk = clk.p
+        if keep:
+            clk.attr.add("keep")
         platform.add_platform_command(
             """
 NET "{clk}" TNM_NET = "PRD{clk}";

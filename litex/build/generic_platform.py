@@ -13,10 +13,12 @@ import re
 from migen.fhdl.structure import Signal, Cat
 from migen.genlib.record import Record
 
+from litex.gen import LiteXContext
 from litex.gen.fhdl import verilog
 
 from litex.build.io import CRG
 from litex.build import tools
+from litex.build.generic_toolchain import GenericToolchain
 
 # --------------------------------------------------------------------------------------------------
 
@@ -167,8 +169,20 @@ class ConnectorManager:
                     raise ValueError(f"\"{identifier}\" {err}") from err
                 if pn.isdigit():
                     pn = int(pn)
-
+                assert conn in self.connector_table, f"No connector named '{conn}' is available"
+                conn_entry = self.connector_table[conn]
+                if isinstance(conn_entry, dict):
+                    assert pn in conn_entry, f"There is no pin '{pn}' on connector '{conn}'"
+                else:
+                    if not isinstance(pn, int):
+                        raise ConstraintError(f"Pin '{pn}' on connector '{conn}' must be a number")
+                    assert pn < len(conn_entry), f"There is no pin with number '{pn}' on connector '{conn}', maximum is {len(conn_entry)-1}"
                 conn_pn = self.connector_table[conn][pn]
+                if conn_pn is None:
+                    # Unconnected (None) connector pins are preserved; backends decide how to
+                    # handle them.
+                    r.append(conn_pn)
+                    continue
                 if ":" in conn_pn:
                     conn_pn = self.resolve_identifiers([conn_pn])[0]
                 r.append(conn_pn)
@@ -199,13 +213,16 @@ class ConstraintManager:
         self.platform_commands = []
         self.connector_manager = ConnectorManager(connectors)
 
-    def add_extension(self, io):
-        self.available.extend(io)
+    def add_extension(self, io, prepend=False):
+        if prepend:
+            self.available = list(io) + self.available
+        else:
+            self.available.extend(io)
 
     def add_connector(self, connectors):
         self.connector_manager.add_connector(connectors)
 
-    def request(self, name, number=None, loose=False):
+    def request(self, name, number=None, loose=False, reserve=True):
         resource = _lookup(self.available, name, number, loose)
         if resource is None:
             return None
@@ -230,8 +247,9 @@ class ConstraintManager:
                 obj.platform_info = element.info
                 break
 
-        self.available.remove(resource)
-        self.matched.append((resource, obj))
+        if reserve:
+            self.available.remove(resource)
+            self.matched.append((resource, obj))
         return obj
 
     def request_all(self, name):
@@ -263,7 +281,11 @@ class ConstraintManager:
             if resource[0] == name and (number is None or
                                         resource[1] == number):
                 if subname is not None:
-                    return getattr(obj, subname)
+                    if hasattr(obj, subname):
+                        return getattr(obj, subname)
+                    if loose:
+                        return None
+                    raise ConstraintError("Resource not found: {}:{}:{}".format(name, number, subname))
                 else:
                     return obj
 
@@ -322,10 +344,14 @@ class ConstraintManager:
 # Generic Platform ---------------------------------------------------------------------------------
 
 class GenericPlatform:
-    device_family = None
+    device_family  = None
+    _jtag_support  = True # JTAGBone can't be used with all FPGAs.
+    _bitstream_ext = None # None by default, overridden by vendor platform, may
+                          # be a string when same extension is used for sram and
+                          # flash. A dict must be provided otherwise
 
     def __init__(self, device, io, connectors=[], name=None):
-        self.toolchain          = None
+        self.toolchain          = GenericToolchain()
         self.device             = device
         self.constraint_manager = ConstraintManager(io, connectors)
         if name is None:
@@ -341,6 +367,10 @@ class GenericPlatform:
         self.finalized             = False
         self.use_default_clk       = False
 
+        # Set Platform/Device to LiteXContext.
+        LiteXContext.platform  = self
+        LiteXContext.device    = device
+
     def request(self, *args, **kwargs):
         return self.constraint_manager.request(*args, **kwargs)
 
@@ -353,8 +383,8 @@ class GenericPlatform:
     def lookup_request(self, *args, **kwargs):
         return self.constraint_manager.lookup_request(*args, **kwargs)
 
-    def add_period_constraint(self, clk, period):
-        raise NotImplementedError
+    def add_period_constraint(self, clk, period, keep=True, name=None):
+        self.toolchain.add_period_constraint(self, clk, period, keep=keep, name=name)
 
     def add_false_path_constraint(self, from_, to):
         raise NotImplementedError
@@ -363,6 +393,12 @@ class GenericPlatform:
         for a in clk:
             for b in clk:
                 if a is not b:
+                    self.add_false_path_constraint(a, b)
+
+    def add_false_path_constraints_by_name(self, *clock_names):
+        for a in clock_names:
+            for b in clock_names:
+                if a != b:
                     self.add_false_path_constraint(a, b)
 
     def add_platform_command(self, *args, **kwargs):
@@ -454,17 +490,46 @@ class GenericPlatform:
     def get_verilog(self, fragment, **kwargs):
         return verilog.convert(fragment, platform=self, **kwargs)
 
-    def get_edif(self, fragment, cell_library, vendor, device, **kwargs):
-        return edif.convert(
-            fragment,
-            self.constraint_manager.get_io_signals(),
-            cell_library, vendor, device, **kwargs)
-
     def build(self, fragment):
         raise NotImplementedError("GenericPlatform.build must be overloaded")
 
+    def get_bitstream_extension(self, mode="sram"):
+        """
+        Return the bitstream's extension according to mode (sram / flash).
+        The default (generic) implementation check if `self._bitstream_ext`
+        is a dict or a string. For former case it return extension using `mode`
+        parameter, in latter case simply return `self._bitstream_ext`'s value.
+        When this behaviour is not adapted this method must be overriden by
+        a specific one at vendor level.
+
+        Parameters
+        ----------
+        mode: str
+            bitstream destination (must be sram or flash)
+
+        Returns
+        -------
+            bitstream extension: str
+        """
+        if self._bitstream_ext is None:
+            return None
+        elif type(self._bitstream_ext) == dict:
+            return self._bitstream_ext[mode]
+        else:
+            return self._bitstream_ext
+
     def create_programmer(self):
         raise NotImplementedError
+
+    @property
+    def jtag_support(self):
+        if isinstance(self._jtag_support, bool):
+            return self._jtag_support
+        else:
+            for dev in self._jtag_support:
+                if self.device.startswith(dev):
+                    return True
+            return False
 
     @property
     def support_mixed_language(self):

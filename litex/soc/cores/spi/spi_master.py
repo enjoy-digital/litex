@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import math
@@ -9,24 +9,48 @@ import math
 from migen import *
 from migen.genlib.cdc import MultiReg
 
+from litex.gen import *
+
 from litex.soc.interconnect.csr import *
 
 # SPI Master ---------------------------------------------------------------------------------------
 
-class SPIMaster(Module, AutoCSR):
+class SPIMaster(LiteXModule):
     """4-wire SPI Master
 
-    Provides a simple and minimal hardware SPI Master with CPOL=0, CPHA=0 and build time
-    configurable data_width and frequency.
+    Implements a 4-wire SPI Master with CPOL=0 and CPHA=0, tailored for FPGA designs. It allows
+    configurable data_width and SPI clock frequency at build time. Supports Raw and Aligned modes
+    for data transfer and software-controlled Chip Select (CS) for extended SPI operations.
+
+    Parameters:
+        pads (Record)             : Interface pads for SPI signals. If None, a default layout is used.
+        data_width (int)          : Maximum Data width of SPI transactions.
+        sys_clk_freq (int)        : System clock frequency in Hz.
+        spi_clk_freq (int)        : Desired SPI clock frequency in Hz.
+        with_csr (bool, optional) : Enables CSR interface if True.
+        mode (str, optional)      : 'raw' for as-is data transfer or 'aligned' for transaction length-based alignment.
+
+    Modes:
+        Raw     : MOSI data is aligned to the core's data-width. Optimal for data-width matching SPI transactions.
+        Aligned : MOSI data is aligned based on the transaction's length. Suitable for variable-length SPI transactions.
+
+    CS Control:
+        Software-controlled CS is available for scenarios requiring precise control over CS assertion, like
+        SPI Flash page programming or when hardware CS lines are insufficient. It allows software to keep
+        CS asserted across multiple transfers. Each transfer still has to be started explicitly through the
+        ``start``/``length`` control path; manual CS mode does not clock data by itself.
     """
     pads_layout = [("clk", 1), ("cs_n", 1), ("mosi", 1), ("miso", 1)]
     def __init__(self, pads, data_width, sys_clk_freq, spi_clk_freq, with_csr=True, mode="raw"):
-        assert mode in ["raw", "aligned"]
+        if mode not in ["raw", "aligned"]:
+            raise ValueError("Unsupported SPI master mode: {}.".format(mode))
+        self.mode = mode
         if pads is None:
             pads = Record(self.pads_layout)
         if not hasattr(pads, "cs_n"):
             pads.cs_n = Signal()
-        assert len(pads.cs_n) <= 16
+        if len(pads.cs_n) > 16:
+            raise ValueError("SPI master supports up to 16 chip-selects.")
         self.pads       = pads
         self.data_width = data_width
 
@@ -69,7 +93,7 @@ class SPIMaster(Module, AutoCSR):
         ]
 
         # Control FSM ------------------------------------------------------------------------------
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             self.done.eq(1),
             If(self.start,
@@ -143,21 +167,30 @@ class SPIMaster(Module, AutoCSR):
     def add_csr(self, with_cs=True, with_loopback=True):
         # Control / Status.
         self._control = CSRStorage(description="SPI Control.", fields=[
-            CSRField("start",  size=1, offset=0, pulse=True, description="SPI Xfer Start (Write ``1`` to start Xfer)."),
-            CSRField("length", size=8, offset=8,             description="SPI Xfer Length (in bits).")
+            CSRField("start",  size=1, offset=0, pulse=True,
+                description="SPI Xfer Start (Write ``1`` to start one Xfer)."),
+            CSRField("length", size=8, offset=8,
+                description="SPI Xfer Length (in bits). Required for each Xfer, including in manual CS mode.")
         ])
         self._status = CSRStatus(description="SPI Status.", fields=[
-            CSRField("done", size=1, offset=0, description="SPI Xfer Done (when read as ``1``).")
+            CSRField("done", size=1, offset=0, description="SPI Xfer Done (when read as ``1``)."),
+            CSRField("mode", size=1, offset=1, description="SPI mode", values=[
+                ("``0b0``", "Raw    : MOSI transfers aligned on core's data-width."),
+                ("``0b1``", "Aligned: MOSI transfers aligned on transfers' length."),
+            ]),
         ])
         self.comb += [
             self.start.eq(self._control.fields.start),
             self.length.eq(self._control.fields.length),
             self._status.fields.done.eq(self.done),
+            self._status.fields.mode.eq({"raw": 0b0, "aligned": 0b1}[self.mode]),
         ]
 
         # MOSI/MISO.
-        self._mosi = CSRStorage(self.data_width, reset_less=True, description="SPI MOSI data (MSB-first serialization).")
-        self._miso = CSRStatus(self.data_width,                   description="SPI MISO data (MSB-first de-serialization).")
+        self._mosi = CSRStorage(self.data_width, reset_less=True,
+            description="SPI MOSI data (MSB-first serialization). Data is shifted when a Xfer is started.")
+        self._miso = CSRStatus(self.data_width,
+            description="SPI MISO data (MSB-first de-serialization).")
         self.comb += [
             self.mosi.eq(self._mosi.storage),
             self._miso.status.eq(self.miso),
@@ -166,14 +199,17 @@ class SPIMaster(Module, AutoCSR):
         # Chip Select.
         if with_cs:
             self._cs = CSRStorage(description="SPI CS Chip-Select and Mode.", fields=[
-                CSRField("sel",  size=len(self.cs), offset=0,  reset=1, values=[
-                    ("``0b0..001``", "Chip ``0`` selected for SPI Xfer."),
-                    ("``0b1..000``", "Chip ``N`` selected for SPI Xfer.")
-                ]),
-                CSRField("mode", size=1,            offset=16, reset=0, values=[
-                    ("``0b0``", "Normal operation (CS handled by Core)."),
-                    ("``0b1``", "Manual operation (CS handled by User, direct recopy of ``sel``), useful for Bulk transfers.")
-                ]),
+                CSRField("sel",  size=len(self.cs), offset=0,  reset=1,
+                    description="SPI chip-select value.", values=[
+                        ("``0b0..001``", "Chip ``0`` selected for SPI Xfer."),
+                        ("``0b1..000``", "Chip ``N`` selected for SPI Xfer.")
+                    ]),
+                CSRField("mode", size=1, offset=16, reset=0,
+                    description="SPI chip-select mode.", values=[
+                        ("``0b0``", "Normal operation (CS handled by Core)."),
+                        ("``0b1``", "Manual CS operation: CS follows ``sel`` continuously; Xfers still "
+                            "require ``start``/``length``. Useful to keep CS asserted across multiple Xfers.")
+                    ]),
             ])
             self.comb += [
                 self.cs.eq(self._cs.fields.sel),
@@ -183,7 +219,7 @@ class SPIMaster(Module, AutoCSR):
         # Loopback.
         if with_loopback:
             self._loopback = CSRStorage(description="SPI Loopback Mode.", fields=[
-                CSRField("mode", size=1, values=[
+                CSRField("mode", size=1, description="SPI loopback mode.", values=[
                     ("``0b0``", "Normal operation."),
                     ("``0b1``", "Loopback operation (MOSI to MISO).")
                 ])

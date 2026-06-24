@@ -1,10 +1,10 @@
 <p align="center"><img src="https://raw.githubusercontent.com/enjoy-digital/litex/master/doc/litex.png"></p>
 
 ```
-             Copyright 2012-2022 / Enjoy-Digital & LiteX developers
+             Copyright 2012-2026 / Enjoy-Digital & LiteX developers
 ```
 [![](https://github.com/enjoy-digital/litex/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litex/actions)
-![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
+![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/enjoy-digital/litex)
 
 # Welcome to LiteX!
 
@@ -15,7 +15,9 @@ The LiteX framework provides a convenient and efficient infrastructure to create
 
 **Want to get started and/or looking for documentation? Make sure to visit the [Wiki](https://github.com/enjoy-digital/litex/wiki)!**
 
-**A question or want to get in touch? Our IRC channel is [#litex at irc.libera.chat]**.
+**Want development notes from building FPGA SoCs with LiteX? Visit the [LiteX Notes blog](https://enjoy-digital.github.io/)!**
+
+**A question or want to get in touch? Join us on [Discord](https://discord.gg/PkJwjDbxeG) or on our IRC channel: [#litex at irc.libera.chat]**.
 
 LiteX provides all the common components required to easily create an FPGA Core/SoC:
  - :heavy_check_mark: Buses and Streams (Wishbone, AXI, Avalon-ST) and their  interconnect.
@@ -54,6 +56,10 @@ The framework is also far from perfect and we'll be happy to have your [feedback
 
 Have fun! :wink:
 
+We share this project under a permissive BSD 2-Clause License, inspired by our fantastic community and supportive clients. If LiteX benefits your research, hobby, or commercial projects, we kindly ask for your positive collaboration and respect for the effort involved.
+
+Thank you for helping us improve LiteX and being part of our community!
+
 # Typical LiteX design flow:
 ```
                                       +---------------+
@@ -82,6 +88,7 @@ LiteX already supports various softcores CPUs: VexRiscv, Rocket, LM32, Mor1kx, P
 | [LiteDRAM](http://github.com/enjoy-digital/litedram)         | [![](https://github.com/enjoy-digital/litedram/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litedram/actions)         | DRAM                      |
 | [LiteEth](http://github.com/enjoy-digital/liteeth)           | [![](https://github.com/enjoy-digital/liteeth/workflows/ci/badge.svg)](https://github.com/enjoy-digital/liteeth/actions)           | Ethernet                  |
 | [LitePCIe](http://github.com/enjoy-digital/litepcie)         | [![](https://github.com/enjoy-digital/litepcie/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litepcie/actions)         | PCIe                      |
+| [LiteNVMe](http://github.com/enjoy-digital/litenvme)         | [![](https://github.com/enjoy-digital/litenvme/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litenvme/actions)         | NVMe                      |
 | [LiteSATA](http://github.com/enjoy-digital/litesata)         | [![](https://github.com/enjoy-digital/litesata/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litesata/actions)         | SATA                      |
 | [LiteSDCard](http://github.com/enjoy-digital/litesdcard)     | [![](https://github.com/enjoy-digital/litesdcard/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litesdcard/actions)     | SD card                   |
 | [LiteICLink](http://github.com/enjoy-digital/liteiclink)     | [![](https://github.com/enjoy-digital/liteiclink/workflows/ci/badge.svg)](https://github.com/enjoy-digital/liteiclink/actions)     | Inter-Chip communication  |
@@ -98,6 +105,12 @@ HBM2 test infrastructure on Forest Kitten 33:
 ![enter image description here](https://user-images.githubusercontent.com/1450143/124902018-d4c1b680-dfe2-11eb-89c4-8b498605c34d.png)
 
 To discover more products/projects built with LiteX, visit the [projects page](https://github.com/enjoy-digital/litex/wiki/Projects) on the Wiki.
+
+# Sponsors/Partners:
+
+A huge shoutout to our awesome industrial clients who have given us the green light to incorporate some of the developments we initially created for them directly into LiteX! These innovative developments often provide the building blocks for the features that the wider community can then use and improve upon. Your support has been instrumental for the project, and we are incredibly grateful for your partnership. Thanks!
+
+![](https://github.com/enjoy-digital/litex/assets/1450143/444d8fc2-3092-487c-b52f-bdd776b790a4.png)
 
 # Papers, Presentations, Tutorials, Links
 **FPGA lessons/tutorials:**
@@ -145,6 +158,7 @@ $ wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.
 $ chmod +x litex_setup.py
 $ ./litex_setup.py --init --install --user (--user to install to user directory) --config=(minimal, standard, full)
 ```
+  `litex_setup.py` downloads the repository definitions it needs automatically.
   Later, if you need to update all repositories:
 ```sh
 $ ./litex_setup.py --update
@@ -154,10 +168,10 @@ $ ./litex_setup.py --update
 
 > **Note:** On Windows, it's possible you'll have to set `SHELL` environment variable to `SHELL=cmd.exe`.
 
-3. Install a RISC-V toolchain (Only if you want to test/create a SoC with a CPU):
+3. Install a CPU GCC toolchain (Only if you want to test/create a SoC with a CPU):
 ```sh
 $ pip3 install meson ninja
-$ ./litex_setup.py --gcc=riscv
+$ ./litex_setup.py --gcc=riscv # Or lm32/openrisc/powerpc.
 ```
 
 4. Build the target of your board...:
@@ -166,18 +180,28 @@ Go to litex-boards/litex_boards/targets and execute the target you want to build
 
 5. ... and/or install [Verilator](http://www.veripool.org/) and test LiteX directly on your computer without any FPGA board:
 
-On Linux (Ubuntu):
+On Linux (Ubuntu/Debian):
 ```sh
 $ sudo apt install libevent-dev libjson-c-dev verilator
+$ litex_sim --cpu-type=vexriscv
+```
+
+On Linux (Fedora):
+```sh
+$ sudo dnf install libevent-devel json-c-devel verilator
 $ litex_sim --cpu-type=vexriscv
 ```
 
 On MacOS:
 ```sh
 $ brew install json-c verilator libevent
-$ brew cask install tuntap
 $ litex_sim --cpu-type=vexriscv
 ```
+
+Ethernet/TAP simulation requires a host TAP interface. The old
+`brew cask install tuntap` command is no longer valid on current Homebrew, so
+install a MacOS-compatible TUN/TAP driver separately or use Linux for TAP-based
+simulation.
 
 6. Run a terminal program on the board's serial port at 115200 8-N-1.
 

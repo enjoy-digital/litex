@@ -22,7 +22,7 @@ class LatticeProgrammer(GenericProgrammer):
         xcf_file = bitstream_file.replace(".bit", ".xcf")
         xcf_content = self.xcf_template.format(bitstream_file=bitstream_file)
         tools.write_to_file(xcf_file, xcf_content)
-        self.call(["pgrcmd", "-infile", xcf_file], check=False)
+        self.call(["pgrcmd", "-infile", xcf_file])
 
 # OpenOCDJTAGProgrammer ----------------------------------------------------------------------------
 
@@ -46,7 +46,7 @@ class OpenOCDJTAGProgrammer(GenericProgrammer):
     def flash(self, address, data, verify=True):
         config      = self.find_config()
         flash_proxy = self.find_flash_proxy()
-        script = "; ".join([
+        commands = [
             "transport select jtag",
             "target create ecp5.spi0.proxy testee -chain-position ecp5.tap",
             "flash bank spi0 jtagspi 0 0 0 0 ecp5.spi0.proxy 0x32",
@@ -55,9 +55,11 @@ class OpenOCDJTAGProgrammer(GenericProgrammer):
             "reset halt",
             "flash probe spi0",
             "flash write_image erase \"{0}\" 0x{1:x}".format(data, address),
-            "flash verify_bank spi0 \"{0}\" 0x{1:x}" if verify else "".format(data, address),
             "exit"
-        ])
+        ]
+        if verify:
+            commands.insert(-1, "flash verify_bank spi0 \"{0}\" 0x{1:x}".format(data, address))
+        script = "; ".join(commands)
         self.call(["openocd", "-f", config, "-c", script])
 
 # IceStormProgrammer -------------------------------------------------------------------------------
@@ -159,6 +161,15 @@ class UJProg(GenericProgrammer):
     def load_bitstream(self, bitstream_file):
         self.call(["ujprog", bitstream_file])
 
+# fujprog -------------------------------------------------------------------------------------------
+
+class fujprog(GenericProgrammer):
+    needs_bitreverse = False
+
+    def load_bitstream(self, bitstream_file):
+        self.call(["fujprog", bitstream_file])
+
+
 # EcpDapProgrammer ---------------------------------------------------------------------------------
 
 class EcpDapProgrammer(GenericProgrammer):
@@ -169,12 +180,12 @@ class EcpDapProgrammer(GenericProgrammer):
     needs_bitreverse = False
 
     def __init__(self, frequency=8_000_000):
-        self.frequency_khz = frequency // 1000
+        self.frequency = frequency
 
     def flash(self, address, bitstream_file):
         self.call(["ecpdap",
             "flash", "write",
-            "--freq", str(self.frequency_khz),
+            "--freq", str(self.frequency),
             "--offset", str(address),
             bitstream_file
         ])
@@ -182,7 +193,7 @@ class EcpDapProgrammer(GenericProgrammer):
     def load_bitstream(self, bitstream_file):
         self.call(["ecpdap",
             "program",
-            "--freq", str(self.frequency_khz),
+            "--freq", str(self.frequency),
             bitstream_file
         ])
 

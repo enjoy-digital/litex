@@ -91,6 +91,8 @@ trap_entry:
 crt_init:
   la sp, _fstack
   la t0, vector_table
+  /* Enable vectored interrupt handling */
+  ori t0, t0, 0x1
   csrw mtvec, t0
 
 data_init:
@@ -116,6 +118,7 @@ bss_loop:
   j bss_loop
 bss_done:
 
+  call litex_startup_init
   call main
 
 infinit_loop:

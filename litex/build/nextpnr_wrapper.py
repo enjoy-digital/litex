@@ -4,6 +4,8 @@
 # Copyright (c) 2022 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
+from shutil import which
+
 from litex.build import tools
 
 # NextPNR Wrapper ----------------------------------------------------------------------------------
@@ -45,7 +47,6 @@ class NextPNRWrapper():
         kwargs: dict
             alternate options key/value
         """
-        self.name           = f"nextpnr-{family}"
         self._target        = family
         self._build_name    = build_name
         self._in_format     = in_format
@@ -61,6 +62,17 @@ class NextPNRWrapper():
             else:
                 if value != "":
                     self._pnr_opts += f"--{key} {value} "
+
+        # Gowin toolchain differs from others: it is supported by himbaechel architecture
+        if family in ["gowin", "gatemate"]:
+            self.name = "nextpnr-himbaechel"
+            # For Himbächel architecture:
+            # one binary may be build supporting all uarch or
+            # when HIMBAECHEL_SPLIT is set a dedicated binary is built per uarch
+            if which(f"{self.name}-{family}") is not None:
+                self.name = f"{self.name}-{family}"
+        else:
+            self.name = f"nextpnr-{family}"
 
     @property
     def pnr_opts(self):
@@ -83,20 +95,23 @@ class NextPNRWrapper():
         =======
         str containing instruction and/or rule
         """
-        cmd = "{pnr_name} --{in_fmt} {build_name}.{in_fmt} --{constr_fmt}" + \
-            " {build_name}.{constr_fmt}" + \
-            " --{out_fmt} {build_name}.{out_ext} {pnr_opts}\n"
+        cmd = '{pnr_name} --{in_fmt} "{build_name}.{in_fmt}"'
+        if self._constr_format != "":
+            cmd += ' --{constr_fmt} "{build_name}.{constr_fmt}"'
+        cmd += ' --{out_fmt}"{build_name}.{out_ext}" {pnr_opts}'
         base_cmd = cmd.format(
             pnr_name   = self.name,
             build_name = self._build_name,
             in_fmt     = self._in_format,
-            out_fmt    = "textcfg" if self._out_format == "config" else self._out_format,
+            out_fmt    = {
+                "config" : "textcfg ",
+                "txt"    : "vopt out="}.get(self._out_format, self._out_format + " "),
             out_ext    = self._out_format,
             constr_fmt = self._constr_format,
             pnr_opts   = self._pnr_opts
         )
         if target == "makefile":
-            return f"{self._build_name}.{self._out_format}:\n\t" + base_cmd
+            return f"{self._build_name}.{self._out_format}:\n\t" + base_cmd + "\n"
         elif target == "script":
             return base_cmd
         else:

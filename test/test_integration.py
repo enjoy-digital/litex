@@ -1,0 +1,352 @@
+#
+# This file is part of LiteX.
+#
+# Copyright (c) 2021 Navaneeth Bhardwaj <navan93@gmail.com>
+# Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
+
+import pexpect
+import os
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import itertools
+import pytest
+
+from litex.tools.litex_term import (
+    SFLFrame,
+    sfl_ack_error,
+    sfl_ack_success,
+    sfl_cmd_abort,
+    sfl_cmd_jump,
+    sfl_cmd_load,
+    sfl_magic_ack,
+    sfl_magic_req,
+)
+
+def _sim_jobs():
+    # When pytest-xdist is running several tests in parallel, divide the
+    # available cores between workers to avoid oversubscribing the build.
+    workers = int(os.environ.get("PYTEST_XDIST_WORKER_COUNT", "1") or "1")
+    return max(1, (os.cpu_count() or 1) // max(1, workers))
+
+def _get_free_tcp_port():
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    except OSError as e:
+        pytest.skip(f"local TCP sockets are unavailable: {e}")
+
+    try:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+    except OSError as e:
+        pytest.skip(f"local TCP bind is unavailable: {e}")
+    finally:
+        sock.close()
+
+def _connect_tcp_uart(port, timeout=10):
+    deadline = time.time() + timeout
+    last_error = None
+    while time.time() < deadline:
+        try:
+            sock = socket.create_connection(("127.0.0.1", port), timeout=1)
+            sock.settimeout(0.1)
+            return sock
+        except OSError as e:
+            last_error = e
+            time.sleep(0.1)
+    raise TimeoutError(f"could not connect to litex_sim UART on port {port}: {last_error}")
+
+def _recv_until(sock, needle, timeout=10):
+    deadline = time.time() + timeout
+    data = b""
+    while time.time() < deadline:
+        try:
+            chunk = sock.recv(1)
+            if not chunk:
+                break
+            data += chunk
+            if needle in data:
+                return data
+        except socket.timeout:
+            pass
+    raise TimeoutError(f"did not receive {needle!r}; last data: {data[-200:]!r}")
+
+def _litex_boards_target(filename):
+    for root in [os.getcwd(), os.path.join(os.getcwd(), "..")]:
+        target = os.path.abspath(os.path.join(root, "litex-boards", "litex_boards", "targets", filename))
+        if os.path.exists(target):
+            return target
+    pytest.skip("litex-boards checkout is unavailable")
+
+def boot_test(cpu_type="vexriscv", cpu_variant="standard", args="", output_dir=None):
+    output_arg = f' --output-dir={output_dir}' if output_dir else ''
+    litex_sim = f"{sys.executable} -m litex.tools.litex_sim"
+    cmd = (
+        f'{litex_sim} --cpu-type={cpu_type} --cpu-variant={cpu_variant} {args}'
+        f'{output_arg} --opt-level=O0 --jobs {_sim_jobs()}'
+    )
+    litex_prompt = [r'\033\[[0-9;]+mlitex\033\[[0-9;]+m>']
+    is_success = True
+
+    with tempfile.TemporaryFile(mode='w+', prefix="litex_test") as log_file:
+        log_file.writelines(f"Command: {cmd}")
+        log_file.flush()
+
+        p = pexpect.spawn(cmd, timeout=None, encoding=sys.getdefaultencoding(), logfile=log_file)
+        try:
+            match_id = p.expect(litex_prompt, timeout=1200)
+        except pexpect.EOF:
+            print('\n*** Premature termination')
+            is_success = False
+        except pexpect.TIMEOUT:
+            print('\n*** Timeout ')
+            is_success = False
+
+        if not is_success:
+            print(f'*** Boot Failure: {cmd}')
+            log_file.seek(0)
+            print(log_file.read())
+        else:
+            p.terminate(force=True)
+            print(f'*** Boot Success: {cmd}')
+
+    return is_success
+
+def test_serialboot_abort_recovers_and_loads(tmp_path):
+    port = _get_free_tcp_port()
+    cmd = [
+        "litex_sim",
+        "--cpu-type=vexriscv",
+        "--cpu-variant=standard",
+        "--uart-tcp",
+        f"--uart-tcp-port={port}",
+        "--integrated-main-ram-size=65536",
+        f"--output-dir={tmp_path}",
+        "--opt-level=O0",
+        f"--jobs={_sim_jobs()}",
+        "--non-interactive",
+    ]
+    gateware_dir = os.path.join(tmp_path, "gateware")
+    litex_prompt = b"litex"
+    abort = SFLFrame()
+    abort.cmd = sfl_cmd_abort
+    sock = None
+    is_success = True
+
+    with tempfile.TemporaryFile(mode="w+", prefix="litex_test") as log_file:
+        log_file.writelines("Command: {}\n".format(" ".join(cmd)))
+        log_file.flush()
+        p = None
+        try:
+            # Keep pexpect's timeout focused on the simulator runtime. On slow
+            # CI workers, compile time alone can consume the UART wait timeout.
+            subprocess.check_call(cmd + ["--no-compile-gateware"])
+            subprocess.check_call(["bash", "build_sim.sh"], cwd=gateware_dir)
+
+            p = pexpect.spawn(os.path.join(gateware_dir, "obj_dir", "Vsim"), cwd=gateware_dir, timeout=None,
+                encoding=sys.getdefaultencoding(), logfile=log_file)
+            p.expect(f"Found port {port}", timeout=1200)
+            sock = _connect_tcp_uart(port)
+
+            _recv_until(sock, litex_prompt, timeout=20)
+            sock.sendall(b"serialboot\n")
+            _recv_until(sock, sfl_magic_req, timeout=10)
+
+            sock.sendall(sfl_magic_ack)
+            sock.sendall(b"\x10")
+            _recv_until(sock, sfl_ack_error, timeout=10)
+
+            sock.sendall(abort.encode())
+            _recv_until(sock, sfl_ack_success, timeout=10)
+            _recv_until(sock, litex_prompt, timeout=10)
+
+            sock.sendall(b"serialboot\n")
+            _recv_until(sock, sfl_magic_req, timeout=10)
+            sock.sendall(sfl_magic_ack)
+
+            load = SFLFrame()
+            load.cmd = sfl_cmd_load
+            load.payload = (0x40000000).to_bytes(4, "big") + b"\x6f\x00\x00\x00"
+            sock.sendall(load.encode())
+            _recv_until(sock, sfl_ack_success, timeout=10)
+
+            jump = SFLFrame()
+            jump.cmd = sfl_cmd_jump
+            jump.payload = (0x40000000).to_bytes(4, "big")
+            sock.sendall(jump.encode())
+            _recv_until(sock, sfl_ack_success, timeout=10)
+        except (OSError, subprocess.CalledProcessError, pexpect.EOF, pexpect.TIMEOUT, TimeoutError):
+            is_success = False
+            print("*** Serialboot abort recovery failure: {}".format(" ".join(cmd)))
+            log_file.seek(0)
+            print(log_file.read())
+        finally:
+            if sock is not None:
+                sock.close()
+            if p is not None:
+                p.terminate(force=True)
+
+    assert is_success
+
+def _run_linux_on_litex_rocket_generation(target_filename, output_dir, target_args):
+    target = _litex_boards_target(target_filename)
+    cmd = [
+        sys.executable,
+        target,
+        "--build",
+        "--no-compile-gateware",
+        "--bios-stack-margin", "0x400",
+        "--output-dir", str(output_dir),
+        *target_args,
+    ]
+
+    subprocess.check_call(cmd)
+
+def test_linux_on_litex_rocket_ecpix5_generation(tmp_path):
+    _run_linux_on_litex_rocket_generation(
+        "lambdaconcept_ecpix5.py",
+        tmp_path,
+        [
+            "--cpu-type", "rocket",
+            "--cpu-variant", "linux",
+            "--cpu-num-cores", "1",
+            "--cpu-mem-width", "2",
+            "--sys-clk-freq", "50e6",
+            "--with-ethernet",
+            "--with-sdcard",
+            "--yosys-flow3",
+            "--nextpnr-seed", "1",
+        ],
+    )
+
+def test_linux_on_litex_rocket_nexys_video_generation(tmp_path):
+    _run_linux_on_litex_rocket_generation(
+        "digilent_nexys_video.py",
+        tmp_path,
+        [
+            "--cpu-type", "rocket",
+            "--cpu-variant", "linux",
+            "--cpu-num-cores", "4",
+            "--cpu-mem-width", "2",
+            "--sys-clk-freq", "50e6",
+            "--with-ethernet",
+            "--with-sdcard",
+            "--with-sata",
+            "--sata-gen", "1",
+        ],
+    )
+
+TESTED_CPUS = [
+    "blackparrot",  # (riscv   / softcore)
+    "cdim",         # (mips    / softcore)
+    "coreblocks",   # (riscv   / softcore)
+    "cv32e40p",     # (riscv   / softcore)
+    "cv32e41p",     # (riscv   / softcore)
+    "cva6",         # (riscv   / softcore)
+    "femtorv",      # (riscv   / softcore)
+    "firev",        # (riscv   / softcore)
+    "gs232",        # (mips    / softcore)
+    "lm32",         # (lm32    / softcore)
+    "marocchino",   # (or1k    / softcore)
+    "mor1kx",       # (or1k    / softcore)
+    "naxriscv",     # (riscv   / softcore)
+    "picorv32",     # (riscv   / softcore)
+    "serv",         # (riscv   / softcore)
+    "sentinel",     # (riscv   / softcore)
+    "vexiiriscv",   # (riscv   / softcore)
+    "vexriscv",     # (riscv   / softcore)
+    "vexriscv_smp", # (riscv   / softcore)
+    "microwatt",    # (ppc64   / softcore)
+    "neorv32",      # (riscv   / softcore)
+    "ibex",         # (riscv   / softcore)
+    "minerva",      # (riscv   / softcore)
+]
+TESTED_CPU_VARIANTS = {
+    "microwatt": "standard+irq",
+}
+UNTESTED_CPUS = [
+    "cortex_m1",    # (arm     / softcore) -> Proprietary code.
+    "cortex_m3",    # (arm     / softcore) -> Proprieraty code.
+    "cva5",         # (riscv   / softcore) -> Verilator misses generated interface header.
+    "eos_s3",       # (arm     / hardcore) -> Hardcore.
+    "gowin_emcu",   # (arm     / hardcore) -> Hardcore.
+    "rocket",       # (riscv   / softcore) -> Not enough RAM in CI.
+    "zynq7000",     # (arm     / hardcore) -> Hardcore.
+    "zynqmp",       # (aarch64 / hardcore) -> Hardcore.
+]
+
+@pytest.mark.parametrize("cpu", TESTED_CPUS)
+def test_cpu(cpu, request, tmp_path):
+    variant = TESTED_CPU_VARIANTS.get(cpu, "standard")
+    assert boot_test(cpu_type=cpu, cpu_variant=variant, output_dir=str(tmp_path))
+
+def test_csr_data_width_8(tmp_path):
+    assert boot_test(args="--csr-data-width=8", output_dir=str(tmp_path))
+
+@pytest.mark.skipif(
+    os.environ.get("LITEX_QEMU_COSIM_TEST") != "1",
+    reason="QEMU co-simulation test requires a patched QEMU binary.",
+)
+@pytest.mark.parametrize("bus_standard", ["wishbone", "axi-lite", "axi"])
+def test_qemu_cpu(tmp_path, bus_standard):
+    port = _get_free_tcp_port()
+    assert boot_test(
+        cpu_type="qemu",
+        cpu_variant="rv32",
+        args=f"--bus-standard={bus_standard} --integrated-main-ram-size=0x100000 --qemu-port={port}",
+        output_dir=str(tmp_path),
+    )
+
+BUS_OPTIONS = [
+    ("--bus-standard", ["wishbone", "axi-lite", "axi"]),
+    ("--bus-data-width", [32, 64]),
+    ("--bus-address-width", [32, 64]),
+    ("--bus-interconnect", ["shared", "crossbar"])
+]
+BUS_BLACKLISTS = [
+    # AXI-Lite with 64-bit data width and crossbar
+    [
+        ("--bus-standard", ["axi-lite"]),
+        ("--bus-data-width", [64]),
+        ("--bus-interconnect", ["crossbar"])
+    ],
+    # AXI with 64-bit data width
+    [
+        ("--bus-standard", ["axi"]),
+        ("--bus-data-width", [64])
+    ]
+]
+
+def _bus_is_blacklisted(config):
+    for blacklist in BUS_BLACKLISTS:
+        matches = True
+        for opt, values in blacklist:
+            cfg_value = next(v for k,v in config if k == opt)
+            if cfg_value not in values:
+                matches = False
+                break
+        if matches:
+            return True
+    return False
+
+def _build_bus_cases():
+    keys = [k for k, _ in BUS_OPTIONS]
+    values = [v for _, v in BUS_OPTIONS]
+
+    cases = []
+    for combination in itertools.product(*values):
+        config = list(zip(keys, combination))
+        if _bus_is_blacklisted(config):
+            continue
+        args = " ".join(f"{k}={v}" for k, v in config)
+        cases.append(args)
+    return cases
+
+BUS_CASES = _build_bus_cases()
+
+@pytest.mark.parametrize("args", BUS_CASES)
+def test_buses(args, request, tmp_path):
+    assert boot_test(args=args, output_dir=str(tmp_path))

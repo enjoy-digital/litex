@@ -77,13 +77,14 @@ class EventSourcePulse(Module, _EventSource):
 
 
 class EventSourceProcess(Module, _EventSource):
-    """EventSource which triggers on a Falling or Rising edge.
+    """EventSource which triggers on a falling, rising or any edge.
 
     The purpose of this event source is to monitor the status of processes and
     generate an interrupt on their completion.
     """
     def __init__(self, name=None, description=None, edge="falling"):
-        assert edge in ["falling", "rising"]
+        assert edge in ["falling", "rising", "any"]
+        self.edge = edge
         _EventSource.__init__(self, name, description)
         self.comb += self.status.eq(self.trigger)
         trigger_d = Signal()
@@ -93,6 +94,8 @@ class EventSourceProcess(Module, _EventSource):
             self.sync += If(~self.trigger & trigger_d, self.pending.eq(1))
         if edge == "rising":
             self.sync += If(self.trigger & ~trigger_d, self.pending.eq(1))
+        if edge == "any":
+            self.sync += If(self.trigger ^ trigger_d, self.pending.eq(1))  
 
 
 class EventSourceLevel(Module, _EventSource):
@@ -164,48 +167,43 @@ class EventManager(Module, AutoCSR):
             elif isinstance(src, EventSourcePulse):
                 return r + "This Event is triggered on a **rising** edge."
             elif isinstance(src, EventSourceProcess):
-                return r + "This Event is triggered on a **falling** edge."
+                return r + f"This Event is triggered on **{src.edge}** edge."
             else:
                 return r + "This Event uses an unknown method of triggering."
+
+        # No Event Sources: nothing to generate.
+        if n == 0:
+            return
 
         # Status register
         fields = []
         for i, source in enumerate(sources):
             # Get source name and use default if None.
             name = get_source_name(source, i)
-            # Get description and use default description if None.
-            desc = getattr(source, "description", None)
-            if desc is None:
-                desc = "This register contains the current raw level of the {} event trigger.  Writes to this register have no effect.".format(str(name))
             # Add CSRField
-            fields.append(CSRField(name=name, size=1, description=f"Level of the ``{name}`` event"))
-        self.status = CSRStatus(n, description=desc, fields=fields)
+            fields.append(CSRField(name=name, size=1, description=f"Level of the ``{name}`` event."))
+        self.status = CSRStatus(n, fields=fields, name="status",
+            description="This register contains the current raw level of the event trigger.  Writes to this register have no effect.")
 
         # Pending Register
         fields = []
         for i, source in enumerate(sources):
             # Get source name and use default if None.
             name = get_source_name(source, i)
-            # Get description and use default description if None.
-            desc = getattr(source, "description", None)
-            if desc is None:
-                desc = "When a  {} event occurs, the corresponding bit will be set in this register.  To clear the Event, set the corresponding bit in this register.".format(str(name))
             # Add CSRField
             fields.append(CSRField(name=name, size=1, description=get_pending_source_description(source)))
-        self.pending = CSRStatus(n, description=desc, fields=fields, read_only=False)
+        self.pending = CSRStatus(n, fields=fields, read_only=False, name="pending",
+            description="When an event occurs, the corresponding bit will be set in this register.  To clear the Event, set the corresponding bit in this register.")
 
         # Enable Register
         fields = []
         for i, source in enumerate(sources):
             # Get source name and use default if None.
             name = get_source_name(source, i)
-            # Get description and use default description if None.
-            desc = getattr(source, "description", None)
-            if desc is None:
-                desc = "This register enables the corresponding {} events.  Write a ``0`` to this register to disable individual events.".format(str(name))
             # Add CSRField
-            fields.append(CSRField(name=name, offset=i, description=f"Write a ``1`` to enable the ``{name}`` Event"))
-        self.enable = CSRStorage(n, description=desc, fields=fields)
+            fields.append(CSRField(name=name, size=1, description=f"Write a ``1`` to enable the ``{name}`` Event."))
+        self.enable = CSRStorage(n, fields=fields, name="enable",
+            description="This register enables the corresponding events.  Write a ``0`` to this register to disable individual events.")
 
         # Connect Events/Fields
         for i, source in enumerate(sources):
@@ -214,9 +212,9 @@ class EventManager(Module, AutoCSR):
             self.comb += [
                 getattr(self.status.fields,  name).eq(source.status),
                 getattr(self.pending.fields, name).eq(source.pending),
-                If(self.pending.re & self.pending.r[i], source.clear.eq(1)),
+                If(self.pending.wr_stb & self.pending.wr_data[i], source.clear.eq(1)),
             ]
-            irqs = [self.pending.status[i] & self.enable.storage[i] for i in range(n)]
+        irqs = [self.pending.status[i] & self.enable.storage[i] for i in range(n)]
         self.comb += self.irq.eq(Reduce("OR", irqs))
 
     def __setattr__(self, name, value):

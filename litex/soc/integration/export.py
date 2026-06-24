@@ -2,7 +2,7 @@
 # This file is part of LiteX.
 #
 # This file is Copyright (c) 2013-2014 Sebastien Bourdeauducq <sb@m-labs.hk>
-# This file is Copyright (c) 2014-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2014-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2018 Dolu1990 <charles.papon.90@gmail.com>
 # This file is Copyright (c) 2019 Gabriel L. Somlo <gsomlo@gmail.com>
 # This file is Copyright (c) 2018 Jean-François Nguyen <jf@lambdaconcept.fr>
@@ -17,20 +17,24 @@
 # This file is Copyright (c) 2022 Franck Jullien <franck.jullien@collshade.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import io
 import os
 import re
+import csv
 import json
 import time
-import datetime
 import inspect
+import datetime
 from shutil import which
 from sysconfig import get_platform
+from xml.sax.saxutils import quoteattr
 
 from migen import *
 
 from litex.soc.interconnect.csr import CSRStatus
+from litex.soc.integration.soc import SoCRegion
 
-from litex.build.tools import generated_banner
+from litex.build.tools import generated_separator, generated_banner
 
 from litex.soc.doc.rst import reflow
 from litex.soc.doc.module import gather_submodules, ModuleNotDocumented, DocumentedModule, DocumentedInterrupts
@@ -55,7 +59,8 @@ def get_cpu_mak(cpu, compile_software):
         # Default to gcc unless told otherwise.
         if clang is None:
             clang = False
-    assert isinstance(clang, bool)
+    if not isinstance(clang, bool):
+        raise TypeError("clang must be a bool.")
     if clang:
         triple = cpu.clang_triple
         flags = cpu.clang_flags
@@ -97,7 +102,7 @@ def get_cpu_mak(cpu, compile_software):
         for i, l in enumerate(os.popen(selected_triple + "-ar -V")):
             # Version is last float reported in first line.
             if i == 0:
-                version = float(re.findall("\d+\.\d+", l)[-1])
+                version = float(re.findall(r"\d+\.\d+", l)[-1])
         return version
 
     def apply_riscv_zicsr_march_workaround(flags):
@@ -109,7 +114,7 @@ def get_cpu_mak(cpu, compile_software):
     #if (not clang) and ("riscv" in selected_triple):
     #   flags = apply_riscv_zicsr_march_workaround(flags)
 
-    # Return informations.
+    # Return information.
     return [
         ("TRIPLE",        selected_triple),
         ("CPU",           cpu.name),
@@ -125,15 +130,27 @@ def get_linker_output_format(cpu):
     return f"OUTPUT_FORMAT(\"{cpu.linker_output_format}\")\n"
 
 
-def get_linker_regions(regions):
+def _cpu_bios_map(cpu, addr, cached=False):
+    if cpu is None:
+        return addr
+    bios_map = getattr(cpu, "bios_map", None)
+    if bios_map is None:
+        return addr
+    return bios_map(addr, cached)
+
+def get_linker_regions(regions, cpu=None):
     r = "MEMORY {\n"
     for name, region in regions.items():
-        r += f"\t{name} : ORIGIN = 0x{region.origin:08x}, LENGTH = 0x{region.length:08x}\n"
+        origin = _cpu_bios_map(cpu, region.origin, region.cached)
+        r += f"\t{name} : ORIGIN = 0x{origin:08x}, LENGTH = 0x{region.size:08x}\n"
     r += "}\n"
     return r
 
 
 # C Export -----------------------------------------------------------------------------------------
+
+
+# Header.
 
 def get_git_header():
     from litex.build.tools import get_litex_git_revision
@@ -143,30 +160,62 @@ def get_git_header():
     r += "#endif\n"
     return r
 
-def get_mem_header(regions):
+def get_mem_header(regions, cpu=None):
     r = generated_banner("//")
     r += "#ifndef __GENERATED_MEM_H\n#define __GENERATED_MEM_H\n\n"
     for name, region in regions.items():
+        origin_va = _cpu_bios_map(cpu, region.origin, region.cached)
         r += f"#ifndef {name.upper()}_BASE\n"
         r += f"#define {name.upper()}_BASE 0x{region.origin:08x}L\n"
-        r += f"#define {name.upper()}_SIZE 0x{region.length:08x}\n"
+        r += f"#define {name.upper()}_BASE_VA 0x{origin_va:08x}L\n"
+        r += f"#define {name.upper()}_SIZE 0x{region.size:08x}\n"
         r += "#endif\n\n"
 
     r += "#ifndef MEM_REGIONS\n"
-    r += "#define MEM_REGIONS \"";
-    name_length = max([len(name) for name in regions.keys()])
-    for name, region in regions.items():
-        r += f"{name.upper()} {' '*(name_length-len(name))} 0x{region.origin:08x} 0x{region.size:x} \\n"
-    r = r[:-2]
+    r += "#define MEM_REGIONS \""
+    if len(regions):
+        name_length = max([len(name) for name in regions.keys()])
+        for name, region in regions.items():
+            r += f"{name.upper()} {' '*(name_length-len(name))} 0x{region.origin:08x} 0x{region.size:x} \\n"
+        r = r[:-2]
+    r += "\"\n"
+    r += "#endif\n"
+
+    r += "\n#ifndef MEM_REGIONS_DETAILS\n"
+    r += "#define MEM_REGIONS_DETAILS \""
+    if len(regions):
+        name_length = max(len("Region"), max([len(name) for name in regions.keys()]))
+        r += f"{'Region':<{name_length}} Origin     End        Size \\n"
+        for name, region in regions.items():
+            end = region.origin + region.size - 1
+            r += f"{name.upper():<{name_length}} 0x{region.origin:08x} 0x{end:08x} 0x{region.size:x} \\n"
+        r = r[:-2]
     r += "\"\n"
     r += "#endif\n"
 
     r += "#endif\n"
     return r
 
+def _c_string_literal(s):
+    # json.dumps escapes quotes/backslashes suitably for C, but encodes control characters as
+    # \uXXXX universal-character-names, which are ill-formed in C below U+00A0 (the generated
+    # header would not compile). Escape them as hex with string-splicing to avoid escape run-on.
+    r = "\""
+    for c in s:
+        if c in "\"\\":
+            r += "\\" + c
+        elif (ord(c) < 0x20) or (ord(c) == 0x7f):
+            r += "\\x{:02x}\"\"".format(ord(c))
+        else:
+            r += c
+    r += "\""
+    return r
+
 def get_soc_header(constants, with_access_functions=True):
     r = generated_banner("//")
     r += "#ifndef __GENERATED_SOC_H\n#define __GENERATED_SOC_H\n"
+    if with_access_functions:
+        r += "#include <stdint.h>\n"
     funcs = ""
 
     for name, value in constants.items():
@@ -174,11 +223,30 @@ def get_soc_header(constants, with_access_functions=True):
             r += "#define "+name+"\n"
             continue
         if isinstance(value, str):
-            value = "\"" + value + "\""
+            value = _c_string_literal(value)
             ctype = "const char *"
         else:
+            if isinstance(value, bool):
+                value = int(value)
+            ctype = "int32_t"
+            if isinstance(value, int):
+                if value >= 0:
+                    if value > 0xffffffffffffffff:
+                        raise ValueError(f"Constant {name} value {value} does not fit in a 64-bit C type.")
+                    # >32-bit values need an explicit suffix: an unsuffixed decimal literal above
+                    # INT64_MAX is ill-formed C and values above UINT32_MAX must not be truncated.
+                    if value > 0xffffffff:
+                        ctype = "uint64_t"
+                        value = f"0x{value:x}ULL"
+                    else:
+                        ctype = "uint32_t"
+                else:
+                    if value < -0x8000000000000000:
+                        raise ValueError(f"Constant {name} value {value} does not fit in a 64-bit C type.")
+                    if value < -0x80000000:
+                        ctype = "int64_t"
+                        value = f"{value}LL"
             value = str(value)
-            ctype = "int"
         r += "#define "+name+" "+value+"\n"
         if with_access_functions:
             funcs += "static inline "+ctype+" "+name.lower()+"_read(void) {\n"
@@ -192,25 +260,91 @@ def get_soc_header(constants, with_access_functions=True):
     r += "\n#endif\n"
     return r
 
+def _generate_csr_header_includes_c(with_access_functions, with_fields_access_functions=False):
+    includes = ""
+    if with_access_functions:
+        includes += "#include <generated/soc.h>\n"
+    includes += "#ifndef __GENERATED_CSR_H\n"
+    includes += "#define __GENERATED_CSR_H\n"
+    if with_access_functions or with_fields_access_functions:
+        includes += "#include <stdint.h>\n"
+    if with_access_functions:
+        includes += "#include <system.h>\n"
+        includes += "#ifndef CSR_ACCESSORS_DEFINED\n"
+        includes += "#include <hw/common.h>\n"
+        includes += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
+    return includes
+
+def _generate_csr_base_define_c(csr_base, with_csr_base_define, cpu=None):
+    includes = ""
+    if with_csr_base_define:
+        csr_base_va = _cpu_bios_map(cpu, csr_base, False)
+        includes += "\n"
+        includes += "#ifndef CSR_BASE\n"
+        includes += f"#define CSR_BASE {hex(csr_base)}L\n"
+        includes += "#endif /* ! CSR_BASE */\n"
+        includes += "#ifndef CSR_BASE_VA\n"
+        includes += f"#define CSR_BASE_VA {hex(csr_base_va)}L\n"
+        includes += "#endif /* ! CSR_BASE_VA */\n"
+    return includes
+
+# CSR Definitions.
+
 def _get_csr_addr(csr_base, addr, with_csr_base_define=True):
     if with_csr_base_define:
         return f"(CSR_BASE + {hex(addr)}L)"
     else:
         return f"{hex(csr_base + addr)}L"
 
-def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_only, csr_base, with_csr_base_define, with_access_functions):
-    r = ""
+def _get_csr_addr_va(cpu, csr_base, addr, with_csr_base_define=True):
+    if with_csr_base_define:
+        return f"(CSR_BASE_VA + {hex(addr)}L)"
+    else:
+        return f"{hex(_cpu_bios_map(cpu, csr_base + addr, False))}L"
 
-    addr_str = f"CSR_{reg_name.upper()}_ADDR"
-    size_str = f"CSR_{reg_name.upper()}_SIZE"
-    r += f"#define {addr_str} {_get_csr_addr(csr_base, reg_base, with_csr_base_define)}\n"
+def _generate_csr_definitions_c(cpu, reg_name, reg_base, nwords, csr_base, with_csr_base_define):
+    addr_str    = f"CSR_{reg_name.upper()}_ADDR"
+    va_str      = f"CSR_{reg_name.upper()}_ADDR_VA"
+    size_str    = f"CSR_{reg_name.upper()}_SIZE"
+    definitions = f"#define {addr_str} {_get_csr_addr(csr_base, reg_base, with_csr_base_define)}\n"
+    definitions += f"#define {va_str} {_get_csr_addr_va(cpu, csr_base, reg_base, with_csr_base_define)}\n"
+    definitions += f"#define {size_str} {nwords}\n"
+    return definitions
 
-    r += f"#define {size_str} {nwords}\n"
+def _generate_csr_region_definitions_c(cpu, name, region, origin, alignment, csr_base, with_csr_base_define):
+    base_define = with_csr_base_define and not isinstance(region, MockCSRRegion)
+    base = csr_base if not isinstance(region, MockCSRRegion) else 0
+    region_defs = f"\n/* {name.upper()} Registers */\n"
+    region_defs += f"#define CSR_{name.upper()}_BASE {_get_csr_addr(base, origin, base_define)}\n"
+    region_defs += f"#define CSR_{name.upper()}_BASE_VA {_get_csr_addr_va(cpu, base, origin, base_define)}\n"
 
-    size = nwords*busword//8
+    if not isinstance(region.obj, Memory):
+        for csr in region.obj:
+            nr = (csr.size + region.busword - 1) // region.busword
+            csr_origin = _get_csr_origin(csr, origin)
+            region_defs += _generate_csr_definitions_c(
+                cpu                   = cpu,
+                reg_name              = name + "_" + csr.name,
+                reg_base              = csr_origin,
+                nwords                = nr,
+                csr_base              = base,
+                with_csr_base_define  = base_define,
+            )
+            origin = csr_origin + alignment // 8 * nr
+
+    region_defs += f"\n/* {name.upper()} Fields */\n"
+    if not isinstance(region.obj, Memory):
+        for csr in region.obj:
+            if hasattr(csr, "fields"):
+                region_defs += _generate_csr_field_definitions_c(csr, name)
+
+    return region_defs
+
+# CSR Read/Write Access Functions.
+
+def _determine_ctype_and_stride_c(size, alignment):
     if size > 8:
-        # Downstream should select appropriate `csr_[rd|wr]_buf_uintX()` pair!
-        return r
+        return None, None
     elif size > 4:
         ctype = "uint64_t"
     elif size > 2:
@@ -219,97 +353,199 @@ def _get_rw_functions_c(reg_name, reg_base, nwords, busword, alignment, read_onl
         ctype = "uint16_t"
     else:
         ctype = "uint8_t"
+    stride = alignment // 8
+    return ctype, stride
 
-    stride = alignment//8;
+def _generate_csr_read_function_c(cpu, reg_name, reg_base, nwords, busword, ctype, stride, csr_ordering, csr_base, with_csr_base_define):
+    read_function = f"static inline {ctype} {reg_name}_read(void) {{\n"
+    if nwords > 1:
+        read_function += f"\t{ctype} r = csr_read_simple({_get_csr_addr_va(cpu, csr_base, reg_base, with_csr_base_define)});\n"
+        for sub in range(1, nwords):
+            if csr_ordering == "big":
+                read_function += f"\tr <<= {busword};\n"
+                read_function += f"\tr |= csr_read_simple({_get_csr_addr_va(cpu, csr_base, reg_base + sub * stride, with_csr_base_define)});\n"
+            else:
+                read_function += f"\tr |= ({ctype})csr_read_simple({_get_csr_addr_va(cpu, csr_base, reg_base + sub * stride, with_csr_base_define)}) << {busword * sub};\n"
+        read_function += "\treturn r;\n}\n"
+    else:
+        read_function += f"\treturn csr_read_simple({_get_csr_addr_va(cpu, csr_base, reg_base, with_csr_base_define)});\n}}\n"
+    return read_function
+
+def _generate_csr_write_function_c(cpu, reg_name, reg_base, nwords, busword, ctype, stride, csr_ordering, csr_base, with_csr_base_define):
+    write_function = f"static inline void {reg_name}_write({ctype} v) {{\n"
+    for sub in range(nwords):
+        shift = (nwords - sub - 1) * busword if csr_ordering == "big" else sub * busword
+        v_shift = f"v >> {shift}" if shift else "v"
+        write_function += f"\tcsr_write_simple({v_shift}, {_get_csr_addr_va(cpu, csr_base, reg_base + sub * stride, with_csr_base_define)});\n"
+    write_function += "}\n"
+    return write_function
+
+def _get_csr_read_write_access_functions_c(cpu, reg_name, reg_base, nwords, busword, alignment, read_only, csr_ordering, csr_base, with_csr_base_define):
+    result = ""
+    size   = nwords * busword // 8
+
+    ctype, stride = _determine_ctype_and_stride_c(size, alignment)
+    if ctype is None:
+        return result
+
+    result += _generate_csr_read_function_c(cpu, reg_name, reg_base, nwords, busword, ctype, stride, csr_ordering, csr_base, with_csr_base_define)
+    if not read_only:
+        result += _generate_csr_write_function_c(cpu, reg_name, reg_base, nwords, busword, ctype, stride, csr_ordering, csr_base, with_csr_base_define)
+
+    return result
+
+def _generate_csr_region_access_functions_c(cpu, name, region, origin, alignment, csr_ordering, csr_base, with_csr_base_define):
+    base_define = with_csr_base_define and not isinstance(region, MockCSRRegion)
+    base = csr_base if not isinstance(region, MockCSRRegion) else 0
+    region_defs = f"\n/* {name.upper()} Access Functions */\n"
+
+    if not isinstance(region.obj, Memory):
+        for csr in region.obj:
+            nr = (csr.size + region.busword - 1) // region.busword
+            csr_origin = _get_csr_origin(csr, origin)
+            region_defs += _get_csr_read_write_access_functions_c(
+                cpu                   = cpu,
+                reg_name              = name + "_" + csr.name,
+                reg_base              = csr_origin,
+                nwords                = nr,
+                busword               = region.busword,
+                alignment             = alignment,
+                read_only             = getattr(csr, "read_only", False),
+                csr_ordering          = csr_ordering,
+                csr_base              = base,
+                with_csr_base_define  = base_define,
+            )
+            origin = csr_origin + alignment // 8 * nr
+    return region_defs
+
+# CSR Fields.
+
+def _generate_csr_field_definitions_c(csr, name):
+    field_defs = ""
+    for field in csr.fields.fields:
+        offset = str(field.offset)
+        size   = str(field.size)
+        field_defs += f"#define CSR_{name.upper()}_{csr.name.upper()}_{field.name.upper()}_OFFSET {offset}\n"
+        field_defs += f"#define CSR_{name.upper()}_{csr.name.upper()}_{field.name.upper()}_SIZE {size}\n"
+    return field_defs
+
+def _generate_csr_field_accessors_c(name, csr, field, with_access_functions=True):
+    accessors = ""
+    if csr.size > 64:
+        return accessors
+
+    ctype      = "uint64_t" if csr.size > 32 else "uint32_t"
+    reg_name   = name + "_" + csr.name.lower()
+    field_name = reg_name + "_" + field.name.lower()
+    offset     = str(field.offset)
+    size       = str(field.size)
+    accessors += f"static inline {ctype} {field_name}_extract({ctype} oldword) {{\n"
+    accessors += f"\t{ctype} mask = 0x{(1 << int(size)) - 1:x};\n"
+    accessors += f"\treturn ((oldword >> {offset}) & mask);\n}}\n"
+    # The register-level _read()/_write() functions only exist with access functions enabled: only
+    # emit the pure _extract/_replace helpers without them.
     if with_access_functions:
-        r += f"static inline {ctype} {reg_name}_read(void) {{\n"
-        if nwords > 1:
-            r += f"\t{ctype} r = csr_read_simple({_get_csr_addr(csr_base, reg_base, with_csr_base_define)});\n"
-            for sub in range(1, nwords):
-                r += f"\tr <<= {busword};\n"
-                r += f"\tr |= csr_read_simple({_get_csr_addr(csr_base, reg_base+sub*stride, with_csr_base_define)});\n"
-            r += "\treturn r;\n}\n"
-        else:
-            r += f"\treturn csr_read_simple({_get_csr_addr(csr_base, reg_base, with_csr_base_define)});\n}}\n"
+        accessors += f"static inline {ctype} {field_name}_read(void) {{\n"
+        accessors += f"\t{ctype} word = {reg_name}_read();\n"
+        accessors += f"\treturn {field_name}_extract(word);\n}}\n"
+    if not getattr(csr, "read_only", False):
+        accessors += f"static inline {ctype} {field_name}_replace({ctype} oldword, {ctype} plain_value) {{\n"
+        accessors += f"\t{ctype} mask = 0x{(1 << int(size)) - 1:x};\n"
+        accessors += f"\treturn (oldword & (~(mask << {offset}))) | ((mask & plain_value) << {offset});\n}}\n"
+        if with_access_functions:
+            accessors += f"static inline void {field_name}_write({ctype} plain_value) {{\n"
+            accessors += f"\t{ctype} oldword = {reg_name}_read();\n"
+            accessors += f"\t{ctype} newword = {field_name}_replace(oldword, plain_value);\n"
+            accessors += f"\t{reg_name}_write(newword);\n}}\n"
+    return accessors
 
-        if not read_only:
-            r += f"static inline void {reg_name}_write({ctype} v) {{\n"
-            for sub in range(nwords):
-                shift = (nwords-sub-1)*busword
-                if shift:
-                    v_shift = "v >> {}".format(shift)
-                else:
-                    v_shift = "v"
-                r += f"\tcsr_write_simple({v_shift}, {_get_csr_addr(csr_base, reg_base+sub*stride, with_csr_base_define)});\n"
-            r += "}\n"
-    return r
+def _generate_csr_field_functions_c(csr, name, with_access_functions=True):
+    field_funcs = ""
+    for field in csr.fields.fields:
+        field_funcs += _generate_csr_field_accessors_c(name, csr, field, with_access_functions)
+    return field_funcs
 
+def _generate_csr_fields_access_functions_c(name, region, origin, alignment, csr_base, with_csr_base_define, with_access_functions=True):
+    base_define = with_csr_base_define and not isinstance(region, MockCSRRegion)
+    region_defs = f"\n/* {name.upper()} Fields Access Functions */\n"
 
-def get_csr_header(regions, constants, csr_base=None, with_csr_base_define=True, with_access_functions=True):
+    if not isinstance(region.obj, Memory):
+        for csr in region.obj:
+            nr = (csr.size + region.busword - 1) // region.busword
+            origin += alignment // 8 * nr
+            if hasattr(csr, "fields"):
+                region_defs += _generate_csr_field_functions_c(csr, name, with_access_functions)
+    return region_defs
+
+# CSR Header.
+
+def _get_csr_region_origin(region, csr_base):
+    if isinstance(region, MockCSRRegion):
+        return region.origin
+    return region.origin - csr_base
+
+def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_csr_base_define=True, with_access_functions=True, with_fields_access_functions=False, cpu=None):
+    """
+    Generate the CSR header file content.
+    """
     alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
     r = generated_banner("//")
-    if with_access_functions: # FIXME
-        r += "#include <generated/soc.h>\n"
-    r += "#ifndef __GENERATED_CSR_H\n#define __GENERATED_CSR_H\n"
-    if with_access_functions:
-        r += "#include <stdint.h>\n"
-        r += "#include <system.h>\n"
-        r += "#ifndef CSR_ACCESSORS_DEFINED\n"
-        r += "#include <hw/common.h>\n"
-        r += "#endif /* ! CSR_ACCESSORS_DEFINED */\n"
-    csr_base = csr_base if csr_base is not None else regions[next(iter(regions))].origin
-    if with_csr_base_define:
-        r += "#ifndef CSR_BASE\n"
-        r += f"#define CSR_BASE {hex(csr_base)}L\n"
-        r += "#endif\n"
-    for name, region in regions.items():
-        origin = region.origin - csr_base
-        r += "\n/* "+name+" */\n"
-        if with_csr_base_define:
-            r += f"#define CSR_{name.upper()}_BASE {_get_csr_addr(csr_base, origin, with_csr_base_define)}\n"
-        if not isinstance(region.obj, Memory):
-            for csr in region.obj:
-                nr = (csr.size + region.busword - 1)//region.busword
-                r += _get_rw_functions_c(
-                    reg_name              = name + "_" + csr.name,
-                    reg_base              = origin,
-                    nwords                = nr,
-                    busword               = region.busword,
-                    alignment             = alignment,
-                    read_only             = getattr(csr, "read_only", False),
-                    csr_base              = csr_base,
-                    with_csr_base_define  = with_csr_base_define,
-                    with_access_functions = with_access_functions,
-                )
-                origin += alignment//8*nr
-                if hasattr(csr, "fields"):
-                    for field in csr.fields.fields:
-                        offset = str(field.offset)
-                        size = str(field.size)
-                        r += f"#define CSR_{name.upper()}_{csr.name.upper()}_{field.name.upper()}_OFFSET {offset}\n"
-                        r += f"#define CSR_{name.upper()}_{csr.name.upper()}_{field.name.upper()}_SIZE {size}\n"
-                        if with_access_functions and csr.size <= 32: # FIXME: Implement extract/read functions for csr.size > 32-bit.
-                            reg_name   = name + "_" + csr.name.lower()
-                            field_name = reg_name + "_" + field.name.lower()
-                            r += "static inline uint32_t " + field_name + "_extract(uint32_t oldword) {\n"
-                            r += "\tuint32_t mask = ((uint32_t)(1 << " + size + ")-1);\n"
-                            r += "\treturn ( (oldword >> " + offset + ") & mask );\n}\n"
-                            r += "static inline uint32_t " + field_name + "_read(void) {\n"
-                            r += "\tuint32_t word = " + reg_name + "_read();\n"
-                            r += "\treturn " + field_name + "_extract(word);\n"
-                            r += "}\n"
-                            if not getattr(csr, "read_only", False):
-                                r += "static inline uint32_t " + field_name + "_replace(uint32_t oldword, uint32_t plain_value) {\n"
-                                r += "\tuint32_t mask = ((uint32_t)(1 << " + size + ")-1);\n"
-                                r += "\treturn (oldword & (~(mask << " + offset + "))) | (mask & plain_value)<< " + offset + " ;\n}\n"
-                                r += "static inline void " + field_name + "_write(uint32_t plain_value) {\n"
-                                r += "\tuint32_t oldword = " + reg_name + "_read();\n"
-                                r += "\tuint32_t newword = " + field_name + "_replace(oldword, plain_value);\n"
-                                r += "\t" + reg_name + "_write(newword);\n"
-                                r += "}\n"
 
-    r += "\n#endif\n"
+    # CSR Includes.
+    r += "\n"
+    r += generated_separator("//", "CSR Includes.")
+    r += "\n"
+    r += _generate_csr_header_includes_c(with_access_functions, with_fields_access_functions)
+    if csr_base is None:
+        _csr_base = regions[next(iter(regions))].origin if len(regions) else 0
+    else:
+        _csr_base = csr_base
+    csr_base  = _csr_base
+    r += _generate_csr_base_define_c(csr_base, with_csr_base_define, cpu=cpu)
+
+    # CSR Registers/Fields Definition.
+    r += "\n"
+    r += generated_separator("//", "CSR Registers/Fields Definition.")
+    for name, region in regions.items():
+        origin = _get_csr_region_origin(region, _csr_base)
+        r += _generate_csr_region_definitions_c(cpu, name, region, origin, alignment, csr_base, with_csr_base_define)
+
+    # CSR Registers Access Functions.
+    if with_access_functions:
+        r += "\n"
+        r += generated_separator("//", "CSR Registers Access Functions.")
+        r += "\n"
+        r += "#ifndef LITEX_CSR_ACCESS_FUNCTIONS\n"
+        r += "#define LITEX_CSR_ACCESS_FUNCTIONS 1\n"
+        r += "#endif\n"
+        r += "\n"
+        r += "#if LITEX_CSR_ACCESS_FUNCTIONS\n"
+        for name, region in regions.items():
+            origin          = _get_csr_region_origin(region, _csr_base)
+            region_ordering = getattr(region, "ordering", None) or csr_ordering
+            r += _generate_csr_region_access_functions_c(
+                cpu, name, region, origin, alignment, region_ordering, csr_base, with_csr_base_define)
+        r += "#endif /* LITEX_CSR_ACCESS_FUNCTIONS */\n"
+
+    # CSR Registers Field Access Functions.
+    if with_fields_access_functions:
+        r += "\n"
+        r += generated_separator("//", "CSR Registers Field Access Functions.")
+        r += "\n"
+        r += "#ifndef LITEX_CSR_FIELDS_ACCESS_FUNCTIONS\n"
+        r += "#define LITEX_CSR_FIELDS_ACCESS_FUNCTIONS 1\n"
+        r += "#endif\n"
+        r += "\n"
+        r += "#if LITEX_CSR_FIELDS_ACCESS_FUNCTIONS\n"
+        for name, region in regions.items():
+            origin = _get_csr_region_origin(region, _csr_base)
+            r += _generate_csr_fields_access_functions_c(name, region, origin, alignment, csr_base, with_csr_base_define, with_access_functions)
+        r += "#endif /* LITEX_CSR_FIELDS_ACCESS_FUNCTIONS */\n"
+
+    r += "\n#endif /* ! __GENERATED_CSR_H */\n"
     return r
+
+# C I2C Export -------------------------------------------------------------------------------------
 
 def get_i2c_header(i2c_init_values):
     i2c_devs, i2c_init = i2c_init_values
@@ -332,6 +568,8 @@ def get_i2c_header(i2c_init_values):
         r += "\t\t.ops.w_scl_offset   = CSR_{}_W_SCL_OFFSET,\n".format(name.upper())
         r += "\t\t.ops.w_sda_offset   = CSR_{}_W_SDA_OFFSET,\n".format(name.upper())
         r += "\t\t.ops.w_oe_offset    = CSR_{}_W_OE_OFFSET,\n".format(name.upper())
+        r += "\t\t.ops.r_sda_offset   = CSR_{}_R_SDA_OFFSET,\n".format(name.upper())
+        r += "\t\t.ops.r_scl_offset   = CSR_{}_R_SCL_OFFSET,\n".format(name.upper())
         r += "\t\t.name               = \"{}\"\n".format(name)
         r += "\t},\n"
     r += "};\n\n"
@@ -370,9 +608,15 @@ def get_i2c_header(i2c_init_values):
     r += "\n#endif\n"
     return r
 
-# JSON Export --------------------------------------------------------------------------------------
+# JSON Export / Import  ----------------------------------------------------------------------------
 
-def get_csr_json(csr_regions={}, constants={}, mem_regions={}):
+def get_csr_json(soc=None, csr_regions=None, constants=None, mem_regions=None):
+    if csr_regions is None:
+        csr_regions = {}
+    if constants is None:
+        constants = {}
+    if mem_regions is None:
+        mem_regions = {}
     alignment = constants.get("CONFIG_CSR_ALIGNMENT", 32)
 
     d = {
@@ -380,60 +624,193 @@ def get_csr_json(csr_regions={}, constants={}, mem_regions={}):
         "csr_registers": {},
         "constants":     {},
         "memories":      {},
+        "cores":         {},
     }
 
+    # Get CSR Regions.
     for name, region in csr_regions.items():
+        if soc is not None:
+            try:
+                core_inst = getattr(soc, name)
+                d["cores"][name] = core_inst.__class__.__name__
+            except AttributeError:
+                pass
         d["csr_bases"][name] = region.origin
         region_origin = region.origin
         if not isinstance(region.obj, Memory):
             for csr in region.obj:
                 _size = (csr.size + region.busword - 1)//region.busword
+                # Use the same predicate as the csr.h generation so that imported regions
+                # (MockCSRs, which carry read_only) keep their type on re-export.
                 _type = "rw"
-                if isinstance(csr, CSRStatus) and not hasattr(csr, "r"):
+                if getattr(csr, "read_only", False):
                     _type = "ro"
+                elif isinstance(csr, CSRStatus) and not hasattr(csr, "wr_data"):
+                    _type = "ro"
+                csr_origin = _get_csr_origin(csr, region_origin)
                 d["csr_registers"][name + "_" + csr.name] = {
-                    "addr": region_origin,
+                    "addr": csr_origin,
                     "size": _size,
                     "type": _type
                 }
-                region_origin += alignment//8*_size
+                region_origin = csr_origin + alignment//8*_size
 
+    # Get Constants.
     for name, value in constants.items():
-        d["constants"][name.lower()] = value.lower() if isinstance(value, str) else value
+        d["constants"][name.lower()] = value
 
+    # Get Mem Regions.
     for name, region in mem_regions.items():
         d["memories"][name.lower()] = {
             "base": region.origin,
-            "size": region.length,
+            "size": region.size,
             "type": region.type,
         }
 
+    # Return JSON Dump.
     return json.dumps(d, indent=4)
 
+class MockCSR:
+    def __init__(self, name, nwords, type, busword=32, origin=None):
+        self.name      = name
+        self.size      = nwords * busword
+        self.type      = type
+        self.read_only = type == "ro"
+        self.origin    = origin
+
+class MockCSRRegion:
+    def __init__(self, origin, obj, busword=32, ordering=None):
+        self.origin   = origin
+        self.obj      = obj
+        self.busword  = busword
+        self.ordering = ordering
+
+def _parse_json_int(value):
+    if isinstance(value, str):
+        return int(value, 0)
+    return int(value)
+
+def _get_csr_origin(csr, origin):
+    return origin if getattr(csr, "origin", None) is None else csr.origin
+
+def _get_json_constant(config_data, name, default=None):
+    constants = config_data.get("constants", {})
+    for key, value in constants.items():
+        if key.lower() == name.lower():
+            return value
+    return default
+
+def _has_json_constant(config_data, name):
+    constants = config_data.get("constants", {})
+    return any(key.lower() == name.lower() for key in constants)
+
+def load_csr_json(filename, origin=0, name=""):
+    if len(name):
+        name += "_"
+    # Read File.
+    with open(filename, "r") as json_file:
+        config_data = json.load(json_file)
+
+    # Load CSR Regions.
+    csr_bases     = config_data.get("csr_bases", {})
+    csr_registers = config_data.get("csr_registers", {})
+    csr_busword   = _parse_json_int(_get_json_constant(config_data, "config_csr_data_width", 32))
+    csr_ordering  = None
+    if _has_json_constant(config_data, "config_csr_ordering_little"):
+        csr_ordering = "little"
+    if _has_json_constant(config_data, "config_csr_ordering_big"):
+        csr_ordering = "big"
+    csr_names      = {region_name: [] for region_name in csr_bases}
+    region_names   = sorted(csr_bases, key=len, reverse=True)
+    unmatched_csrs = []
+    for csr_name, info in csr_registers.items():
+        if "size" not in info:
+            raise ValueError("CSR JSON {} register {} is missing size.".format(filename, csr_name))
+        matched = False
+        for region_name in region_names:
+            prefix = region_name + "_"
+            if csr_name.startswith(prefix):
+                matched = True
+                csr_origin = origin + _parse_json_int(info["addr"]) if "addr" in info else None
+                csr_names[region_name].append(MockCSR(
+                    name    = csr_name[len(prefix):],
+                    nwords  = _parse_json_int(info["size"]),
+                    type    = info.get("type", "rw"),
+                    busword = csr_busword,
+                    origin  = csr_origin,
+                ))
+                break
+        if not matched:
+            unmatched_csrs.append(csr_name)
+    if unmatched_csrs:
+        raise ValueError("CSR JSON {} register(s) do not match any CSR base: {}.".format(
+            filename, ", ".join(sorted(unmatched_csrs))))
+
+    csr_regions = {}
+    for region_name, addr in csr_bases.items():
+        csr_names[region_name].sort(key=lambda csr: _get_csr_origin(csr, 0))
+        csr_regions[name + region_name] = MockCSRRegion(
+            origin + _parse_json_int(addr), csr_names[region_name],
+            busword = csr_busword,
+            ordering = csr_ordering,
+        )
+
+    # Load Constants.
+    constants = {(name + const_name).upper(): value for const_name, value in config_data.get("constants", {}).items()}
+
+    # Load Memory Regions.
+    mem_regions = {}
+    for mem_name, info in config_data.get("memories", {}).items():
+        for key in ["base", "size", "type"]:
+            if key not in info:
+                raise ValueError("CSR JSON {} memory {} is missing {}.".format(filename, mem_name, key))
+        mem_regions[name + mem_name.lower()] = SoCRegion(
+            origin + _parse_json_int(info["base"]), _parse_json_int(info["size"]), info["type"])
+
+    # Return CSR Regions, Constants, Mem Regions.
+    return csr_regions, constants, mem_regions
 
 # CSV Export --------------------------------------------------------------------------------------
 
-def get_csr_csv(csr_regions={}, constants={}, mem_regions={}):
-    d = json.loads(get_csr_json(csr_regions, constants, mem_regions))
+def get_csr_csv(soc=None, csr_regions=None, constants=None, mem_regions=None):
+    if csr_regions is None:
+        csr_regions = {}
+    if constants is None:
+        constants = {}
+    if mem_regions is None:
+        mem_regions = {}
+    d = json.loads(get_csr_json(soc, csr_regions, constants, mem_regions))
     r = generated_banner("#")
+    f = io.StringIO()
+    writer = csv.writer(f, lineterminator="\n")
     for name, value in d["csr_bases"].items():
-        r += "csr_base,{},0x{:08x},,\n".format(name, value)
+        writer.writerow(["csr_base", name, "0x{:08x}".format(value), "", ""])
     for name in d["csr_registers"].keys():
-        r += "csr_register,{},0x{:08x},{},{}\n".format(name,
-            d["csr_registers"][name]["addr"],
-            d["csr_registers"][name]["size"],
-            d["csr_registers"][name]["type"])
+        writer.writerow([
+            "csr_register",
+            name,
+            "0x{:08x}".format(d["csr_registers"][name]["addr"]),
+            str(d["csr_registers"][name]["size"]),
+            d["csr_registers"][name]["type"],
+        ])
     for name, value in d["constants"].items():
-        r += "constant,{},{},,\n".format(name, value)
+        writer.writerow(["constant", name, str(value), "", ""])
     for name in d["memories"].keys():
-        r += "memory_region,{},0x{:08x},{:d},{:s}\n".format(name,
-            d["memories"][name]["base"],
-            d["memories"][name]["size"],
+        writer.writerow([
+            "memory_region",
+            name,
+            "0x{:08x}".format(d["memories"][name]["base"]),
+            "{:d}".format(d["memories"][name]["size"]),
             d["memories"][name]["type"],
-            )
-    return r
+        ])
+    return r + f.getvalue()
 
 # SVD Export --------------------------------------------------------------------------------------
+
+def _svd_cdata(description):
+    # A literal "]]>" inside a CDATA section would terminate it and break the whole SVD: split it
+    # across two CDATA sections (standard XML escaping technique).
+    return "<![CDATA[{}]]>".format(str(description).replace("]]>", "]]]]><![CDATA[>"))
 
 def get_csr_svd(soc, vendor="litex", name="soc", description=None):
     def sub_csr_bit_range(busword, csr, offset):
@@ -448,7 +825,7 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
         svd.append('                <register>')
         svd.append('                    <name>{}</name>'.format(csr.short_numbered_name))
         if description is not None:
-            svd.append('                    <description><![CDATA[{}]]></description>'.format(description))
+            svd.append('                    <description>{}</description>'.format(_svd_cdata(description)))
         svd.append('                    <addressOffset>0x{:04x}</addressOffset>'.format(csr_address))
         svd.append('                    <resetValue>0x{:02x}</resetValue>'.format(csr.reset_value))
         svd.append('                    <size>{}</size>'.format(length))
@@ -464,8 +841,9 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
                 svd.append('                            <bitRange>[{}:{}]</bitRange>'.format(
                     field.offset + field.size - 1, field.offset))
                 svd.append('                            <lsb>{}</lsb>'.format(field.offset))
-                svd.append('                            <description><![CDATA[{}]]></description>'.format(
-                    reflow(field.description)))
+                if field.description is not None:
+                    svd.append('                            <description>{}</description>'.format(
+                        _svd_cdata(reflow(field.description))))
                 svd.append('                        </field>')
         else:
             field_size = csr.size
@@ -495,7 +873,8 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
         documented_regions.append(DocumentedCSRRegion(
             name           = region_name,
             region         = region,
-            csr_data_width = soc.csr.data_width)
+            csr_data_width = soc.csr.data_width,
+            csr_ordering   = soc.csr.ordering)
         )
 
     svd = []
@@ -505,11 +884,11 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
     svd.append('    <vendor>{}</vendor>'.format(vendor))
     svd.append('    <name>{}</name>'.format(name.upper()))
     if description is not None:
-        svd.append('    <description><![CDATA[{}]]></description>'.format(reflow(description)))
+        svd.append('    <description>{}</description>'.format(_svd_cdata(reflow(description))))
     else:
         fmt = "%Y-%m-%d %H:%M:%S"
         build_time = datetime.datetime.fromtimestamp(time.time()).strftime(fmt)
-        svd.append('    <description><![CDATA[{}]]></description>'.format(reflow("Litex SoC " + build_time)))
+        svd.append('    <description>{}</description>'.format(_svd_cdata(reflow("Litex SoC " + build_time))))
     svd.append('')
     svd.append('    <addressUnitBits>8</addressUnitBits>')
     svd.append('    <width>32</width>')
@@ -527,8 +906,8 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
         svd.append('            <baseAddress>0x{:08X}</baseAddress>'.format(region.origin))
         svd.append('            <groupName>{}</groupName>'.format(region.name.upper()))
         if len(region.sections) > 0:
-            svd.append('            <description><![CDATA[{}]]></description>'.format(
-                reflow(region.sections[0].body())))
+            svd.append('            <description>{}</description>'.format(
+                _svd_cdata(reflow(region.sections[0].body()))))
         svd.append('            <registers>')
         for csr in region.csrs:
             description = None
@@ -590,7 +969,10 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
 
     svd.append('        <constants>')
     for name, value in soc.constants.items():
-        svd.append('            <constant name="{}" value="{}" />'.format(name, value))
+        svd.append('            <constant name={} value={} />'.format(
+            quoteattr(str(name)),
+            quoteattr(str(value)),
+        ))
     svd.append('        </constants>')
 
     svd.append('    </vendorExtensions>')
@@ -601,14 +983,23 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
 # Memory.x Export ----------------------------------------------------------------------------------
 
 def get_memory_x(soc):
-    r = get_linker_regions(soc.mem_regions)
+    def get_region(name, fallbacks):
+        for region in [name] + fallbacks:
+            if region in soc.mem_regions:
+                return region
+        raise ValueError("Unable to find {} region for memory.x.".format(name))
+
+    text_region = get_region("rom",  ["main_ram", "sram"])
+    data_region = get_region("sram", ["main_ram", "rom"])
+
+    r = get_linker_regions(soc.mem_regions, cpu=soc.cpu)
     r += '\n'
-    r += 'REGION_ALIAS("REGION_TEXT", rom);\n'
-    r += 'REGION_ALIAS("REGION_RODATA", rom);\n'
-    r += 'REGION_ALIAS("REGION_DATA", sram);\n'
-    r += 'REGION_ALIAS("REGION_BSS", sram);\n'
-    r += 'REGION_ALIAS("REGION_HEAP", sram);\n'
-    r += 'REGION_ALIAS("REGION_STACK", sram);\n\n'
+    r += 'REGION_ALIAS("REGION_TEXT", {});\n'.format(text_region)
+    r += 'REGION_ALIAS("REGION_RODATA", {});\n'.format(text_region)
+    r += 'REGION_ALIAS("REGION_DATA", {});\n'.format(data_region)
+    r += 'REGION_ALIAS("REGION_BSS", {});\n'.format(data_region)
+    r += 'REGION_ALIAS("REGION_HEAP", {});\n'.format(data_region)
+    r += 'REGION_ALIAS("REGION_STACK", {});\n\n'.format(data_region)
     r += '/* CPU reset location. */\n'
     r += '_stext = {:#08x};\n'.format(soc.cpu.reset_address)
     return r

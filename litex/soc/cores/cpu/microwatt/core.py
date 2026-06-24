@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2019 Benjamin Herrenschmidt <benh@ozlabs.org>
 # Copyright (c) 2020 Raptor Engineering <sales@raptorengineering.com>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -10,16 +10,17 @@ import os
 
 from migen import *
 
+from litex.gen import *
+
 from litex import get_data_mod
 
 from litex.build.vhd2v_converter import *
 
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.csr import *
-from litex.gen.common import reverse_bytes
-from litex.soc.cores.cpu import CPU
+from litex.soc.integration.soc import SoCRegion
 
-class Open(Signal): pass
+from litex.soc.cores.cpu import CPU
 
 # Variants -----------------------------------------------------------------------------------------
 
@@ -70,8 +71,8 @@ class Microwatt(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.ibus         = ibus = wishbone.Interface(data_width=64, adr_width=29)
-        self.dbus         = dbus = wishbone.Interface(data_width=64, adr_width=29)
+        self.ibus         = ibus = wishbone.Interface(data_width=64, adr_width=29, addressing="word")
+        self.dbus         = dbus = wishbone.Interface(data_width=64, adr_width=29, addressing="word")
         self.periph_buses = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
         self.memory_buses = []           # Memory buses (Connected directly to LiteDRAM).
         if "irq" in variant:
@@ -131,9 +132,8 @@ class Microwatt(CPU):
         )
 
         # VHDL to Verilog Converter.
-        self.submodules.cpu_vhd2v_converter = VHD2VConverter(platform,
-            top_entity    = "microwatt_wrapper",
-            build_dir     = os.path.abspath(os.path.dirname(__file__)),
+        self.cpu_vhd2v_converter = VHD2VConverter(platform,
+            name          = "microwatt_wrapper",
             force_convert = ("ghdl" in self.variant),
         )
 
@@ -144,16 +144,16 @@ class Microwatt(CPU):
         self.reset_address = reset_address
         assert reset_address == 0x0000_0000
 
-    def add_soc_components(self, soc, soc_region_cls):
+    def add_soc_components(self, soc):
         if "irq" in self.variant:
-            self.submodules.xics = XICSSlave(
+            self.xics = XICSSlave(
                 platform     = self.platform,
                 variant      = self.variant,
                 core_irq_out = self.core_ext_irq,
                 int_level_in = self.interrupt,
             )
-            xicsicp_region = soc_region_cls(origin=soc.mem_map.get("xicsicp"), size=4096, cached=False)
-            xicsics_region = soc_region_cls(origin=soc.mem_map.get("xicsics"), size=4096, cached=False)
+            xicsicp_region = SoCRegion(origin=soc.mem_map.get("xicsicp"), size=4096, cached=False)
+            xicsics_region = SoCRegion(origin=soc.mem_map.get("xicsics"), size=4096, cached=False)
             soc.bus.add_slave(name="xicsicp", slave=self.xics.icp_bus, region=xicsicp_region)
             soc.bus.add_slave(name="xicsics", slave=self.xics.ics_bus, region=xicsics_region)
 
@@ -225,7 +225,6 @@ class Microwatt(CPU):
             sources.append("multiply.vhdl")
             sources.append("multiply-32s.vhdl")
         sdir = get_data_mod("cpu", "microwatt").data_location
-        cdir = os.path.dirname(__file__)
         self.cpu_vhd2v_converter.add_sources(sdir, *sources)
         self.cpu_vhd2v_converter.add_source(os.path.join(os.path.dirname(__file__), "microwatt_wrapper.vhdl"))
 
@@ -235,12 +234,12 @@ class Microwatt(CPU):
 
 # XICS Slave ---------------------------------------------------------------------------------------
 
-class XICSSlave(Module, AutoCSR):
+class XICSSlave(LiteXModule):
     def __init__(self, platform, core_irq_out=Signal(), int_level_in=Signal(16), variant="standard"):
         self.variant = variant
 
-        self.icp_bus = icp_bus = wishbone.Interface(data_width=32, adr_width=12)
-        self.ics_bus = ics_bus = wishbone.Interface(data_width=32, adr_width=12)
+        self.icp_bus = icp_bus = wishbone.Interface(data_width=32, adr_width=12, addressing="word")
+        self.ics_bus = ics_bus = wishbone.Interface(data_width=32, adr_width=12, addressing="word")
 
         # XICS Signals.
         self.ics_icp_xfer_src = Signal(4)
@@ -292,14 +291,12 @@ class XICSSlave(Module, AutoCSR):
         )
 
         # VHDL to Verilog Converter.
-        self.submodules.icp_vhd2v_converter = VHD2VConverter(platform,
-            top_entity    = "xics_icp_wrapper",
-            build_dir     = os.path.abspath(os.path.dirname(__file__)),
+        self.icp_vhd2v_converter = VHD2VConverter(platform,
+            name          = "xics_icp_wrapper",
             force_convert = ("ghdl" in self.variant),
         )
-        self.submodules.ics_vhd2v_converter = VHD2VConverter(platform,
-            top_entity    = "xics_ics_wrapper",
-            build_dir     = os.path.abspath(os.path.dirname(__file__)),
+        self.ics_vhd2v_converter = VHD2VConverter(platform,
+            name          = "xics_ics_wrapper",
             force_convert = ("ghdl" in self.variant),
         )
 
@@ -319,9 +316,9 @@ class XICSSlave(Module, AutoCSR):
             "xics.vhdl",
         ]
         sdir = get_data_mod("cpu", "microwatt").data_location
-        cdir = os.path.dirname(__file__)
-        self.ics_vhd2v_converter.add_sources(sdir, *sources)
-        self.ics_vhd2v_converter.add_source(os.path.join(os.path.dirname(__file__), "xics_wrapper.vhdl"))
+        for vhd2v_converter in [self.icp_vhd2v_converter, self.ics_vhd2v_converter]:
+            vhd2v_converter.add_sources(sdir, *sources)
+            vhd2v_converter.add_source(os.path.join(os.path.dirname(__file__), "xics_wrapper.vhdl"))
 
     def do_finalize(self):
         self.specials += Instance("xics_icp_wrapper", **self.icp_params)

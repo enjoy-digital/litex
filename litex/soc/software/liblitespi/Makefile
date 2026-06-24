@@ -1,7 +1,7 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-OBJECTS=spiflash.o
+OBJECTS=spiflash.o spiram.o
 
 all: liblitespi.a
 

@@ -9,13 +9,15 @@
 
 from migen import *
 
+from litex.gen import *
+
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
 
 # Timer --------------------------------------------------------------------------------------------
 
-class Timer(Module, AutoCSR, AutoDoc):
+class Timer(LiteXModule):
     with_uptime = False
     def __init__(self, width=32):
         self.intro = ModuleDoc("""Timer
@@ -65,8 +67,8 @@ class Timer(Module, AutoCSR, AutoDoc):
         self._value = CSRStatus(width, description="""Latched countdown value.
             This value is updated by writing to ``update_value``.""")
 
-        self.submodules.ev = EventManager()
-        self.ev.zero       = EventSourceProcess(edge="rising")
+        self.ev      = EventManager()
+        self.ev.zero = EventSourceProcess(edge="rising")
         self.ev.finalize()
 
         # # #
@@ -83,7 +85,7 @@ class Timer(Module, AutoCSR, AutoDoc):
             ).Else(
                 value.eq(self._load.storage)
             ),
-            If(self._update_value.re, self._value.status.eq(value))
+            If(self._update_value.wr_stb, self._value.status.eq(value))
         ]
         self.comb += self.ev.zero.trigger.eq(value == 0)
 
@@ -97,4 +99,4 @@ class Timer(Module, AutoCSR, AutoDoc):
 
         self.uptime_cycles = uptime_cycles = Signal(width, reset_less=True)
         self.sync += uptime_cycles.eq(uptime_cycles + 1)
-        self.sync += If(self._uptime_latch.re, self._uptime_cycles.status.eq(uptime_cycles))
+        self.sync += If(self._uptime_latch.wr_stb, self._uptime_cycles.status.eq(uptime_cycles))

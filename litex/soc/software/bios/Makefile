@@ -19,7 +19,8 @@ OBJECTS = boot-helper.o	\
 	  cmd_litesdcard.o  \
 	  cmd_litesata.o    \
 	  sim_debug.o		\
-	  main.o
+	  main.o            \
+	  crt0.o
 
 ifneq "$(or $(BIOS_CONSOLE_NO_AUTOCOMPLETE),$(BIOS_CONSOLE_LITE))" ""
 CFLAGS += -DBIOS_CONSOLE_NO_AUTOCOMPLETE
@@ -33,6 +34,10 @@ endif
 
 ifdef BIOS_CONSOLE_DISABLE
 CFLAGS += -DBIOS_CONSOLE_DISABLE
+endif
+
+ifdef BIOS_CONSOLE_NO_ANSI
+CFLAGS += -DBIOS_CONSOLE_NO_ANSI
 endif
 
 ifdef BIOS_CONSOLE_LITE
@@ -50,8 +55,16 @@ else
 LSCRIPT = linker.ld
 endif
 
+COMMA = ,
+REGULAR_LIBS = $(filter-out $(ALWAYS_LINK_LIBS),$(LIBS))
+ALWAYS_LINK_LIBFLAGS = $(if $(ALWAYS_LINK_LIBS),-Wl$(COMMA)--whole-archive $(ALWAYS_LINK_LIBS:lib%=-l%) -Wl$(COMMA)--no-whole-archive)
+
+ifneq ($(BIOS_STACK_MARGIN),)
+MEMUSAGE_ARGS += --fail-stack-margin $(BIOS_STACK_MARGIN)
+endif
+
 all: bios.bin
-	$(PYTHON) -m litex.soc.software.memusage bios.elf $(CURDIR)/../include/generated/regions.ld $(TRIPLE)
+	$(PYTHON) -m litex.soc.software.memusage $(MEMUSAGE_ARGS) bios.elf $(CURDIR)/../include/generated/regions.ld $(TRIPLE)
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
@@ -70,13 +83,14 @@ vpath %.a $(PACKAGES:%=../%)
 
 %.elf: crt0.o $(LIBS:%=%.a)
 	$(CC) $(LDFLAGS) -T $(BIOS_DIRECTORY)/$(LSCRIPT) -N -o $@ \
-		crt0.o \
 		$(OBJECTS) \
 		$(PACKAGES:%=-L../%) \
-		-Wl,--whole-archive \
+		-Wl,--start-group \
+		$(REGULAR_LIBS:lib%=-l%) \
+		$(ALWAYS_LINK_LIBFLAGS) \
+		-Wl,--end-group \
 		-Wl,--gc-sections \
-		-Wl,-Map,$@.map \
-		$(LIBS:lib%=-l%)
+		-Wl,-Map,$@.map
 
 ifneq ($(OS),Windows_NT)
 	chmod -x $@

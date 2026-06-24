@@ -7,8 +7,6 @@
 
 #define MAX_PARAM	8
 
-#define HIST_DEPTH	10	/* Used in string list, complete.c */
-
 #define SYSTEM_CMDS		0
 #define BOOT_CMDS		1
 #define MEM_CMDS		2
@@ -32,7 +30,7 @@ struct command_struct {
 extern struct command_struct *const __bios_cmd_start[];
 extern struct command_struct *const __bios_cmd_end[];
 
-#ifdef BIOS_CONSOLE_BIOS_CONSOLE_DISABLE
+#ifdef BIOS_CONSOLE_DISABLE
 	#define define_command(cmd_name, handler, help_txt, group_id)
 #else
 	#define define_command(cmd_name, handler, help_txt, group_id) \

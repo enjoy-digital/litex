@@ -7,6 +7,8 @@
 #include <generated/soc.h>
 #include <generated/csr.h>
 
+#include <libbase/format.h>
+
 //#define MEMTEST_BUS_DEBUG
 //#define MEMTEST_DATA_DEBUG
 //#define MEMTEST_ADDR_DEBUG
@@ -19,10 +21,6 @@
 #ifndef MEMTEST_DATA_RETRIES
 #define MEMTEST_DATA_RETRIES 0
 #endif
-
-#define KIB 1024
-#define MIB (KIB*1024)
-#define GIB (MIB*1024)
 
 #define ONEZERO 0xaaaaaaaa
 #define ZEROONE 0x55555555
@@ -85,7 +83,7 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 	}
 
 	/* Flush caches */
-	flush_cpu_dcache();
+	flush_cpu_dcache_range(addr, size);
 	flush_l2_cache();
 
 	/* Read/Verify One/Zero pattern */
@@ -106,7 +104,7 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 	}
 
 	/* Flush caches */
-	flush_cpu_dcache();
+	flush_cpu_dcache_range(addr, size);
 	flush_l2_cache();
 
 	/* Read/Verify One/Zero pattern */
@@ -127,37 +125,50 @@ int memtest_bus(unsigned int *addr, unsigned long size)
 int memtest_addr(unsigned int *addr, unsigned long size, int random)
 {
 	volatile unsigned int *array = addr;
-	int i, errors;
+	unsigned long i, words;
+	int errors;
 	unsigned short seed_16;
-	unsigned short rdata;
+	unsigned int rdata;
 
-	/* Skip when size < 16KB */
-	if (size < 0x10000)
+	/* Skip when size < 4KB */
+	if (size < 0x1000)
 		return 0;
+
+	/* The index is derived from a 16-bit seed: limit the tested zone to its
+	   64K-word (256KB) span. */
+	if (size > 0x40000)
+		size = 0x40000;
+	words = size/4;
+
+	/* The LFSR sequence only visits each index once over a full 64K-word
+	   region; on smaller regions the modulo would alias different seeds to
+	   the same index and report false errors, so use sequential indexing. */
+	if (random && (words != 0x10000))
+		random = 0;
 
 	errors  = 0;
 	seed_16 = 1;
 
 	/* Write datas*/
-	for(i=0; i<size/4; i++) {
+	for(i=0; i<words; i++) {
 		seed_16 = seed_to_data_16(seed_16, random);
-		array[(unsigned int) seed_16] = i;
+		array[(unsigned long) seed_16 % words] = i;
 	}
 
 	/* Flush caches */
-	flush_cpu_dcache();
+	flush_cpu_dcache_range(addr, size);
 	flush_l2_cache();
 
 	/* Read/Verify datas */
 	seed_16 = 1;
-	for(i=0; i<size/4; i++) {
+	for(i=0; i<words; i++) {
 		seed_16 = seed_to_data_16(seed_16, random);
-		rdata = array[(unsigned int) seed_16];
+		rdata = array[(unsigned long) seed_16 % words];
 		if(rdata != i) {
 			errors++;
 #ifdef MEMTEST_ADDR_DEBUG
 			if (MEMTEST_DEBUG_MAX_ERRORS < 0 || errors <= MEMTEST_DEBUG_MAX_ERRORS)
-				printf("memtest_addr error @ %p: 0x%08x vs 0x%08x\n", addr + i, rdata, i);
+				printf("memtest_addr error @ %p: 0x%08x vs 0x%08lx\n", addr + i, rdata, i);
 #endif
 		}
 	}
@@ -165,26 +176,15 @@ int memtest_addr(unsigned int *addr, unsigned long size, int random)
 	return errors;
 }
 
-static void print_size(unsigned long size) {
-	if (size < KIB)
-		printf("%luB", size);
-	else if (size < MIB)
-		printf("%lu.%luKiB", size/KIB, (size/1   - KIB*(size/KIB))/(KIB/10));
-	else if (size < GIB)
-		printf("%lu.%luMiB", size/MIB, (size/KIB - KIB*(size/MIB))/(KIB/10));
-	else
-		printf("%lu.%luGiB", size/GIB, (size/MIB - KIB*(size/GIB))/(KIB/10));
-}
-
 static void print_speed(unsigned long speed) {
-	print_size(speed);
+	litex_print_size(speed);
 	printf("/s");
 }
 
 static void print_progress(const char * header, unsigned int offset, unsigned int addr)
 {
 	printf("%s 0x%x-0x%x ", header, offset, offset + addr);
-	print_size(addr);
+	litex_print_size(addr);
 	printf("   \r");
 }
 
@@ -214,7 +214,7 @@ int memtest_data(unsigned int *addr, unsigned long size, int random, struct memt
 	}
 
 	/* Flush caches */
-	flush_cpu_dcache();
+	flush_cpu_dcache_range(addr, size);
 	flush_l2_cache();
 
 	/* Read/Verify datas */
@@ -275,7 +275,7 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool rando
 		printf("Random, ");
 	else
 		printf("Sequential, ");
-	print_size(size);
+	litex_print_size(size);
 	printf(")...\n");
 
 	/* Init timer */
@@ -309,7 +309,7 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool rando
 	}
 
 	/* flush caches */
-	flush_cpu_dcache();
+	flush_cpu_dcache_range(addr, size);
 	flush_l2_cache();
 
 	/* Measure Read speed */
@@ -318,11 +318,24 @@ void memspeed(unsigned int *addr, unsigned long size, bool read_only, bool rando
 	start = timer0_value_read();
 
 	int num = size/sz;
+	int ones_cnt = 0;
+
+	for(int check = num; check != 0; check = ((check >> 1) & INT_MAX)) {
+		if(check & 0x1) {
+			ones_cnt += 1;
+		}
+	}
+
+	bool power_of_two = (ones_cnt == 1);
 
 	if (random) {
 		for (i = 0; i < size/sz; i++) {
 			seed_32 = seed_to_data_32(seed_32, i);
-			data = array[seed_32 % num];
+			if(power_of_two) {
+				data = array[seed_32 & (num - 1)];
+			} else {
+				data = array[seed_32 % num];
+			}
 		}
 	} else {
 		ptr = array;
@@ -353,7 +366,7 @@ int memtest(unsigned int *addr, unsigned long maxsize)
 	unsigned long data_size = maxsize;
 
 	printf("Memtest at %p (", addr);
-	print_size(data_size);
+	litex_print_size(data_size);
 	printf(")...\n");
 
 #ifdef CSR_CTRL_BASE

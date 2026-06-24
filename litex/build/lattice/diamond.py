@@ -36,6 +36,7 @@ class LatticeDiamondToolchain(GenericToolchain):
 
     def __init__(self):
         super().__init__()
+        self.additional_ldf_commands = []
 
     def build(self, platform, fragment,
         timingstrict   = False,
@@ -70,6 +71,20 @@ class LatticeDiamondToolchain(GenericToolchain):
             lpf.append(pre + "\"" + signame + "\"" + suf + ";")
         return "\n".join(lpf)
 
+    @classmethod
+    def _format_false_path_constraint(cls, from_, to):
+        return "BLOCK PATH FROM CLKNET \"{}\" TO CLKNET \"{}\";".format(from_, to)
+
+    @classmethod
+    def _false_path_sort_key(cls, false_path):
+        return tuple(
+            (0, signal.duid) if hasattr(signal, "duid") else (1, str(signal))
+            for signal in false_path
+        )
+
+    def _get_constraint_name(self, signal):
+        return signal if isinstance(signal, str) else self._vns.get_name(signal)
+
     def build_io_constraints(self):
         lpf = []
         lpf.append("BLOCK RESETPATHS;")
@@ -84,12 +99,16 @@ class LatticeDiamondToolchain(GenericToolchain):
             lpf.append("\n".join(self.named_pc))
 
         # Note: .lpf is only used post-synthesis, Synplify constraints clocks by default to 200MHz.
-        for clk, period in self.clocks.items():
+        for clk, [period, _] in self.clocks.items():
             clk_name = self._vns.get_name(clk)
             lpf.append("FREQUENCY {} \"{}\" {} MHz;".format(
                 "PORT" if clk_name in [name for name, _, _, _ in self.named_sc] else "NET",
                 clk_name,
                 str(1e3/period)))
+        for from_, to in sorted(self.false_paths, key=self._false_path_sort_key):
+            from_name = self._get_constraint_name(from_)
+            to_name   = self._get_constraint_name(to)
+            lpf.append(self._format_false_path_constraint(from_name, to_name))
 
         tools.write_to_file(self._build_name + ".lpf", "\n".join(lpf))
 
@@ -116,8 +135,23 @@ class LatticeDiamondToolchain(GenericToolchain):
         for filename, language, library, *copy in self.platform.sources:
             tcl.append("prj_src add \"{}\" -work {}".format(tcl_path(filename), library))
 
+        # Add IPs
+        for filename in self.platform.ips:
+            tcl.append("prj_src add \"{}\" -work work".format(tcl_path(filename)))
+
+        # Add SDCs
+        for filename in self.platform.sdcs:
+            tcl.append("prj_src add \"{}\" -format SDC".format(tcl_path(filename)))
+
+        # Add Strategy
+        for filename, strategy_name in self.platform.strategy:
+            tcl.append("prj_strgy import -name {} -file {}".format(strategy_name, tcl_path(filename)))
+
         # Set top level
         tcl.append("prj_impl option top \"{}\"".format(self._build_name))
+
+        # Add additional commands
+        tcl += self.additional_ldf_commands
 
         # Save project
         tcl.append("prj_project save")

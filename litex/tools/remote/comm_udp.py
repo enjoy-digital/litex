@@ -16,13 +16,14 @@ from litex.tools.remote.csr_builder import CSRBuilder
 # CommUDP ------------------------------------------------------------------------------------------
 
 class CommUDP(CSRBuilder):
-    def __init__(self, server="192.168.1.50", port=1234, csr_csv=None, debug=False, timeout=1.0):
+    def __init__(self, server="192.168.1.50", port=1234, csr_csv=None, debug=False, timeout=1.0, addr_width=32):
         CSRBuilder.__init__(self, comm=self, csr_csv=csr_csv)
         self.server = server
         self.port   = port
         self.debug  = debug
         self.timeout= timeout
         self.read_counter = 0
+        self.addr_width   = addr_width
 
     def open(self, probe=True):
         if hasattr(self, "socket"):
@@ -41,7 +42,7 @@ class CommUDP(CSRBuilder):
 
     def probe(self, ip, port, loose=False):
 
-        packet = EtherbonePacket()
+        packet = EtherbonePacket(self.addr_width)
         packet.pf = 1
         packet.encode()
         packet.bytes += bytes([0x00, 0x00, 0x00, 0x00]) # Add Padding as payload.
@@ -66,7 +67,7 @@ class CommUDP(CSRBuilder):
             raise Exception(f"Unable to probe Etherbone server at {self.server}.")
 
         if datas is not None:
-            packet = EtherbonePacket(datas)
+            packet = EtherbonePacket(self.addr_width, datas)
             packet.decode()
             assert packet.pr == 1
             return 1
@@ -89,12 +90,12 @@ class CommUDP(CSRBuilder):
         for r in range(retries):
             self.read_counter += 1
 
-            record = EtherboneRecord()
-            record.reads = EtherboneReads(addrs=[addr+4*j for j in range(length_int)])
+            record = EtherboneRecord(addr_size=self.addr_width//8)
+            record.reads = EtherboneReads(addr_size=self.addr_width//8, addrs=[addr+4*j for j in range(length_int)])
             record.rcount = len(record.reads)
             record.reads.base_ret_addr = self.read_counter
 
-            packet = EtherbonePacket()
+            packet = EtherbonePacket(addr_width=self.addr_width)
             packet.records = [record]
             packet.encode()
 
@@ -110,7 +111,7 @@ class CommUDP(CSRBuilder):
                     timed_out = True
                     break
 
-                packet = EtherbonePacket(datas)
+                packet = EtherbonePacket(self.addr_width, datas)
                 packet.decode()
                 record = packet.records.pop()
                 datas = record.writes.get_datas()
@@ -135,11 +136,11 @@ class CommUDP(CSRBuilder):
     def write(self, addr, datas):
         datas = datas if isinstance(datas, list) else [datas]
         length = len(datas)
-        record = EtherboneRecord()
-        record.writes = EtherboneWrites(base_addr=addr, datas=iter(datas))
+        record = EtherboneRecord(addr_size=self.addr_width//8)
+        record.writes = EtherboneWrites(addr_size=self.addr_width//8, base_addr=addr, datas=iter(datas))
         record.wcount = len(record.writes)
 
-        packet = EtherbonePacket()
+        packet = EtherbonePacket(self.addr_width)
         packet.records = [record]
         packet.encode()
 
