@@ -40,6 +40,8 @@ class XilinxISEToolchain(GenericToolchain):
         self.xst_opt      = "-ifmt MIXED\n-use_new_parser yes\n-opt_mode SPEED\n-register_balancing yes"
         self.map_opt      = "-ol high -w"
         self.par_opt      = "-ol high -w"
+        self.synplify_cmd = "synplify_premier_dp"
+        self.synplify_opt = ""
         self.ngdbuild_opt = ""
         self.bitgen_opt   = "-g Binary:Yes -w"
         self.ise_commands = ""
@@ -51,6 +53,8 @@ class XilinxISEToolchain(GenericToolchain):
         **kwargs):
         if mode == "edif":
             raise NotImplementedError("ISE EDIF mode is no longer supported.")
+        if mode not in ["xst", "cpld", "yosys", "synplify"]:
+            raise ValueError(f"Unsupported ISE synthesis mode: {mode}.")
         self._mode = mode
         self._isemode = mode if mode in ["xst", "cpld"] else "edif"
         if mode == "yosys":
@@ -100,11 +104,13 @@ class XilinxISEToolchain(GenericToolchain):
         tools.write_to_file(self._build_name + ".ucf", r)
         return (self._build_name + ".ucf", "UCF")
 
-    # Project (.xst) -------------------------------------------------------------------------------
+    # Project (.xst/.prj) --------------------------------------------------------------------------
 
     def build_project(self):
+        if self._mode == "synplify":
+            return self._build_synplify_project()
         if self._mode not in ["xst", "cpld"]:
-            return ("", "")
+            return
         prj_contents = ""
         for filename, language, library, *copy in self.platform.sources:
             prj_contents += language + " " + library + " " + tools.cygpath(filename) + "\n"
@@ -124,6 +130,61 @@ class XilinxISEToolchain(GenericToolchain):
             xst_contents += "}"
         tools.write_to_file(self._build_name + ".xst", xst_contents)
 
+    def _build_synplify_project(self):
+        device = self.platform.device
+        if not device.startswith(("xc6s", "xa6s", "xq6s")):
+            raise ValueError(
+                "Synplify support is currently only available for Spartan-6 ISE designs."
+            )
+        part, package, speed = self._split_synplify_spartan6_device(device)
+        technology = "spartan6"
+
+        prj_contents = """
+set_option -technology {technology}
+set_option -part {part}
+set_option -package {package}
+set_option -speed_grade {speed}
+set_option -vlog_std v2001
+set_option -compiler_compatible 1
+set_option -automatic_compile_point 1
+set_option -top_module {build_name}
+project -result_file {build_name}.edif
+""".format(
+            build_name = self._build_name,
+            package    = package,
+            part       = part,
+            speed      = speed,
+            technology = technology,
+        )
+        if self.platform.verilog_include_paths:
+            prj_contents += "set_option -include_path {"
+            for path in self.platform.verilog_include_paths:
+                prj_contents += tools.cygpath(path) + ";"
+            prj_contents += "}\n"
+        if self.synplify_opt:
+            prj_contents += self.synplify_opt + "\n"
+        for filename, language, library, *copy in self.platform.sources:
+            if language is not None:
+                prj_contents += "add_file -{} {{{}}}\n".format(language, tools.cygpath(filename))
+        tools.write_to_file(self._build_name + "_synplify.prj", prj_contents)
+
+    @staticmethod
+    def _split_synplify_spartan6_device(device):
+        part    = device.split("-")[0]
+        package = None
+        speed   = None
+
+        for item in device.split("-")[1:]:
+            if item and item[0].isdigit():
+                speed = "-" + item
+            else:
+                package = item
+
+        if package is None or speed is None:
+            raise ValueError(
+                f"Unable to parse Spartan-6 device string for Synplify: {device}."
+            )
+        return part, package, speed
 
     # ISE Run --------------------------------------------------------------------------------------
 
@@ -140,6 +201,12 @@ class XilinxISEToolchain(GenericToolchain):
             fail_stmt = ""
         if self._mode == "yosys":
             build_script_contents += common._build_yosys_project(self.platform, "-ise ", self._build_name) + fail_stmt
+        if self._mode == "synplify":
+            build_script_contents += "{cmd} -batch -runall {build_name}_synplify.prj{fail_stmt}\n".format(
+                build_name = self._build_name,
+                cmd        = self.synplify_cmd,
+                fail_stmt  = fail_stmt,
+            )
         if self._isemode == "edif":
             ext = "ngo"
             build_script_contents += """
