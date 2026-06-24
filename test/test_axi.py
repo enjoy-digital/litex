@@ -626,41 +626,46 @@ class TestAXI(unittest.TestCase):
                 self.errors     = 0
 
         def gen(dut):
-            size  = log2_int(dut.axi_narrow.data_width//8)
-            bytes = dut.axi_narrow.data_width//8
+            size         = log2_int(dut.axi_narrow.data_width//8)
+            narrow_bytes = dut.axi_narrow.data_width//8
+            wide_bytes   = dut.axi_wide.data_width//8
+            narrow_mask  = (1 << dut.axi_narrow.data_width) - 1
+            lane_xor     = sum(0x11 << (8*i) for i in range(narrow_bytes))
             beats = [
-                0x00000003000000020000000100000000,
-                0x00000007000000060000000500000004,
-                0x0000000b0000000a0000000900000008,
-                0x0000000f0000000e0000000d0000000c,
+                0x0123456789abcdef0badf00d10203040 & narrow_mask,
+                0x123456789abcdef00badf00d20304050 & narrow_mask,
+                0x23456789abcdef010badf00d30405060 & narrow_mask,
+                0x3456789abcdef0120badf00d40506070 & narrow_mask,
             ]
 
             # Single-beat writes hit alternating lanes of each wider target word. This is the
             # pattern used by Rocket's L2 when accepting SDCard DMA writes.
             for i, beat in enumerate(beats):
-                resp = yield from axi_write_single(dut.axi_narrow, i*bytes, beat, size=size)
+                resp = yield from axi_write_single(dut.axi_narrow, i*narrow_bytes, beat, size=size)
                 if resp != RESP_OKAY:
                     dut.errors += 1
 
             for i, expected in enumerate(beats):
-                data, resp = yield from axi_read_single(dut.axi_narrow, i*bytes, size=size)
+                data, resp = yield from axi_read_single(dut.axi_narrow, i*narrow_bytes, size=size)
                 if resp != RESP_OKAY or data != expected:
                     dut.errors += 1
 
-            burst = [beat ^ 0x11111111111111111111111111111111 for beat in beats]
+            burst = [beat ^ lane_xor for beat in beats]
             resp = yield from axi_write_burst(dut.axi_narrow, 0x100, burst, size=size)
             if resp != RESP_OKAY:
                 dut.errors += 1
-            mem0 = (yield dut.sram.mem[0x100//(dut.axi_wide.data_width//8)])
-            mem1 = (yield dut.sram.mem[0x120//(dut.axi_wide.data_width//8)])
+            mem0 = (yield dut.sram.mem[0x100//wide_bytes])
+            mem1 = (yield dut.sram.mem[(0x100 + wide_bytes)//wide_bytes])
             assert mem0 == (burst[0] | (burst[1] << dut.axi_narrow.data_width)), hex(mem0)
             assert mem1 == (burst[2] | (burst[3] << dut.axi_narrow.data_width)), hex(mem1)
             read = yield from axi_read_burst(dut.axi_narrow, 0x100, len(burst), size=size)
             assert read == burst, ([hex(d) for d in read], [hex(d) for d in burst])
 
-        dut = DUT()
-        run_simulation(dut, gen(dut))
-        self.assertEqual(dut.errors, 0)
+        for dw_narrow, dw_wide in [(32, 64), (128, 256)]:
+            with self.subTest(dw_narrow=dw_narrow, dw_wide=dw_wide):
+                dut = DUT(dw_narrow=dw_narrow, dw_wide=dw_wide)
+                run_simulation(dut, gen(dut))
+                self.assertEqual(dut.errors, 0)
 
     def test_axi_down_converter_burst(self):
         # Exercises AXIDownConverter (now also used by SoC.add_sdram for the
