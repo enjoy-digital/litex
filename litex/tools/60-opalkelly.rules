@@ -1,0 +1,11 @@
+# udev rules file for all Opal Kelly VID matches.
+# This file allows udev to change the mode to 666 (all read/write)
+# for any Opal Kelly VID.
+#
+
+# For FedoraCore 5 and similar:
+SUBSYSTEM=="usb_device", SYSFS{idVendor}=="151f", MODE="0666"
+
+# For FedoraCore 7 and similar:
+SUBSYSTEM=="usb", ATTRS{idVendor}=="151f", MODE="0666"
+
