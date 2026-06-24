@@ -146,7 +146,11 @@ class AXILitePatternGenerator:
 # TestAXILite --------------------------------------------------------------------------------------
 
 class TestAXILite(unittest.TestCase):
-    def test_wishbone2axilite2wishbone(self, data_width=32, address_width=32):
+    def test_wishbone2axilite2wishbone(self,
+        data_width    = 32,
+        address_width = 32,
+        low_latency   = False,
+    ):
         class DUT(Module):
             def __init__(self):
                 self.wishbone = wishbone.Interface(
@@ -165,7 +169,9 @@ class TestAXILite(unittest.TestCase):
                 )
 
                 wishbone2axi = Wishbone2AXILite(self.wishbone, axi_lite)
-                axi2wishbone = AXILite2Wishbone(axi_lite, wb)
+                axi2wishbone = AXILite2Wishbone(axi_lite, wb,
+                    low_latency = low_latency,
+                )
                 self.submodules += wishbone2axi, axi2wishbone
 
                 sram = wishbone.SRAM(1024, init=[0x12345678, 0xa55aa55a])
@@ -191,7 +197,20 @@ class TestAXILite(unittest.TestCase):
     def test_wishbone2axilite2wishbone_dw64(self):
         return self.test_wishbone2axilite2wishbone(data_width=64)
 
-    def test_axilite2axi2mem(self, data_width=32, address_width=32):
+    def test_wishbone2axilite2wishbone_low_latency(self):
+        return self.test_wishbone2axilite2wishbone(low_latency=True)
+
+    def test_wishbone2axilite2wishbone_dw64_low_latency(self):
+        return self.test_wishbone2axilite2wishbone(
+            data_width  = 64,
+            low_latency = True,
+        )
+
+    def test_axilite2axi2mem(self,
+        data_width    = 32,
+        address_width = 32,
+        low_latency   = False,
+    ):
         class DUT(Module):
             def __init__(self, mem_bus="wishbone"):
                 self.axi_lite = AXILiteInterface(data_width=data_width, address_width=address_width)
@@ -208,7 +227,10 @@ class TestAXILite(unittest.TestCase):
                 if mem_bus == "wishbone":
                     bus_kwargs["adr_width"] = address_width - log2_int(data_width // 8)
                 bus = interface_cls(**bus_kwargs)
-                self.submodules += converter_cls(axi, bus)
+                converter_kwargs = {}
+                if converter_cls is AXI2Wishbone:
+                    converter_kwargs["low_latency"] = low_latency
+                self.submodules += converter_cls(axi, bus, **converter_kwargs)
                 sram = sram_cls(1024, init=[0x12345678, 0xa55aa55a], bus=bus)
                 self.submodules += sram
 
@@ -245,6 +267,9 @@ class TestAXILite(unittest.TestCase):
 
     def test_axilite2axi2mem_dw64(self):
         return self.test_axilite2axi2mem(data_width=64)
+
+    def test_axilite2axi2mem_wishbone_low_latency(self):
+        return self.test_axilite2axi2mem(low_latency=True)
 
     def test_axilite2csr(self):
         @passive
