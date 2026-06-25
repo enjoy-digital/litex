@@ -695,7 +695,7 @@ class SoCBusHandler(LiteXModule):
         return adapted_interface
 
     # Add Remapper ---------------------------------------------------------------------------------
-    def add_remapper(self, name, interface, origin, size):
+    def add_remapper(self, name, interface, origin, size, src_regions=None, dst_regions=None):
         interface_cls = type(interface)
         remapper_cls  = {
             wishbone.Interface   : wishbone.Remapper,
@@ -705,7 +705,12 @@ class SoCBusHandler(LiteXModule):
 
         adapted_interface = interface_cls(**self._get_interface_args(interface))
 
-        self.submodules += remapper_cls(interface, adapted_interface, origin, size)
+        self.submodules += remapper_cls(interface, adapted_interface,
+            origin      = origin,
+            size        = size,
+            src_regions = src_regions,
+            dst_regions = dst_regions,
+        )
 
         fmt = "{name} Bus {remapped} to {origin} (Size: {size})."
         self.logger.info(fmt.format(
@@ -713,6 +718,34 @@ class SoCBusHandler(LiteXModule):
             remapped = colorer("remapped", color="cyan"),
             origin   = colorer(f"0x{origin:08x}"),
             size     = colorer(f"0x{size:08x}"),
+        ))
+
+        return adapted_interface
+
+    # Add Slave Remapper ---------------------------------------------------------------------------
+    def add_slave_remapper(self, name, interface, region, dst_region):
+        interface_cls = type(interface)
+        remapper_cls  = {
+            wishbone.Interface   : wishbone.Remapper,
+            axi.AXILiteInterface : axi.AXILiteRemapper,
+            axi.AXIInterface     : axi.AXIRemapper,
+        }[interface_cls]
+
+        adapted_interface = interface_cls(**self._get_interface_args(interface,
+            address_width = self.address_width))
+
+        self.submodules += remapper_cls(adapted_interface, interface,
+            src_regions = [region],
+            dst_regions = [dst_region],
+        )
+
+        fmt = "{name} Bus {remapped} from {origin} to {dst_origin} (Size: {size})."
+        self.logger.info(fmt.format(
+            name       = colorer(name),
+            remapped   = colorer("remapped", color="cyan"),
+            origin     = colorer(f"0x{region.origin:08x}"),
+            dst_origin = colorer(f"0x{dst_region.origin:08x}"),
+            size       = colorer(f"0x{region.size:08x}"),
         ))
 
         return adapted_interface
@@ -803,7 +836,7 @@ class SoCBusHandler(LiteXModule):
     def add_controller(self, name=None, controller=None):
         self.add_master(name=name, master=controller)
 
-    def add_slave(self, name=None, slave=None, region=None, strip_origin=False, clock_domain=None):
+    def add_slave(self, name=None, slave=None, region=None, strip_origin=False, clock_domain=None, dst_region=None):
         no_name   = name   is None
         no_region = region is None
         region_added = False
@@ -832,6 +865,7 @@ class SoCBusHandler(LiteXModule):
                     colorer("SoCRegion")))
                 raise SoCError()
             self.add_region(name, region)
+            region = self.regions[name]
             region_added = True
         # Check decoded Region origin alignment early, with the Slave's name (the decoder would
         # only raise at finalize, without naming the offending Region).
@@ -842,9 +876,42 @@ class SoCBusHandler(LiteXModule):
             if region_added:
                 self.regions.pop(name, None)
             raise SoCError()
+        if dst_region is not None:
+            if strip_origin:
+                self.logger.error("{} Bus Slave cannot use both {} and {}.".format(
+                    colorer(name, color="red"),
+                    colorer("strip_origin"),
+                    colorer("dst_region")))
+                if region_added:
+                    self.regions.pop(name, None)
+                raise SoCError()
+            if not isinstance(dst_region, SoCRegion) or isinstance(dst_region, SoCIORegion):
+                self.logger.error("{} Bus Slave Destination Region must be a {}.".format(
+                    colorer(name, color="red"),
+                    colorer("SoCRegion")))
+                if region_added:
+                    self.regions.pop(name, None)
+                raise SoCError()
+            if dst_region.origin is None:
+                self.logger.error("{} Bus Slave Destination Region origin must be specified:".format(
+                    colorer(name, color="red")))
+                self.logger.error(str(dst_region))
+                if region_added:
+                    self.regions.pop(name, None)
+                raise SoCError()
+            if dst_region.size < region.size:
+                self.logger.error("{} Bus Slave Destination Region is smaller than source Region:".format(
+                    colorer(name, color="red")))
+                self.logger.error("Source:      " + str(region))
+                self.logger.error("Destination: " + str(dst_region))
+                if region_added:
+                    self.regions.pop(name, None)
+                raise SoCError()
         try:
             if strip_origin:
                 slave = self.add_offset(name, slave, self.regions[name].origin)
+            if dst_region is not None:
+                slave = self.add_slave_remapper(name, slave, region, dst_region)
             slave = self.add_clock_domain_crossing(name, slave, clock_domain)
             slave = self.add_adapter(name, slave, "s2m")
             self.slaves[name] = slave

@@ -14,6 +14,7 @@ from contextlib import contextmanager
 from types import SimpleNamespace
 
 from migen import ClockDomain, Record, Signal
+from migen.sim import run_simulation
 
 from litex.soc.cores.hyperbus import HyperRAM
 from litex.soc.interconnect import axi, wishbone
@@ -490,6 +491,100 @@ class TestSoCBusHandler(unittest.TestCase):
 
         self.assertTrue(decoder(0))
         self.assertTrue(decoder(0xffffffff))
+
+    def test_axi_slave_dst_region_remaps_external_address(self):
+        bus       = SoCBusHandler(standard="axi", data_width=32, address_width=32)
+        interface = axi.AXIInterface(data_width=32, address_width=32)
+
+        bus.add_slave(
+            "ps_io",
+            interface,
+            SoCRegion(origin=0x6000_0000, size=0x1000),
+            dst_region=SoCRegion(origin=0xe000_0000, size=0x1000),
+        )
+
+        self.assertIsInstance(bus.slaves["ps_io"], axi.AXIInterface)
+        self.assertIsNot(bus.slaves["ps_io"], interface)
+
+        def generator():
+            remaps = [
+                (0x6000_0000, 0xe000_0000),
+                (0x6000_0040, 0xe000_0040),
+            ]
+            for addr, expected in remaps:
+                yield bus.slaves["ps_io"].aw.addr.eq(addr)
+                yield bus.slaves["ps_io"].ar.addr.eq(addr)
+                yield
+                self.assertEqual((yield interface.aw.addr), expected)
+                self.assertEqual((yield interface.ar.addr), expected)
+
+        run_simulation(bus, generator())
+
+    def test_slave_dst_region_uses_allocated_source_region(self):
+        bus       = SoCBusHandler(standard="axi", data_width=32, address_width=32)
+        interface = axi.AXIInterface(data_width=32, address_width=32)
+
+        bus.add_region("boot", SoCRegion(origin=0x0000_0000, size=0x1000))
+        bus.add_slave(
+            "ps_io",
+            interface,
+            SoCRegion(origin=None, size=0x1000),
+            dst_region=SoCRegion(origin=0xe000_0000, size=0x1000),
+        )
+
+        self.assertEqual(bus.regions["ps_io"].origin, 0x0000_1000)
+
+        def generator():
+            yield bus.slaves["ps_io"].aw.addr.eq(0x0000_1000)
+            yield bus.slaves["ps_io"].ar.addr.eq(0x0000_1040)
+            yield
+            self.assertEqual((yield interface.aw.addr), 0xe000_0000)
+            self.assertEqual((yield interface.ar.addr), 0xe000_0040)
+
+        run_simulation(bus, generator())
+
+    def test_slave_dst_region_rejects_ambiguous_mapping(self):
+        bus = SoCBusHandler(standard="axi")
+
+        with _assert_raises_soc_error(self):
+            bus.add_slave(
+                "ps_io",
+                axi.AXIInterface(),
+                SoCRegion(origin=0x6000_0000, size=0x1000),
+                strip_origin=True,
+                dst_region=SoCRegion(origin=0xe000_0000, size=0x1000),
+            )
+
+        self.assertNotIn("ps_io", bus.regions)
+        self.assertNotIn("ps_io", bus.slaves)
+
+    def test_slave_dst_region_origin_must_be_specified(self):
+        bus = SoCBusHandler(standard="axi")
+
+        with _assert_raises_soc_error(self):
+            bus.add_slave(
+                "ps_io",
+                axi.AXIInterface(),
+                SoCRegion(origin=0x6000_0000, size=0x1000),
+                dst_region=SoCRegion(origin=None, size=0x1000),
+            )
+
+        self.assertNotIn("ps_io", bus.regions)
+        self.assertNotIn("ps_io", bus.slaves)
+
+    def test_slave_dst_region_must_cover_source_region(self):
+        bus = SoCBusHandler(standard="axi")
+
+        with _assert_raises_soc_error(self):
+            bus.add_slave(
+                "ps_io",
+                axi.AXIInterface(),
+                SoCRegion(origin=0x6000_0000, size=0x2000),
+                dst_region=SoCRegion(origin=0xe000_0000, size=0x1000),
+            )
+
+        self.assertNotIn("ps_io", bus.regions)
+        self.assertNotIn("ps_io", bus.slaves)
 
 
 class TestSoCBusStandardIntegration(unittest.TestCase):
