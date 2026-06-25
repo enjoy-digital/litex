@@ -11,6 +11,7 @@ from migen import *
 
 from litex.soc.interconnect.axi import *
 from litex.soc.interconnect import wishbone, csr_bus
+from litex.soc.integration.soc import SoCRegion
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -146,6 +147,48 @@ class AXILitePatternGenerator:
 # TestAXILite --------------------------------------------------------------------------------------
 
 class TestAXILite(unittest.TestCase):
+    def test_axilite_remapper_origin_region_remap(self):
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.master   = AXILiteInterface(data_width=32, address_width=32)
+                self.slave    = AXILiteInterface(data_width=32, address_width=32)
+                self.remapper = AXILiteRemapper(self.master, self.slave,
+                    origin = 0x6000_0000,
+                    size   = 0x0100_0000,
+                    src_regions = [
+                        SoCRegion(origin=0x6000_0000, size=0x1000),
+                        SoCRegion(origin=0x6001_0000, size=0x1000),
+                    ],
+                    dst_regions = [
+                        SoCRegion(origin=0xe000_0000, size=0x1000),
+                        SoCRegion(origin=0xe100_0000, size=0x1000),
+                    ],
+                )
+
+        def gen(dut):
+            remaps = [
+                (0x0000_0040, 0xe000_0040),
+                (0x0001_0040, 0xe100_0040),
+                (0x0002_0040, 0x6002_0040),
+            ]
+            for addr, expected in remaps:
+                yield dut.master.aw.addr.eq(addr)
+                yield dut.master.ar.addr.eq(addr)
+                yield
+                self.assertEqual((yield dut.slave.aw.addr), expected)
+                self.assertEqual((yield dut.slave.ar.addr), expected)
+
+        dut = DUT()
+        run_simulation(dut, gen(dut))
+
+        with self.assertRaises(ValueError):
+            AXILiteRemapper(dut.master, dut.slave, size=0x3000)
+
+        with self.assertRaises(ValueError):
+            AXILiteRemapper(dut.master, dut.slave,
+                src_regions = [SoCRegion(origin=0x0000_0000, size=0x1000)],
+                dst_regions = [])
+
     def test_wishbone2axilite2wishbone(self,
         data_width    = 32,
         address_width = 32,
