@@ -112,9 +112,7 @@ class GTKWSave:
             translation_files: Optional[Sequence[str]] = None,
             **kwargs):
         mappers = mappers or []
-        translation_files = translation_files or {}
-        if len(signals) == 1:
-            return self.signal(signals[0])
+        translation_files = translation_files or []
 
         names = [self.name(s) for s in signals]
         common = self.common_prefix(names)
@@ -130,6 +128,13 @@ class GTKWSave:
 
         for mapper in mappers:
             sigs = list(mapper(sigs))
+
+        if len(sigs) == 1:
+            s = sigs[0]
+            alias = None if s.alias == s.name else s.alias
+            self.gtkw.trace(self.prefix + s.name, alias=alias, color=s.color,
+                translate_filter_file=s.filter_file, **kwargs)
+            return
 
         with self.gtkw.group(group_name or common.strip("_"), closed=closed):
             for s in sigs:

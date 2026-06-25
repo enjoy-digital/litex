@@ -33,9 +33,11 @@ def test_run_simulation_generates_gtkw_savefile(tmp_path):
 
     assert vcd.exists()
     assert gtkw.exists()
-    assert "sim.vcd" in gtkw.read_text()
+    gtkw_text = gtkw.read_text()
+    assert "sim.vcd" in gtkw_text
 
     filters = list(tmp_path.glob("filter__*.txt"))
     assert len(filters) == 1
     assert "IDLE" in filters[0].read_text()
     assert "RUN" in filters[0].read_text()
+    assert str(filters[0]) in gtkw_text
