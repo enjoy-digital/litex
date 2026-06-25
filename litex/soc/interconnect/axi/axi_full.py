@@ -149,17 +149,53 @@ class AXIInterface:
 # AXI Remapper -------------------------------------------------------------------------------------
 
 class AXIRemapper(LiteXModule):
-    """Remaps AXI addresses by applying an origin offset and address mask."""
-    def __init__(self, master, slave, origin=0, size=None):
-        # Mask.
+    """
+    AXI Remapper that supports sequential application of:
+    - An initial origin offset and address mask.
+    - Region-based remapping from specified source regions to destination regions.
+    """
+    def __init__(self, master, slave, origin=0, size=None, src_regions=None, dst_regions=None):
+        # Parameters.
+        # -----------
+        src_regions = src_regions or []
+        dst_regions = dst_regions or []
+        if len(src_regions) != len(dst_regions):
+            raise ValueError("AXI remapper source/destination region count mismatch.")
+
+        # Master to Slave.
+        # ----------------
+        self.comb += master.connect(slave)
+
+        # Origin Remapping.
+        # -----------------
+        # Compute Address Mask.
         if size is None:
             size = 2**master.address_width
+        if size != 2**int(log2(size)):
+            raise ValueError(f"Remapper size must be a power of 2 (got 0x{size:x}).")
         mask = 2**int(log2(size)) - 1
 
-        # Address Mask and Shift.
-        self.comb += master.connect(slave)
-        self.comb += slave.aw.addr.eq(origin | master.aw.addr & mask)
-        self.comb += slave.ar.addr.eq(origin | master.ar.addr & mask)
+        def remap_address(master_addr, slave_addr):
+            adr_remap = Signal(len(master_addr) + 1)
+            self.comb += [
+                adr_remap.eq(origin | (master_addr & mask)),
+                slave_addr.eq(adr_remap),
+            ]
+
+            # Regions Remapping.
+            # ------------------
+            for src_region, dst_region in zip(src_regions, dst_regions):
+                dst_adr = Signal(len(master_addr) + 1)
+                active  = Signal()
+                self.comb += [
+                    dst_adr.eq(dst_region.origin + adr_remap - src_region.origin),
+                    active.eq((adr_remap >= src_region.origin) & (adr_remap < (src_region.origin + src_region.size))),
+                    If(active, slave_addr.eq(dst_adr))
+                ]
+
+        # Apply Address Origin/Mask/Region Remapping.
+        remap_address(master.aw.addr, slave.aw.addr)
+        remap_address(master.ar.addr, slave.ar.addr)
 
 # AXI Offset ---------------------------------------------------------------------------------------
 
