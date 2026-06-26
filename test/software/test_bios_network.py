@@ -15,7 +15,7 @@ def _write(path, contents=""):
 
 
 def test_liteeth_tftp_receive_bounds_host_coverage(tmp_path):
-    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     include_dir = tmp_path / "include"
     source = tmp_path / "tftp_harness.c"
     binary = tmp_path / "tftp_harness"
@@ -331,7 +331,7 @@ def test_liteeth_tftp_receive_bounds_host_coverage(tmp_path):
 
 
 def test_liteeth_arp_cache_update_host_coverage(tmp_path):
-    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     include_dir = tmp_path / "include"
     source = tmp_path / "arp_harness.c"
     binary = tmp_path / "arp_harness"

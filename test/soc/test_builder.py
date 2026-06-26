@@ -194,7 +194,7 @@ class TestBuilderArguments(unittest.TestCase):
 
 class TestSoftwareMakefiles(unittest.TestCase):
     def test_software_makefiles_enable_section_gc(self):
-        repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
         with open(os.path.join(repo_dir, "litex", "soc", "software", "common.mak")) as f:
             common_mak = f.read()

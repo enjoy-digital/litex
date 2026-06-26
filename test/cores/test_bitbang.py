@@ -11,7 +11,7 @@ from migen.fhdl.specials import Tristate
 
 from litex.soc.cores.bitbang import I2CMaster, I2CMasterSim, SPIMaster
 
-from test.common import MockTristate
+from test.support.common import MockTristate
 
 
 # Bit-field offsets in I2CMaster._w / SPIMaster._w (copied from the CSRField definitions).

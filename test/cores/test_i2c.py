@@ -17,7 +17,7 @@ from migen.fhdl.specials import Tristate
 
 from litex.soc.cores.i2c import *
 
-from test.common import MockTristate
+from test.support.common import MockTristate
 
 
 class _MockPads:

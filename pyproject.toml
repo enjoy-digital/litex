@@ -1,3 +1,24 @@
 [build-system]
 requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+python_files = ["test_*.py"]
+norecursedirs = [
+    ".*",
+    "__pycache__",
+    "CVS",
+    "_darcs",
+    "{arch}",
+    "*.egg",
+    "dist",
+    "downloads",
+    "eggs",
+    "env",
+    "venv",
+]
+markers = [
+    "integration: tests that build or exercise complete LiteX systems",
+    "slow: tests that are expected to dominate local runtime",
+]

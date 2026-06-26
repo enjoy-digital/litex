@@ -105,7 +105,7 @@ def _write_bios_stubs(include_dir):
 
 
 def test_bios_boot_helpers_host_coverage(tmp_path):
-    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     include_dir = tmp_path / "include"
     source = tmp_path / "bios_boot_harness.c"
     binary = tmp_path / "bios_boot_harness"
@@ -617,7 +617,7 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
 
 
 def test_bios_flashboot_host_coverage(tmp_path):
-    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     include_dir = tmp_path / "include"
     source = tmp_path / "bios_flashboot_harness.c"
     binary = tmp_path / "bios_flashboot_harness"

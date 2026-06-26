@@ -212,7 +212,7 @@ jobs:
           PKG_CONFIG_PATH: ""
         run: |
           export PATH="${RUNNER_TEMP}/qemu-litex/install/bin:${pythonLocation}/bin:${HOME}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-          python3 -m pytest -v test/test_integration.py::test_qemu_cpu
+          python3 -m pytest -v test/soc/test_integration.py::test_qemu_cpu
 
       # Generate .test_durations so pytest-split's least_duration algorithm
       # can pack shards optimally (longest tests first, fill remaining

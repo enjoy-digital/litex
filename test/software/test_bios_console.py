@@ -15,7 +15,7 @@ def _write(path, contents=""):
 
 
 def test_bios_readline_host_coverage(tmp_path):
-    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     include_dir = tmp_path / "include"
     source = tmp_path / "bios_readline_harness.c"
     binary = tmp_path / "bios_readline_harness"

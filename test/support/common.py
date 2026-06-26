@@ -38,7 +38,7 @@ class MockTristate:
 
     Usage:
         from migen.fhdl.specials import Tristate
-        from test.common import MockTristate
+        from test.support.common import MockTristate
         run_simulation(dut, gen(), special_overrides={Tristate: MockTristate})
 
     The input side (`t.i`, if present) tracks the output (`t.o`) when `t.oe=1`, and otherwise

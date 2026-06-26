@@ -11,7 +11,7 @@ from migen.fhdl.specials import Tristate
 
 from litex.soc.cores.usb_fifo import FT245PHYAsynchronous
 
-from test.common import MockTristate
+from test.support.common import MockTristate
 
 
 # Mock FT245 pads ----------------------------------------------------------------------------------
