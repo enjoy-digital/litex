@@ -283,9 +283,10 @@ def _generate_csr_base_define_c(csr_base, with_csr_base_define, cpu=None):
         includes += "#ifndef CSR_BASE\n"
         includes += f"#define CSR_BASE {hex(csr_base)}L\n"
         includes += "#endif /* ! CSR_BASE */\n"
-        includes += "#ifndef CSR_BASE_VA\n"
-        includes += f"#define CSR_BASE_VA {hex(csr_base_va)}L\n"
-        includes += "#endif /* ! CSR_BASE_VA */\n"
+        if csr_base_va != csr_base:
+            includes += "#ifndef CSR_BASE_VA\n"
+            includes += f"#define CSR_BASE_VA {hex(csr_base_va)}L\n"
+            includes += "#endif /* ! CSR_BASE_VA */\n"
     return includes
 
 # CSR Definitions.
@@ -296,18 +297,26 @@ def _get_csr_addr(csr_base, addr, with_csr_base_define=True):
     else:
         return f"{hex(csr_base + addr)}L"
 
+def _csr_addr_needs_va(cpu, csr_base, addr):
+    return _cpu_bios_map(cpu, csr_base + addr, False) != (csr_base + addr)
+
 def _get_csr_addr_va(cpu, csr_base, addr, with_csr_base_define=True):
-    if with_csr_base_define:
+    addr_va = _cpu_bios_map(cpu, csr_base + addr, False)
+    if addr_va == (csr_base + addr):
+        return _get_csr_addr(csr_base, addr, with_csr_base_define)
+    csr_base_va = _cpu_bios_map(cpu, csr_base, False)
+    if with_csr_base_define and csr_base_va != csr_base and addr_va == csr_base_va + addr:
         return f"(CSR_BASE_VA + {hex(addr)}L)"
     else:
-        return f"{hex(_cpu_bios_map(cpu, csr_base + addr, False))}L"
+        return f"{hex(addr_va)}L"
 
 def _generate_csr_definitions_c(cpu, reg_name, reg_base, nwords, csr_base, with_csr_base_define):
     addr_str    = f"CSR_{reg_name.upper()}_ADDR"
     va_str      = f"CSR_{reg_name.upper()}_ADDR_VA"
     size_str    = f"CSR_{reg_name.upper()}_SIZE"
     definitions = f"#define {addr_str} {_get_csr_addr(csr_base, reg_base, with_csr_base_define)}\n"
-    definitions += f"#define {va_str} {_get_csr_addr_va(cpu, csr_base, reg_base, with_csr_base_define)}\n"
+    if _csr_addr_needs_va(cpu, csr_base, reg_base):
+        definitions += f"#define {va_str} {_get_csr_addr_va(cpu, csr_base, reg_base, with_csr_base_define)}\n"
     definitions += f"#define {size_str} {nwords}\n"
     return definitions
 
@@ -316,7 +325,8 @@ def _generate_csr_region_definitions_c(cpu, name, region, origin, alignment, csr
     base = csr_base if not isinstance(region, MockCSRRegion) else 0
     region_defs = f"\n/* {name.upper()} Registers */\n"
     region_defs += f"#define CSR_{name.upper()}_BASE {_get_csr_addr(base, origin, base_define)}\n"
-    region_defs += f"#define CSR_{name.upper()}_BASE_VA {_get_csr_addr_va(cpu, base, origin, base_define)}\n"
+    if _csr_addr_needs_va(cpu, base, origin):
+        region_defs += f"#define CSR_{name.upper()}_BASE_VA {_get_csr_addr_va(cpu, base, origin, base_define)}\n"
 
     if not isinstance(region.obj, Memory):
         for csr in region.obj:

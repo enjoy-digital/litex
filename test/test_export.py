@@ -132,6 +132,49 @@ class TestCSRExport(unittest.TestCase):
         self.assertIn("#define CSR_CTRL_BASE_VA (CSR_BASE_VA + 0x0L)", header)
         self.assertIn("return csr_read_simple((CSR_BASE_VA + 0x0L));", header)
 
+    def test_csr_header_omits_virtual_aliases_for_identity_map(self):
+        cpu = SimpleNamespace(
+            bios_map = lambda addr, cached: addr,
+        )
+        csr = CSRStatus(name="scratch", size=32)
+        header = get_csr_header(
+            regions = {
+                "ctrl": SoCCSRRegion(origin=0x18000000, busword=32, obj=[csr]),
+            },
+            constants = {},
+            csr_base  = 0x18000000,
+            cpu       = cpu,
+        )
+
+        self.assertIn("#define CSR_BASE 0x18000000L", header)
+        self.assertIn("#define CSR_CTRL_BASE (CSR_BASE + 0x0L)", header)
+        self.assertIn("#define CSR_CTRL_SCRATCH_ADDR (CSR_BASE + 0x0L)", header)
+        self.assertIn("return csr_read_simple((CSR_BASE + 0x0L));", header)
+        self.assertNotIn("CSR_BASE_VA", header)
+        self.assertNotIn("CSR_CTRL_BASE_VA", header)
+        self.assertNotIn("CSR_CTRL_SCRATCH_ADDR_VA", header)
+
+    def test_relative_csr_header_omits_virtual_aliases_for_identity_map(self):
+        cpu = SimpleNamespace(
+            bios_map = lambda addr, cached: addr,
+        )
+        csr = CSRStatus(name="scratch", size=32)
+        header = get_csr_header(
+            regions = {
+                "ctrl": SoCCSRRegion(origin=0x0, busword=32, obj=[csr]),
+            },
+            constants            = {},
+            csr_base             = 0x0,
+            with_csr_base_define = False,
+            cpu                  = cpu,
+        )
+
+        self.assertIn("#define CSR_CTRL_BASE 0x0L", header)
+        self.assertIn("#define CSR_CTRL_SCRATCH_ADDR 0x0L", header)
+        self.assertIn("return csr_read_simple(0x0L);", header)
+        self.assertNotIn("CSR_CTRL_BASE_VA", header)
+        self.assertNotIn("CSR_CTRL_SCRATCH_ADDR_VA", header)
+
     def test_svd_splits_wide_csr_fields_per_bus_word(self):
         csr = CSRStatus(name="switch", description="TMU Switch Status", fields=[
             CSRField("source", size=32, offset=0,  description="Source Thread ID"),
