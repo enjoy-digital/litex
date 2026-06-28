@@ -2,18 +2,10 @@
 .global isr
 .global _start
 
-_start:
-  j crt_init
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-  nop
-
-.balign 256
-
+# Ibex resets to offset 0x80 within the 256-byte-aligned boot region.
+# The vector table below occupies 0x00..0x7F, followed by the reset entry at 0x80.
+.option push
+.option norvc
 vector_table:
   j trap_entry # 0 unused
   j trap_entry # 1 unused
@@ -47,6 +39,11 @@ vector_table:
   j trap_entry # 29 firq13
   j trap_entry # 30 firq14
   j trap_entry # 31 unused
+.option pop
+
+.balign 128
+_start:
+  j crt_init
 
 .global  trap_entry
 trap_entry:
@@ -99,7 +96,7 @@ data_init:
   la t0, _fdata
   la t1, _edata
   la t2, _fdata_rom
-data_loop:  
+data_loop:
   beq t0, t1, data_done
   lw t3, 0(t2)
   sw t3, 0(t0)
@@ -111,7 +108,7 @@ data_done:
 bss_init:
   la t0, _fbss
   la t1, _ebss
-bss_loop:  
+bss_loop:
   beq t0, t1, bss_done
   sw zero, 0(t0)
   addi t0, t0, 4
@@ -123,4 +120,3 @@ bss_done:
 
 infinit_loop:
   j infinit_loop
-
