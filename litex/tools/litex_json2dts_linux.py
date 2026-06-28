@@ -15,16 +15,25 @@ import re
 
 from litex.gen.common import KILOBYTE, MEGABYTE
 
+# XICS (Microwatt/ppc64) interrupt source base: the ICS "interrupt-ranges" starts at HWIRQ 0x10,
+# so a peripheral connected to LiteX IRQ line N appears to Linux as XICS source 0x10 + N.
+XICS_IRQ_BASE = 0x10
+
 def generate_dts_interrupt(d, intr, polling):
     if polling:
         return ""
+    elif d["constants"].get("config_cpu_family") == "ppc64":
+        # XICS sources use 2 interrupt-cells: <hwirq, level> (level = 1).
+        return "interrupts = <{} 0x1>;".format(XICS_IRQ_BASE + intr)
     elif ("aplic_m" in d["memories"]) or ("aplic_s" in d["memories"]):
         return "interrupts = <{} 0x4>;".format(intr)
     else:
         return "interrupts = <{}>;".format(intr)
 
 def generate_dts_intc(d):
-    if "aplic_s" in d["memories"]:
+    if d["constants"].get("config_cpu_family") == "ppc64":
+        return "ICS"
+    elif "aplic_s" in d["memories"]:
         return "intc_s"
     elif "aplic_m" in d["memories"]:
         return "intc_m"
@@ -300,6 +309,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     default_initrd_start = {
         "or1k":   8 * MEGABYTE,
         "riscv": 16 * MEGABYTE,
+        "ppc64": 16 * MEGABYTE,
     }
     default_initrd_size = 8 * MEGABYTE
 
@@ -576,6 +586,72 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         }};
 """.format(sys_clk_freq=d["constants"]["config_clock_frequency"])
 
+    # PowerPC64 (Microwatt)
+    # ---------------------
+    elif cpu_family == "ppc64":
+        # Cache parameters (fall back to Microwatt's upstream device-tree defaults if the SoC does
+        # not export cache constants).
+        dcache_size = d["constants"].get("config_cpu_dcache_size",       0x1000)
+        dcache_sets = d["constants"].get("config_cpu_dcache_ways",       2)
+        dcache_blk  = d["constants"].get("config_cpu_dcache_block_size", 64)
+        icache_size = d["constants"].get("config_cpu_icache_size",       0x1000)
+        icache_sets = d["constants"].get("config_cpu_icache_ways",       2)
+        icache_blk  = d["constants"].get("config_cpu_icache_block_size", 64)
+        dts += """
+        cpus {{
+            #address-cells = <1>;
+            #size-cells    = <0>;
+
+            /* CPU features (used by CONFIG_PPC_DT_CPU_FTRS): advertises radix MMU
+               etc. so the kernel enables the radix MMU on Microwatt. */
+            ibm,powerpc-cpu-features {{
+                display-name = "Microwatt";
+                isa = <3000>;
+                device_type = "cpu-features";
+                compatible = "ibm,powerpc-cpu-features";
+                mmu-radix                  {{ isa = <3000>; usable-privilege = <2>; }};
+                little-endian              {{ isa = <2050>; usable-privilege = <3>; hwcap-bit-nr = <1>; }};
+                cache-inhibited-large-page {{ isa = <2040>; usable-privilege = <2>; }};
+                fixed-point-v3             {{ isa = <3000>; usable-privilege = <3>; }};
+                no-execute                 {{ isa = <2010>; usable-privilege = <2>; }};
+                floating-point             {{ isa = <0>;    usable-privilege = <3>; hwcap-bit-nr = <27>; }};
+            }};
+
+            PowerPC,Microwatt@0 {{
+                device_type = "cpu";
+                reg = <0>;
+                status = "okay";
+                64-bit;
+                general-purpose;
+                cpu-version        = <0x990000>;
+                clock-frequency    = <{sys_clk_freq}>;
+                timebase-frequency = <{sys_clk_freq}>;
+                reservation-granule-size = <64>;
+                i-cache-size       = <0x{icache_size:x}>;
+                i-cache-sets       = <{icache_sets}>;
+                i-cache-block-size = <{icache_blk}>;
+                d-cache-size       = <0x{dcache_size:x}>;
+                d-cache-sets       = <{dcache_sets}>;
+                d-cache-block-size = <{dcache_blk}>;
+                i-tlb-size = <64>;
+                i-tlb-sets = <1>;
+                d-tlb-size = <128>;
+                d-tlb-sets = <2>;
+                tlb-size   = <0>;
+                tlb-sets   = <0>;
+                ibm,dec-bits       = <64>;
+                ibm,chip-id        = <0>;
+                ibm,mmu-lpid-bits  = <12>;
+                ibm,mmu-pid-bits   = <20>;
+                ibm,ppc-interrupt-server#s = <0>;
+                ibm,processor-radix-AP-encodings = <0x0c 0xa0000010 0x20000015 0x4000001e>;
+            }};
+        }};
+""".format(
+    sys_clk_freq = d["constants"]["config_clock_frequency"],
+    icache_size  = icache_size, icache_sets = icache_sets, icache_blk = icache_blk,
+    dcache_size  = dcache_size, dcache_sets = dcache_sets, dcache_blk = dcache_blk)
+
     # Memory ---------------------------------------------------------------------------------------
 
     dts += """
@@ -801,6 +877,29 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 status = "okay";
             };
 """
+
+    # XICS (Microwatt) interrupt controller: ICP (presentation) + ICS (sources).
+    elif cpu_family == "ppc64":
+        dts += """
+            ICP: interrupt-controller@{icp_base:x} {{
+                compatible = "openpower,xics-presentation", "ibm,ppc-xicp";
+                ibm,interrupt-server-ranges = <0x0 0x1>;
+                reg = <0x{icp_base:x} 0x10>;
+            }};
+
+            ICS: interrupt-controller@{ics_base:x} {{
+                compatible = "openpower,xics-sources";
+                interrupt-controller;
+                interrupt-ranges = <0x{irq_base:x} 0x10>;
+                reg = <0x{ics_base:x} 0x{ics_size:x}>;
+                #address-cells = <0>;
+                #interrupt-cells = <2>;
+            }};
+""".format(
+        icp_base = d["memories"]["xicsicp"]["base"],
+        ics_base = d["memories"]["xicsics"]["base"],
+        ics_size = d["memories"]["xicsics"]["size"],
+        irq_base = XICS_IRQ_BASE)
     if (cpu_family == "riscv") and (cpu_name == "rocket"):
         dts += """
             dbg_ctl: debug-controller@0 {{
