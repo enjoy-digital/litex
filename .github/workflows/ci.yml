@@ -32,6 +32,14 @@ jobs:
           sudo apt-get install libevent-dev libjson-c-dev flex bison
           sudo apt-get install libfl-dev libfl2 zlib1g-dev
 
+      # Coreblocks generation currently requires Python 3.13. Install it first
+      # so python3.13 remains available to the pythondata wrapper, then restore
+      # Python 3.9 as the default LiteX/test interpreter below.
+      - name: Set up Python 3.13 for Coreblocks
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.13"
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
