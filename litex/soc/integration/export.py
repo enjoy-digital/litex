@@ -826,6 +826,51 @@ def _svd_cdata(description):
     # across two CDATA sections (standard XML escaping technique).
     return "<![CDATA[{}]]>".format(str(description).replace("]]>", "]]]]><![CDATA[>"))
 
+def _svd_identifier(name):
+    identifier = re.sub(r"[^A-Za-z0-9_]+", "_", str(name).strip("` "))
+    identifier = identifier.strip("_")
+    if not identifier:
+        return None
+    if not re.match(r"[A-Za-z_]", identifier):
+        identifier = "Value_" + identifier
+    return identifier
+
+def _svd_enumerated_value(value):
+    value = str(value).strip("` ")
+    if re.fullmatch(r"[+]?(0[xX][0-9a-fA-F]+|(0[bB]|#)[01xX]+|[0-9]+)", value):
+        return value
+    return None
+
+def _svd_enumerated_values(field):
+    if field.values is None:
+        return []
+
+    values = []
+    used_names = set()
+    for value in field.values:
+        if not isinstance(value, (list, tuple)):
+            continue
+        if len(value) == 2:
+            raw_value, description = value
+            name = description
+        elif len(value) == 3:
+            raw_value, name, description = value
+        else:
+            continue
+
+        value = _svd_enumerated_value(raw_value)
+        name  = _svd_identifier(name)
+        if value is None or name is None:
+            continue
+
+        if name in used_names:
+            name = _svd_identifier("{}_{}".format(name, value))
+        used_names.add(name)
+
+        values.append((name, description, value))
+
+    return values
+
 def get_csr_svd(soc, vendor="litex", name="soc", description=None):
     def sub_csr_bit_range(busword, csr, offset):
         nwords = (csr.size + busword - 1)//busword
@@ -858,6 +903,17 @@ def get_csr_svd(soc, vendor="litex", name="soc", description=None):
                 if field.description is not None:
                     svd.append('                            <description>{}</description>'.format(
                         _svd_cdata(reflow(field.description))))
+                enumerated_values = _svd_enumerated_values(field)
+                if len(enumerated_values) != 0:
+                    svd.append('                            <enumeratedValues>')
+                    for name, description, value in enumerated_values:
+                        svd.append('                                <enumeratedValue>')
+                        svd.append('                                    <name>{}</name>'.format(name))
+                        svd.append('                                    <description>{}</description>'.format(
+                            _svd_cdata(reflow(description))))
+                        svd.append('                                    <value>{}</value>'.format(value))
+                        svd.append('                                </enumeratedValue>')
+                    svd.append('                            </enumeratedValues>')
                 svd.append('                        </field>')
         else:
             field_size = csr.size
