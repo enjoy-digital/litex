@@ -848,6 +848,8 @@ def _svd_enumerated_values(field):
     values = []
     used_names = set()
     for value in field.values:
+        if not isinstance(value, (list, tuple)):
+            continue
         if len(value) == 2:
             raw_value, description = value
             name = description

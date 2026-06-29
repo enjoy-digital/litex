@@ -62,6 +62,25 @@ def _get_svd_registers(svd):
     return registers
 
 
+def _get_svd_field_enums(svd, register_name, field_name):
+    root = ET.fromstring(svd)
+    for register in root.findall("./peripherals/peripheral/registers/register"):
+        if register.findtext("name") != register_name:
+            continue
+        for field in register.findall("./fields/field"):
+            if field.findtext("name") != field_name:
+                continue
+            return [
+                {
+                    "name":        enum.findtext("name"),
+                    "description": enum.findtext("description"),
+                    "value":       enum.findtext("value"),
+                }
+                for enum in field.findall("./enumeratedValues/enumeratedValue")
+            ]
+    return []
+
+
 class TestCSRExport(unittest.TestCase):
     def test_soc_header_formats_int_constants(self):
         header = get_soc_header({
@@ -233,6 +252,63 @@ class TestCSRExport(unittest.TestCase):
         self.assertEqual(registers["WIDE0"], {
             "middle": {"msb": "31", "lsb": "16", "bitRange": "[31:16]"},
         })
+
+    def test_svd_exports_csr_field_enumerated_values(self):
+        csr = CSRStorage(name="mode", fields=[
+            CSRField("select", size=1, offset=0, values=[
+                ("``0b0``", "Software (CPU) control."),
+                ("``0b1``", "Hardware control (default)."),
+            ]),
+        ])
+
+        svd   = _get_csr_svd(csr)
+        enums = _get_svd_field_enums(svd, "MODE", "select")
+
+        self.assertEqual(enums, [
+            {
+                "name":        "Software_CPU_control",
+                "description": "Software (CPU) control.",
+                "value":       "0b0",
+            },
+            {
+                "name":        "Hardware_control_default",
+                "description": "Hardware control (default).",
+                "value":       "0b1",
+            },
+        ])
+
+    def test_svd_sanitizes_and_filters_csr_field_enums(self):
+        csr = CSRStatus(name="state", fields=[
+            CSRField("fsm", size=2, offset=0, description="FSM state.", values=[
+                ("``0b00``",   "Idle State",     "Waiting for work."),
+                ("``0b01``",   "Active/State",   "Running ]]> work."),
+                ("``0b0..1``", "Unsupported",    "Non-SVD wildcard."),
+                ("``0b10``",   "Active/State",   "Duplicate name."),
+                ("``0xxxxx``", "UnsupportedRaw", "Missing binary prefix."),
+                "invalid",
+            ]),
+        ])
+
+        svd   = _get_csr_svd(csr)
+        enums = _get_svd_field_enums(svd, "STATE", "fsm")
+
+        self.assertEqual(enums, [
+            {
+                "name":        "Idle_State",
+                "description": "Waiting for work.",
+                "value":       "0b00",
+            },
+            {
+                "name":        "Active_State",
+                "description": "Running ]]> work.",
+                "value":       "0b01",
+            },
+            {
+                "name":        "Active_State_0b10",
+                "description": "Duplicate name.",
+                "value":       "0b10",
+            },
+        ])
 
 
 if __name__ == "__main__":
