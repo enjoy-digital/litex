@@ -50,7 +50,7 @@ else
 LSCRIPT = linker.ld
 endif
 
-all: bios.bin bios.dis
+all: bios.bin
 	$(PYTHON) -m litex.soc.software.memusage bios.elf $(CURDIR)/../include/generated/regions.ld $(TRIPLE)
 
 %.bin: %.elf
@@ -66,6 +66,8 @@ endif
 
 %.dis: %.elf
 	$(OBJDUMP) -D $< > $@
+
+dis: bios.dis
 
 bios.elf: $(BIOS_DIRECTORY)/$(LSCRIPT) $(OBJECTS)
 
@@ -99,4 +101,4 @@ VPATH = $(BIOS_DIRECTORY):$(BIOS_DIRECTORY)/cmds:$(CPU_DIRECTORY)
 clean:
 	$(RM) $(OBJECTS) bios.elf bios.dis bios.bin .*~ *~
 
-.PHONY: all clean
+.PHONY: all clean dis
