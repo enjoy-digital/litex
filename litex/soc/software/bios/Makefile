@@ -77,6 +77,11 @@ else
 	$(PYTHON) -m litex.soc.software.crcfbigen $@
 endif
 
+%.dis: %.elf
+	$(OBJDUMP) -D $< > $@
+
+dis: bios.dis
+
 bios.elf: $(BIOS_DIRECTORY)/$(LSCRIPT) $(OBJECTS)
 
 vpath %.a $(PACKAGES:%=../%)
@@ -108,6 +113,6 @@ VPATH = $(BIOS_DIRECTORY):$(BIOS_DIRECTORY)/cmds:$(CPU_DIRECTORY)
 	$(assemble)
 
 clean:
-	$(RM) $(OBJECTS) bios.elf bios.bin .*~ *~
+	$(RM) $(OBJECTS) bios.elf bios.dis bios.bin .*~ *~
 
-.PHONY: all clean
+.PHONY: all clean dis
