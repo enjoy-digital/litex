@@ -10,6 +10,8 @@ import json
 import io
 import logging
 import os
+import sys
+import tarfile
 import tempfile
 import unittest
 from types import SimpleNamespace
@@ -191,6 +193,34 @@ class TestBuilderArguments(unittest.TestCase):
                 parser.parse_args(["--help"])
 
         self.assertIn("--build --no-compile", stdout.getvalue())
+
+    def test_build_bundle_options_are_mapped(self):
+        default  = _make_argdict()
+        explicit = _make_argdict(
+            "--build-bundle", "inputs.tar.gz",
+            "--bundle-root", "project",
+            "--bundle-root", "deps",
+            "--bundle-include", "extra.v",
+            "--bundle-pythonpath-root", "python",
+            "--bundle-auto-pythonpath",
+            "--bundle-strict", "error",
+        )
+        disabled = _make_argdict("--no-build-bundle")
+
+        self.assertFalse(default["build_bundle"])
+        self.assertEqual(default["bundle_root"], [])
+        self.assertEqual(default["bundle_include"], [])
+        self.assertEqual(default["bundle_pythonpath_root"], [])
+        self.assertFalse(default["bundle_auto_pythonpath"])
+        self.assertEqual(default["bundle_strict"], "warn")
+        self.assertEqual(explicit["build_bundle"], "inputs.tar.gz")
+        self.assertEqual(explicit["bundle_root"], ["project", "deps"])
+        self.assertEqual(explicit["bundle_include"], ["extra.v"])
+        self.assertEqual(explicit["bundle_pythonpath_root"], ["python"])
+        self.assertTrue(explicit["bundle_auto_pythonpath"])
+        self.assertEqual(explicit["bundle_strict"], "error")
+        self.assertFalse(disabled["build_bundle"])
+
 
 class TestSoftwareMakefiles(unittest.TestCase):
     def test_software_makefiles_enable_section_gc(self):
@@ -425,6 +455,45 @@ class TestBuilderGeneratedFiles(unittest.TestCase):
             self.assertIn("ALWAYS_LINK_LIBS=libcustom", variables)
             self.assertIn("BIOS_CONSOLE_NO_ANSI=1", variables_no_ansi)
 
+    def test_variables_contents_remaps_replay_support_paths(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            builder = _make_builder(tmp_dir, soc=_IncludeFakeSoC(), compile_software=False)
+            source_soc = os.path.join(tmp_dir, "soc")
+            source_pico = os.path.join(tmp_dir, "picolibc")
+            source_compiler_rt = os.path.join(tmp_dir, "compiler_rt")
+            mapped_soc = os.path.join(tmp_dir, "replay", "soc")
+            mapped_pico = os.path.join(tmp_dir, "replay", "picolibc")
+            mapped_compiler_rt = os.path.join(tmp_dir, "replay", "compiler_rt")
+            path_map = [
+                {"kind": "root", "path": source_soc,         "mapped": mapped_soc},
+                {"kind": "root", "path": source_pico,        "mapped": mapped_pico},
+                {"kind": "root", "path": source_compiler_rt, "mapped": mapped_compiler_rt},
+            ]
+
+            def get_data_mod_mock(category, name):
+                return SimpleNamespace(data_location={
+                    "picolibc"   : source_pico,
+                    "compiler_rt": source_compiler_rt,
+                }[name])
+
+            with patch("litex.soc.integration.builder.get_data_mod", side_effect=get_data_mod_mock):
+                with patch("litex.soc.integration.builder.soc_directory", source_soc):
+                    with patch("litex.soc.integration.builder.export.get_cpu_mak", return_value=[
+                        ("TRIPLE",        "--not-found--"),
+                        ("CPU",           "unitcpu"),
+                        ("CPUFAMILY",     "riscv"),
+                        ("CPUFLAGS",      ""),
+                        ("CPUENDIANNESS", "little"),
+                        ("CLANG",         "0"),
+                        ("CPU_DIRECTORY", source_soc),
+                    ]):
+                        with patch.dict(os.environ, {"LITEX_BUILD_BUNDLE_PATH_MAP": json.dumps(path_map)}):
+                            variables = builder._get_variables_contents()
+
+            self.assertIn(f"SOC_DIRECTORY={mapped_soc}", variables)
+            self.assertIn(f"PICOLIBC_DIRECTORY={mapped_pico}", variables)
+            self.assertIn(f"COMPILER_RT_DIRECTORY={mapped_compiler_rt}", variables)
+
 
 class TestBuilderRomSoftware(unittest.TestCase):
     def _make_rom_builder(self, tmp_dir, auto_size):
@@ -591,6 +660,98 @@ class TestBuilderBuild(unittest.TestCase):
                 ("copied.v",  "verilog", "work"),
                 (kept_source, "verilog", "work"),
             ])
+
+    def test_build_writes_input_bundle_with_resolved_sources(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            source_dir = os.path.join(tmp_dir, "src")
+            os.makedirs(source_dir)
+            gateware_source = os.path.join(source_dir, "rtl.v")
+            json_source     = os.path.join(source_dir, "csr.json")
+            include_dir     = os.path.join(source_dir, "include")
+            os.makedirs(include_dir)
+            with open(gateware_source, "w", encoding="utf-8") as f:
+                f.write("module rtl(); endmodule\n")
+            with open(json_source, "w", encoding="utf-8") as f:
+                json.dump({"csr_bases": {}, "constants": {}, "memories": {}}, f)
+            with open(os.path.join(include_dir, "defs.vh"), "w", encoding="utf-8") as f:
+                f.write("`define UNIT 1\n")
+
+            soc = _BuildableFakeSoC()
+            soc.platform.sources = [(gateware_source, "verilog", "work")]
+            soc.platform.verilog_include_paths = [include_dir]
+            builder = _make_builder(
+                tmp_dir,
+                soc=soc,
+                compile_software=False,
+                compile_gateware=False,
+                build_bundle=True,
+                bundle_pythonpath_root=[source_dir],
+            )
+            builder.add_json(json_source)
+
+            builder._generate_includes = Mock()
+            builder._generate_csr_map  = Mock()
+            builder.build()
+
+            self.assertIsNotNone(builder.last_build_bundle)
+            archive_path  = builder.last_build_bundle["archive"]
+            manifest_path = builder.last_build_bundle["manifest"]
+            self.assertTrue(os.path.exists(archive_path))
+            self.assertTrue(os.path.exists(manifest_path))
+
+            with open(manifest_path, encoding="utf-8") as f:
+                manifest = json.load(f)
+            by_path = {entry["path"]: entry for entry in manifest["files"]}
+            self.assertEqual(manifest["command"][0], sys.executable)
+            self.assertEqual([root["path"] for root in manifest["pythonpath"]], [source_dir])
+            self.assertIn(gateware_source, by_path)
+            self.assertIn(json_source, by_path)
+            self.assertIn(os.path.join(include_dir, "defs.vh"), by_path)
+            self.assertIn("gateware_source", by_path[gateware_source]["roles"])
+            self.assertIn("csr_json", by_path[json_source]["roles"])
+            self.assertIn("verilog_include_path", by_path[os.path.join(include_dir, "defs.vh")]["roles"])
+
+            with tarfile.open(archive_path, "r:gz") as archive:
+                names = archive.getnames()
+            self.assertIn("manifest.json", names)
+            self.assertIn(by_path[gateware_source]["archive_path"], names)
+
+    def test_build_bundle_can_be_disabled(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            soc     = _BuildableFakeSoC()
+            builder = _make_builder(
+                tmp_dir,
+                soc=soc,
+                compile_software=False,
+                compile_gateware=False,
+                build_bundle=False,
+            )
+
+            builder._generate_includes = Mock()
+            builder._generate_csr_map  = Mock()
+            builder.build()
+
+            self.assertIsNone(builder.last_build_bundle)
+            self.assertFalse(os.path.exists(os.path.join(builder.output_dir, "bundles")))
+
+    def test_build_bundle_strict_mode_rejects_missing_inputs(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            soc     = _BuildableFakeSoC()
+            builder = _make_builder(
+                tmp_dir,
+                soc=soc,
+                compile_software=False,
+                compile_gateware=False,
+                build_bundle=True,
+                bundle_include=[os.path.join(tmp_dir, "missing.v")],
+                bundle_strict="error",
+            )
+
+            builder._generate_includes = Mock()
+            builder._generate_csr_map  = Mock()
+
+            with self.assertRaisesRegex(OSError, "Missing build bundle input"):
+                builder.build()
 
     def test_build_preserves_explicit_run_and_hierarchical_kwargs(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
