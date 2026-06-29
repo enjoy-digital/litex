@@ -207,7 +207,7 @@ class TestBuilderArguments(unittest.TestCase):
         )
         disabled = _make_argdict("--no-build-bundle")
 
-        self.assertTrue(default["build_bundle"])
+        self.assertFalse(default["build_bundle"])
         self.assertEqual(default["bundle_root"], [])
         self.assertEqual(default["bundle_include"], [])
         self.assertEqual(default["bundle_pythonpath_root"], [])
@@ -684,6 +684,7 @@ class TestBuilderBuild(unittest.TestCase):
                 soc=soc,
                 compile_software=False,
                 compile_gateware=False,
+                build_bundle=True,
                 bundle_pythonpath_root=[source_dir],
             )
             builder.add_json(json_source)
@@ -741,6 +742,7 @@ class TestBuilderBuild(unittest.TestCase):
                 soc=soc,
                 compile_software=False,
                 compile_gateware=False,
+                build_bundle=True,
                 bundle_include=[os.path.join(tmp_dir, "missing.v")],
                 bundle_strict="error",
             )

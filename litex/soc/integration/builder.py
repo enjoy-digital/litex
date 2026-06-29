@@ -12,12 +12,12 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 
-import os
-import sys
-import shutil
-import inspect
 import argparse
+import inspect
+import os
+import shutil
 import subprocess
+import sys
 
 from packaging.version import Version
 
@@ -113,12 +113,12 @@ class Builder:
         hierarchical     = False,
 
         # Build Bundle.
-        build_bundle     = True,
-        bundle_root      = None,
-        bundle_include   = None,
-        bundle_pythonpath_root    = None,
-        bundle_auto_pythonpath    = False,
-        bundle_strict    = "warn"):
+        build_bundle           = False,
+        bundle_root            = None,
+        bundle_include         = None,
+        bundle_pythonpath_root = None,
+        bundle_auto_pythonpath = False,
+        bundle_strict          = "warn"):
 
         # SoC/Builder Attach.
         self.soc         = soc   # Attach SoC to Builder.
@@ -660,20 +660,13 @@ def builder_args(parser):
     builder_group.add_argument("--doc",                   action="store_true", help="Generate SoC documentation.")
     builder_group.add_argument("--hierarchical-verilog",  action="store_true", help="Enable hierarchical Verilog generation.")
     bundle_group = parser.add_argument_group(title="Build bundle options")
-    bundle_group.add_argument("--build-bundle", default=True, nargs="?", const=True, metavar="PATH",
-        help="Generate a build input bundle/archive (optionally to PATH).")
-    bundle_group.add_argument("--no-build-bundle", dest="build_bundle", action="store_false",
-        help="Disable build input bundle generation.")
-    bundle_group.add_argument("--bundle-root", action="append", default=[],
-        help="Add a directory root to the build input bundle.")
-    bundle_group.add_argument("--bundle-include", action="append", default=[],
-        help="Add an extra file/directory to the build input bundle.")
-    bundle_group.add_argument("--bundle-pythonpath-root", action="append", default=[],
-        help="Add a Python import root to the build input bundle.")
-    bundle_group.add_argument("--bundle-auto-pythonpath", action="store_true",
-        help="Auto-bundle LiteX Python import roots.")
-    bundle_group.add_argument("--bundle-strict", default="warn", choices=["warn", "error"],
-        help="Control missing build bundle input handling.")
+    bundle_group.add_argument("--build-bundle",           default=False, nargs="?", const=True, metavar="PATH", help="Generate a build input bundle/archive (optionally to PATH).")
+    bundle_group.add_argument("--no-build-bundle",        dest="build_bundle", action="store_false",           help="Disable build input bundle generation.")
+    bundle_group.add_argument("--bundle-root",            default=[], action="append",                         help="Add a directory root to the build input bundle.")
+    bundle_group.add_argument("--bundle-include",         default=[], action="append",                         help="Add an extra file/directory to the build input bundle.")
+    bundle_group.add_argument("--bundle-pythonpath-root", default=[], action="append",                         help="Add a Python import root to the build input bundle.")
+    bundle_group.add_argument("--bundle-auto-pythonpath", action="store_true",                                 help="Auto-bundle LiteX Python import roots.")
+    bundle_group.add_argument("--bundle-strict",          default="warn", choices=["warn", "error"],           help="Control missing build bundle input handling.")
     bios_group = parser.add_argument_group(title="BIOS options") # FIXME: Move?
     bios_group.add_argument("--bios-lto",     action="store_true", help="Enable BIOS LTO (Link Time Optimization) compilation.")
     bios_group.add_argument("--bios-format",  default="integer",   help="Select BIOS printf format.",  choices=["integer", "float", "double"])
