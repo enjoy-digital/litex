@@ -17,6 +17,7 @@ from migen import ClockDomain, Record, Signal
 from migen.sim import run_simulation
 
 from litex.soc.cores.hyperbus import HyperRAM
+from litex.soc.cores.video import video_framebuffer_size
 from litex.soc.interconnect import axi, wishbone
 
 from litex.soc.integration.soc import (
@@ -193,6 +194,18 @@ class TestSoCVideoFrameBuffer(unittest.TestCase):
 
         self.assertEqual(region.origin, 0x43e00000)
         self.assertEqual(region.size,   0x0012c000)
+        self.assertTrue(region.linker)
+
+    def test_default_region_fits_small_main_ram(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.bus.add_region("main_ram", SoCRegion(origin=0x40000000, size=0x00800000))
+
+        framebuffer_size = video_framebuffer_size(800, 600, "rgb888")
+        region = soc._get_video_framebuffer_default_region("video_framebuffer", framebuffer_size)
+
+        self.assertEqual(region.origin, 0x40600000)
+        self.assertEqual(region.size,   framebuffer_size)
+        self.assertLessEqual(region.origin + region.size, 0x40800000)
         self.assertTrue(region.linker)
 
     def test_default_region_falls_back_when_main_ram_is_unknown(self):
