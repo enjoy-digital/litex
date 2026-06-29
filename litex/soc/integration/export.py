@@ -31,6 +31,7 @@ from xml.sax.saxutils import quoteattr
 
 from migen import *
 
+from litex.gen.format import format_int
 from litex.soc.interconnect.csr import CSRStatus
 from litex.soc.integration.soc import SoCRegion
 
@@ -230,6 +231,7 @@ def get_soc_header(constants, with_access_functions=True):
                 value = int(value)
             ctype = "int32_t"
             if isinstance(value, int):
+                suffix = ""
                 if value >= 0:
                     if value > 0xffffffffffffffff:
                         raise ValueError(f"Constant {name} value {value} does not fit in a 64-bit C type.")
@@ -237,7 +239,7 @@ def get_soc_header(constants, with_access_functions=True):
                     # INT64_MAX is ill-formed C and values above UINT32_MAX must not be truncated.
                     if value > 0xffffffff:
                         ctype = "uint64_t"
-                        value = f"0x{value:x}ULL"
+                        suffix = "ULL"
                     else:
                         ctype = "uint32_t"
                 else:
@@ -245,8 +247,10 @@ def get_soc_header(constants, with_access_functions=True):
                         raise ValueError(f"Constant {name} value {value} does not fit in a 64-bit C type.")
                     if value < -0x80000000:
                         ctype = "int64_t"
-                        value = f"{value}LL"
-            value = str(value)
+                        suffix = "LL"
+                value = format_int(value, suffix=suffix)
+            else:
+                value = str(value)
         r += "#define "+name+" "+value+"\n"
         if with_access_functions:
             funcs += "static inline "+ctype+" "+name.lower()+"_read(void) {\n"

@@ -10,6 +10,8 @@ from enum import IntEnum
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Operator, _Slice, _Assign, _Fragment
 
+from litex.gen.format import format_verilog_int
+
 # ------------------------------------------------------------------------------------------------ #
 #                                       EXPRESSIONS                                                #
 # ------------------------------------------------------------------------------------------------ #
@@ -17,10 +19,10 @@ from migen.fhdl.structure import _Operator, _Slice, _Assign, _Fragment
 # Print Constant -----------------------------------------------------------------------------------
 
 def _generate_constant(node):
-    return "{sign}{bits}'d{value}".format(
+    return "{sign}{bits}'{value}".format(
         sign  = "" if node.value >= 0 else "-",
         bits  = str(node.nbits),
-        value = abs(node.value),
+        value = format_verilog_int(abs(node.value)),
     ), node.signed
 
 # Print Signal -------------------------------------------------------------------------------------

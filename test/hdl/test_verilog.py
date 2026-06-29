@@ -41,6 +41,19 @@ class _DisplayTime(Module):
         self.sync += Display("time=%t value=%d", VerilogTime(), self.value)
 
 
+class _Constants(Module):
+    def __init__(self):
+        self.count   = Signal(8,  name="count")
+        self.address = Signal(32, name="address")
+        self.mask    = Signal(16, name="mask")
+
+        self.comb += [
+            self.count.eq(Constant(42, 8)),
+            self.address.eq(Constant(0x80000000, 32)),
+            self.mask.eq(Constant(0xffff, 16)),
+        ]
+
+
 class TestVerilog(unittest.TestCase):
     def test_sliced_comb_target_is_declared_as_reg(self):
         dut = _SlicedCombTarget()
@@ -67,6 +80,14 @@ class TestVerilog(unittest.TestCase):
 
         self.assertIn('$display("time=%t value=%d", $time, value);', v)
         self.assertNotIn('"$time"', v)
+
+    def test_constants_use_readable_bases(self):
+        dut = _Constants()
+        v = convert(dut, ios={dut.count, dut.address, dut.mask}, name="top").main_source
+
+        self.assertIn("assign count = 8'd42;", v)
+        self.assertIn("assign address = 32'h80000000;", v)
+        self.assertIn("assign mask = 16'hffff;", v)
 
 
 if __name__ == "__main__":
