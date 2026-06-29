@@ -350,6 +350,52 @@ def _generate_csr_region_definitions_c(cpu, name, region, origin, alignment, csr
 
     return region_defs
 
+def _generate_csr_define_alias_c(dst, src):
+    alias = f"#define {dst} {src}\n"
+    return alias
+
+def _generate_csr_optional_define_alias_c(dst, src):
+    alias = f"#ifdef {src}\n"
+    alias += f"#define {dst} {src}\n"
+    alias += "#endif\n"
+    return alias
+
+def _generate_csr_region_alias_definitions_c(name, alias, region):
+    region_defs = f"\n/* {alias.upper()} Aliases */\n"
+    region_defs += _generate_csr_define_alias_c(
+        f"CSR_{alias.upper()}_BASE",
+        f"CSR_{name.upper()}_BASE")
+    region_defs += _generate_csr_optional_define_alias_c(
+        f"CSR_{alias.upper()}_BASE_VA",
+        f"CSR_{name.upper()}_BASE_VA")
+
+    if not isinstance(region.obj, Memory):
+        for csr in region.obj:
+            reg_name       = f"{name}_{csr.name}"
+            alias_reg_name = f"{alias}_{csr.name}"
+            region_defs += _generate_csr_define_alias_c(
+                f"CSR_{alias_reg_name.upper()}_ADDR",
+                f"CSR_{reg_name.upper()}_ADDR")
+            region_defs += _generate_csr_optional_define_alias_c(
+                f"CSR_{alias_reg_name.upper()}_ADDR_VA",
+                f"CSR_{reg_name.upper()}_ADDR_VA")
+            region_defs += _generate_csr_define_alias_c(
+                f"CSR_{alias_reg_name.upper()}_SIZE",
+                f"CSR_{reg_name.upper()}_SIZE")
+
+            if hasattr(csr, "fields"):
+                for field in csr.fields.fields:
+                    field_name       = f"{reg_name}_{field.name}"
+                    alias_field_name = f"{alias_reg_name}_{field.name}"
+                    region_defs += _generate_csr_define_alias_c(
+                        f"CSR_{alias_field_name.upper()}_OFFSET",
+                        f"CSR_{field_name.upper()}_OFFSET")
+                    region_defs += _generate_csr_define_alias_c(
+                        f"CSR_{alias_field_name.upper()}_SIZE",
+                        f"CSR_{field_name.upper()}_SIZE")
+
+    return region_defs
+
 # CSR Read/Write Access Functions.
 
 def _determine_ctype_and_stride_c(size, alignment):
@@ -428,6 +474,22 @@ def _generate_csr_region_access_functions_c(cpu, name, region, origin, alignment
             origin = csr_origin + alignment // 8 * nr
     return region_defs
 
+def _generate_csr_region_alias_access_functions_c(name, alias, region):
+    region_defs = f"\n/* {alias.upper()} Access Function Aliases */\n"
+
+    if not isinstance(region.obj, Memory):
+        for csr in region.obj:
+            reg_name       = f"{name}_{csr.name}"
+            alias_reg_name = f"{alias}_{csr.name}"
+            region_defs += _generate_csr_define_alias_c(
+                f"{alias_reg_name}_read",
+                f"{reg_name}_read")
+            if not getattr(csr, "read_only", False):
+                region_defs += _generate_csr_define_alias_c(
+                    f"{alias_reg_name}_write",
+                    f"{reg_name}_write")
+    return region_defs
+
 # CSR Fields.
 
 def _generate_csr_field_definitions_c(csr, name):
@@ -487,6 +549,33 @@ def _generate_csr_fields_access_functions_c(name, region, origin, alignment, csr
                 region_defs += _generate_csr_field_functions_c(csr, name, with_access_functions)
     return region_defs
 
+def _generate_csr_region_alias_field_access_functions_c(name, alias, region, with_access_functions=True):
+    region_defs = f"\n/* {alias.upper()} Fields Access Function Aliases */\n"
+
+    if not isinstance(region.obj, Memory):
+        for csr in region.obj:
+            if not hasattr(csr, "fields"):
+                continue
+            for field in csr.fields.fields:
+                field_name       = f"{name}_{csr.name}_{field.name}"
+                alias_field_name = f"{alias}_{csr.name}_{field.name}"
+                region_defs += _generate_csr_define_alias_c(
+                    f"{alias_field_name}_extract",
+                    f"{field_name}_extract")
+                if with_access_functions:
+                    region_defs += _generate_csr_define_alias_c(
+                        f"{alias_field_name}_read",
+                        f"{field_name}_read")
+                if not getattr(csr, "read_only", False):
+                    region_defs += _generate_csr_define_alias_c(
+                        f"{alias_field_name}_replace",
+                        f"{field_name}_replace")
+                    if with_access_functions:
+                        region_defs += _generate_csr_define_alias_c(
+                            f"{alias_field_name}_write",
+                            f"{field_name}_write")
+    return region_defs
+
 # CSR Header.
 
 def _get_csr_region_origin(region, csr_base):
@@ -519,6 +608,9 @@ def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_c
     for name, region in regions.items():
         origin = _get_csr_region_origin(region, _csr_base)
         r += _generate_csr_region_definitions_c(cpu, name, region, origin, alignment, csr_base, with_csr_base_define)
+    for name, region in regions.items():
+        for alias in getattr(region, "aliases", []):
+            r += _generate_csr_region_alias_definitions_c(name, alias, region)
 
     # CSR Registers Access Functions.
     if with_access_functions:
@@ -535,6 +627,9 @@ def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_c
             region_ordering = getattr(region, "ordering", None) or csr_ordering
             r += _generate_csr_region_access_functions_c(
                 cpu, name, region, origin, alignment, region_ordering, csr_base, with_csr_base_define)
+        for name, region in regions.items():
+            for alias in getattr(region, "aliases", []):
+                r += _generate_csr_region_alias_access_functions_c(name, alias, region)
         r += "#endif /* LITEX_CSR_ACCESS_FUNCTIONS */\n"
 
     # CSR Registers Field Access Functions.
@@ -550,6 +645,9 @@ def get_csr_header(regions, constants, csr_ordering="big", csr_base=None, with_c
         for name, region in regions.items():
             origin = _get_csr_region_origin(region, _csr_base)
             r += _generate_csr_fields_access_functions_c(name, region, origin, alignment, csr_base, with_csr_base_define, with_access_functions)
+        for name, region in regions.items():
+            for alias in getattr(region, "aliases", []):
+                r += _generate_csr_region_alias_field_access_functions_c(name, alias, region, with_access_functions)
         r += "#endif /* LITEX_CSR_FIELDS_ACCESS_FUNCTIONS */\n"
 
     r += "\n#endif /* ! __GENERATED_CSR_H */\n"

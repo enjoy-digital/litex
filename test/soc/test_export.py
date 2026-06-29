@@ -83,6 +83,28 @@ class TestCSRExport(unittest.TestCase):
         self.assertIn("uint32_t word = ctrl_narrow_read();", header)
         self.assertIn("static inline void ctrl_narrow_field_write(uint32_t plain_value)", header)
 
+    def test_csr_header_exports_explicit_region_aliases(self):
+        csr = CSRStorage(name="rxtx", fields=[
+            CSRField("data", size=8, offset=0),
+        ])
+        header = get_csr_header(
+            regions = {
+                "uart0": SoCCSRRegion(origin=0xf0000000, busword=32, obj=[csr], aliases=["uart"]),
+            },
+            constants                    = {},
+            csr_base                     = 0xf0000000,
+            with_fields_access_functions = True,
+        )
+
+        self.assertIn("#define CSR_UART_BASE CSR_UART0_BASE", header)
+        self.assertIn("#define CSR_UART_RXTX_ADDR CSR_UART0_RXTX_ADDR", header)
+        self.assertIn("#define CSR_UART_RXTX_SIZE CSR_UART0_RXTX_SIZE", header)
+        self.assertIn("#define CSR_UART_RXTX_DATA_OFFSET CSR_UART0_RXTX_DATA_OFFSET", header)
+        self.assertIn("#define uart_rxtx_read uart0_rxtx_read", header)
+        self.assertIn("#define uart_rxtx_write uart0_rxtx_write", header)
+        self.assertIn("#define uart_rxtx_data_extract uart0_rxtx_data_extract", header)
+        self.assertIn("#define uart_rxtx_data_write uart0_rxtx_data_write", header)
+
     def test_csr_field_accessors_skip_csr_wider_than_uint64(self):
         csr = CSRStorage(name="too_wide", fields=[
             CSRField("field", size=8, offset=64),
