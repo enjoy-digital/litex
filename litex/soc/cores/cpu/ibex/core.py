@@ -136,55 +136,72 @@ class Ibex(CPU):
 
         self.comb += [
             ibus.we.eq(0),
-            ibus.be.eq(1111),
+            ibus.be.eq(0b1111),
         ]
+
+        reset = ResetSignal("sys") | self.reset
 
         self.cpu_params = dict(
             # Configuration.
             # Verilator is not happy with using number for enum parameters.
             # p_RegFile        = 1, # RegFileFPGA
-            i_test_en_i      = 0,
-            i_hart_id_i      = 0,
+            i_test_en_i              = reset,
+            i_ram_cfg_i              = Constant(0, 10),
+            i_hart_id_i              = 0,
 
             # Clk/Rst.
-            i_clk_i          = ClockSignal("sys"),
-            i_rst_ni         = ~ResetSignal("sys"),
+            i_clk_i                  = ClockSignal("sys"),
+            i_rst_ni                 = ~reset,
 
             # Instruction bus.
-            o_instr_req_o    = ibus.req,
-            i_instr_gnt_i    = ibus.gnt,
-            i_instr_rvalid_i = ibus.rvalid,
-            o_instr_addr_o   = ibus.addr,
-            i_instr_rdata_i  = ibus.rdata,
-            i_instr_err_i    = 0,
+            o_instr_req_o            = ibus.req,
+            i_instr_gnt_i            = ibus.gnt,
+            i_instr_rvalid_i         = ibus.rvalid,
+            o_instr_addr_o           = ibus.addr,
+            i_instr_rdata_i          = ibus.rdata,
+            i_instr_rdata_intg_i     = Constant(0, 7),
+            i_instr_err_i            = 0,
 
             # Data bus.
-            o_data_req_o     = dbus.req,
-            i_data_gnt_i     = dbus.gnt,
-            i_data_rvalid_i  = dbus.rvalid,
-            o_data_we_o      = dbus.we,
-            o_data_be_o      = dbus.be,
-            o_data_addr_o    = dbus.addr,
-            o_data_wdata_o   = dbus.wdata,
-            i_data_rdata_i   = dbus.rdata,
-            i_data_err_i     = 0,
+            o_data_req_o             = dbus.req,
+            i_data_gnt_i             = dbus.gnt,
+            i_data_rvalid_i          = dbus.rvalid,
+            o_data_we_o              = dbus.we,
+            o_data_be_o              = dbus.be,
+            o_data_addr_o            = dbus.addr,
+            o_data_wdata_o           = dbus.wdata,
+            o_data_wdata_intg_o      = Open(),
+            i_data_rdata_i           = dbus.rdata,
+            i_data_rdata_intg_i      = Constant(0, 7),
+            i_data_err_i             = 0,
 
             # Interrupts.
-            i_irq_software_i = 0,
-            i_irq_timer_i    = 0,
-            i_irq_external_i = 0,
-            i_irq_fast_i     = self.interrupt,
-            i_irq_nm_i       = 0,
+            i_irq_software_i         = 0,
+            i_irq_timer_i            = 0,
+            i_irq_external_i         = 0,
+            i_irq_fast_i             = self.interrupt,
+            i_irq_nm_i               = 0,
+
+            # Scrambling.
+            i_scramble_key_valid_i   = 0,
+            i_scramble_key_i         = Constant(0, 128),
+            i_scramble_nonce_i       = Constant(0, 64),
+            o_scramble_req_o         = Open(),
 
             # Debug.
-            i_debug_req_i    = 0,
+            i_debug_req_i            = 0,
+            o_crash_dump_o           = Open(),
+            o_double_fault_seen_o    = Open(),
 
             # Control/Status.
-            i_fetch_enable_i = 1,
-            o_alert_minor_o  = Open(),
+            i_fetch_enable_i          = Constant(0b0101, 4), # IbexMuBiOn.
+            o_alert_minor_o           = Open(),
             o_alert_major_internal_o  = Open(),
-            o_alert_major_bus_o = Open(),
-            o_core_sleep_o   = Open()
+            o_alert_major_bus_o       = Open(),
+            o_core_sleep_o            = Open(),
+
+            # DFT.
+            i_scan_rst_ni             = 1,
         )
 
         # Add Verilog sources
