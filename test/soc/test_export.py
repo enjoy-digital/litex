@@ -8,7 +8,13 @@ import unittest
 import xml.etree.ElementTree as ET
 from types import SimpleNamespace
 
-from litex.soc.integration.export import get_csr_header, get_csr_svd, get_linker_regions, get_mem_header
+from litex.soc.integration.export import (
+    get_csr_header,
+    get_csr_svd,
+    get_linker_regions,
+    get_mem_header,
+    get_soc_header,
+)
 from litex.soc.integration.soc import SoCCSRRegion, SoCRegion
 from litex.soc.interconnect.csr import CSRField, CSRStatus, CSRStorage
 
@@ -57,6 +63,25 @@ def _get_svd_registers(svd):
 
 
 class TestCSRExport(unittest.TestCase):
+    def test_soc_header_formats_int_constants(self):
+        header = get_soc_header({
+            "CONFIG_SMALL":           42,
+            "CONFIG_CLOCK_FREQUENCY": 100000000,
+            "CONFIG_RESET_ADDR":      0x80000000,
+            "CONFIG_MASK":            0xffff,
+            "CONFIG_64BIT":           0x100000000,
+            "CONFIG_NEGATIVE_64BIT": -0x80000001,
+        })
+
+        self.assertIn("#define CONFIG_SMALL 42\n", header)
+        self.assertIn("#define CONFIG_CLOCK_FREQUENCY 100000000\n", header)
+        self.assertIn("#define CONFIG_RESET_ADDR 0x80000000\n", header)
+        self.assertIn("#define CONFIG_MASK 0xffff\n", header)
+        self.assertIn("#define CONFIG_64BIT 0x100000000ULL\n", header)
+        self.assertIn("#define CONFIG_NEGATIVE_64BIT -0x80000001LL\n", header)
+        self.assertIn("static inline uint64_t config_64bit_read(void)", header)
+        self.assertIn("static inline int64_t config_negative_64bit_read(void)", header)
+
     def test_csr_field_accessors_use_uint64_for_wide_csr(self):
         csr = CSRStorage(name="wide", fields=[
             CSRField("low",  size=32, offset=0),
