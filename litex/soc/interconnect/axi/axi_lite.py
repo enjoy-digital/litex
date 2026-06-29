@@ -376,6 +376,8 @@ class _AXILiteDownConverterWrite(LiteXModule):
         ratio        = dw_from//dw_to
 
         skip         = Signal()
+        aw_valid     = Signal()
+        w_valid      = Signal()
         counter      = Signal(max=ratio)
         aw_ready     = Signal()
         w_ready      = Signal()
@@ -388,6 +390,8 @@ class _AXILiteDownConverterWrite(LiteXModule):
             slave.aw.addr.eq(master.aw.addr + counter*(dw_to//8)),
             Case(counter, {i: slave.w.data.eq(master.w.data[i*dw_to:]) for i in range(ratio)}),
             Case(counter, {i: slave.w.strb.eq(master.w.strb[i*dw_to//8:]) for i in range(ratio)}),
+            aw_valid.eq(~skip & ~aw_ready),
+            w_valid.eq(~skip & ~w_ready),
             master.b.resp.eq(resp),
         ]
 
@@ -407,12 +411,12 @@ class _AXILiteDownConverterWrite(LiteXModule):
         )
         fsm.act("CONVERT",
             skip.eq(slave.w.strb == 0),
-            slave.aw.valid.eq(~skip & ~aw_ready),
-            slave.w.valid.eq(~skip & ~w_ready),
-            If(slave.aw.ready,
+            slave.aw.valid.eq(aw_valid),
+            slave.w.valid.eq(w_valid),
+            If(aw_valid & slave.aw.ready,
                 NextValue(aw_ready, 1)
             ),
-            If(slave.w.ready,
+            If(w_valid & slave.w.ready,
                 NextValue(w_ready, 1)
             ),
             # When skipping, we just increment the counter.
@@ -425,7 +429,7 @@ class _AXILiteDownConverterWrite(LiteXModule):
                     NextState("RESPOND-MASTER")
                 )
             # Write current word and wait for write response.
-            ).Elif((slave.aw.ready | aw_ready) & (slave.w.ready | w_ready),
+            ).Elif(((aw_valid & slave.aw.ready) | aw_ready) & ((w_valid & slave.w.ready) | w_ready),
                 NextState("RESPOND-SLAVE")
             )
         )

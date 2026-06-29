@@ -586,6 +586,72 @@ class TestAXILite(unittest.TestCase):
         self.converter_test(width_from=32, width_to=16,
                             write_pattern=write_pattern, write_expected=write_expected)
 
+    def test_axilite_down_converter_strb_skip_with_ready_high(self):
+        class DUT(Module):
+            def __init__(self):
+                self.master = AXILiteInterface(data_width=32)
+                self.slave  = AXILiteInterface(data_width=16)
+                self.submodules.converter = AXILiteConverter(self.master, self.slave)
+
+        writes = []
+
+        @passive
+        def slave_generator(dut):
+            yield dut.slave.aw.ready.eq(1)
+            yield dut.slave.w.ready.eq(1)
+            pending = False
+            while True:
+                if (yield dut.slave.aw.valid) and (yield dut.slave.w.valid):
+                    writes.append((
+                        (yield dut.slave.aw.addr),
+                        (yield dut.slave.w.data),
+                        (yield dut.slave.w.strb),
+                    ))
+                    pending = True
+
+                yield dut.slave.b.valid.eq(pending)
+                yield dut.slave.b.resp.eq(RESP_OKAY)
+                if pending and (yield dut.slave.b.ready):
+                    pending = False
+                yield
+
+        def master_generator(dut):
+            yield dut.master.aw.addr.eq(0x00000000)
+            yield dut.master.aw.valid.eq(1)
+            yield dut.master.w.data.eq(0x22221111)
+            yield dut.master.w.strb.eq(0b1100)
+            yield dut.master.w.valid.eq(1)
+            yield dut.master.b.ready.eq(1)
+
+            aw_done = False
+            w_done  = False
+            b_done  = False
+            for _ in range(32):
+                if not aw_done and (yield dut.master.aw.ready):
+                    aw_done = True
+                    yield dut.master.aw.valid.eq(0)
+                if not w_done and (yield dut.master.w.ready):
+                    w_done = True
+                    yield dut.master.w.valid.eq(0)
+                if not b_done and (yield dut.master.b.valid):
+                    b_done = True
+                    self.assertEqual((yield dut.master.b.resp), RESP_OKAY)
+                if aw_done and w_done and b_done:
+                    break
+                yield
+
+            self.assertTrue(aw_done)
+            self.assertTrue(w_done)
+            self.assertTrue(b_done)
+            self.assertEqual(writes, [(0x00000002, 0x2222, 0b11)])
+
+        dut = DUT()
+        run_simulation(dut, [
+            master_generator(dut),
+            slave_generator(dut),
+            timeout_generator(64),
+        ])
+
     def test_axilite_up_converter_16to32(self):
         write_pattern = [
             (0x00000000, 0x1111),
