@@ -48,6 +48,19 @@ def get_dts_int(value):
 def get_dts_constant(d, name, default):
     return get_dts_int(d.get("constants", {}).get(name, default))
 
+def get_dts_csr_ordering(d):
+    constants = d.get("constants", {})
+    little    = "config_csr_ordering_little" in constants
+    big       = "config_csr_ordering_big" in constants
+
+    if little and big:
+        raise ValueError("CSR ordering cannot be both big and little")
+
+    return "little" if little else "big"
+
+def get_dts_csr_endian(d):
+    return "{}-endian;".format(get_dts_csr_ordering(d))
+
 def generate_dts_hwmon_temperature(d, hwmon_index=0):
     intel_a10_c10gx = {
         "compatibles": [
@@ -267,6 +280,57 @@ def generate_dts_xadc(d):
     voltage_scale     = get_hwmon_constant("voltage_scale"),
     voltage_divisor   = get_hwmon_constant("voltage_divisor"),
 )
+
+def generate_dts_sdcard(d, polling=False):
+    if "sdcard" not in d["csr_bases"]:
+        return ""
+
+    csr_bases     = d["csr_bases"]
+    csr_registers = d["csr_registers"]
+
+    def get_csr_addr(name):
+        return get_dts_int(csr_registers[name]["addr"])
+
+    phy_base       = get_csr_addr("sdcard_phy_card_detect")
+    core_base      = get_csr_addr("sdcard_core_cmd_argument")
+    block2mem      = get_csr_addr("sdcard_block2mem_dma_base")
+    mem2block      = get_csr_addr("sdcard_mem2block_dma_base")
+    irq_base       = get_csr_addr("sdcard_ev_status")
+    phy_size       = core_base - phy_base
+    core_size      = block2mem - core_base
+    block2mem_size = mem2block - block2mem
+    mem2block_size = irq_base - mem2block
+
+    return """
+            mmc0: mmc@{mmc_csr_base:x} {{
+                compatible = "litex,mmc";
+                reg = <0x{sdcard_phy_csr_base:x} 0x{sdcard_phy_csr_size:x}>,
+                      <0x{sdcard_core_csr_base:x} 0x{sdcard_core_csr_size:x}>,
+                      <0x{sdcard_block2mem:x} 0x{sdcard_block2mem_size:x}>,
+                      <0x{sdcard_mem2block:x} 0x{sdcard_mem2block_size:x}>,
+                      <0x{sdcard_irq:x} 0x100>;
+                reg-names = "phy", "core", "reader", "writer", "irq";
+                clocks = <&sys_clk>;
+                vmmc-supply = <&vreg_mmc>;
+                bus-width = <0x04>;
+                {sdcard_irq_interrupt}
+                {sdcard_csr_endian}
+                status = "okay";
+            }};
+""".format(
+        mmc_csr_base          = get_dts_int(csr_bases["sdcard"]),
+        sdcard_phy_csr_base   = phy_base,
+        sdcard_phy_csr_size   = phy_size,
+        sdcard_core_csr_base  = core_base,
+        sdcard_core_csr_size  = core_size,
+        sdcard_block2mem      = block2mem,
+        sdcard_block2mem_size = block2mem_size,
+        sdcard_mem2block      = mem2block,
+        sdcard_mem2block_size = mem2block_size,
+        sdcard_irq            = irq_base,
+        sdcard_irq_interrupt  = generate_dts_interrupt(d, d["constants"]["sdcard_interrupt"], polling),
+        sdcard_csr_endian     = get_dts_csr_endian(d),
+    )
 
 def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_device=None, polling=False):
     aliases = {}
@@ -941,35 +1005,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # SDCard ---------------------------------------------------------------------------------------
 
-    if "sdcard" in d["csr_bases"]:
-        dts += """
-            mmc0: mmc@{mmc_csr_base:x} {{
-                compatible = "litex,mmc";
-                reg = <0x{sdcard_phy_csr_base:x} 0x{sdcard_phy_csr_size:x}>,
-                      <0x{sdcard_core_csr_base:x} 0x{sdcard_core_csr_size:x}>,
-                      <0x{sdcard_block2mem:x} 0x{sdcard_block2mem_size:x}>,
-                      <0x{sdcard_mem2block:x} 0x{sdcard_mem2block_size:x}>,
-                      <0x{sdcard_irq:x} 0x100>;
-                reg-names = "phy", "core", "reader", "writer", "irq";
-                clocks = <&sys_clk>;
-                vmmc-supply = <&vreg_mmc>;
-                bus-width = <0x04>;
-                {sdcard_irq_interrupt}
-                status = "okay";
-            }};
-""".format(
-        mmc_csr_base         = d["csr_bases"]["sdcard"],
-        sdcard_phy_csr_base  = d["csr_registers"]["sdcard_phy_card_detect"]['addr'],
-        sdcard_phy_csr_size  = d["csr_registers"]["sdcard_core_cmd_argument"]['addr'] - d["csr_registers"]["sdcard_phy_card_detect"]['addr'],
-        sdcard_core_csr_base = d["csr_registers"]["sdcard_core_cmd_argument"]['addr'],
-        sdcard_core_csr_size = d["csr_registers"]["sdcard_block2mem_dma_base"]['addr'] - d["csr_registers"]["sdcard_core_cmd_argument"]['addr'],
-        sdcard_block2mem     = d["csr_registers"]["sdcard_block2mem_dma_base"]['addr'],
-        sdcard_block2mem_size = d["csr_registers"]["sdcard_mem2block_dma_base"]['addr'] - d["csr_registers"]["sdcard_block2mem_dma_base"]['addr'],
-        sdcard_mem2block     = d["csr_registers"]["sdcard_mem2block_dma_base"]['addr'],
-        sdcard_mem2block_size = d["csr_registers"]["sdcard_ev_status"]['addr'] - d["csr_registers"]["sdcard_mem2block_dma_base"]['addr'],
-        sdcard_irq           = d["csr_registers"]["sdcard_ev_status"]['addr'],
-        sdcard_irq_interrupt = generate_dts_interrupt(d, d["constants"]["sdcard_interrupt"], polling)
-)
+    dts += generate_dts_sdcard(d, polling=polling)
     # Leds -----------------------------------------------------------------------------------------
 
     if "leds" in d["csr_bases"]:
