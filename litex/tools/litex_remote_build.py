@@ -120,22 +120,30 @@ def _create_archive_from_command(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Run a LiteX build from a build bundle on a remote host.")
-    parser.add_argument("--host",            required=True,             help="SSH host, for example user@server.")
-    parser.add_argument("--remote-root",     default="~/.cache/litex/remote-builds", help="Remote work root.")
-    parser.add_argument("--archive",         default=None,              help="Existing build bundle archive to replay remotely.")
-    parser.add_argument("--output-dir",      default="build",           help="Local bundle output directory when creating an archive.")
-    parser.add_argument("--root",            action="append", default=[], help="Directory root to archive when creating a bundle.")
-    parser.add_argument("--include",         action="append", default=[], help="Extra file/directory to archive when creating a bundle.")
-    parser.add_argument("--pythonpath-root", action="append", default=[], help="Python import root to archive/prepend on replay.")
-    parser.add_argument("--no-auto-pythonpath", action="store_true",   help="Do not auto-bundle LiteX Python import roots.")
-    parser.add_argument("--env",             action="append", default=[], help="Environment variable to record/pass (KEY or KEY=VALUE).")
-    parser.add_argument("--strict",          default="warn", choices=["warn", "error"], help="Missing input handling.")
-    parser.add_argument("--sync-back",       action="append", default=["build"], help="Root-relative path to copy back.")
-    parser.add_argument("--keep-remote",     action="store_true",       help="Keep remote work directory after completion.")
-    parser.add_argument("--pty",             default="auto", choices=["auto", "yes", "no"], help="SSH TTY allocation policy.")
-    parser.add_argument("--ssh-cmd",         default=os.getenv("LITEX_REMOTE_SSH", "ssh"), help="SSH command.")
-    parser.add_argument("--scp-cmd",         default=os.getenv("LITEX_REMOTE_SCP", "scp"), help="SCP command.")
-    parser.add_argument("command",           nargs=argparse.REMAINDER,  help="Command to bundle/replay, usually after '--'.")
+
+    # Remote connection.
+    parser.add_argument("--host",               required=True,                                help="SSH host, for example user@server.")
+    parser.add_argument("--remote-root",        default="~/.cache/litex/remote-builds",       help="Remote work root.")
+    parser.add_argument("--ssh-cmd",            default=os.getenv("LITEX_REMOTE_SSH", "ssh"), help="SSH command.")
+    parser.add_argument("--scp-cmd",            default=os.getenv("LITEX_REMOTE_SCP", "scp"), help="SCP command.")
+    parser.add_argument("--pty",                default="auto", choices=["auto", "yes", "no"], help="SSH TTY allocation policy.")
+
+    # Bundle creation.
+    parser.add_argument("--output-dir",         default="build",                              help="Local bundle output directory.")
+    parser.add_argument("--root",               default=[], action="append",                  help="Directory root to archive.")
+    parser.add_argument("--include",            default=[], action="append",                  help="Extra file/directory to archive.")
+    parser.add_argument("--pythonpath-root",    default=[], action="append",                  help="Python import root to archive.")
+    parser.add_argument("--no-auto-pythonpath", action="store_true",                          help="Do not auto-bundle LiteX Python roots.")
+    parser.add_argument("--env",                default=[], action="append",                  help="Environment variable to pass (KEY or KEY=VALUE).")
+    parser.add_argument("--strict",             default="warn", choices=["warn", "error"],    help="Missing input handling.")
+
+    # Bundle replay/sync.
+    parser.add_argument("--archive",            default=None,                                 help="Existing bundle archive to replay.")
+    parser.add_argument("--sync-back",          default=["build"], action="append",           help="Root-relative path to copy back.")
+    parser.add_argument("--keep-remote",        action="store_true",                          help="Keep remote work directory.")
+
+    # Command.
+    parser.add_argument("command",              nargs=argparse.REMAINDER,                     help="Command to bundle/replay, usually after '--'.")
     args = parser.parse_args()
 
     if args.command and args.command[0] == "--":

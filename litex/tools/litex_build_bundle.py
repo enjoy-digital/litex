@@ -210,17 +210,21 @@ def run_local(archive_path, work_dir=None):
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX build input bundle utility.")
-    parser.add_argument("--output",             "-o", default=None,              help="Output archive path.")
-    parser.add_argument("--output-dir",              default="build",           help="Output directory used when --output is omitted.")
-    parser.add_argument("--root",                    action="append", default=[], help="Directory root to archive.")
-    parser.add_argument("--include",                 action="append", default=[], help="Extra file/directory to archive.")
-    parser.add_argument("--pythonpath-root",         action="append", default=[], help="Python import root to archive/prepend on replay.")
-    parser.add_argument("--no-auto-pythonpath",      action="store_true",       help="Do not auto-bundle LiteX Python import roots.")
-    parser.add_argument("--env",                     action="append", default=[], help="Environment variable to record/pass (KEY or KEY=VALUE).")
+
+    # Bundle creation.
+    parser.add_argument("--output",             "-o", default=None,                    help="Output archive path.")
+    parser.add_argument("--output-dir",              default="build",                 help="Bundle output directory.")
+    parser.add_argument("--root",                    default=[], action="append",     help="Directory root to archive.")
+    parser.add_argument("--include",                 default=[], action="append",     help="Extra file/directory to archive.")
+    parser.add_argument("--pythonpath-root",         default=[], action="append",     help="Python import root to archive.")
+    parser.add_argument("--no-auto-pythonpath",      action="store_true",             help="Do not auto-bundle LiteX Python roots.")
+    parser.add_argument("--env",                     default=[], action="append",     help="Environment variable to pass (KEY or KEY=VALUE).")
     parser.add_argument("--strict",                  default="warn", choices=["warn", "error"], help="Missing input handling.")
-    parser.add_argument("--run-local",               default=None,              help="Replay an existing bundle locally.")
-    parser.add_argument("--work-dir",                default=None,              help="Replay work directory.")
-    parser.add_argument("command",                   nargs=argparse.REMAINDER,  help="Command to record in the bundle, usually after '--'.")
+
+    # Bundle replay.
+    parser.add_argument("--run-local",               default=None,                    help="Replay an existing bundle locally.")
+    parser.add_argument("--work-dir",                default=None,                    help="Replay work directory.")
+    parser.add_argument("command",                   nargs=argparse.REMAINDER,        help="Command to record, usually after '--'.")
     args = parser.parse_args()
 
     if args.command and args.command[0] == "--":
