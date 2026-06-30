@@ -29,8 +29,8 @@ extern "C" {
       "bltu a0, %2, 3b\n\t"                                    \
       "fence rw, rw\n\t"                                       \
       : : "r"(_cachesize),                                     \
-          "r"((unsigned int)(_start) & ~((_cachesize) - 1UL)), \
-          "r"((unsigned int)(_start) + (_size))                \
+          "r"((unsigned long)(_start) & ~((_cachesize) - 1UL)), \
+          "r"((unsigned long)(_start) + (_size))                \
       : "a0", "memory")
 
 __attribute__((unused)) static void flush_cpu_icache(void)
@@ -48,21 +48,21 @@ __attribute__((unused)) static void flush_cpu_dcache(void)
 
 static inline void clean_cpu_dcache_range(void *start_addr, size_t size)
 {
-  ALT_CMO_OP(VEXII_CBO_CLEAN, (unsigned int)start_addr, size, 64);
+  ALT_CMO_OP(VEXII_CBO_CLEAN, (unsigned long)start_addr, size, 64);
 }
 
 #define HAS_CLEAN_CPU_DCACHE_RANGE 1
 
 static inline void flush_cpu_dcache_range(void *start_addr, size_t size)
 {
-  ALT_CMO_OP(VEXII_CBO_FLUSH, (unsigned int)start_addr, size, 64);
+  ALT_CMO_OP(VEXII_CBO_FLUSH, (unsigned long)start_addr, size, 64);
 }
 
 #define HAS_FLUSH_CPU_DCACHE_RANGE 1
 
 static inline void invd_cpu_dcache_range(void *start_addr, size_t size)
 {
-  ALT_CMO_OP(VEXII_CBO_INVAL, (unsigned int)start_addr, size, 64);
+  ALT_CMO_OP(VEXII_CBO_INVAL, (unsigned long)start_addr, size, 64);
 }
 
 #define HAS_INVD_CPU_DCACHE_RANGE 1
