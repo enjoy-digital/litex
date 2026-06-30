@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdbool.h>
 #include "error.h"
 
 #include <event2/listener.h>
@@ -138,6 +139,8 @@ typedef struct eth_packet_queue {
 
 typedef struct xgmii_state {
     // ---------- SIMULATION & BUS STATE ----------
+    // XGMII signal names
+    char *clk_name;
     // XGMII bus signals
     xgmii_data_signal_t *tx_data_signal;
     xgmii_ctl_signal_t  *tx_ctl_signal;
@@ -748,7 +751,7 @@ static int xgmii_ethernet_tick(void *state, uint64_t time_ps) {
     return RC_OK;
 }
 
-int litex_sim_module_get_args(char *args, char *arg, char **val) {
+int litex_sim_module_get_args(char *args, char *arg, char **val, bool opt) {
     int ret = RC_OK;
     json_object *jsobj = NULL;
     json_object *obj = NULL;
@@ -772,8 +775,10 @@ int litex_sim_module_get_args(char *args, char *arg, char **val) {
     obj = NULL;
     r = json_object_object_get_ex(jsobj, arg, &obj);
     if (!r) {
-        fprintf(stderr, "[xgmii_ethernet]: could not find object: \"%s\" "
-                "(%s)\n", arg, args);
+        if (!opt) {
+            fprintf(stderr, "[xgmii_ethernet]: could not find object: \"%s\" "
+                    "(%s)\n", arg, args);
+        }
         ret = RC_JSERROR;
         goto out;
     }
@@ -870,11 +875,11 @@ static int xgmii_ethernet_add_pads(void *state, struct pad_list_s *plist) {
         litex_sim_module_pads_get(pads, "tx_ctl", (void**) &s->tx_ctl_signal);
     }
 
-    if (!strcmp(plist->name, "sys_clk")) {
+    if (!strcmp(plist->name, s->clk_name)) {
         // TODO: currently the single sys_clk signal is used for both the RX and
         // TX XGMII clock signals. This should be changed. Also, using sys_clk
         // does not make sense for the 32-bit DDR bus.
-        litex_sim_module_pads_get(pads, "sys_clk", (void**)&s->rx_clk);
+        litex_sim_module_pads_get(pads, s->clk_name, (void**)&s->rx_clk);
         s->tx_clk = s->rx_clk;
     }
 
@@ -892,6 +897,8 @@ static int xgmii_ethernet_new(void **state, char *args) {
     int ret = RC_OK;
     char *c_tap = NULL;
     char *c_tap_ip = NULL;
+    char *c_clk = NULL;
+
     xgmii_ethernet_state_t *s = NULL;
     struct timeval tv = {10, 0};
 
@@ -907,13 +914,17 @@ static int xgmii_ethernet_new(void **state, char *args) {
     }
     memset(s, 0, sizeof(xgmii_ethernet_state_t));
 
-    ret = litex_sim_module_get_args(args, "interface", &c_tap);
+    ret = litex_sim_module_get_args(args, "interface", &c_tap, false);
     if (ret != RC_OK) {
         goto out;
     }
-    ret = litex_sim_module_get_args(args, "ip", &c_tap_ip);
+    ret = litex_sim_module_get_args(args, "ip", &c_tap_ip, false);
     if (ret != RC_OK) {
         goto out;
+    }
+    ret = litex_sim_module_get_args(args, "clk", &c_clk, true);
+    if (ret != RC_OK) {
+        c_clk = strdup("sys_clk");
     }
 
     s->tapcfg = tapcfg_init();
@@ -928,6 +939,7 @@ static int xgmii_ethernet_new(void **state, char *args) {
     s->ev = event_new(base, s->tap_fd, EV_READ | EV_PERSIST, event_handler, s);
     event_add(s->ev, &tv);
 
+    s->clk_name = c_clk;
 out:
     *state = (void*) s;
     return ret;
