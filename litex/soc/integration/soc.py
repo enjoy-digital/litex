@@ -171,10 +171,11 @@ class SoCIORegion(SoCRegion):
 # SoCCSRRegion -------------------------------------------------------------------------------------
 
 class SoCCSRRegion:
-    def __init__(self, origin, busword, obj):
+    def __init__(self, origin, busword, obj, aliases=None):
         self.origin  = origin
         self.busword = busword
         self.obj     = obj
+        self.aliases = [] if aliases is None else list(aliases)
 
 # SoCBusHandler ------------------------------------------------------------------------------------
 
@@ -1166,6 +1167,7 @@ class SoCCSRHandler(SoCLocHandler):
         self.ordering      = ordering
         self.masters       = {}
         self.regions       = {}
+        self.aliases       = {}
         self.logger.info("{}-bit CSR Bus, {}-bit Aligned, {}KiB Address Space, {}B Paging, {} Ordering (Up to {} Locations).".format(
             colorer(self.data_width),
             colorer(self.alignment),
@@ -1217,6 +1219,30 @@ class SoCCSRHandler(SoCLocHandler):
                 colorer(name, color="red"),
                 colorer("already declared")))
             raise SoCError()
+        region_aliases = []
+        for alias in region.aliases + self.aliases.get(name, []):
+            if alias not in region_aliases:
+                region_aliases.append(alias)
+        for region_name, aliases in self.aliases.items():
+            if name in aliases:
+                self.logger.error("CSR Region {} conflicts with alias of {}.".format(
+                    colorer(name, color="red"),
+                    colorer(region_name)))
+                raise SoCError()
+        for alias in region_aliases:
+            if alias in self.regions:
+                self.logger.error("CSR Alias {} conflicts with an existing CSR Region.".format(
+                    colorer(alias, color="red")))
+                raise SoCError()
+            for region_name, aliases in self.aliases.items():
+                if (region_name != name) and (alias in aliases):
+                    self.logger.error("CSR Alias {} already targets {}.".format(
+                        colorer(alias, color="red"),
+                        colorer(region_name)))
+                    raise SoCError()
+        region.aliases = region_aliases
+        if region_aliases:
+            self.aliases[name] = region_aliases
         # Origin alignment check (origin must land on a paging boundary).
         if (region.origin % self.paging) != 0:
             self.logger.error("CSR Region {} origin 0x{:08x} {} CSR paging 0x{:x}.".format(
@@ -1226,6 +1252,27 @@ class SoCCSRHandler(SoCLocHandler):
                 self.paging))
             raise SoCError()
         self.regions[name] = region
+
+    # Add Alias ------------------------------------------------------------------------------------
+    def add_alias(self, name, alias):
+        if name == alias:
+            self.logger.error("CSR Alias {} cannot target itself.".format(colorer(name, color="red")))
+            raise SoCError()
+        if alias in self.regions:
+            self.logger.error("CSR Alias {} conflicts with an existing CSR Region.".format(
+                colorer(alias, color="red")))
+            raise SoCError()
+        for region_name, aliases in self.aliases.items():
+            if alias in aliases:
+                self.logger.error("CSR Alias {} already targets {}.".format(
+                    colorer(alias, color="red"),
+                    colorer(region_name)))
+                raise SoCError()
+
+        aliases = self.aliases.setdefault(name, [])
+        aliases.append(alias)
+        if name in self.regions:
+            self.regions[name].aliases.append(alias)
 
     # Address map ----------------------------------------------------------------------------------
     def address_map(self, name, memory=None, origin=False):
@@ -1458,6 +1505,9 @@ class SoC(LiteXModule):
     def add_config(self, name, value=None, check_duplicate=True):
         name = "CONFIG_" + name
         self.add_constant(name, value, check_duplicate=check_duplicate)
+
+    def add_csr_alias(self, name, alias):
+        self.csr.add_alias(name, alias)
 
     def add_soc_reset_request(self, name, reset, hold_reset=None):
         if name in self.soc_reset_requests.keys():
@@ -2079,6 +2129,8 @@ class SoC(LiteXModule):
                         colorer(name),
                         colorer("unconnected", color="yellow")))
                 self.add_constant(name + "_INTERRUPT", loc)
+                for alias in self.csr.aliases.get(name, []):
+                    self.add_constant(alias + "_INTERRUPT", loc)
 
     def _log_finalized(self):
         self.logger.info(colorer("-"*80, color="bright"))
@@ -2160,7 +2212,7 @@ class LiteXSoC(SoC):
         return super().__getattr__(name)
 
     # Add UART -------------------------------------------------------------------------------------
-    def add_uart(self, name="uart", uart_name="serial", uart_pads=None, baudrate=115200, fifo_depth=16, with_dynamic_baudrate=False, rx_fifo_rx_we=False):
+    def add_uart(self, name="uart", uart_name="serial", uart_pads=None, baudrate=115200, fifo_depth=16, with_dynamic_baudrate=False, rx_fifo_rx_we=False, csr_aliases=None):
         # Imports.
         from litex.soc.cores import uart
 
@@ -2211,9 +2263,15 @@ class LiteXSoC(SoC):
 
         # Add UART.
         self.add_module(name=name, module=uart_core)
+        if csr_aliases is None:
+            csr_aliases = ["uart"] if name == "uart0" else []
+        for alias in csr_aliases:
+            self.add_csr_alias(name, alias)
 
         if rx_fifo_rx_we:
             self.add_config(f"{name}_RX_FIFO_RX_WE", 1)
+            for alias in csr_aliases:
+                self.add_config(f"{alias}_RX_FIFO_RX_WE", 1)
 
         # IRQ.
         if self.irq.enabled:

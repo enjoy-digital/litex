@@ -880,6 +880,35 @@ class TestSoCCSRHandler(unittest.TestCase):
 
         self.assertIs(csr.regions["timer0"], region)
 
+    def test_csr_alias_is_explicit_and_attached_to_target_region(self):
+        csr = SoCCSRHandler()
+        csr.add_alias("uart0", "uart")
+        csr.add_region("uart0", SoCCSRRegion(origin=csr.paging, busword=32, obj=object()))
+
+        self.assertEqual(csr.regions["uart0"].aliases, ["uart"])
+        with _assert_raises_soc_error(self):
+            csr.add_region("uart", SoCCSRRegion(origin=2*csr.paging, busword=32, obj=object()))
+
+    def test_csr_region_direct_alias_is_tracked_by_handler(self):
+        csr = SoCCSRHandler()
+        csr.add_region("uart0", SoCCSRRegion(
+            origin  = csr.paging,
+            busword = 32,
+            obj     = object(),
+            aliases = ["uart"],
+        ))
+
+        self.assertEqual(csr.aliases["uart0"], ["uart"])
+        with _assert_raises_soc_error(self):
+            csr.add_region("uart", SoCCSRRegion(origin=2*csr.paging, busword=32, obj=object()))
+
+    def test_csr_alias_duplicate_is_rejected(self):
+        csr = SoCCSRHandler()
+        csr.add_alias("uart0", "uart")
+
+        with _assert_raises_soc_error(self):
+            csr.add_alias("uart1", "uart")
+
     def test_csr_master_checks_data_width_and_duplicates(self):
         csr    = SoCCSRHandler(data_width=32)
         master = SimpleNamespace(data_width=32)
@@ -1058,6 +1087,41 @@ class TestSoC(unittest.TestCase):
 
         self.assertTrue(hasattr(soc, "uart"))
         self.assertIn("UART_POLLING", soc.constants)
+
+    def test_add_uart0_adds_legacy_uart_csr_alias(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        soc.add_uart(name="uart0", uart_name="stub")
+
+        self.assertEqual(soc.csr.aliases["uart0"], ["uart"])
+
+    def test_add_uart0_aliases_rx_fifo_config(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        soc.add_uart(name="uart0", uart_name="stub", rx_fifo_rx_we=True)
+
+        self.assertIn("CONFIG_UART0_RX_FIFO_RX_WE", soc.constants)
+        self.assertIn("CONFIG_UART_RX_FIFO_RX_WE",  soc.constants)
+
+    def test_add_csr_alias_forwards_to_csr_handler(self):
+        soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        soc.add_csr_alias("uart0", "uart")
+
+        self.assertEqual(soc.csr.aliases["uart0"], ["uart"])
+
+    def test_csr_alias_exports_irq_constant_alias(self):
+        soc            = SoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.cpu        = SimpleNamespace(interrupts={}, interrupt=[Signal()])
+        soc.uart0      = SimpleNamespace(irq=Signal())
+        soc.irq.enable()
+        soc.irq.add("uart0", 0)
+        soc.add_csr_alias("uart0", "uart")
+
+        soc._finalize_irq()
+
+        self.assertEqual(soc.constants["UART0_INTERRUPT"], 0)
+        self.assertEqual(soc.constants["UART_INTERRUPT"],  0)
 
     def test_get_csr_address_returns_main_bus_address(self):
         soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
