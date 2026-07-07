@@ -44,14 +44,17 @@ Options:
     --port=DEV          Serial device (default: /dev/ttyUSB1)
     --baudrate=N        Baudrate (default: 115200)
     --fpga-only         Skip dependency checks, just build + flash + open terminal
-    --flash-only        Skip build, flash existing vexriscv bitstream + open terminal
+    --flash-only        Skip build, flash existing bitstream for specified CPU + open terminal
+    --extra-args="..."  Extra arguments to pass to the build command (e.g., --sys-clk-freq=100e6)
     --help, -h          Show this help message
 
 Examples:
-    ./fpga_setup.sh                              # Full flow: deps + build + flash + terminal
-    ./fpga_setup.sh --fpga-only                  # Skip deps: build + flash + terminal
-    ./fpga_setup.sh --flash-only                 # Flash existing vexriscv bitstream + terminal
-    ./fpga_setup.sh --cpu=ibex                   # Change CPU only
+    ./fpga_setup.sh                                    # Full flow: deps + build + flash + terminal
+    ./fpga_setup.sh --extra-args="--sys-clk-freq=100e6"  # Build with 100MHz
+    ./fpga_setup.sh --extra-args="--sys-clk-freq=50e6 --sdram-rate=1:1"  # Multiple args
+    ./fpga_setup.sh --fpga-only --extra-args="--sys-clk-freq=100e6"
+    ./fpga_setup.sh --flash-only --cpu=cva6
+    ./fpga_setup.sh --cpu=ibex
 EOF
 }
 
@@ -66,6 +69,7 @@ parse_args() {
             --cpu-variant=*)  CPU_VARIANT="${1#*=}";    shift ;;
             --port=*)         SERIAL_PORT="${1#*=}";    shift ;;
             --baudrate=*)     BAUDRATE="${1#*=}";       shift ;;
+            --extra-args=*)   EXTRA_ARGS="${1#*=}";     shift ;;
             --fpga-only)      FPGA_ONLY=1;              shift ;;
             --flash-only)     FLASH_ONLY=1;             shift ;;
             --help|-h)        HELP=1;                   shift ;;
@@ -142,6 +146,48 @@ check_openfpgaloader() {
     fi
 }
 
+# Check OpenOCD
+# Check OpenOCD
+check_openocd() {
+    echo -e "\n${YELLOW}Checking OpenOCD...${NC}"
+
+    if command_exists openocd; then
+        CURRENT_VERSION=$(openocd --version 2>&1 | head -1 | grep -oP '0\.\d+\.\d+' || echo "0.0.0")
+        if [[ "$CURRENT_VERSION" == "0.12.0" ]] || [[ "$CURRENT_VERSION" > "0.12.0" ]]; then
+            echo -e "${GREEN}✓ OpenOCD already installed${NC}"
+            return 0
+        fi
+    fi
+
+    echo -e "${YELLOW}Installing OpenOCD...${NC}"
+
+    # Remove old version if exists
+    sudo apt remove -y openocd 2>/dev/null || true
+
+    # Install dependencies
+    sudo apt-get install -y \
+        libusb-1.0-0-dev libhidapi-dev libjaylink-dev \
+        libgpiod-dev pkg-config autoconf automake libtool
+
+    # Build OpenOCD 0.12.0 from source in a temp directory
+    if [ -d "/tmp/openocd" ]; then
+        sudo rm -rf /tmp/openocd
+    fi
+
+    git clone https://github.com/openocd-org/openocd.git --depth=1 --branch v0.12.0 /tmp/openocd
+    cd /tmp/openocd
+    ./bootstrap
+    ./configure --enable-ftdi --enable-jlink --enable-cmsis-dap
+    make -j$(nproc)
+    sudo make install
+    sudo ldconfig
+    cd -
+
+    rm -rf /tmp/openocd
+
+    echo -e "${GREEN}✓ OpenOCD installed successfully${NC}"
+}
+
 # Install system dependencies
 install_system_deps() {
     echo -e "\n${YELLOW}Checking system dependencies...${NC}"
@@ -176,7 +222,12 @@ install_system_deps() {
         echo -e "${YELLOW}⚠ RISC-V toolchain not available in repositories${NC}"
     fi
     
+    # Install openFPGALoader
     check_openfpgaloader
+    
+    # Install OpenOCD
+    check_openocd
+
     echo -e "${GREEN}✓ All system dependencies satisfied${NC}"
 }
 
@@ -225,15 +276,15 @@ run_litex_setup() {
     echo -e "${GREEN}✓ litex_setup.py completed${NC}"
 }
 
-# Find existing bitstream (most recent vexriscv bitstream)
+# Find existing bitstream (most recent for specified CPU)
 find_existing_bitstream() {
     # Check if fpga_projects directory exists
     if [ ! -d "../fpga_projects" ]; then
         return 1
     fi
     
-    # Look for vexriscv bitstream in fpga_projects, sorted by modification time (newest first)
-    BITSTREAM=$(find ../fpga_projects -type f -name "*.bit" -path "*vexriscv*" 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
+    # Look for bitstream with the specified CPU in fpga_projects, sorted by modification time (newest first)
+    BITSTREAM=$(find ../fpga_projects -type f -name "*.bit" -path "*${FPGA_CPU}*" 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
     
     if [ -n "$BITSTREAM" ] && [ -f "$BITSTREAM" ]; then
         echo "$BITSTREAM"
@@ -250,6 +301,9 @@ build_bitstream() {
     [ -n "$BOARD_VARIANT" ] && echo -e "${BLUE}Board variant: $BOARD_VARIANT${NC}"
     echo -e "${BLUE}CPU: $FPGA_CPU${NC}"
     echo -e "${BLUE}CPU variant: $CPU_VARIANT${NC}"
+    if [ -n "$EXTRA_ARGS" ]; then
+        echo -e "${BLUE}Extra args: $EXTRA_ARGS${NC}"
+    fi
     
     if [ -z "$VIRTUAL_ENV" ]; then
         if [ -d "venv" ]; then
@@ -366,19 +420,22 @@ main() {
     [ -n "$BOARD_VARIANT" ] && echo -e "${BLUE}Board variant: $BOARD_VARIANT${NC}"
     echo -e "${BLUE}CPU: $FPGA_CPU${NC}"
     echo -e "${BLUE}CPU variant: $CPU_VARIANT${NC}"
+    if [ -n "$EXTRA_ARGS" ]; then
+        echo -e "${BLUE}Extra args: $EXTRA_ARGS${NC}"
+    fi
     echo ""
     
-    # --flash-only: just flash existing vexriscv bitstream + open terminal
+    # --flash-only: just flash existing bitstream for the specified CPU + open terminal
     if [ "$FLASH_ONLY" = "1" ]; then
-        echo -e "${YELLOW}Flash-only mode: searching for existing vexriscv bitstream...${NC}"
+        echo -e "${YELLOW}Flash-only mode: searching for existing ${FPGA_CPU} bitstream...${NC}"
         
         if find_existing_bitstream > /dev/null; then
             BITSTREAM=$(find_existing_bitstream)
             echo -e "${GREEN}✓ Found bitstream: $BITSTREAM${NC}"
         else
-            echo -e "${RED}✗ No vexriscv bitstream found in ../fpga_projects/${NC}"
+            echo -e "${RED}✗ No ${FPGA_CPU} bitstream found in ../fpga_projects/${NC}"
             echo -e "${YELLOW}Please run full setup to build a bitstream first:${NC}"
-            echo -e "${BLUE}  ./fpga_setup.sh${NC}"
+            echo -e "${BLUE}  ./fpga_setup.sh --cpu=${FPGA_CPU}${NC}"
             exit 1
         fi
         
