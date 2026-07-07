@@ -92,61 +92,6 @@ system_package_installed() {
     fi
 }
 
-# Check openFPGALoader
-check_openfpgaloader() {
-    echo -e "\n${YELLOW}Checking openFPGALoader...${NC}"
-    if command_exists openFPGALoader; then
-        echo -e "${GREEN}✓ openFPGALoader already installed${NC}"
-        return 0
-    fi
-
-    echo -e "${YELLOW}Installing openFPGALoader...${NC}"
-    sudo apt-get update -qq
-    sudo apt-get install -y \
-        git build-essential \
-        libusb-1.0-0-dev libftdi-dev \
-        libftdi1-dev libhidapi-dev \
-        pkg-config cmake libusb-dev
-
-    # Remove existing directory if present
-    if [ -d "/tmp/openFPGALoader" ]; then
-        echo -e "${YELLOW}Removing existing /tmp/openFPGALoader...${NC}"
-        sudo rm -rf /tmp/openFPGALoader
-    fi
-
-    # Clone and build openFPGALoader
-    git clone https://github.com/trabucayre/openFPGALoader /tmp/openFPGALoader
-    cd /tmp/openFPGALoader
-    mkdir -p build
-    cd build
-    cmake .. -DCMAKE_BUILD_TYPE=Release
-    make -j$(nproc)
-    sudo make install
-
-    # Find and copy udev rules
-    cd ..
-    if [ -f contrib/99-openfpgaloader.rules ]; then
-        sudo cp contrib/99-openfpgaloader.rules /etc/udev/rules.d/
-    elif [ -f 99-openfpgaloader.rules ]; then
-        sudo cp 99-openfpgaloader.rules /etc/udev/rules.d/
-    else
-        echo -e "${YELLOW}⚠ udev rules file not found, skipping${NC}"
-    fi
-
-    sudo udevadm control --reload-rules
-    sudo udevadm trigger
-    cd -
-    rm -rf /tmp/openFPGALoader
-
-    if command_exists openFPGALoader; then
-        echo -e "${GREEN}✓ openFPGALoader installed successfully${NC}"
-    else
-        echo -e "${RED}✗ openFPGALoader installation failed${NC}"
-        exit 1
-    fi
-}
-
-# Check OpenOCD
 # Check OpenOCD
 check_openocd() {
     echo -e "\n${YELLOW}Checking OpenOCD...${NC}"
@@ -221,9 +166,6 @@ install_system_deps() {
             gcc-riscv64-linux-gnu binutils-riscv64-unknown-elf 2>/dev/null || \
         echo -e "${YELLOW}⚠ RISC-V toolchain not available in repositories${NC}"
     fi
-    
-    # Install openFPGALoader
-    check_openfpgaloader
     
     # Install OpenOCD
     check_openocd
@@ -357,27 +299,34 @@ build_bitstream() {
     cd - > /dev/null
 }
 
-# Flash FPGA with openFPGALoader
 flash_bitstream() {
-    echo -e "\n${YELLOW}Flashing bitstream using openFPGALoader...${NC}"
-    
-    # If BITSTREAM is not set or doesn't exist, find one
-    if [ -z "$BITSTREAM" ] || [ ! -f "$BITSTREAM" ]; then
-        BITSTREAM=$(find ../fpga_projects -type f -name "*.bit" 2>/dev/null | head -1)
-    fi
-    
-    if [ -z "$BITSTREAM" ] || [ ! -f "$BITSTREAM" ]; then
-        echo -e "${RED}No bitstream found!${NC}"
-        echo -e "${YELLOW}Please run without --flash-only to build one first.${NC}"
+    echo -e "\n${YELLOW}Flashing bitstream via OpenOCD (--load)...${NC}"
+
+    # Find the most recent project dir containing a .bit for this CPU
+    PROJECT_WITH_BIT=$(find ../fpga_projects -type f \
+        -name "*.bit" \
+        -path "*${FPGA_CPU}*" \
+        2>/dev/null | xargs ls -t 2>/dev/null | head -1 | xargs -I{} dirname {} \
+        | sed 's|/build/.*||')   # strip back to project root
+
+    if [ -z "$PROJECT_WITH_BIT" ] || [ ! -d "$PROJECT_WITH_BIT" ]; then
+        echo -e "${RED}No ${FPGA_CPU} bitstream found in ../fpga_projects/${NC}"
         exit 1
     fi
-    
-    echo -e "${BLUE}Bitstream: $BITSTREAM${NC}"
-    
-    echo -e "${YELLOW}Programming FPGA...${NC}"
-    sudo openFPGALoader -b arty "$BITSTREAM"
-    
-    echo -e "${GREEN}✓ FPGA flashed successfully${NC}"
+
+    echo -e "${BLUE}Project dir: $PROJECT_WITH_BIT${NC}"
+
+    # cd to project dir so --load finds ./build/digilent_arty/gateware/*.bit
+    cd "$PROJECT_WITH_BIT"
+
+    CMD="python3 -m litex_boards.targets.${BOARD} --load --cpu-type=$FPGA_CPU"
+    [ -n "$BOARD_VARIANT" ] && CMD="$CMD --variant=$BOARD_VARIANT"
+
+    echo -e "${BLUE}Running: $CMD${NC}"
+    eval "$CMD"
+
+    cd - > /dev/null
+    echo -e "${GREEN}✓ FPGA loaded successfully${NC}"
 }
 
 # Open serial terminal
