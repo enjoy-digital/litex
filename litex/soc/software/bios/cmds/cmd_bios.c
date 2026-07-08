@@ -5,6 +5,7 @@
 #include <system.h>
 
 #include <libbase/crc.h>
+#include <libbase/uart.h>
 
 #include <generated/csr.h>
 
@@ -187,6 +188,28 @@ static void leds_handler(int nb_params, char **params)
 }
 
 define_command(leds, leds_handler, "Set LEDs value", SYSTEM_CMDS);
+#endif
+
+/**
+ * Command "uartbone"
+ *
+ * Switch shared serial pins back to UARTBone
+ *
+ */
+#ifdef CSR_UART_UARTBONE_ADDR
+static void uartbone_handler(int nb_params, char **params)
+{
+	(void)nb_params;
+	(void)params;
+
+	printf("Switching serial port to UARTBone.\n");
+	/* Let the message leave the UART before disconnecting the console. */
+	uart_sync();
+	while(!uart_txempty_read());
+	uart_uartbone_write(1);
+}
+
+define_command(uartbone, uartbone_handler, "Switch serial port to UARTBone", SYSTEM_CMDS);
 #endif
 
 /**

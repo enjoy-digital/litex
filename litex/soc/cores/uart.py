@@ -181,6 +181,33 @@ class RS232PHYMultiplexer(LiteXModule):
         self.comb += Case(self.sel, cases)
 
 
+class UARTSharedPHY(LiteXModule):
+    def __init__(self, phy, uartbone):
+        self.phy          = phy
+        self.uart         = UARTInterface()
+        self.uartbone     = UARTInterface()
+
+        # # #
+
+        self.comb += If(uartbone,
+            # UARTBone Mode: External PHY <-> UARTBone.
+            phy.source.connect(self.uartbone.source),
+            self.uartbone.sink.connect(phy.sink),
+
+            # Regular UART path inactive.
+            self.uart.source.valid.eq(0),
+            self.uart.sink.ready.eq(1),
+        ).Else(
+            # UART Mode: External PHY <-> CPU UART.
+            phy.source.connect(self.uart.source),
+            self.uart.sink.connect(phy.sink),
+
+            # UARTBone PHY path inactive.
+            self.uartbone.source.valid.eq(0),
+            self.uartbone.sink.ready.eq(1),
+        )
+
+
 class RS232PHYModel(LiteXModule):
     def __init__(self, pads):
         self.sink   = stream.Endpoint([("data", 8)])
@@ -496,15 +523,42 @@ class UARTCrossover(UART):
     Creates a fully compatible UART that can be used by the CPU as a regular UART and adds a second
     UART, cross-connected to the main one to allow terminal emulation over a Wishbone bridge.
     """
-    def __init__(self, **kwargs):
-        if kwargs.get("phy", None) is not None:
+    def __init__(self, phy=None, with_uartbone_mux=False, **kwargs):
+        if (phy is not None) and not with_uartbone_mux:
             raise ValueError("UARTCrossover does not support a custom PHY.")
+        if with_uartbone_mux and (phy is None):
+            raise ValueError("UARTCrossover UARTBone mux requires a PHY.")
         UART.__init__(self, **kwargs)
         self.xover = UART(tx_fifo_depth=1, rx_fifo_depth=16, rx_fifo_rx_we=True)
-        self.comb += [
-            self.source.connect(self.xover.sink),
-            self.xover.source.connect(self.sink)
-        ]
+
+        if with_uartbone_mux:
+            self._uartbone = CSRStorage(fields=[
+                CSRField("enable", offset=0, size=1, reset=1,
+                    description="Enable UARTBone mode on shared serial pins.",
+                    values=[
+                        ("``0b0``", "UART mode."),
+                        ("``0b1``", "UARTBone mode."),
+                    ]),
+            ], name="uartbone")
+            self.shared_phy   = UARTSharedPHY(phy, self._uartbone.fields.enable)
+            self.uartbone_phy = self.shared_phy.uartbone
+
+            self.comb += If(self._uartbone.fields.enable,
+                self.source.connect(self.xover.sink),
+                self.xover.source.connect(self.sink),
+            ).Else(
+                self.source.connect(self.shared_phy.uart.sink),
+                self.shared_phy.uart.source.connect(self.sink),
+
+                # Drain inactive UARTBone-side streams to avoid stale data when switching modes.
+                self.xover.source.ready.eq(1),
+                self.xover.sink.valid.eq(0),
+            )
+        else:
+            self.comb += [
+                self.source.connect(self.xover.sink),
+                self.xover.source.connect(self.sink)
+            ]
 
 def get_uart_core(
     uart_name,
@@ -515,6 +569,7 @@ def get_uart_core(
     fifo_depth            = 16,
     with_dynamic_baudrate = False,
     rx_fifo_rx_we         = False,
+    with_uartbone_mux     = False,
 ):
     uart_kwargs = {
         "tx_fifo_depth": fifo_depth,
@@ -524,6 +579,21 @@ def get_uart_core(
 
     # Crossover.
     if uart_name in ["crossover", "crossover+uartbone"]:
+        if with_uartbone_mux:
+            if uart_pads is None:
+                raise ValueError("pads are required for UARTBone UART mux.")
+            if clk_freq is None:
+                raise ValueError("clk_freq is required for UARTBone UART mux.")
+            uart_phy = UARTPHY(
+                uart_pads,
+                clk_freq              = clk_freq,
+                baudrate              = baudrate,
+                with_dynamic_baudrate = with_dynamic_baudrate,
+            )
+            return UARTCrossover(
+                phy               = uart_phy,
+                with_uartbone_mux = True,
+                **uart_kwargs)
         return UARTCrossover(**uart_kwargs)
 
     # JTAG UART.

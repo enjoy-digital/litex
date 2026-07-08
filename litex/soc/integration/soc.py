@@ -2160,7 +2160,8 @@ class LiteXSoC(SoC):
         return super().__getattr__(name)
 
     # Add UART -------------------------------------------------------------------------------------
-    def add_uart(self, name="uart", uart_name="serial", uart_pads=None, baudrate=115200, fifo_depth=16, with_dynamic_baudrate=False, rx_fifo_rx_we=False):
+    def add_uart(self, name="uart", uart_name="serial", uart_pads=None, baudrate=115200, fifo_depth=16, with_dynamic_baudrate=False, rx_fifo_rx_we=False,
+        with_uartbone_mux=False):
         # Imports.
         from litex.soc.cores import uart
 
@@ -2178,7 +2179,7 @@ class LiteXSoC(SoC):
         self.check_if_exists(name)
         supported_uarts = uart.get_uart_supported_names()
         if uart_pads is None:
-            uart_pads_name = "serial" if uart_name == "sim" else uart_name
+            uart_pads_name = "serial" if (uart_name == "sim") or with_uartbone_mux else uart_name
             uart_pads      = self.platform.request(uart_pads_name, loose=True)
             if (uart_pads is None) and (uart_name == "usb_acm"):
                 uart_pads = self.platform.request("usb")
@@ -2188,6 +2189,15 @@ class LiteXSoC(SoC):
                 colorer("not supported/found on board", color="red"),
                 colorer("- " + "\n- ".join(supported_uarts))))
             raise SoCError()
+        if with_uartbone_mux:
+            if uart_name != "crossover":
+                self.logger.error("UARTBone UART mux requires {} UART.".format(
+                    colorer("crossover", color="red")))
+                raise SoCError()
+            if uart_pads is None:
+                self.logger.error("UARTBone UART mux requires {} pads.".format(
+                    colorer("serial", color="red")))
+                raise SoCError()
 
         # UARTBone.
         if uart_name in ["uartbone", "crossover+uartbone"]:
@@ -2202,6 +2212,7 @@ class LiteXSoC(SoC):
             fifo_depth             = fifo_depth,
             with_dynamic_baudrate  = with_dynamic_baudrate,
             rx_fifo_rx_we          = rx_fifo_rx_we,
+            with_uartbone_mux      = with_uartbone_mux,
         )
 
         # No UART Core (e.g. pure "uartbone"): don't allocate an IRQ/Configs for a UART that does
@@ -2211,6 +2222,11 @@ class LiteXSoC(SoC):
 
         # Add UART.
         self.add_module(name=name, module=uart_core)
+        if with_uartbone_mux:
+            self.add_uartbone(
+                name = "uartbone",
+                phy  = uart_core.uartbone_phy,
+            )
 
         if rx_fifo_rx_we:
             self.add_config(f"{name}_RX_FIFO_RX_WE", 1)
@@ -2222,7 +2238,7 @@ class LiteXSoC(SoC):
             self.add_constant("UART_POLLING", check_duplicate=False)
 
     # Add UARTBone ---------------------------------------------------------------------------------
-    def add_uartbone(self, name="uartbone", uart_name="serial", clk_freq=None, baudrate=115200, cd="sys", with_dynamic_baudrate=False):
+    def add_uartbone(self, name="uartbone", uart_name="serial", clk_freq=None, baudrate=115200, cd="sys", with_dynamic_baudrate=False, phy=None):
         if clk_freq is None:
             clk_freq = self.sys_clk_freq
         if clk_freq <= 0:
@@ -2239,7 +2255,9 @@ class LiteXSoC(SoC):
 
         # Core.
         self.check_if_exists(name)
-        uartbone_phy = uart.UARTPHY(self.platform.request(uart_name), clk_freq, baudrate, with_dynamic_baudrate=with_dynamic_baudrate)
+        uartbone_phy = phy
+        if uartbone_phy is None:
+            uartbone_phy = uart.UARTPHY(self.platform.request(uart_name), clk_freq, baudrate, with_dynamic_baudrate=with_dynamic_baudrate)
         uartbone     = uart.UARTBone(
             phy           = uartbone_phy,
             clk_freq      = clk_freq,
@@ -3735,11 +3753,13 @@ class SoCCore(LiteXSoC):
                 with_build_time = ident_version,
             )
 
+        # Share serial pads when UARTBone and the regular UART are both enabled.
+        with_uartbone_uart_mux = with_uartbone and with_uart and (uart_name in ["serial", "crossover"])
+        if with_uartbone_uart_mux:
+            uart_name = "crossover"
+
         # Add UARTBone.
-        if with_uartbone:
-            if uart_name == "serial":
-                self.logger.error("UARTBone cannot be used with default serial UART.")
-                raise SoCError()
+        if with_uartbone and not with_uartbone_uart_mux:
             self.add_uartbone(name="uartbone",
                 baudrate              = uart_baudrate,
                 with_dynamic_baudrate = uart_with_dynamic_baudrate,
@@ -3753,7 +3773,8 @@ class SoCCore(LiteXSoC):
                 baudrate              = uart_baudrate,
                 fifo_depth            = uart_fifo_depth,
                 with_dynamic_baudrate = uart_with_dynamic_baudrate,
-                rx_fifo_rx_we         = uart_rx_fifo_rx_we,
+                rx_fifo_rx_we          = uart_rx_fifo_rx_we,
+                with_uartbone_mux      = with_uartbone_uart_mux,
             )
 
         # Add JTAGBone.

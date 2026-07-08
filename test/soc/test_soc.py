@@ -17,6 +17,7 @@ from migen import ClockDomain, Record, Signal
 from migen.sim import run_simulation
 
 from litex.soc.cores.hyperbus import HyperRAM
+from litex.soc.cores.uart import UARTPads
 from litex.soc.cores.video import video_framebuffer_size
 from litex.soc.interconnect import axi, wishbone
 
@@ -1308,6 +1309,40 @@ class TestSoC(unittest.TestCase):
 
         with _assert_raises_soc_error(self):
             soc.add_uartbone(baudrate=0)
+
+    def test_uartbone_uart_mux_adds_uart_and_uartbone(self):
+        platform = _FakePlatform()
+        platform.requests["serial"] = UARTPads()
+        soc = LiteXSoC(platform, sys_clk_freq=1e6)
+
+        soc.add_uart(uart_name="crossover", with_uartbone_mux=True)
+
+        self.assertTrue(hasattr(soc, "uart"))
+        self.assertTrue(hasattr(soc, "uartbone"))
+        self.assertTrue(hasattr(soc.uart, "uartbone_phy"))
+
+    def test_uartbone_uart_mux_requires_crossover_uart(self):
+        platform = _FakePlatform()
+        platform.requests["serial"] = UARTPads()
+        soc = LiteXSoC(platform, sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_uart(uart_name="serial", with_uartbone_mux=True)
+
+    def test_soc_core_uartbone_with_default_uart_uses_mux(self):
+        platform = _FakePlatform()
+        platform.requests["serial"] = UARTPads()
+        soc = SoCCore(platform,
+            clk_freq           = 1e6,
+            cpu_type           = "None",
+            with_ctrl          = False,
+            with_timer         = False,
+            with_uartbone      = True,
+        )
+
+        self.assertTrue(hasattr(soc, "uart"))
+        self.assertTrue(hasattr(soc, "uartbone"))
+        self.assertTrue(hasattr(soc.uart, "uartbone_phy"))
 
     def test_spi_sdcard_rejects_invalid_clock_before_imports(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
