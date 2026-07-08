@@ -2160,7 +2160,8 @@ class LiteXSoC(SoC):
         return super().__getattr__(name)
 
     # Add UART -------------------------------------------------------------------------------------
-    def add_uart(self, name="uart", uart_name="serial", uart_pads=None, baudrate=115200, fifo_depth=16, with_dynamic_baudrate=False, rx_fifo_rx_we=False):
+    def add_uart(self, name="uart", uart_name="serial", uart_pads=None, baudrate=115200, fifo_depth=16, with_dynamic_baudrate=False, rx_fifo_rx_we=False,
+        with_auto_swap=False):
         # Imports.
         from litex.soc.cores import uart
 
@@ -2188,6 +2189,10 @@ class LiteXSoC(SoC):
                 colorer("not supported/found on board", color="red"),
                 colorer("- " + "\n- ".join(supported_uarts))))
             raise SoCError()
+        if with_auto_swap and (uart_name in supported_uarts):
+            self.logger.error("UART auto-swap requires {} UART.".format(
+                colorer("serial", color="red")))
+            raise SoCError()
 
         # UARTBone.
         if uart_name in ["uartbone", "crossover+uartbone"]:
@@ -2202,6 +2207,7 @@ class LiteXSoC(SoC):
             fifo_depth             = fifo_depth,
             with_dynamic_baudrate  = with_dynamic_baudrate,
             rx_fifo_rx_we          = rx_fifo_rx_we,
+            with_auto_swap         = with_auto_swap,
         )
 
         # No UART Core (e.g. pure "uartbone"): don't allocate an IRQ/Configs for a UART that does
@@ -3583,6 +3589,7 @@ class SoCCore(LiteXSoC):
         uart_pads                  = None,
         uart_with_dynamic_baudrate = False,
         uart_rx_fifo_rx_we         = False,
+        uart_auto_swap             = False,
 
         # Timer parameters.
         with_timer                 = True,
@@ -3754,6 +3761,7 @@ class SoCCore(LiteXSoC):
                 fifo_depth            = uart_fifo_depth,
                 with_dynamic_baudrate = uart_with_dynamic_baudrate,
                 rx_fifo_rx_we         = uart_rx_fifo_rx_we,
+                with_auto_swap        = uart_auto_swap,
             )
 
         # Add JTAGBone.
@@ -3857,6 +3865,7 @@ def soc_core_args(parser, cpu_type="vexriscv", cpu_variant=None):
     soc_group.add_argument("--uart-fifo-depth",          default=16,          type=auto_int, help="UART FIFO depth.")
     soc_group.add_argument("--uart-with-dynamic-baudrate", action="store_true",              help="Enable dynamic UART baudrate (tuning CSR).")
     soc_group.add_argument("--uart-rx-fifo-rx-we",       action="store_true",                help="Use FIFO RX We on UART RX path.")
+    soc_group.add_argument("--uart-auto-swap",           action="store_true",                help="Enable automatic UART TX/RX swap detection.")
 
     # UARTBone parameters.
     soc_group.add_argument("--with-uartbone",            action="store_true",                help="Enable UARTBone.")

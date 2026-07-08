@@ -17,6 +17,7 @@ from migen import ClockDomain, Record, Signal
 from migen.sim import run_simulation
 
 from litex.soc.cores.hyperbus import HyperRAM
+from litex.soc.cores.uart import RS232PHYAutoSwap, UARTPads
 from litex.soc.cores.video import video_framebuffer_size
 from litex.soc.interconnect import axi, wishbone
 
@@ -1058,6 +1059,19 @@ class TestSoC(unittest.TestCase):
 
         self.assertTrue(hasattr(soc, "uart"))
         self.assertIn("UART_POLLING", soc.constants)
+
+    def test_add_uart_auto_swap_builds_serial_phy(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        soc.add_uart(uart_pads=UARTPads(), with_auto_swap=True)
+
+        self.assertIsInstance(soc.uart.phy, RS232PHYAutoSwap)
+
+    def test_add_uart_auto_swap_rejects_soc_uart_modes(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_uart(uart_name="stub", with_auto_swap=True)
 
     def test_get_csr_address_returns_main_bus_address(self):
         soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
