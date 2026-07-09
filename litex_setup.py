@@ -217,13 +217,18 @@ def print_indented(output, indent="    ", max_lines=None):
         lines = lines[:max_lines] + [f"... ({remaining} more line(s))"]
     print("\n".join(indent + line for line in lines))
 
+def git_format_sha1(sha1):
+    if isinstance(sha1, int):
+        return f"{sha1:07x}"
+    return str(sha1)
+
 def git_checkout(sha1=None, tag=None, quiet=False, cwd=None):
     assert not ((sha1 is None) and (tag is None))
     checkout_cmd = ["git", "-c", "advice.detachedHead=false", "checkout"]
     if quiet:
         checkout_cmd.append("--quiet")
     if sha1 is not None:
-        subprocess_check_output(checkout_cmd + [f"{sha1:07x}"], cwd=cwd)
+        subprocess_check_output(checkout_cmd + [git_format_sha1(sha1)], cwd=cwd)
     if tag is not None:
         sha1_tag_cmd = ["git", "rev-list", "-n 1", tag]
         sha1_tag     = subprocess_check_output(sha1_tag_cmd, cwd=cwd).strip()
@@ -398,7 +403,7 @@ def litex_setup_init_repos(config="standard", tag=None, dev_mode=False, clone_de
                 try:
                     git_checkout(sha1=repo.sha1, cwd=repo_path)
                 except subprocess.CalledProcessError:
-                    git_init_error(name, repo_path, f"checkout SHA1 {repo.sha1:07x} in")
+                    git_init_error(name, repo_path, f"checkout SHA1 {git_format_sha1(repo.sha1)} in")
                     raise SetupError
             # Recursive Update (Optional).
             if repo.clone == "recursive":
@@ -461,7 +466,7 @@ def litex_setup_update_repos(config="standard", tag=None):
             try:
                 git_checkout(sha1=repo.sha1, quiet=True, cwd=repo_path)
             except subprocess.CalledProcessError:
-                git_update_error(name, repo_path, f"checkout SHA1 {repo.sha1:07x} in")
+                git_update_error(name, repo_path, f"checkout SHA1 {git_format_sha1(repo.sha1)} in")
                 raise SetupError
         # Recursive Update (Optional).
         if repo.clone == "recursive":
@@ -729,7 +734,7 @@ def litex_setup_format_frozen_repo(name, repo, git_url, git_sha1):
         args.append(f"develop={repo.develop}")
     if repo.editable is not True:
         args.append(f"editable={repo.editable}")
-    args.append(f"sha1=0x{git_sha1}")
+    args.append(f'sha1="{git_sha1}"')
     if repo.branch != "master":
         args.append(f'branch="{repo.branch}"')
     if repo.tag is not None:

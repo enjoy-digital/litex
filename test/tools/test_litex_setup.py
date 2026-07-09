@@ -181,7 +181,7 @@ class TestLiteXSetup(unittest.TestCase):
                 branch="master",
                 clone="recursive",
                 tag=True,
-                sha1=int(main_v1, 16),
+                sha1=main_v1,
                 develop=True,
                 editable=True,
             ),
@@ -204,6 +204,38 @@ class TestLiteXSetup(unittest.TestCase):
             with self.assertRaises(litex_setup.SetupError):
                 callback(*args, **kwargs)
         return stdout.getvalue(), stderr.getvalue()
+
+    def test_checkout_preserves_leading_zeroes_in_string_sha(self):
+        sha1 = "0ddfb44723438d39636cfbf63e9e27609ec9bd43"
+
+        with mock.patch("litex_setup.subprocess_check_output", return_value="") as run:
+            litex_setup.git_checkout(sha1=sha1, cwd=self.workspace)
+
+        self.assertEqual(run.call_args[0][0][-1], sha1)
+
+    def test_checkout_keeps_integer_sha_abbreviated(self):
+        with mock.patch("litex_setup.subprocess_check_output", return_value="") as run:
+            litex_setup.git_checkout(sha1=0xc69953aff92, cwd=self.workspace)
+
+        self.assertEqual(run.call_args[0][0][-1], "c69953aff92")
+
+    def test_format_frozen_repo_keeps_full_sha_as_string(self):
+        repo = SimpleNamespace(
+            url="https://github.com/enjoy-digital/",
+            branch="master",
+            clone="regular",
+            tag=None,
+            develop=True,
+            editable=True,
+        )
+        formatted = litex_setup.litex_setup_format_frozen_repo(
+            "litex",
+            repo,
+            "https://github.com/enjoy-digital/",
+            "0ddfb44723438d39636cfbf63e9e27609ec9bd43",
+        )
+
+        self.assertIn('sha1="0ddfb44723438d39636cfbf63e9e27609ec9bd43"', formatted)
 
     def test_update_can_be_cancelled_when_repo_has_local_changes(self):
         _upstream_path, repo_path = self.create_repo()
@@ -245,7 +277,7 @@ class TestLiteXSetup(unittest.TestCase):
 
     def test_init_clone_depth_uses_full_clone_for_pinned_sha(self):
         _upstream_path, _remote_path, commits = self.create_remote_only_repo()
-        litex_setup.git_repos["litex"].sha1 = int(commits[0], 16)
+        litex_setup.git_repos["litex"].sha1 = commits[0]
 
         litex_setup.litex_setup_init_repos(config="minimal", clone_depth=1)
 
