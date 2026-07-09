@@ -364,6 +364,15 @@ main() {
         print_usage
         exit 0
     fi
+
+    # =============================================
+    # Set default clock for CVA6 if not specified
+    # CVA6 crashes at 100MHz with WNS -25ns, needs 50MHz
+    if [ "$FPGA_CPU" = "cva6" ] && [[ ! "$EXTRA_ARGS" =~ --sys-clk-freq ]]; then
+        echo -e "${YELLOW}Note: CVA6 requires 50MHz clock. Adding --sys-clk-freq=50e6${NC}"
+        EXTRA_ARGS="$EXTRA_ARGS --sys-clk-freq=50e6"
+    fi
+    # =============================================
     
     echo -e "${BLUE}Board: $BOARD${NC}"
     [ -n "$BOARD_VARIANT" ] && echo -e "${BLUE}Board variant: $BOARD_VARIANT${NC}"
