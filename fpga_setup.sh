@@ -44,14 +44,17 @@ Options:
     --port=DEV          Serial device (default: /dev/ttyUSB1)
     --baudrate=N        Baudrate (default: 115200)
     --fpga-only         Skip dependency checks, just build + flash + open terminal
-    --flash-only        Skip build, flash existing vexriscv bitstream + open terminal
+    --flash-only        Skip build, flash existing bitstream for specified CPU + open terminal
+    --extra-args="..."  Extra arguments to pass to the build command (e.g., --sys-clk-freq=100e6)
     --help, -h          Show this help message
 
 Examples:
-    ./fpga_setup.sh                              # Full flow: deps + build + flash + terminal
-    ./fpga_setup.sh --fpga-only                  # Skip deps: build + flash + terminal
-    ./fpga_setup.sh --flash-only                 # Flash existing vexriscv bitstream + terminal
-    ./fpga_setup.sh --cpu=ibex                   # Change CPU only
+    ./fpga_setup.sh                                    # Full flow: deps + build + flash + terminal
+    ./fpga_setup.sh --extra-args="--sys-clk-freq=100e6"  # Build with 100MHz
+    ./fpga_setup.sh --extra-args="--sys-clk-freq=50e6 --sdram-rate=1:1"  # Multiple args
+    ./fpga_setup.sh --fpga-only --extra-args="--sys-clk-freq=100e6"
+    ./fpga_setup.sh --flash-only --cpu=cva6
+    ./fpga_setup.sh --cpu=ibex
 EOF
 }
 
@@ -66,6 +69,7 @@ parse_args() {
             --cpu-variant=*)  CPU_VARIANT="${1#*=}";    shift ;;
             --port=*)         SERIAL_PORT="${1#*=}";    shift ;;
             --baudrate=*)     BAUDRATE="${1#*=}";       shift ;;
+            --extra-args=*)   EXTRA_ARGS="${1#*=}";     shift ;;
             --fpga-only)      FPGA_ONLY=1;              shift ;;
             --flash-only)     FLASH_ONLY=1;             shift ;;
             --help|-h)        HELP=1;                   shift ;;
@@ -88,58 +92,45 @@ system_package_installed() {
     fi
 }
 
-# Check openFPGALoader
-check_openfpgaloader() {
-    echo -e "\n${YELLOW}Checking openFPGALoader...${NC}"
-    if command_exists openFPGALoader; then
-        echo -e "${GREEN}✓ openFPGALoader already installed${NC}"
-        return 0
+# Check OpenOCD
+check_openocd() {
+    echo -e "\n${YELLOW}Checking OpenOCD...${NC}"
+
+    if command_exists openocd; then
+        CURRENT_VERSION=$(openocd --version 2>&1 | head -1 | grep -oP '0\.\d+\.\d+' || echo "0.0.0")
+        if [[ "$CURRENT_VERSION" == "0.12.0" ]] || [[ "$CURRENT_VERSION" > "0.12.0" ]]; then
+            echo -e "${GREEN}✓ OpenOCD already installed${NC}"
+            return 0
+        fi
     fi
 
-    echo -e "${YELLOW}Installing openFPGALoader...${NC}"
-    sudo apt-get update -qq
+    echo -e "${YELLOW}Installing OpenOCD...${NC}"
+
+    # Remove old version if exists
+    sudo apt remove -y openocd 2>/dev/null || true
+
+    # Install dependencies
     sudo apt-get install -y \
-        git build-essential \
-        libusb-1.0-0-dev libftdi-dev \
-        libftdi1-dev libhidapi-dev \
-        pkg-config cmake libusb-dev
+        libusb-1.0-0-dev libhidapi-dev libjaylink-dev \
+        libgpiod-dev pkg-config autoconf automake libtool
 
-    # Remove existing directory if present
-    if [ -d "/tmp/openFPGALoader" ]; then
-        echo -e "${YELLOW}Removing existing /tmp/openFPGALoader...${NC}"
-        sudo rm -rf /tmp/openFPGALoader
+    # Build OpenOCD 0.12.0 from source in a temp directory
+    if [ -d "/tmp/openocd" ]; then
+        sudo rm -rf /tmp/openocd
     fi
 
-    # Clone and build openFPGALoader
-    git clone https://github.com/trabucayre/openFPGALoader /tmp/openFPGALoader
-    cd /tmp/openFPGALoader
-    mkdir -p build
-    cd build
-    cmake .. -DCMAKE_BUILD_TYPE=Release
+    git clone https://github.com/openocd-org/openocd.git --depth=1 --branch v0.12.0 /tmp/openocd
+    cd /tmp/openocd
+    ./bootstrap
+    ./configure --enable-ftdi --enable-jlink --enable-cmsis-dap
     make -j$(nproc)
     sudo make install
-
-    # Find and copy udev rules
-    cd ..
-    if [ -f contrib/99-openfpgaloader.rules ]; then
-        sudo cp contrib/99-openfpgaloader.rules /etc/udev/rules.d/
-    elif [ -f 99-openfpgaloader.rules ]; then
-        sudo cp 99-openfpgaloader.rules /etc/udev/rules.d/
-    else
-        echo -e "${YELLOW}⚠ udev rules file not found, skipping${NC}"
-    fi
-
-    sudo udevadm control --reload-rules
-    sudo udevadm trigger
+    sudo ldconfig
     cd -
-    rm -rf /tmp/openFPGALoader
 
-    if command_exists openFPGALoader; then
-        echo -e "${GREEN}✓ openFPGALoader installed successfully${NC}"
-    else
-        echo -e "${RED}✗ openFPGALoader installation failed${NC}"
-        exit 1
-    fi
+    rm -rf /tmp/openocd
+
+    echo -e "${GREEN}✓ OpenOCD installed successfully${NC}"
 }
 
 # Install system dependencies
@@ -176,7 +167,9 @@ install_system_deps() {
         echo -e "${YELLOW}⚠ RISC-V toolchain not available in repositories${NC}"
     fi
     
-    check_openfpgaloader
+    # Install OpenOCD
+    check_openocd
+
     echo -e "${GREEN}✓ All system dependencies satisfied${NC}"
 }
 
@@ -225,15 +218,15 @@ run_litex_setup() {
     echo -e "${GREEN}✓ litex_setup.py completed${NC}"
 }
 
-# Find existing bitstream (most recent vexriscv bitstream)
+# Find existing bitstream (most recent for specified CPU)
 find_existing_bitstream() {
     # Check if fpga_projects directory exists
     if [ ! -d "../fpga_projects" ]; then
         return 1
     fi
     
-    # Look for vexriscv bitstream in fpga_projects, sorted by modification time (newest first)
-    BITSTREAM=$(find ../fpga_projects -type f -name "*.bit" -path "*vexriscv*" 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
+    # Look for bitstream with the specified CPU in fpga_projects, sorted by modification time (newest first)
+    BITSTREAM=$(find ../fpga_projects -type f -name "*.bit" -path "*${FPGA_CPU}*" 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
     
     if [ -n "$BITSTREAM" ] && [ -f "$BITSTREAM" ]; then
         echo "$BITSTREAM"
@@ -250,6 +243,9 @@ build_bitstream() {
     [ -n "$BOARD_VARIANT" ] && echo -e "${BLUE}Board variant: $BOARD_VARIANT${NC}"
     echo -e "${BLUE}CPU: $FPGA_CPU${NC}"
     echo -e "${BLUE}CPU variant: $CPU_VARIANT${NC}"
+    if [ -n "$EXTRA_ARGS" ]; then
+        echo -e "${BLUE}Extra args: $EXTRA_ARGS${NC}"
+    fi
     
     if [ -z "$VIRTUAL_ENV" ]; then
         if [ -d "venv" ]; then
@@ -303,27 +299,34 @@ build_bitstream() {
     cd - > /dev/null
 }
 
-# Flash FPGA with openFPGALoader
 flash_bitstream() {
-    echo -e "\n${YELLOW}Flashing bitstream using openFPGALoader...${NC}"
-    
-    # If BITSTREAM is not set or doesn't exist, find one
-    if [ -z "$BITSTREAM" ] || [ ! -f "$BITSTREAM" ]; then
-        BITSTREAM=$(find ../fpga_projects -type f -name "*.bit" 2>/dev/null | head -1)
-    fi
-    
-    if [ -z "$BITSTREAM" ] || [ ! -f "$BITSTREAM" ]; then
-        echo -e "${RED}No bitstream found!${NC}"
-        echo -e "${YELLOW}Please run without --flash-only to build one first.${NC}"
+    echo -e "\n${YELLOW}Flashing bitstream via OpenOCD (--load)...${NC}"
+
+    # Find the most recent project dir containing a .bit for this CPU
+    PROJECT_WITH_BIT=$(find ../fpga_projects -type f \
+        -name "*.bit" \
+        -path "*${FPGA_CPU}*" \
+        2>/dev/null | xargs ls -t 2>/dev/null | head -1 | xargs -I{} dirname {} \
+        | sed 's|/build/.*||')   # strip back to project root
+
+    if [ -z "$PROJECT_WITH_BIT" ] || [ ! -d "$PROJECT_WITH_BIT" ]; then
+        echo -e "${RED}No ${FPGA_CPU} bitstream found in ../fpga_projects/${NC}"
         exit 1
     fi
-    
-    echo -e "${BLUE}Bitstream: $BITSTREAM${NC}"
-    
-    echo -e "${YELLOW}Programming FPGA...${NC}"
-    sudo openFPGALoader -b arty "$BITSTREAM"
-    
-    echo -e "${GREEN}✓ FPGA flashed successfully${NC}"
+
+    echo -e "${BLUE}Project dir: $PROJECT_WITH_BIT${NC}"
+
+    # cd to project dir so --load finds ./build/digilent_arty/gateware/*.bit
+    cd "$PROJECT_WITH_BIT"
+
+    CMD="python3 -m litex_boards.targets.${BOARD} --load --cpu-type=$FPGA_CPU"
+    [ -n "$BOARD_VARIANT" ] && CMD="$CMD --variant=$BOARD_VARIANT"
+
+    echo -e "${BLUE}Running: $CMD${NC}"
+    eval "$CMD"
+
+    cd - > /dev/null
+    echo -e "${GREEN}✓ FPGA loaded successfully${NC}"
 }
 
 # Open serial terminal
@@ -361,24 +364,36 @@ main() {
         print_usage
         exit 0
     fi
+
+    # =============================================
+    # Set default clock for CVA6 if not specified
+    # CVA6 crashes at 100MHz with WNS -25ns, needs 50MHz
+    if [ "$FPGA_CPU" = "cva6" ] && [[ ! "$EXTRA_ARGS" =~ --sys-clk-freq ]]; then
+        echo -e "${YELLOW}Note: CVA6 requires 50MHz clock. Adding --sys-clk-freq=50e6${NC}"
+        EXTRA_ARGS="$EXTRA_ARGS --sys-clk-freq=50e6"
+    fi
+    # =============================================
     
     echo -e "${BLUE}Board: $BOARD${NC}"
     [ -n "$BOARD_VARIANT" ] && echo -e "${BLUE}Board variant: $BOARD_VARIANT${NC}"
     echo -e "${BLUE}CPU: $FPGA_CPU${NC}"
     echo -e "${BLUE}CPU variant: $CPU_VARIANT${NC}"
+    if [ -n "$EXTRA_ARGS" ]; then
+        echo -e "${BLUE}Extra args: $EXTRA_ARGS${NC}"
+    fi
     echo ""
     
-    # --flash-only: just flash existing vexriscv bitstream + open terminal
+    # --flash-only: just flash existing bitstream for the specified CPU + open terminal
     if [ "$FLASH_ONLY" = "1" ]; then
-        echo -e "${YELLOW}Flash-only mode: searching for existing vexriscv bitstream...${NC}"
+        echo -e "${YELLOW}Flash-only mode: searching for existing ${FPGA_CPU} bitstream...${NC}"
         
         if find_existing_bitstream > /dev/null; then
             BITSTREAM=$(find_existing_bitstream)
             echo -e "${GREEN}✓ Found bitstream: $BITSTREAM${NC}"
         else
-            echo -e "${RED}✗ No vexriscv bitstream found in ../fpga_projects/${NC}"
+            echo -e "${RED}✗ No ${FPGA_CPU} bitstream found in ../fpga_projects/${NC}"
             echo -e "${YELLOW}Please run full setup to build a bitstream first:${NC}"
-            echo -e "${BLUE}  ./fpga_setup.sh${NC}"
+            echo -e "${BLUE}  ./fpga_setup.sh --cpu=${FPGA_CPU}${NC}"
             exit 1
         fi
         

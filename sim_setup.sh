@@ -18,6 +18,7 @@ CPU_VARIANT="standard"
 HELP=0
 UPDATE=0
 SIMULATION_ONLY=0
+EXTRA_ARGS=""
 
 # Print banner
 print_banner() {
@@ -36,17 +37,20 @@ Options:
     --config=NAME       Install config: minimal, standard, full (default: standard)
     --cpu=TYPE          CPU type: vexriscv, serv, cva6, ibex, rocket, vexriscv_smp (default: vexriscv)
     --variant=TYPE      CPU variant for rocket: full, linux, medium, small (default: standard)
+    --extra-args="..."  Extra arguments to pass to litex_sim (e.g., --with-sdram)
     --sim-only          Only run simulation (skip setup)
     --update            Force update repositories and reinstall
     --help, -h          Show this help message
 
 Examples:
-    ./setup.sh                          # Install everything and run simulation
-    ./setup.sh --config=minimal         # Minimal installation
-    ./setup.sh --cpu=serv               # Run simulation with SERV CPU
-    ./setup.sh --cpu=rocket --variant=full   # Run simulation with Rocket CPU (full variant)
-    ./setup.sh --sim-only               # Only run simulation
-    ./setup.sh --update                 # Force update and reinstall
+    ./setup.sh                                    # Install everything and run simulation
+    ./setup.sh --config=minimal                   # Minimal installation
+    ./setup.sh --cpu=serv                         # Run simulation with SERV CPU
+    ./setup.sh --cpu=rocket --variant=full        # Run simulation with Rocket CPU (full variant)
+    ./setup.sh --extra-args="--with-sdram"        # Run simulation with SDRAM
+    ./setup.sh --extra-args="--with-sdram --with-etherbone"  # Multiple args
+    ./setup.sh --sim-only --cpu=cva6              # Only run simulation
+    ./setup.sh --update                           # Force update and reinstall
 
 Note: By default, this script:
     1. Installs all system dependencies (verilator, gcc-riscv, etc.)
@@ -63,6 +67,7 @@ parse_args() {
             --config=*) CONFIG="${1#*=}"; shift ;;
             --cpu=*) SIMULATION_CPU="${1#*=}"; shift ;;
             --variant=*) CPU_VARIANT="${1#*=}"; shift ;;
+            --extra-args=*) EXTRA_ARGS="${1#*=}"; shift ;;
             --sim-only) SIMULATION_ONLY=1; shift ;;
             --update) UPDATE=1; shift ;;
             --help|-h) HELP=1; shift ;;
@@ -268,6 +273,9 @@ run_simulation() {
     echo -e "\n${YELLOW}Running simulation...${NC}"
     echo -e "${BLUE}CPU: $SIMULATION_CPU${NC}"
     echo -e "${BLUE}Variant: $CPU_VARIANT${NC}"
+    if [ -n "$EXTRA_ARGS" ]; then
+        echo -e "${BLUE}Extra args: $EXTRA_ARGS${NC}"
+    fi
     echo -e "${YELLOW}Press Ctrl+C to exit${NC}"
     echo ""
     
@@ -281,14 +289,24 @@ run_simulation() {
         fi
     fi
     
-    # Create timestamped project directory (DD-MMM_HH:MM)
-    PROJECT_DIR="../projects/$(date '+%d-%m-%H-%M')"
+    # Create timestamped project directory with CPU name
+    PROJECT_DIR="../sim_projects/${SIMULATION_CPU}_$(date '+%d-%m-%H-%M')"
     mkdir -p "$PROJECT_DIR"
     
     echo -e "${BLUE}Project directory: $PROJECT_DIR${NC}"
     
     cd "$PROJECT_DIR"
-    litex_sim --cpu-type="$SIMULATION_CPU" --cpu-variant="$CPU_VARIANT"
+    
+    # Build the command
+    CMD="litex_sim --cpu-type=\"$SIMULATION_CPU\" --cpu-variant=\"$CPU_VARIANT\""
+    if [ -n "$EXTRA_ARGS" ]; then
+        CMD="$CMD $EXTRA_ARGS"
+    fi
+    
+    echo -e "${BLUE}Running: $CMD${NC}"
+    echo ""
+    
+    eval "$CMD"
 }
 
 # Main function
