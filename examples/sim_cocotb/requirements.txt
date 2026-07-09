@@ -1,0 +1,10 @@
+# Python dependencies for examples/sim_cocotb.
+#
+# Verilator itself is NOT a Python package and is not listed here -- see
+# README.md "Installing Verilator" for OS-level install instructions.
+
+migen>=0.9.2
+litex
+cocotb>=2.0
+cocotb-tools>=0.1.0
+pytest  # optional, only needed if you run test_runner.py via `pytest`
