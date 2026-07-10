@@ -13,6 +13,8 @@ from litex.gen import *
 from litex.soc.cores.uart import (
     UART,
     UARTCrossover,
+    UARTInterface,
+    UARTSharedPHY,
     UARTPads,
     RS232PHY,
     get_uart_core,
@@ -43,6 +45,25 @@ class TestUART(unittest.TestCase):
         uart = get_uart_core("crossover", fifo_depth=8, rx_fifo_rx_we=True)
 
         self.assertIsInstance(uart, UARTCrossover)
+
+    def test_get_uart_core_builds_uartbone_mux_crossover(self):
+        uart = get_uart_core(
+            "crossover",
+            uart_pads                 = UARTPads(),
+            clk_freq                  = 1_000_000,
+            fifo_depth                = 8,
+            with_uartbone_mux         = True,
+        )
+
+        self.assertIsInstance(uart, UARTCrossover)
+        self.assertTrue(hasattr(uart, "uartbone_phy"))
+        self.assertTrue(hasattr(uart, "_uartbone"))
+
+    def test_get_uart_core_validates_uartbone_mux_dependencies(self):
+        with self.assertRaisesRegex(ValueError, "pads"):
+            get_uart_core("crossover", clk_freq=1_000_000, with_uartbone_mux=True)
+        with self.assertRaisesRegex(ValueError, "clk_freq"):
+            get_uart_core("crossover", uart_pads=UARTPads(), with_uartbone_mux=True)
 
     def test_get_uart_core_builds_regular_uart(self):
         uart = get_uart_core("serial", uart_pads=UARTPads(), clk_freq=1_000_000)
@@ -108,6 +129,52 @@ class TestUART(unittest.TestCase):
             for _ in range(2_000):
                 yield
                 self.assertEqual((yield dut.phy.source.valid), 0)
+        run_simulation(dut, gen(dut))
+
+    def test_uart_shared_phy_routes_selected_mode(self):
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.uartbone = Signal(reset=1)
+                self.phy      = UARTInterface()
+                self.shared   = UARTSharedPHY(self.phy, self.uartbone)
+
+        dut = DUT()
+
+        def gen(dut):
+            # UARTBone Mode: external PHY <-> UARTBone.
+            yield dut.uartbone.eq(1)
+            yield dut.phy.source.valid.eq(1)
+            yield dut.phy.source.data.eq(0x12)
+            yield dut.shared.uartbone.source.ready.eq(1)
+            yield dut.shared.uartbone.sink.valid.eq(1)
+            yield dut.shared.uartbone.sink.data.eq(0x34)
+            yield dut.phy.sink.ready.eq(1)
+            yield
+            self.assertEqual((yield dut.shared.uartbone.source.valid), 1)
+            self.assertEqual((yield dut.shared.uartbone.source.data),  0x12)
+            self.assertEqual((yield dut.phy.source.ready),             1)
+            self.assertEqual((yield dut.phy.sink.valid),               1)
+            self.assertEqual((yield dut.phy.sink.data),                0x34)
+            self.assertEqual((yield dut.shared.uart.source.valid),     0)
+            self.assertEqual((yield dut.shared.uart.sink.ready),       1)
+
+            # UART Mode: external PHY <-> CPU UART.
+            yield dut.uartbone.eq(0)
+            yield dut.phy.source.valid.eq(1)
+            yield dut.phy.source.data.eq(0x56)
+            yield dut.shared.uart.source.ready.eq(1)
+            yield dut.shared.uart.sink.valid.eq(1)
+            yield dut.shared.uart.sink.data.eq(0x78)
+            yield dut.phy.sink.ready.eq(1)
+            yield
+            self.assertEqual((yield dut.shared.uart.source.valid),     1)
+            self.assertEqual((yield dut.shared.uart.source.data),      0x56)
+            self.assertEqual((yield dut.phy.source.ready),             1)
+            self.assertEqual((yield dut.phy.sink.valid),               1)
+            self.assertEqual((yield dut.phy.sink.data),                0x78)
+            self.assertEqual((yield dut.shared.uartbone.source.valid), 0)
+            self.assertEqual((yield dut.shared.uartbone.sink.ready),   1)
+
         run_simulation(dut, gen(dut))
 
     def test_long_burst_stable(self):
