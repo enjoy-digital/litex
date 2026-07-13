@@ -19,6 +19,8 @@ HELP=0
 UPDATE=0
 SIMULATION_ONLY=0
 EXTRA_ARGS=""
+SCRIPT_DIR="$(pwd)"
+DEMO_MODE=0
 
 # Print banner
 print_banner() {
@@ -39,6 +41,7 @@ Options:
     --variant=TYPE      CPU variant for rocket: full, linux, medium, small (default: standard)
     --extra-args="..."  Extra arguments to pass to litex_sim (e.g., --with-sdram)
     --sim-only          Only run simulation (skip setup)
+    --demo              Build and run demo application
     --update            Force update repositories and reinstall
     --help, -h          Show this help message
 
@@ -69,6 +72,7 @@ parse_args() {
             --variant=*) CPU_VARIANT="${1#*=}"; shift ;;
             --extra-args=*) EXTRA_ARGS="${1#*=}"; shift ;;
             --sim-only) SIMULATION_ONLY=1; shift ;;
+            --demo) DEMO_MODE=1; shift ;;
             --update) UPDATE=1; shift ;;
             --help|-h) HELP=1; shift ;;
             *) echo -e "${RED}Unknown option: $1${NC}"; print_usage; exit 1 ;;
@@ -290,23 +294,99 @@ run_simulation() {
     fi
     
     # Create timestamped project directory with CPU name
-    PROJECT_DIR="../sim_projects/${SIMULATION_CPU}_$(date '+%d-%m-%H-%M')"
+    # Check if demo flag is passed
+    if [ "$DEMO_MODE" = "1" ]; then
+        PROJECT_DIR="../sim_projects/demo_${SIMULATION_CPU}_$(date '+%d-%m-%H-%M')"
+    else
+        # Normal folder without demo
+        PROJECT_DIR="../sim_projects/${SIMULATION_CPU}_$(date '+%d-%m-%H-%M')"
+    fi
+
     mkdir -p "$PROJECT_DIR"
+    PROJECT_DIR="$(cd "$PROJECT_DIR" && pwd)"
     
     echo -e "${BLUE}Project directory: $PROJECT_DIR${NC}"
     
     cd "$PROJECT_DIR"
     
-    # Build the command
-    CMD="litex_sim --cpu-type=\"$SIMULATION_CPU\" --cpu-variant=\"$CPU_VARIANT\""
+    # Check if demo flag is passed
+    if [ "$DEMO_MODE" = "1" ]; then
+        # Check if CPU supports demo
+        if [ "$SIMULATION_CPU" = "ibex" ]; then
+            echo -e "${RED}⚠ IBEX CPU does not support CSR/Zicsr instructions required by demo. And give illegal instruction${NC}"
+            echo -e "${RED}⚠ Running simulation without demo...${NC}"
+            DEMO_MODE=0
+            CMD="litex_sim --cpu-type=\"$SIMULATION_CPU\" --cpu-variant=\"$CPU_VARIANT\""
+        else
+            demo_run
+            CMD="litex_sim  --integrated-main-ram-size=0x10000 --cpu-type=\"$SIMULATION_CPU\" --cpu-variant=\"$CPU_VARIANT\" --ram-init=\"$PROJECT_DIR/demo/demo.bin\""
+        fi
+    else
+        # Normal command without demo
+        CMD="litex_sim --cpu-type=\"$SIMULATION_CPU\" --cpu-variant=\"$CPU_VARIANT\""
+    fi
+    
     if [ -n "$EXTRA_ARGS" ]; then
         CMD="$CMD $EXTRA_ARGS"
     fi
-    
+
     echo -e "${BLUE}Running: $CMD${NC}"
     echo ""
     
     eval "$CMD"
+}
+
+# Run demo mode
+demo_run() {
+    echo -e "\n${YELLOW}Running demo mode...${NC}"
+    
+    # Step 1: Create build folder with --no-compile-gateware
+    echo -e "${BLUE}Step 1: Creating build directory...${NC}"
+    CMD_BUILD="litex_sim --integrated-main-ram-size=0x10000 --cpu-type=\"$SIMULATION_CPU\" --cpu-variant=\"$CPU_VARIANT\" --no-compile-gateware"
+    if [ -n "$EXTRA_ARGS" ]; then
+        CMD_BUILD="$CMD_BUILD $EXTRA_ARGS"
+    fi
+    eval "$CMD_BUILD"
+    
+    # Step 2: Build demo
+    echo -e "\n${BLUE}Step 2: Building demo application...${NC}"
+    DEMO_DIR="$(cd "$SCRIPT_DIR" && pwd)/litex/soc/software/demo"
+    
+    if [ ! -d "$DEMO_DIR" ]; then
+        echo -e "${RED}Demo directory not found: $DEMO_DIR${NC}"
+        exit 1
+    fi
+    
+    # Get absolute path of project build
+    PROJECT_BUILD_ABS="$(cd "$PROJECT_DIR" && pwd)/build/sim"
+    
+    cd "$DEMO_DIR"
+    
+    # Remove any existing demo folder and files
+    rm -rf demo/ demo.bin demo.fbi
+    
+    # Build demo using absolute path
+    echo -e "${BLUE}Building demo with path: $PROJECT_BUILD_ABS${NC}"
+    python3 demo.py --build-path="$PROJECT_BUILD_ABS"
+    
+    # Step 3: Copy the whole demo folder to project directory
+    echo -e "\n${BLUE}Step 3: Copying demo folder to project...${NC}"
+    if [ -d "demo" ] && [ -f "demo/demo.bin" ]; then
+        cp -r demo/ "$PROJECT_DIR/"
+    else
+        echo -e "${RED}Error: demo folder or demo.bin not found!${NC}"
+        ls -la demo/ 2>/dev/null || echo "demo folder not found"
+        exit 1
+    fi
+    
+    # Step 4: Clean up
+    echo -e "\n${BLUE}Step 4: Cleaning up...${NC}"
+    cd "$DEMO_DIR"
+    rm -rf demo/ demo.bin demo.fbi
+    
+    cd "$PROJECT_DIR"
+    
+    echo -e "${GREEN}✓ Demo built and copied to: $PROJECT_DIR/demo/${NC}"
 }
 
 # Main function
