@@ -12,6 +12,7 @@ from math import log2
 from migen import *
 from migen.genlib.record import Record
 from migen.genlib.cdc import MultiReg
+from migen.fhdl.specials import Tristate
 
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
@@ -163,6 +164,103 @@ class RS232PHY(LiteXModule):
         self.sink, self.source = self.tx.sink, self.rx.source
 
 
+class RS232PHYAutoSwap(LiteXModule):
+    def __init__(self, pads, clk_freq, baudrate=115200, with_dynamic_baudrate=False):
+        self.sink   = stream.Endpoint([("data", 8)])
+        self.source = stream.Endpoint([("data", 8)])
+
+        self.locked = Signal()
+        self.swap   = Signal()
+
+        # # #
+
+        tuning_word = int((baudrate/clk_freq)*2**32)
+        if with_dynamic_baudrate:
+            self._tuning_word  = CSRStorage(
+                32,
+                reset=tuning_word,
+                name="tuning_word",
+                description="UART baudrate tuning word.",
+            )
+            tuning_word = self._tuning_word.storage
+
+        tx_o  = Signal(reset=RS232_IDLE)
+        tx_oe = Signal()
+        rx_o  = Signal(reset=RS232_IDLE)
+        rx_oe = Signal()
+        tx_i  = self._add_tristate(pads.tx, tx_o, tx_oe)
+        rx_i  = self._add_tristate(pads.rx, rx_o, rx_oe)
+
+        tx_pads = Record([("tx", 1)])
+        self.comb += tx_o.eq(tx_pads.tx)
+        self.tx = RS232PHYTX(tx_pads, tuning_word)
+
+        rx_on_tx_pads = Record([("rx", 1)])
+        rx_on_rx_pads = Record([("rx", 1)])
+        self.comb += [
+            rx_on_tx_pads.rx.eq(tx_i),
+            rx_on_rx_pads.rx.eq(rx_i),
+        ]
+        self.rx_on_tx = RS232PHYRX(rx_on_tx_pads, tuning_word)
+        self.rx_on_rx = RS232PHYRX(rx_on_rx_pads, tuning_word)
+
+        # Lock the direction from the first valid RX frame and drive the opposite pad.
+        self.sync += If(~self.locked,
+            If(self.rx_on_rx.source.valid,
+                self.locked.eq(1),
+                self.swap.eq(0),
+            ).Elif(self.rx_on_tx.source.valid,
+                self.locked.eq(1),
+                self.swap.eq(1),
+            )
+        )
+
+        self.comb += [
+            tx_oe.eq(self.locked & ~self.swap),
+            rx_oe.eq(self.locked &  self.swap),
+            rx_o.eq(tx_o),
+        ]
+
+        # Drop core TX until the direction is known. This avoids firmware stalls and stale boot
+        # output replay after the line locks.
+        self.comb += If(self.locked,
+            self.sink.connect(self.tx.sink),
+        ).Else(
+            self.sink.ready.eq(1),
+            self.tx.sink.valid.eq(0),
+        )
+
+        self.comb += If(self.locked,
+            If(self.swap,
+                self.rx_on_tx.source.connect(self.source),
+                self.rx_on_rx.source.ready.eq(1),
+            ).Else(
+                self.rx_on_rx.source.connect(self.source),
+                self.rx_on_tx.source.ready.eq(1),
+            )
+        ).Else(
+            If(self.rx_on_rx.source.valid,
+                self.rx_on_rx.source.connect(self.source),
+                self.rx_on_tx.source.ready.eq(1),
+            ).Else(
+                self.rx_on_tx.source.connect(self.source),
+                self.rx_on_rx.source.ready.eq(1),
+            )
+        )
+
+    def _add_tristate(self, pad, o, oe):
+        if hasattr(pad, "o") and hasattr(pad, "oe") and hasattr(pad, "i"):
+            self.comb += [
+                pad.o.eq(o),
+                pad.oe.eq(oe),
+            ]
+            return pad.i
+        else:
+            i = Signal(reset=RS232_IDLE)
+            self.specials += Tristate(pad, o=o, oe=oe, i=i)
+            return i
+
+
 class RS232PHYMultiplexer(LiteXModule):
     def __init__(self, phys, phy):
         self.sel = Signal(max=len(phys))
@@ -220,14 +318,17 @@ def _get_uart_fifo(depth, sink_cd="sys", source_cd="sys"):
     else:
         return stream.SyncFIFO([("data", 8)], depth, buffered=True)
 
-def UARTPHY(pads, clk_freq, baudrate, with_dynamic_baudrate=False):
+def UARTPHY(pads, clk_freq, baudrate, with_dynamic_baudrate=False, with_auto_swap=False):
     # FT245 Asynchronous FIFO mode (baudrate ignored)
     if hasattr(pads, "rd_n") and hasattr(pads, "wr_n"):
+        if with_auto_swap:
+            raise ValueError("UART auto-swap requires RS232 pads.")
         from litex.soc.cores.usb_fifo import FT245PHYAsynchronous
         return FT245PHYAsynchronous(pads, clk_freq)
     # RS232
     else:
-        return  RS232PHY(pads, clk_freq, baudrate, with_dynamic_baudrate=with_dynamic_baudrate)
+        phy_cls = RS232PHYAutoSwap if with_auto_swap else RS232PHY
+        return  phy_cls(pads, clk_freq, baudrate, with_dynamic_baudrate=with_dynamic_baudrate)
 
 class UART(LiteXModule, UARTInterface):
     def __init__(self, phy=None,
@@ -515,12 +616,16 @@ def get_uart_core(
     fifo_depth            = 16,
     with_dynamic_baudrate = False,
     rx_fifo_rx_we         = False,
+    with_auto_swap        = False,
 ):
     uart_kwargs = {
         "tx_fifo_depth": fifo_depth,
         "rx_fifo_depth": fifo_depth,
         "rx_fifo_rx_we": rx_fifo_rx_we,
     }
+
+    if with_auto_swap and (uart_name in supported_uarts):
+        raise ValueError("UART auto-swap is only supported on serial UARTs.")
 
     # Crossover.
     if uart_name in ["crossover", "crossover+uartbone"]:
@@ -573,5 +678,6 @@ def get_uart_core(
         clk_freq              = clk_freq,
         baudrate              = baudrate,
         with_dynamic_baudrate = with_dynamic_baudrate,
+        with_auto_swap        = with_auto_swap,
     )
     return UART(uart_phy, **uart_kwargs)
