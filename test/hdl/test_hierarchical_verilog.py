@@ -134,8 +134,9 @@ class _SharedMemoryTop(Module):
 class _InlineDropLeaf(Module):
     """Grandchild with real logic and a boundary output."""
     def __init__(self):
+        self.inp = Signal(name="inp")
         self.out = Signal(name="out")
-        self.comb += self.out.eq(1)
+        self.comb += self.out.eq(self.inp)
 
 
 class _InlineDropChild(Module):
@@ -143,6 +144,7 @@ class _InlineDropChild(Module):
         # Owned under this module's path; driven by the parent.
         self.trigger = Signal(name="trigger")
         self.submodules.leaf = _InlineDropLeaf()
+        self.comb += self.leaf.inp.eq(self.trigger)
 
 
 class _InlineDropTop(Module):
@@ -318,7 +320,30 @@ class TestHierarchicalVerilog(unittest.TestCase):
 
         # The grandchild's driver must be emitted somewhere in the netlist;
         # buggy output left `out` as an undriven register instead.
-        self.assertIn("assign out = 1'd1", verilog)
+        self.assertIn("assign out = inp", verilog)
+
+    def test_hierarchical_prefer_ports_lifts_child_internal_drive_to_port(self):
+        # With prefer_ports, a parent driving a child-internal signal must
+        # NOT inline the child; the signal becomes a proper input port.
+        top = _InlineDropTop()
+
+        old_top = LiteXContext.top
+        try:
+            LiteXContext.top = top
+            verilog = convert(top, ios={top.io}, name="top",
+                hierarchical={"enabled": True, "prefer_ports": True}).main_source
+        finally:
+            LiteXContext.top = old_top
+
+        # Child stays a module...
+        child_module = self._module_body(verilog, "top__child")
+        top_module   = self._module_body(verilog, "top")
+        # ...with trigger as an input port...
+        self.assertRegex(child_module, r"input\s+wire\s+trigger")
+        # ...and the grandchild logic is still emitted.
+        leaf_module = self._module_body(verilog, "top__child__leaf")
+        self.assertIn("assign out = inp", leaf_module)
+        self.assertIn(".trigger(trigger)", top_module)
 
     def test_hierarchical_shared_memory_is_emitted_once(self):
         top = _SharedMemoryTop()

@@ -904,6 +904,7 @@ class _HierarchicalBuildContext:
     time_unit: str
     time_precision: str
     ios: set
+    prefer_ports: bool = False
     conv_output: ConvOutput = field(default_factory=ConvOutput)
     root: object = None
     global_clock_domains: object = None
@@ -913,7 +914,7 @@ class _HierarchicalBuildContext:
     ns: object = None
 
 
-def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_translate, regs_init, comb_cycle_policy, time_unit, time_precision):
+def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_translate, regs_init, comb_cycle_policy, time_unit, time_precision, prefer_ports=False):
     if LiteXContext.top is None:
         raise ValueError("Hierarchical Verilog generation requires LiteXContext.top to be set.")
 
@@ -933,6 +934,7 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
         time_unit         = time_unit,
         time_precision    = time_precision,
         ios               = _resolve_ios(ios, platform),
+        prefer_ports      = prefer_ports,
     )
     _apply_io_name_overrides(ctx.ios)
 
@@ -1162,15 +1164,20 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
                 child.inline = True
 
         # Policy 2: parent drives a signal owned under a child path -> inline child.
-        for sig in parent_drivers:
-            owner_path = _normalize_hier_path(_signal_owner_path(sig, default_path=parent_path))
-            if owner_path == parent_path:
-                continue
-            for child in node.children:
-                child_path = _normalize_hier_path(child.path)
-                if owner_path[:len(child_path)] == child_path:
-                    child.inline = True
-                    break
+        # With prefer_ports, the child stays a module and the signal becomes
+        # a proper input port instead (used-outside detection in
+        # _compute_external/_compute_ports lifts it to a port), preserving
+        # the internal hierarchy of the child subtree.
+        if not ctx.prefer_ports:
+            for sig in parent_drivers:
+                owner_path = _normalize_hier_path(_signal_owner_path(sig, default_path=parent_path))
+                if owner_path == parent_path:
+                    continue
+                for child in node.children:
+                    child_path = _normalize_hier_path(child.path)
+                    if owner_path[:len(child_path)] == child_path:
+                        child.inline = True
+                        break
 
         # Policy 3: siblings drive same signal object -> inline all conflicting siblings.
         drivers = {}
@@ -1473,6 +1480,14 @@ def convert(f, ios=set(), name="top", platform=None,
     comb_cycle_policy = _normalize_comb_cycle_policy(comb_cycle_policy)
 
     # Hierarchical Verilog generation (opt-in path).
+    # `hierarchical` may also be a dict of options, e.g.
+    # {"enabled": True, "prefer_ports": True}; "prefer_ports" keeps children
+    # as modules by lifting parent-driven child-internal signals to proper
+    # input ports instead of inlining the whole child subtree.
+    prefer_ports = False
+    if isinstance(hierarchical, dict):
+        prefer_ports = bool(hierarchical.get("prefer_ports", False))
+        hierarchical = bool(hierarchical.get("enabled", True))
     if hierarchical:
         return _convert_hierarchical(
             f                 = f,
@@ -1485,6 +1500,7 @@ def convert(f, ios=set(), name="top", platform=None,
             comb_cycle_policy = comb_cycle_policy,
             time_unit         = time_unit,
             time_precision    = time_precision,
+            prefer_ports      = prefer_ports,
         )
 
     # Create ConvOutput for flat path.
