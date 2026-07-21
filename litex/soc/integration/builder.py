@@ -111,7 +111,7 @@ class Builder:
 
         # Verilog.
         hierarchical     = False,
-        hierarchical_prefer_ports = False,
+        hierarchical_keep_hierarchy = False,
 
         # Build Bundle.
         build_bundle           = False,
@@ -158,7 +158,7 @@ class Builder:
 
         # Verilog.
         self.hierarchical = hierarchical
-        self.hierarchical_prefer_ports = hierarchical_prefer_ports
+        self.hierarchical_keep_hierarchy = hierarchical_keep_hierarchy
 
         # Build Bundle.
         self.build_bundle           = bool(build_bundle) and (os.getenv("LITEX_BUILD_BUNDLE_REPLAY", "0") != "1")
@@ -606,8 +606,8 @@ class Builder:
             kwargs["run"] = self.compile_gateware
 
         if "hierarchical" not in kwargs:
-            if self.hierarchical_prefer_ports:
-                kwargs["hierarchical"] = {"enabled": True, "prefer_ports": True}
+            if self.hierarchical_keep_hierarchy:
+                kwargs["hierarchical"] = {"enabled": True, "keep_hierarchy": True}
             else:
                 kwargs["hierarchical"] = self.hierarchical
 
@@ -664,7 +664,7 @@ def builder_args(parser):
     builder_group.add_argument("--memory-x",              default=None,        help=f"Write SoC memory regions to the specified Memory-X file. {export_help}")
     builder_group.add_argument("--doc",                   action="store_true", help="Generate SoC documentation.")
     builder_group.add_argument("--hierarchical-verilog",  action="store_true", help="Enable hierarchical Verilog generation.")
-    builder_group.add_argument("--hierarchical-prefer-ports", action="store_true", help="Hierarchical Verilog: lift parent-driven child-internal signals to ports instead of inlining (preserves full hierarchy).")
+    builder_group.add_argument("--keep-hierarchy", dest="hierarchical_keep_hierarchy", action="store_true", help="Hierarchical Verilog: keep internal hierarchy; parent-driven child signals become input ports instead of flattening the child subtree.")
     bundle_group = parser.add_argument_group(title="Build bundle options")
     bundle_group.add_argument("--build-bundle",           default=False, nargs="?", const=True, metavar="PATH", help="Generate build input bundle (optionally to PATH).")
     bundle_group.add_argument("--no-build-bundle",        dest="build_bundle", action="store_false",           help="Disable build input bundle generation.")
@@ -706,7 +706,7 @@ def builder_argdict(args):
         "libc_mode"                : args.libc_mode,
         "integrated_rom_auto_size" : not args.no_integrated_rom_auto_size,
         "hierarchical"             : args.hierarchical_verilog,
-        "hierarchical_prefer_ports": args.hierarchical_prefer_ports,
+        "hierarchical_keep_hierarchy": args.hierarchical_keep_hierarchy,
         "build_bundle"             : args.build_bundle,
         "bundle_root"              : args.bundle_root,
         "bundle_include"           : args.bundle_include,

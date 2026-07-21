@@ -322,8 +322,8 @@ class TestHierarchicalVerilog(unittest.TestCase):
         # buggy output left `out` as an undriven register instead.
         self.assertIn("assign out = inp", verilog)
 
-    def test_hierarchical_prefer_ports_lifts_child_internal_drive_to_port(self):
-        # With prefer_ports, a parent driving a child-internal signal must
+    def test_hierarchical_keep_hierarchy_lifts_child_internal_drive_to_port(self):
+        # With keep_hierarchy, a parent driving a child-internal signal must
         # NOT inline the child; the signal becomes a proper input port.
         top = _InlineDropTop()
 
@@ -331,7 +331,7 @@ class TestHierarchicalVerilog(unittest.TestCase):
         try:
             LiteXContext.top = top
             verilog = convert(top, ios={top.io}, name="top",
-                hierarchical={"enabled": True, "prefer_ports": True}).main_source
+                hierarchical={"enabled": True, "keep_hierarchy": True}).main_source
         finally:
             LiteXContext.top = old_top
 
