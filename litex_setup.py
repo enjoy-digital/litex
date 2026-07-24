@@ -217,13 +217,18 @@ def print_indented(output, indent="    ", max_lines=None):
         lines = lines[:max_lines] + [f"... ({remaining} more line(s))"]
     print("\n".join(indent + line for line in lines))
 
+def git_format_sha1(sha1):
+    if isinstance(sha1, int):
+        return f"{sha1:07x}"
+    return str(sha1)
+
 def git_checkout(sha1=None, tag=None, quiet=False, cwd=None):
     assert not ((sha1 is None) and (tag is None))
     checkout_cmd = ["git", "-c", "advice.detachedHead=false", "checkout"]
     if quiet:
         checkout_cmd.append("--quiet")
     if sha1 is not None:
-        subprocess_check_output(checkout_cmd + [f"{sha1:07x}"], cwd=cwd)
+        subprocess_check_output(checkout_cmd + [git_format_sha1(sha1)], cwd=cwd)
     if tag is not None:
         sha1_tag_cmd = ["git", "rev-list", "-n 1", tag]
         sha1_tag     = subprocess_check_output(sha1_tag_cmd, cwd=cwd).strip()
@@ -282,7 +287,7 @@ def git_status_has_tracked_changes(status):
             return True
     return False
 
-def git_confirm_update_with_local_changes(name, repo_path):
+def git_confirm_update_with_local_changes(name, repo_path, assume_yes=False):
     status = git_status(repo_path, short=True)
     if not git_status_has_tracked_changes(status) or not sys.stdin.isatty():
         return
@@ -290,10 +295,11 @@ def git_confirm_update_with_local_changes(name, repo_path):
     print_status("Updating can fail if these changes overlap with upstream changes.")
     print_status("Local changes:")
     print_indented(status, max_lines=12)
-    confirm = input("Continue updating this repository? [y/N]: ")
-    if confirm.strip().lower() not in ["y", "yes"]:
-        print_status("Update cancelled.")
-        raise SetupError
+    if not assume_yes:
+        confirm = input("Continue updating this repository? [y/N]: ")
+        if confirm.strip().lower() not in ["y", "yes"]:
+            print_status("Update cancelled.")
+            raise SetupError
 
 def git_update_error(name, repo_path, action):
     print_error(f"Could not {action} {name} Git repository.")
@@ -398,7 +404,7 @@ def litex_setup_init_repos(config="standard", tag=None, dev_mode=False, clone_de
                 try:
                     git_checkout(sha1=repo.sha1, cwd=repo_path)
                 except subprocess.CalledProcessError:
-                    git_init_error(name, repo_path, f"checkout SHA1 {repo.sha1:07x} in")
+                    git_init_error(name, repo_path, f"checkout SHA1 {git_format_sha1(repo.sha1)} in")
                     raise SetupError
             # Recursive Update (Optional).
             if repo.clone == "recursive":
@@ -413,7 +419,7 @@ def litex_setup_init_repos(config="standard", tag=None, dev_mode=False, clone_de
 
 # Git repositories update --------------------------------------------------------------------------
 
-def litex_setup_update_repos(config="standard", tag=None):
+def litex_setup_update_repos(config="standard", tag=None, assume_yes=False):
     print_status("Updating Git repositories...", underline=True)
     for name in install_configs[config]:
         repo = git_repos[name]
@@ -426,7 +432,7 @@ def litex_setup_update_repos(config="standard", tag=None):
         print_status(f"Updating {name} Git repository...")
         os.chdir(os.path.join(current_path, name))
         repo_path = os.path.join(current_path, name)
-        git_confirm_update_with_local_changes(name, repo_path)
+        git_confirm_update_with_local_changes(name, repo_path, assume_yes=assume_yes)
         try:
             subprocess_check_output(["git", "checkout", "--quiet", repo.branch], cwd=repo_path)
         except subprocess.CalledProcessError:
@@ -461,7 +467,7 @@ def litex_setup_update_repos(config="standard", tag=None):
             try:
                 git_checkout(sha1=repo.sha1, quiet=True, cwd=repo_path)
             except subprocess.CalledProcessError:
-                git_update_error(name, repo_path, f"checkout SHA1 {repo.sha1:07x} in")
+                git_update_error(name, repo_path, f"checkout SHA1 {git_format_sha1(repo.sha1)} in")
                 raise SetupError
         # Recursive Update (Optional).
         if repo.clone == "recursive":
@@ -729,7 +735,7 @@ def litex_setup_format_frozen_repo(name, repo, git_url, git_sha1):
         args.append(f"develop={repo.develop}")
     if repo.editable is not True:
         args.append(f"editable={repo.editable}")
-    args.append(f"sha1=0x{git_sha1}")
+    args.append(f'sha1="{git_sha1}"')
     if repo.branch != "master":
         args.append(f'branch="{repo.branch}"')
     if repo.tag is not None:
@@ -988,6 +994,8 @@ def main():
         help="Pass pip's --break-system-packages option when installing outside a virtual environment.")
     parser.add_argument("--config",    default="standard",  help="Install config (minimal, standard, full).")
     parser.add_argument("--tag",       default=None,        help="Use version from release tag.")
+    parser.add_argument("-y", "--yes", action="store_true",
+        help="Automatically confirm updates for repositories with local changes.")
     parser.add_argument("--clone-depth", type=int, default=None,
         help="Use shallow Git clones with this depth during --init when compatible.")
 
@@ -1036,7 +1044,7 @@ def main():
 
     # Update.
     if args.update:
-        litex_setup_update_repos(config=args.config, tag=args.tag)
+        litex_setup_update_repos(config=args.config, tag=args.tag, assume_yes=args.yes)
 
     # Install.
     if args.install:

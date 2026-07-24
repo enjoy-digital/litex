@@ -9,6 +9,7 @@ import os
 import signal
 import subprocess
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from litex.build.sim.config import SimConfig
@@ -67,6 +68,20 @@ class TestSimVerilatorUserHooks(unittest.TestCase):
         content = write_to_file.call_args.args[1]
         self.assertIn("litex_sim_user_init", content)
         self.assertIn("litex_sim_call_user_init(sim);", content)
+        self.assertIn("extern \"C\" void litex_sim_user_init(void *vsim)", content)
+        self.assertIn("(void)vsim;", content)
+        self.assertIn("litex_sim_user_init(vsim);", content)
+        self.assertNotIn("litex_sim_user_init != nullptr", content)
+
+    def test_veril_cpp_defines_default_user_eval_hooks(self):
+        content = (Path(verilator.core_directory) / "veril.cpp").read_text()
+
+        self.assertIn("extern \"C\" void litex_sim_user_pre_eval", content)
+        self.assertIn("extern \"C\" void litex_sim_user_post_eval", content)
+        self.assertIn("litex_sim_user_pre_eval(vsim, time_ps);", content)
+        self.assertIn("litex_sim_user_post_eval(vsim, time_ps);", content)
+        self.assertNotIn("litex_sim_user_pre_eval != nullptr", content)
+        self.assertNotIn("litex_sim_user_post_eval != nullptr", content)
 
     def test_generate_sim_variables_adds_extra_sources(self):
         with mock.patch.object(verilator.tools, "write_to_file") as write_to_file:

@@ -29,6 +29,7 @@ reset_vector:
 3:
 
 	call litex_startup_init
+
 	call main
 
 1:	j 1b

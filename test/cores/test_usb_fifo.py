@@ -9,7 +9,9 @@ import unittest
 from migen import *
 from migen.fhdl.specials import Tristate
 
-from litex.soc.cores.usb_fifo import FT245PHYAsynchronous
+from litex.build.io import SDRTristate
+
+from litex.soc.cores.usb_fifo import FT245PHYAsynchronous, FT245PHYSynchronous
 
 from test.support.common import MockTristate
 
@@ -26,8 +28,49 @@ class _FT245Pads:
         self.data  = Signal(dw)
         self.rxf_n = Signal(reset=1)
         self.txe_n = Signal(reset=1)
+        self.oe_n  = Signal()
         self.rd_n  = Signal()
         self.wr_n  = Signal()
+
+
+class _FT245SyncDUT(Module):
+    def __init__(self, pads, clk_freq=100e6):
+        self.clock_domains.cd_sys = ClockDomain("sys")
+        self.clock_domains.cd_usb = ClockDomain("usb")
+        self.comb += [
+            self.cd_sys.rst.eq(0),
+            self.cd_usb.rst.eq(0),
+        ]
+        self.submodules.phy = FT245PHYSynchronous(pads, clk_freq, fifo_depth=8, read_time=16, write_time=16)
+
+
+class _MockSDRTristateImpl(Module):
+    def __init__(self, t):
+        t.i_mock = Signal(len(t.io), reset=2**len(t.io) - 1)
+        o        = Signal.like(t.o)
+        oe       = Signal.like(t.oe)
+
+        self.sync.usb += [
+            o.eq( t.o),
+            oe.eq(t.oe),
+        ]
+        self.comb += If(oe,
+            t.io.eq(o),
+        ).Else(
+            t.io.eq(t.i_mock),
+        )
+        if t.i is not None:
+            self.sync.usb += If(oe,
+                t.i.eq(o),
+            ).Else(
+                t.i.eq(t.i_mock),
+            )
+
+
+class MockSDRTristate:
+    @staticmethod
+    def lower(t):
+        return _MockSDRTristateImpl(t)
 
 
 # Tests --------------------------------------------------------------------------------------------
@@ -137,6 +180,86 @@ class TestFT245PHYAsynchronous(unittest.TestCase):
 
         run_simulation(dut, [producer(), ftdi_side()], special_overrides={Tristate: MockTristate})
         self.assertIn(0xA5, captured)
+
+
+class TestFT245PHYSynchronous(unittest.TestCase):
+    def _run(self, dut, generators):
+        clocks = {
+            "sys" : 10,
+            "usb" : 10,
+        }
+        for cdc in [dut.phy.read_cdc, dut.phy.write_cdc]:
+            clocks[f"from{cdc.duid}"] = 10
+            clocks[f"to{cdc.duid}"]   = 10
+        run_simulation(
+            dut,
+            generators,
+            clocks            = clocks,
+            special_overrides = {SDRTristate: MockSDRTristate},
+        )
+
+    def _producer(self, dut, payload):
+        for byte in payload:
+            yield dut.phy.sink.data.eq(byte)
+            yield dut.phy.sink.valid.eq(1)
+            while not (yield dut.phy.sink.ready):
+                yield
+            yield
+        yield dut.phy.sink.valid.eq(0)
+
+    def test_write_burst_has_no_leading_word(self):
+        pads     = _FT245Pads()
+        dut      = _FT245SyncDUT(pads)
+        payload  = [0x11, 0x22, 0x33, 0x44]
+        captured = []
+
+        def ftdi_side():
+            yield pads.rxf_n.eq(1)
+            yield pads.txe_n.eq(0)
+            for _ in range(500):
+                if (yield pads.wr_n) == 0:
+                    captured.append((yield pads.data))
+                    if len(captured) == len(payload):
+                        return
+                yield
+            self.fail("synchronous FT245 write burst stalled")
+
+        self._run(dut, {
+            "sys" : [self._producer(dut, payload)],
+            "usb" : [ftdi_side()],
+        })
+        self.assertEqual(captured, payload)
+
+    def test_write_txe_pause_keeps_prefetched_word(self):
+        pads     = _FT245Pads()
+        dut      = _FT245SyncDUT(pads)
+        payload  = [0x10, 0x20, 0x30, 0x40]
+        captured = []
+
+        def ftdi_side():
+            yield pads.rxf_n.eq(1)
+            yield pads.txe_n.eq(0)
+            pause_cycles = 0
+            for _ in range(800):
+                if (yield pads.wr_n) == 0 and (yield pads.txe_n) == 0:
+                    captured.append((yield pads.data))
+                    if len(captured) == 2:
+                        pause_cycles = 8
+                    if len(captured) == len(payload):
+                        return
+                if pause_cycles:
+                    yield pads.txe_n.eq(1)
+                    pause_cycles -= 1
+                else:
+                    yield pads.txe_n.eq(0)
+                yield
+            self.fail("synchronous FT245 write burst stalled after TXE# pause")
+
+        self._run(dut, {
+            "sys" : [self._producer(dut, payload)],
+            "usb" : [ftdi_side()],
+        })
+        self.assertEqual(captured, payload)
 
 
 if __name__ == "__main__":

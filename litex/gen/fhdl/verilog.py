@@ -17,6 +17,7 @@ import time
 import datetime
 import collections
 import re
+import warnings
 
 from dataclasses import dataclass, field
 from enum import IntEnum
@@ -485,19 +486,148 @@ def _generate_signals(f, ios, name, ns, attr_translate, regs_init, signals_overr
 #                                  COMBINATORIAL LOGIC                                             #
 # ------------------------------------------------------------------------------------------------ #
 
-def _generate_combinatorial_logic(f, ns):
+_comb_cycle_policies = {
+    "ignore"  : "ignore",
+    "warn"    : "warn",
+    "warning" : "warn",
+    "error"   : "error",
+}
+
+def _normalize_comb_cycle_policy(policy):
+    if isinstance(policy, str):
+        policy = policy.lower()
+    try:
+        return _comb_cycle_policies[policy]
+    except (KeyError, TypeError):
+        raise ValueError(
+            f"Invalid comb_cycle_policy {policy!r}, expected one of: "
+            f"{', '.join(sorted(_comb_cycle_policies))}."
+        )
+
+def _collect_target_dependencies(node, deps, active_inputs=None):
+    if active_inputs is None:
+        active_inputs = set()
+
+    if isinstance(node, _Assign):
+        inputs = set(list_inputs(node)) | active_inputs
+        for target in list_targets(node):
+            deps[target] |= inputs
+
+    elif isinstance(node, collections.abc.Iterable):
+        for statement in node:
+            _collect_target_dependencies(statement, deps, active_inputs)
+
+    elif isinstance(node, If):
+        inputs = active_inputs | set(list_inputs(node.cond))
+        _collect_target_dependencies(node.t, deps, inputs)
+        _collect_target_dependencies(node.f, deps, inputs)
+
+    elif isinstance(node, Case):
+        inputs = active_inputs | set(list_inputs(node.test))
+        for statements in node.cases.values():
+            _collect_target_dependencies(statements, deps, inputs)
+
+def _build_target_dependency_graph(statements, targets):
+    targets = set(targets)
+    deps = collections.defaultdict(set)
+    _collect_target_dependencies(statements, deps)
+    for target in targets:
+        deps[target] &= targets
+    deps = {target: deps[target] for target in targets}
+    return deps
+
+def _topological_sort_targets(targets, deps, ns):
+    remaining = set(targets)
+    ordered   = []
+    while remaining:
+        ready = [
+            target for target in remaining
+            if deps.get(target, set()).isdisjoint(remaining)
+        ]
+        if not ready:
+            return None
+        ready = sorted(ready, key=lambda x: ns.get_name(x))
+        ordered.append(ready[0])
+        remaining.remove(ready[0])
+    return ordered
+
+def _find_target_dependency_cycle(deps, ns):
+    visiting = set()
+    visited  = set()
+    stack    = []
+
+    def visit(target):
+        if target in visited:
+            return None
+        if target in visiting:
+            index = stack.index(target)
+            return stack[index:] + [target]
+        visiting.add(target)
+        stack.append(target)
+        for dep in sorted(deps.get(target, set()), key=lambda x: ns.get_name(x)):
+            cycle = visit(dep)
+            if cycle is not None:
+                return cycle
+        stack.pop()
+        visiting.remove(target)
+        visited.add(target)
+        return None
+
+    for target in sorted(deps, key=lambda x: ns.get_name(x)):
+        cycle = visit(target)
+        if cycle is not None:
+            return cycle
+    return []
+
+def _format_target_cycle(cycle, ns):
+    if cycle:
+        return " -> ".join(ns.get_name(target) for target in cycle)
+    return "unknown cycle"
+
+def _handle_comb_cycles(f, ns, comb_cycle_policy):
+    policy  = _normalize_comb_cycle_policy(comb_cycle_policy)
+    targets = set(list_targets(f.comb))
+    if not targets:
+        return policy
+
+    deps = _build_target_dependency_graph(f.comb, targets)
+    if _topological_sort_targets(targets, deps, ns) is not None:
+        return policy
+
+    cycle = _find_target_dependency_cycle(deps, ns)
+    msg = f"Combinatorial cycle detected: {_format_target_cycle(cycle, ns)}."
+    if policy == "error":
+        raise ValueError(msg)
+    if policy == "warn":
+        warnings.warn(msg, RuntimeWarning)
+    return policy
+
+def _generate_combinatorial_logic(f, ns, comb_cycle_policy="warn"):
     r = ""
     if f.comb:
+        _handle_comb_cycles(f, ns, comb_cycle_policy)
         groups = group_by_targets(f.comb)
 
         for n, g in enumerate(groups):
             if _use_wire(g[1]):
                 r += "assign " + _generate_node(ns, AssignType.BLOCKING, 0, g[1][0])
             else:
+                deps            = _build_target_dependency_graph(g[1], g[0])
+                ordered_targets = _topological_sort_targets(g[0], deps, ns)
+                assign_type     = AssignType.BLOCKING
+                assignment      = " = "
+                if ordered_targets is None:
+                    ordered_targets = sorted(g[0], key=lambda x: ns.get_name(x))
+                    assign_type     = AssignType.NON_BLOCKING
+                    assignment      = " <= "
                 r += "always @(*) begin\n"
                 for t in sorted(g[0], key=lambda x: ns.get_name(x)):
-                    r += _tab + ns.get_name(t) + " = " + _generate_expression(ns, t.reset)[0] + ";\n"
-                r += _generate_node(ns, AssignType.BLOCKING, 1, g[1])
+                    r += _tab + ns.get_name(t) + assignment + _generate_expression(ns, t.reset)[0] + ";\n"
+                if assign_type == AssignType.BLOCKING and any(deps.values()):
+                    for t in ordered_targets:
+                        r += _generate_node(ns, assign_type, 1, g[1], t)
+                else:
+                    r += _generate_node(ns, assign_type, 1, g[1])
                 r += "end\n"
     r += "\n"
     return r
@@ -770,6 +900,7 @@ class _HierarchicalBuildContext:
     special_overrides: dict
     attr_translate: object
     regs_init: bool
+    comb_cycle_policy: str
     time_unit: str
     time_precision: str
     ios: set
@@ -782,7 +913,7 @@ class _HierarchicalBuildContext:
     ns: object = None
 
 
-def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_translate, regs_init, time_unit, time_precision):
+def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_translate, regs_init, comb_cycle_policy, time_unit, time_precision):
     if LiteXContext.top is None:
         raise ValueError("Hierarchical Verilog generation requires LiteXContext.top to be set.")
 
@@ -798,6 +929,7 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
         special_overrides = special_overrides,
         attr_translate    = attr_translate,
         regs_init         = regs_init,
+        comb_cycle_policy = comb_cycle_policy,
         time_unit         = time_unit,
         time_precision    = time_precision,
         ios               = _resolve_ios(ios, platform),
@@ -1008,10 +1140,17 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
 
     _collect_raw_statements(ctx.root)
 
+    # Initialize inline flags before applying policies so recursive visits do
+    # not undo an ancestor's decision to inline a complete subtree.
+    def _reset_inline(node):
+        node.inline = False
+        for child in node.children:
+            _reset_inline(child)
+
+    _reset_inline(ctx.root)
+
     def _mark_inline(node):
         parent_path = _normalize_hier_path(node.path)
-        for child in node.children:
-            child.inline = False
         parent_drivers = set(getattr(node, "raw_self_targets", node.raw_targets))
 
         # Policy 1: parent and child both drive same signal object -> inline child.
@@ -1288,7 +1427,7 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
         parts.append(_generate_separator("Submodules"))
         parts.append(_generate_submodule_instances(node, ctx.ns))
         parts.append(_generate_separator("Combinatorial Logic"))
-        parts.append(_generate_combinatorial_logic(node.fragment, ctx.ns))
+        parts.append(_generate_combinatorial_logic(node.fragment, ctx.ns, ctx.comb_cycle_policy))
         parts.append(_generate_separator("Synchronous Logic"))
         parts.append(_generate_synchronous_logic(node.fragment, ctx.ns))
         parts.append(_generate_separator("Specialized Logic"))
@@ -1316,6 +1455,7 @@ def convert(f, ios=set(), name="top", platform=None,
     attr_translate    = DummyAttrTranslate(),
     regs_init         = True,
     hierarchical      = False,
+    comb_cycle_policy = "warn",
     # Sim parameters.
     time_unit      = "1ns",
     time_precision = "1ps",
@@ -1327,6 +1467,7 @@ def convert(f, ios=set(), name="top", platform=None,
     # Convert to FHDL fragment if needed (used by both flat and hierarchical paths).
     if not isinstance(f, _Fragment):
         f = f.get_fragment()
+    comb_cycle_policy = _normalize_comb_cycle_policy(comb_cycle_policy)
 
     # Hierarchical Verilog generation (opt-in path).
     if hierarchical:
@@ -1338,6 +1479,7 @@ def convert(f, ios=set(), name="top", platform=None,
             special_overrides = special_overrides,
             attr_translate    = attr_translate,
             regs_init         = regs_init,
+            comb_cycle_policy = comb_cycle_policy,
             time_unit         = time_unit,
             time_precision    = time_precision,
         )
@@ -1401,7 +1543,7 @@ def convert(f, ios=set(), name="top", platform=None,
 
     # Combinatorial Logic.
     verilog += _generate_separator("Combinatorial Logic")
-    verilog += _generate_combinatorial_logic(f, ns)
+    verilog += _generate_combinatorial_logic(f, ns, comb_cycle_policy)
 
     # Synchronous Logic.
     verilog += _generate_separator("Synchronous Logic")

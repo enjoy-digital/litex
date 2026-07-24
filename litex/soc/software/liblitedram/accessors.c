@@ -156,11 +156,11 @@ void sdram_select(int module, int dq_line) {
 void sdram_deselect(int module, int dq_line) {
 	ddrphy_dly_sel_write(0);
 
-#if defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY) || defined(SDRAM_PHY_GW5DDRPHY)
+#if defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY) || defined(SDRAM_PHY_GW5DDRPHY) || defined(SDRAM_PHY_NEXUSDDRPHY)
 	/* Sync all DQSBUFM's, By toggling all dly_sel (DQSBUFM.PAUSE) lines. */
 	ddrphy_dly_sel_write(0xff);
 	ddrphy_dly_sel_write(0);
-#endif // defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY) || defined(SDRAM_PHY_GW5DDRPHY)
+#endif // defined(SDRAM_PHY_ECP5DDRPHY) || defined(SDRAM_PHY_GW2DDRPHY) || defined(SDRAM_PHY_GW5DDRPHY) || defined(SDRAM_PHY_NEXUSDDRPHY)
 
 #ifdef SDRAM_DELAY_PER_DQ
 	/* Un-select DQ line */

@@ -98,15 +98,44 @@ class Zynq7000(CPU):
             "PCW_GPIO_EMIO_GPIO_IO"     : 64,
         }
         ps7_rst_n       = Signal()
-        ps7_ddram_pads  = platform.request("ps7_ddram", reserve=self.reserve_pads)
+        if self.reserve_pads:
+            ps7_ddram_pads = platform.request("ps7_ddram", reserve=True)
+            ps7_clk        = platform.request("ps7_clk",    reserve=True)
+            ps7_porb       = platform.request("ps7_porb",   reserve=True)
+            ps7_srstb      = platform.request("ps7_srstb",  reserve=True)
+            ps7_mio        = platform.request("ps7_mio",    reserve=True)
+        else:
+            ps7_ddram_pads = Record([
+                ("addr",   16),
+                ("ba",      3),
+                ("cas_n",   1),
+                ("ck_n",    1),
+                ("ck_p",    1),
+                ("cke",     1),
+                ("cs_n",    1),
+                ("dm",      4),
+                ("dq",     32),
+                ("dqs_n",   4),
+                ("dqs_p",   4),
+                ("odt",     1),
+                ("ras_n",   1),
+                ("reset_n", 1),
+                ("we_n",    1),
+                ("vrn",     1),
+                ("vrp",     1),
+            ])
+            ps7_clk         = Signal()
+            ps7_porb        = Signal()
+            ps7_srstb       = Signal()
+            ps7_mio         = Signal(54)
         self.cpu_params = dict(
             # Clk / Rst.
-            io_PS_CLK   = platform.request("ps7_clk", reserve=self.reserve_pads),
-            io_PS_PORB  = platform.request("ps7_porb", reserve=self.reserve_pads),
-            io_PS_SRSTB = platform.request("ps7_srstb", reserve=self.reserve_pads),
+            io_PS_CLK   = ps7_clk,
+            io_PS_PORB  = ps7_porb,
+            io_PS_SRSTB = ps7_srstb,
 
             # MIO.
-            io_MIO = platform.request("ps7_mio", reserve=self.reserve_pads),
+            io_MIO = ps7_mio,
 
             # EMIO.
             i_GPIO_I = self._emio_pads_i,

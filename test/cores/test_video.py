@@ -20,10 +20,13 @@ from litex.soc.cores.video import (
     VideoTimingGenerator,
     ColorBarsPattern,
     VideoGenericPHY,
+    VideoFrameBuffer,
     video_framebuffer_format_depth,
     video_framebuffer_size,
 )
+from litex.soc.cores.dma import WishboneDMAReader
 from litex.soc.cores.code_tmds import TMDSEncoder, control_tokens
+from litex.soc.interconnect import wishbone
 
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -88,6 +91,153 @@ class TestVideoFrameBufferHelpers(unittest.TestCase):
         self.assertEqual(video_framebuffer_size(640, 480, "rgb888"), 640*480*4)
         self.assertEqual(video_framebuffer_size(640, 480, "rgb565"), 640*480*2)
         self.assertEqual(video_framebuffer_size(13,    2, "mono1"),  2*2)
+
+    def test_wishbone_port_uses_wishbone_dma_reader(self):
+        port = wishbone.Interface(data_width=32)
+
+        framebuffer = VideoFrameBuffer(port, hres=8, vres=4, fifo_depth=64)
+
+        self.assertIsInstance(framebuffer.dma, WishboneDMAReader)
+        self.assertIs(framebuffer.dma.bus, port)
+
+    def test_fifo_depth_is_rounded_up_to_one_port_word(self):
+        framebuffer = VideoFrameBuffer(
+            wishbone.Interface(data_width=64),
+            hres       = 1,
+            vres       = 1,
+            fifo_depth = 1,
+        )
+
+        self.assertEqual(framebuffer.dma.fifo.depth, 1)
+
+    def test_fifo_depth_must_be_positive(self):
+        for fifo_depth in [0, -1, None, True]:
+            with self.subTest(fifo_depth=fifo_depth):
+                with self.assertRaisesRegex(ValueError, "positive integer"):
+                    VideoFrameBuffer(
+                        wishbone.Interface(data_width=32),
+                        hres       = 1,
+                        vres       = 1,
+                        fifo_depth = fifo_depth,
+                    )
+
+    def test_unsupported_dma_port_is_rejected(self):
+        with self.assertRaisesRegex(TypeError, "Wishbone or LiteDRAM"):
+            VideoFrameBuffer(object(), hres=1, vres=1, fifo_depth=4)
+
+    def test_dma_port_must_be_readable(self):
+        with self.assertRaisesRegex(ValueError, "read access"):
+            VideoFrameBuffer(
+                wishbone.Interface(data_width=32, mode="w"),
+                hres       = 1,
+                vres       = 1,
+                fifo_depth = 4,
+            )
+
+
+class TestVideoFrameBufferData(unittest.TestCase):
+    @staticmethod
+    def _timings(hres):
+        return {
+            "pix_clk"       : 1e6,
+            "h_active"      : hres,
+            "h_blanking"    : 4,
+            "h_sync_offset" : 1,
+            "h_sync_width"  : 1,
+            "v_active"      : 1,
+            "v_blanking"    : 4,
+            "v_sync_offset" : 1,
+            "v_sync_width"  : 1,
+        }
+
+    def _capture_pixels(self, backend, format, hres, words):
+        if backend == "wishbone":
+            port = wishbone.Interface(data_width=32)
+        else:
+            from litedram.common import LiteDRAMNativePort
+            port = LiteDRAMNativePort(mode="read", address_width=24, data_width=32)
+
+        class DUT(Module):
+            def __init__(self):
+                self.submodules.vtg = VideoTimingGenerator(
+                    default_video_timings=TestVideoFrameBufferData._timings(hres))
+                self.submodules.framebuffer = VideoFrameBuffer(
+                    port,
+                    hres       = hres,
+                    vres       = 1,
+                    fifo_depth = 16,
+                    format     = format,
+                )
+                self.comb += self.vtg.source.connect(self.framebuffer.vtg_sink)
+
+        dut      = DUT()
+        captured = []
+
+        @passive
+        def wishbone_memory():
+            while True:
+                if (yield port.cyc) and (yield port.stb):
+                    address = (yield port.adr)
+                    yield port.dat_r.eq(words[address % len(words)])
+                    yield port.ack.eq(1)
+                    yield
+                    yield port.ack.eq(0)
+                yield
+
+        @passive
+        def litedram_memory():
+            pending = None
+            while True:
+                yield port.cmd.ready.eq(pending is None)
+                if (yield port.cmd.valid) and (yield port.cmd.ready):
+                    pending = words[(yield port.cmd.addr) % len(words)]
+                yield port.rdata.valid.eq(pending is not None)
+                if pending is not None:
+                    yield port.rdata.data.eq(pending)
+                    if (yield port.rdata.ready):
+                        pending = None
+                yield
+
+        def capture():
+            yield dut.framebuffer.dma._enable.storage.eq(1)
+            yield dut.framebuffer.source.ready.eq(1)
+            for _ in range(2000):
+                if ((yield dut.framebuffer.source.valid) and
+                    (yield dut.framebuffer.source.ready) and
+                    (yield dut.framebuffer.source.de)):
+                    captured.append((
+                        (yield dut.framebuffer.source.r),
+                        (yield dut.framebuffer.source.g),
+                        (yield dut.framebuffer.source.b),
+                    ))
+                    if len(captured) == hres:
+                        return
+                yield
+            self.fail("Timed out waiting for framebuffer pixels.")
+
+        memory = wishbone_memory if backend == "wishbone" else litedram_memory
+        _run(dut, [memory(), capture()])
+        return captured
+
+    def test_pixel_order_matches_across_dma_backends(self):
+        mono_bits = 0xa5a55aa5
+        cases = [
+            ("rgb888", 1, [0x00332211], [(0x11, 0x22, 0x33)]),
+            ("rgb565", 2, [0x07e0f800], [(0xf8, 0x00, 0x00), (0x00, 0xfc, 0x00)]),
+            ("rgb332", 4, [0xff031ce0], [(0xe0, 0x00, 0x00), (0x00, 0xe0, 0x00),
+                                                   (0x00, 0x00, 0xc0), (0xe0, 0xe0, 0xc0)]),
+            ("mono8",  4, [0xffaa5511], [(value, value, value) for value in [0x11, 0x55, 0xaa, 0xff]]),
+            ("mono1", 32, [mono_bits],  [(0x80, 0x80, 0x80) if (mono_bits >> i) & 1 else (0, 0, 0)
+                                         for i in range(32)]),
+        ]
+
+        for format, hres, words, expected in cases:
+            for backend in ["wishbone", "litedram"]:
+                with self.subTest(format=format, backend=backend):
+                    self.assertEqual(
+                        self._capture_pixels(backend, format, hres, words),
+                        expected,
+                    )
 
 
 # VideoTimingGenerator -----------------------------------------------------------------------------

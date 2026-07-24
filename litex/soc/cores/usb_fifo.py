@@ -90,12 +90,15 @@ class FT245PHYSynchronous(LiteXModule):
         read_time_en,  max_read_time  = anti_starvation(self, read_time)
         write_time_en, max_write_time = anti_starvation(self, write_time)
 
+        write_data  = Signal(dw)
+        write_valid = Signal()
+
         # Read / Write Detection.
         # -----------------------
         self.wants_write = wants_write = Signal()
         self.wants_read  = wants_read  = Signal()
         self.comb += [
-            wants_write.eq(~pads.txe_n & self.write_cdc.source.valid),
+            wants_write.eq(~pads.txe_n & (write_valid | self.write_cdc.source.valid)),
             wants_read.eq( ~pads.rxf_n & (self.read_cdc.sink.ready & ~read_fifo_almost_full_usb)),
         ]
 
@@ -121,6 +124,11 @@ class FT245PHYSynchronous(LiteXModule):
                     i   = Signal(),
                     clk = ClockSignal("usb")
                 )
+
+        write_done       = write_valid & ~pads.wr_n & ~pads.txe_n
+        write_load       = self.write_cdc.source.valid & (~write_valid | write_done)
+        write_next_valid = (write_valid & ~write_done) | write_load
+        write_to_read    = wants_read & (~wants_write | max_write_time)
 
         # Read / Write FSM.
         # -----------------
@@ -150,19 +158,24 @@ class FT245PHYSynchronous(LiteXModule):
         fsm.act("WRITE",
             # Arbitration.
             write_time_en.eq(1),
-            If(wants_read,
-                If(~wants_write | max_write_time,
-                    NextState("WRITE-TO-READ")
-                )
+            If(write_to_read,
+                NextState("WRITE-TO-READ")
             ),
             # Control/Data-Path.
             data_oe.eq(1),
             NextValue(pads.oe_n, 1),
             NextValue(pads.rd_n, 1),
-            NextValue(pads.wr_n, ~wants_write),
-            #data_w.eq(write_fifo.source.data),
-            NextValue(data_w, self.write_cdc.source.data), # FIXME: Add 1 cycle delay.
-            self.write_cdc.source.ready.eq(wants_write),
+            If(write_load,
+                data_w.eq(self.write_cdc.source.data),
+            ).Else(
+                data_w.eq(write_data),
+            ),
+            self.write_cdc.source.ready.eq(write_load),
+            NextValue(write_valid, write_next_valid),
+            If(write_load,
+                NextValue(write_data, self.write_cdc.source.data),
+            ),
+            NextValue(pads.wr_n, ~(write_next_valid & ~pads.txe_n & ~write_to_read)),
         )
         fsm.act("WRITE-TO-READ",
             NextState("READ")

@@ -263,6 +263,69 @@ class TestBuildIO(unittest.TestCase):
         self.assertIn("output wire    [1:0] i_async", v)
         self.assertIn("assign i_async =", v)
 
+    def test_lattice_ice40_ddr_tristate_uses_physical_io_cells(self):
+        io  = Signal(4)
+        o1  = Signal(4)
+        o2  = Signal(4)
+        oe  = Signal(4)
+        i1  = Signal(4)
+        i2  = Signal(4)
+        clk = Signal()
+
+        v = _convert_special(
+            DDRTristate(io, o1, o2, oe, i1=i1, i2=i2, clk=clk),
+            {io, o1, o2, oe, i1, i2, clk},
+            lattice_ice40_special_overrides,
+        )
+
+        self.assertEqual(v.count(" of SB_IO Module."), 4)
+        self.assertEqual(v.count(".PIN_TYPE    (6'd48)"), 4)
+        self.assertIn(".PACKAGE_PIN   (io[0])", v)
+        self.assertIn(".PACKAGE_PIN   (io[3])", v)
+        self.assertNotIn("inferredddrtristate", v)
+
+    def test_lattice_ice40_ddr_tristate_preserves_i_async(self):
+        io      = Signal(2)
+        o1      = Signal(2)
+        o2      = Signal(2)
+        oe      = Signal(2)
+        i1      = Signal(2)
+        i2      = Signal(2)
+        i_async = Signal(2)
+        clk     = Signal()
+
+        v = _convert_special(
+            DDRTristate(io, o1, o2, oe, i1=i1, i2=i2, clk=clk, i_async=i_async),
+            {io, o1, o2, oe, i1, i2, i_async, clk},
+            lattice_ice40_special_overrides,
+        )
+
+        self.assertEqual(v.count(" of SB_IO Module."), 2)
+        self.assertEqual(v.count(".PIN_TYPE    (6'd49)"), 2)
+        self.assertEqual(v.count(" of SB_DFF Module."), 2)
+        self.assertNotIn("inferredddrtristate", v)
+
+    def test_lattice_ice40_ddr_tristate_rejects_ddr_output_enable(self):
+        io  = Signal()
+        o1  = Signal()
+        o2  = Signal()
+        oe1 = Signal()
+        oe2 = Signal()
+        clk = Signal()
+        with self.assertRaisesRegex(ValueError, "DDR output enable"):
+            _convert_special(
+                DDRTristate(
+                    io  = io,
+                    o1  = o1,
+                    o2  = o2,
+                    oe1 = oe1,
+                    oe2 = oe2,
+                    clk = clk,
+                ),
+                {io, o1, o2, oe1, oe2, clk},
+                lattice_ice40_special_overrides,
+            )
+
     def test_efinix_ddr_tristate_rejects_i_async_with_registered_inputs(self):
         with self.assertRaisesRegex(ValueError, "i_async"):
             EfinixTrionDDRTristateImpl(

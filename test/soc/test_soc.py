@@ -16,9 +16,10 @@ from types import SimpleNamespace
 from migen import ClockDomain, Record, Signal
 from migen.sim import run_simulation
 
+from litex.soc.cores.dma import WishboneDMAReader
 from litex.soc.cores.hyperbus import HyperRAM
-from litex.soc.cores.video import video_framebuffer_size
-from litex.soc.interconnect import axi, wishbone
+from litex.soc.cores.video import video_data_layout, video_framebuffer_size
+from litex.soc.interconnect import axi, stream, wishbone
 
 from litex.soc.integration.soc import (
     LiteXSoC,
@@ -110,7 +111,6 @@ class _CRGWithEfinityPLL:
 def _make_bus_interface(interface_cls, data_width=32, address_width=32):
     return interface_cls(data_width=data_width, address_width=address_width)
 
-
 class TestSoCCoreCompatibility(unittest.TestCase):
     def test_soc_core_reexports_canonical_soc_api(self):
         self.assertIs(soc_core.mem_decoder,      mem_decoder)
@@ -190,58 +190,228 @@ class TestSoCVideoFrameBuffer(unittest.TestCase):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
         soc.bus.add_region("main_ram", SoCRegion(origin=0x40000000, size=0x04000000))
 
-        region = soc._get_video_framebuffer_default_region("video_framebuffer", 0x0012c000)
+        region = soc._get_video_framebuffer_region("video_framebuffer", 0x0012c000)
 
         self.assertEqual(region.origin, 0x43e00000)
         self.assertEqual(region.size,   0x0012c000)
         self.assertTrue(region.linker)
+        self.assertTrue(region.decode)
 
     def test_default_region_fits_small_main_ram(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
         soc.bus.add_region("main_ram", SoCRegion(origin=0x40000000, size=0x00800000))
 
         framebuffer_size = video_framebuffer_size(800, 600, "rgb888")
-        region = soc._get_video_framebuffer_default_region("video_framebuffer", framebuffer_size)
+        region = soc._get_video_framebuffer_region("video_framebuffer", framebuffer_size)
 
         self.assertEqual(region.origin, 0x40600000)
         self.assertEqual(region.size,   framebuffer_size)
         self.assertLessEqual(region.origin + region.size, 0x40800000)
         self.assertTrue(region.linker)
 
-    def test_default_region_falls_back_when_main_ram_is_unknown(self):
+    def test_default_region_requires_main_ram(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
 
-        region = soc._get_video_framebuffer_default_region("video_framebuffer", 0x0012c000)
+        with _assert_raises_soc_error(self):
+            soc._get_video_framebuffer_region("video_framebuffer", 0x0012c000)
 
-        self.assertEqual(region.origin, 0x40c00000)
-        self.assertEqual(region.size,   0x0012c000)
-        self.assertTrue(region.linker)
-
-    def test_default_base_adds_region_at_end_of_main_ram(self):
+    def test_explicit_base_overrides_mem_map(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
-        soc.bus.add_region("main_ram", SoCRegion(origin=0x40000000, size=0x04000000))
-
-        base = soc._get_video_framebuffer_base("video_framebuffer", 0x0012c000)
-
-        self.assertEqual(base, 0x43e00000)
-        self.assertEqual(soc.bus.regions["video_framebuffer"].origin, 0x43e00000)
-
-    def test_explicit_mem_map_override_is_preserved(self):
-        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.bus.add_region("main_ram", SoCRegion(origin=0x50000000, size=0x04000000))
         soc.mem_map["video_framebuffer"] = 0x50c00000
 
-        base = soc._get_video_framebuffer_base("video_framebuffer", 0x0012c000)
+        region = soc._get_video_framebuffer_region(
+            "video_framebuffer", 0x0012c000, base=0x51000000)
 
-        self.assertEqual(base, 0x50c00000)
-        self.assertNotIn("video_framebuffer", soc.bus.regions)
+        self.assertEqual(region.origin, 0x51000000)
+
+    def test_mem_map_base_is_used_when_explicit_base_is_absent(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.bus.add_region("main_ram", SoCRegion(origin=0x50000000, size=0x04000000))
+        soc.mem_map["video_framebuffer"] = 0x50c00000
+
+        region = soc._get_video_framebuffer_region("video_framebuffer", 0x0012c000)
+
+        self.assertEqual(region.origin, 0x50c00000)
 
     def test_default_region_rejects_framebuffer_larger_than_main_ram(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
         soc.bus.add_region("main_ram", SoCRegion(origin=0x40000000, size=0x00100000))
 
         with _assert_raises_soc_error(self):
-            soc._get_video_framebuffer_default_region("video_framebuffer", 0x00200000)
+            soc._get_video_framebuffer_region("video_framebuffer", 0x00200000)
 
+    def test_region_must_be_readable(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.bus.add_region("write_only", SoCRegion(
+            origin = 0x20000000,
+            size   = 0x00800000,
+            mode   = "w",
+        ))
+
+        with _assert_raises_soc_error(self):
+            soc._get_video_framebuffer_region(
+                "video_framebuffer", 0x0012c000, region_name="write_only")
+
+    def test_region_inherits_parent_attributes(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.bus.io_regions_check = False
+        soc.bus.add_region("framebuffer_ram", SoCRegion(
+            origin = 0x20000000,
+            size   = 0x00800000,
+            mode   = "rx",
+            cached = False,
+        ))
+
+        region = soc._get_video_framebuffer_region(
+            "video_framebuffer", 0x0012c000, region_name="framebuffer_ram")
+
+        self.assertEqual(region.mode, "rx")
+        self.assertFalse(region.cached)
+
+    def test_system_bus_framebuffer_is_adapted_to_soc_bus_standard(self):
+        cases = [
+            ("wishbone", wishbone.Interface),
+            ("axi-lite", axi.AXILiteInterface),
+            ("axi",      axi.AXIInterface),
+        ]
+
+        for bus_standard, interface_cls in cases:
+            with self.subTest(bus_standard=bus_standard):
+                soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6, bus_standard=bus_standard)
+                if bus_standard == "axi":
+                    soc.bus.add_master("cpu", axi.AXIInterface(id_width=4))
+                soc.bus.add_region("framebuffer_ram", SoCRegion(
+                    origin = 0x20000000,
+                    size   = 0x00800000,
+                ))
+
+                soc.add_video_framebuffer(
+                    phy         = stream.Endpoint(video_data_layout),
+                    timings     = "640x480@60Hz",
+                    fifo_depth  = 64,
+                    region_name = "framebuffer_ram",
+                )
+
+                port = soc.video_framebuffer.dma.bus
+                self.assertIsInstance(port, wishbone.Interface)
+                self.assertIsInstance(soc.bus.masters["video_framebuffer_dma"], interface_cls)
+                self.assertEqual(port.mode, "r")
+                self.assertEqual(soc.constants["VIDEO_FRAMEBUFFER_BASE"], 0x20600000)
+                self.assertEqual(soc.bus.regions["video_framebuffer"].origin, 0x20600000)
+
+    def test_missing_region_does_not_add_dma_master(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+
+        with _assert_raises_soc_error(self):
+            soc.add_video_framebuffer(
+                phy         = stream.Endpoint(video_data_layout),
+                timings     = "640x480@60Hz",
+                region_name = "hyperram",
+            )
+
+        self.assertNotIn("video_framebuffer_dma", soc.bus.masters)
+        self.assertNotIn("video_framebuffer", soc.bus.regions)
+
+    def test_invalid_fifo_depth_does_not_add_dma_master(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.bus.add_region("main_ram", SoCRegion(origin=0x40000000, size=0x00800000))
+
+        with _assert_raises_soc_error(self):
+            soc.add_video_framebuffer(
+                phy        = stream.Endpoint(video_data_layout),
+                timings    = "640x480@60Hz",
+                fifo_depth = 0,
+            )
+
+        self.assertNotIn("video_framebuffer_dma", soc.bus.masters)
+        self.assertNotIn("video_framebuffer", soc.bus.regions)
+
+    def test_secondary_region_does_not_use_native_sdram_port(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=100e6)
+        soc.sdram = SimpleNamespace(crossbar=SimpleNamespace(
+            get_port=lambda **kwargs: self.fail("Secondary memory used the SDRAM port.")))
+        soc.bus.add_region("hyperram", SoCRegion(origin=0x20000000, size=0x00800000))
+
+        soc.add_video_framebuffer(
+            phy         = stream.Endpoint(video_data_layout),
+            timings     = "640x480@60Hz",
+            fifo_depth  = 64,
+            region_name = "hyperram",
+        )
+
+        self.assertIsInstance(soc.video_framebuffer.dma, WishboneDMAReader)
+        self.assertIs(
+            soc.video_framebuffer.dma.bus,
+            soc.bus.masters["video_framebuffer_dma"],
+        )
+        self.assertEqual(soc.constants["VIDEO_FRAMEBUFFER_BASE"], 0x20600000)
+
+    def test_explicit_wishbone_port_is_registered(self):
+        soc  = LiteXSoC(_FakePlatform(), sys_clk_freq=100e6)
+        port = wishbone.Interface(data_width=64, address_width=32, mode="r")
+        soc.bus.add_region("main_ram", SoCRegion(origin=0x40000000, size=0x00800000))
+
+        soc.add_video_framebuffer(
+            phy        = stream.Endpoint(video_data_layout),
+            timings    = "640x480@60Hz",
+            fifo_depth = 64,
+            dma_port   = port,
+        )
+
+        self.assertIs(soc.video_framebuffer.dma.bus, port)
+        self.assertIsInstance(soc.bus.masters["video_framebuffer_dma"], wishbone.Interface)
+        self.assertEqual(soc.bus.masters["video_framebuffer_dma"].data_width, soc.bus.data_width)
+
+    def test_dedicated_dma_bus_is_preferred(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=100e6)
+        soc.dma_bus = SoCBusHandler(standard="wishbone")
+        soc.bus.add_region("main_ram", SoCRegion(origin=0x40000000, size=0x00800000))
+
+        soc.add_video_framebuffer(
+            phy        = stream.Endpoint(video_data_layout),
+            timings    = "640x480@60Hz",
+            fifo_depth = 64,
+        )
+
+        self.assertIn("video_framebuffer_dma", soc.dma_bus.masters)
+        self.assertNotIn("video_framebuffer_dma", soc.bus.masters)
+
+    def test_native_sdram_port_is_read_only(self):
+        from litedram.common import LiteDRAMNativePort
+        from litedram.frontend.dma import LiteDRAMDMAReader
+
+        port  = LiteDRAMNativePort(mode="read", address_width=24, data_width=128)
+        modes = []
+        soc   = LiteXSoC(_FakePlatform(), sys_clk_freq=100e6)
+        soc.sdram = SimpleNamespace(crossbar=SimpleNamespace(
+            get_port=lambda mode: modes.append(mode) or port))
+        soc.bus.add_region("main_ram", SoCRegion(origin=0x40000000, size=0x04000000))
+
+        soc.add_video_framebuffer(
+            phy        = stream.Endpoint(video_data_layout),
+            timings    = "640x480@60Hz",
+            fifo_depth = 64,
+        )
+
+        self.assertEqual(modes, ["read"])
+        self.assertIsInstance(soc.video_framebuffer.dma, LiteDRAMDMAReader)
+        self.assertNotIn("video_framebuffer_dma", soc.bus.masters)
+
+    def test_explicit_base_must_be_port_aligned(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=100e6)
+        soc.bus.add_region("main_ram", SoCRegion(origin=0x40000000, size=0x00800000))
+
+        with _assert_raises_soc_error(self):
+            soc.add_video_framebuffer(
+                phy        = stream.Endpoint(video_data_layout),
+                timings    = "640x480@60Hz",
+                fifo_depth = 64,
+                base       = 0x40000002,
+            )
+
+        self.assertNotIn("video_framebuffer_dma", soc.bus.masters)
+        self.assertNotIn("video_framebuffer", soc.bus.regions)
 
 class TestSoCResetRequests(unittest.TestCase):
     def test_soc_reset_request_registers_source(self):
@@ -338,11 +508,20 @@ class TestSoCBusHandler(unittest.TestCase):
 
     def test_address_width_conversion_between_bus_standards(self):
         wishbone_bus = SoCBusHandler(standard="wishbone", data_width=32, address_width=32)
+        wishbone_byte_bus = SoCBusHandler(
+            standard      = "wishbone",
+            data_width    = 32,
+            address_width = 32,
+            addressing    = "byte",
+        )
         axi_bus      = SoCBusHandler(standard="axi",      data_width=64, address_width=32)
 
         self.assertEqual(wishbone_bus.get_address_width("wishbone"), 32)
         self.assertEqual(wishbone_bus.get_address_width("axi-lite"), 34)
         self.assertEqual(wishbone_bus.get_address_width("axi"),      34)
+        self.assertEqual(wishbone_byte_bus.get_address_width("wishbone"), 30)
+        self.assertEqual(wishbone_byte_bus.get_address_width("wishbone", addressing="byte"), 32)
+        self.assertEqual(wishbone_byte_bus.get_address_width("axi"), 32)
         self.assertEqual(axi_bus.get_address_width("axi"),           32)
         self.assertEqual(axi_bus.get_address_width("wishbone"),      29)
 
@@ -434,6 +613,23 @@ class TestSoCBusHandler(unittest.TestCase):
         self.assertIsNone(bus.check_regions_overlap(regions))
         self.assertEqual(bus.check_regions_overlap(regions, check_linker=True), ("boot", "linker"))
 
+    def test_overlapping_slave_regions_reject_linker_overlay(self):
+        bus = SoCBusHandler()
+        bus.add_slave("ram", wishbone.Interface(), SoCRegion(
+            origin = 0x00000000,
+            size   = 0x1000,
+        ))
+
+        with _assert_raises_soc_error(self):
+            bus.add_slave("alias", wishbone.Interface(), SoCRegion(
+                origin = 0x00000000,
+                size   = 0x1000,
+                linker = True,
+            ))
+
+        self.assertNotIn("alias", bus.slaves)
+        self.assertNotIn("alias", bus.regions)
+
     def test_auto_allocation_avoids_existing_linker_regions(self):
         bus = SoCBusHandler()
         bus.add_region("io", SoCIORegion(origin=0x80000000, size=0x10000))
@@ -462,11 +658,39 @@ class TestSoCBusHandler(unittest.TestCase):
         self.assertTrue(bus.check_region_is_io(SoCRegion(origin=0x80000f00, size=0x100, cached=False)))
         self.assertFalse(bus.check_region_is_io(SoCRegion(origin=0x80001000, size=0x100, cached=False)))
 
+    def test_io_containment_accounts_for_rounded_decode_size(self):
+        bus = SoCBusHandler()
+        bus.add_region("io", SoCIORegion(origin=0x80000000, size=0x1800))
+
+        with _assert_raises_soc_error(self):
+            bus.add_region("device", SoCRegion(
+                origin = 0x80000000,
+                size   = 0x1800,
+                cached = False,
+            ))
+
+        self.assertNotIn("device", bus.regions)
+
     def test_io_region_overlap_uses_exact_size(self):
         bus = SoCBusHandler()
 
         bus.add_region("io",       SoCIORegion(origin=0x1200_0000, size=0x6e00_0000))
         bus.add_region("main_ram", SoCRegion(  origin=0x8000_0000, size=0x2000_0000))
+
+    def test_io_region_can_extend_beyond_bus_address_width(self):
+        bus = SoCBusHandler(address_width=32)
+
+        bus.add_region("io", SoCIORegion(origin=0xe000_0000, size=0xff_2000_0000))
+
+        self.assertIn("io", bus.io_regions)
+
+    def test_bus_region_must_fit_bus_address_width(self):
+        bus = SoCBusHandler(address_width=32)
+
+        with _assert_raises_soc_error(self):
+            bus.add_region("too_high", SoCRegion(origin=0xf000_0000, size=0x2000_0000))
+
+        self.assertNotIn("too_high", bus.regions)
 
     def test_partial_io_region_overlap_is_rejected(self):
         bus = SoCBusHandler()
@@ -785,6 +1009,35 @@ class TestSoCBusStandardIntegration(unittest.TestCase):
         self.assertEqual(list(bus.masters.keys()), ["master0", "master1"])
         self.assertEqual(list(bus.slaves.keys()),  ["slave0",  "slave1"])
 
+    def test_partial_zero_origin_region_keeps_address_decoder(self):
+        bus    = SoCBusHandler(timeout=8)
+        master = wishbone.Interface()
+        slave  = wishbone.Interface()
+        bus.add_master("master", master)
+        bus.add_slave("slave", slave, SoCRegion(origin=0x00000000, size=0x1000))
+        bus.finalize()
+
+        def generator():
+            yield master.adr.eq(0x1000 // 4)
+            yield master.cyc.eq(1)
+            yield master.stb.eq(1)
+            yield
+            self.assertEqual((yield slave.cyc), 0)
+
+        run_simulation(bus, generator())
+
+    def test_full_address_region_keeps_configured_timeout(self):
+        bus = SoCBusHandler(timeout=8)
+        bus.add_master("master", wishbone.Interface())
+        bus.add_slave("slave", wishbone.Interface(), SoCRegion(
+            origin = 0x00000000,
+            size   = 2**bus.address_width,
+        ))
+
+        bus.finalize()
+
+        self.assertTrue(hasattr(bus._interconnect, "timeout"))
+
     def test_slave_can_use_predeclared_region(self):
         bus = SoCBusHandler()
         bus.add_region("ram", SoCRegion(origin=0x00000000, size=0x1000))
@@ -904,6 +1157,14 @@ class TestSoCCSRHandler(unittest.TestCase):
 
 
 class TestSoCIRQHandler(unittest.TestCase):
+    def test_irq_handler_rejects_invalid_irq_counts(self):
+        for n_irqs in [-1, 1.5, True]:
+            with self.subTest(n_irqs=n_irqs):
+                with _assert_raises_soc_error(self):
+                    SoCIRQHandler(n_irqs=n_irqs)
+
+        self.assertEqual(SoCIRQHandler(n_irqs=0).n_locs, 0)
+
     def test_irq_handler_requires_enable_before_add(self):
         irq = SoCIRQHandler(n_irqs=4)
 
@@ -1253,6 +1514,37 @@ class TestSoC(unittest.TestCase):
         with _assert_raises_soc_error(self):
             soc.add_spi_flash()
 
+    def test_spi_flash_exports_erase_geometry(self):
+        from litespi.ids import SpiNorFlashManufacturerIDs
+        from litespi.opcodes import SpiNorFlashOpCodes as Codes
+        from litespi.phy.model import LiteSPIPHYModel
+        from litespi.spi_nor_flash_module import SpiNorFlashModule
+
+        class EraseGeometryModule(SpiNorFlashModule):
+            manufacturer_id = SpiNorFlashManufacturerIDs.NONJEDEC
+            device_id       = 0x1234
+            name            = "erase-geometry"
+            total_size      = 256
+            page_size       = 256
+            total_pages     = 1
+            supported_opcodes = [Codes.READ_1_1_1, Codes.PP_1_1_1]
+            dummy_bits = 0
+
+        module = EraseGeometryModule(Codes.READ_1_1_1)
+        # Set the attributes directly to keep this test compatible with LiteSPI releases that
+        # predate erase descriptors while exercising LiteX's constant generation.
+        module.erase_opcode    = Codes.BE_4K_4B
+        module.erase_size      = 4 * 1024
+        module.erase_addr_bits = 32
+        phy = LiteSPIPHYModel(module, init=[0])
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.cpu = SimpleNamespace(endianness="little")
+        soc.add_spi_flash(mode="1x", module=module, phy=phy, with_master=True)
+
+        self.assertEqual(soc.constants["SPIFLASH_MODULE_ERASE_OPCODE"], Codes.BE_4K_4B.code)
+        self.assertEqual(soc.constants["SPIFLASH_MODULE_ERASE_SIZE"], 4 * 1024)
+        self.assertEqual(soc.constants["SPIFLASH_MODULE_ERASE_ADDR_BITS"], 32)
+
     def test_spi_ram_requires_module(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
 
@@ -1272,7 +1564,7 @@ class TestSoC(unittest.TestCase):
         with _assert_raises_soc_error(self):
             soc.add_video_terminal(timings="800@60Hz")
 
-    def test_video_framebuffer_requires_sdram(self):
+    def test_video_framebuffer_requires_phy(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
 
         with _assert_raises_soc_error(self):
@@ -1280,10 +1572,12 @@ class TestSoC(unittest.TestCase):
 
     def test_video_framebuffer_rejects_bad_timing_before_imports(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
-        soc.sdram = SimpleNamespace()
 
         with _assert_raises_soc_error(self):
-            soc.add_video_framebuffer(timings="800@60Hz")
+            soc.add_video_framebuffer(
+                phy     = stream.Endpoint(video_data_layout),
+                timings = "800@60Hz",
+            )
 
     def test_sata_requires_phy_before_imports(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
@@ -1308,6 +1602,17 @@ class TestSoC(unittest.TestCase):
 
         with _assert_raises_soc_error(self):
             soc.add_uartbone(baudrate=0)
+
+    def test_spi_master_rejects_invalid_clock_before_core_creation(self):
+        for spi_clk_freq in [0, -1]:
+            with self.subTest(spi_clk_freq=spi_clk_freq):
+                soc  = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+                pads = Record([("clk", 1), ("cs_n", 1), ("mosi", 1), ("miso", 1)])
+
+                with _assert_raises_soc_error(self):
+                    soc.add_spi_master(pads=pads, spi_clk_freq=spi_clk_freq)
+
+                self.assertFalse(hasattr(soc, "spimaster"))
 
     def test_spi_sdcard_rejects_invalid_clock_before_imports(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)

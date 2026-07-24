@@ -129,10 +129,14 @@ def _generate_sim_cpp(platform, trace=False, trace_start=0, trace_end=-1,
 extern "C" void litex_sim_init_runtime(long load_start, long save_start);
 #if defined(__GNUC__) || defined(__clang__)
 extern "C" void litex_sim_user_init(void *vsim) __attribute__((weak));
+extern "C" void litex_sim_user_init(void *vsim)
+{
+    (void)vsim;
+}
+
 static void litex_sim_call_user_init(void *vsim)
 {
-    if (litex_sim_user_init != nullptr)
-        litex_sim_user_init(vsim);
+    litex_sim_user_init(vsim);
 }
 #else
 static void litex_sim_call_user_init(void *vsim)

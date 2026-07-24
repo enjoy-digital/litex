@@ -43,6 +43,7 @@ git_repos = {
     "litesdcard":   GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litescope":    GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litejesd204b": GitRepo(url="https://github.com/enjoy-digital/", tag=True),
+    "litedsp":      GitRepo(url="https://github.com/enjoy-digital/", branch="main"),
     "litespi":      GitRepo(url="https://github.com/litex-hub/",     tag=True),
     "litei2c":      GitRepo(url="https://github.com/litex-hub/",     tag=True, branch="main"),
 
