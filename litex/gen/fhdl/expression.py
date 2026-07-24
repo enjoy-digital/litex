@@ -19,6 +19,11 @@ from litex.gen.format import format_verilog_int
 # Print Constant -----------------------------------------------------------------------------------
 
 def _generate_constant(node):
+    # -N'hX is unary minus on an *unsigned* literal, so any comparison against it turns unsigned
+    # and inverts for positive operands. Emit the two's-complement pattern as $signed() instead.
+    if node.signed and node.value < 0:
+        pattern = (1 << node.nbits) + node.value
+        return f"$signed({node.nbits}'{format_verilog_int(pattern)})", True
     return "{sign}{bits}'{value}".format(
         sign  = "" if node.value >= 0 else "-",
         bits  = str(node.nbits),
