@@ -16,6 +16,7 @@ from litex.gen import *
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import stream
+from litex.soc.interconnect import wishbone
 from litex.soc.cores.code_tmds import TMDSEncoder
 
 from litex.build.io import SDROutput, DDROutput
@@ -1019,8 +1020,14 @@ def video_framebuffer_size(hres, vres, format):
     return stride*vres
 
 class VideoFrameBuffer(LiteXModule):
-    """Video FrameBuffer"""
-    def __init__(self, dram_port, hres=800, vres=600, base=0x00000000, fifo_depth=64*KILOBYTE, clock_domain="sys", clock_faster_than_sys=False, format="rgb888"):
+    """Video framebuffer with Wishbone or LiteDRAM DMA.
+
+    ``fifo_depth`` is expressed in bytes and rounded up to a whole DMA-port
+    word. The port must provide read access to the framebuffer memory.
+    """
+    def __init__(self, port, hres=800, vres=600, base=0x00000000,
+        fifo_depth=64*KILOBYTE, clock_domain="sys", clock_faster_than_sys=False,
+        format="rgb888"):
         self.vtg_sink  = vtg_sink = stream.Endpoint(video_timing_layout)
         self.source    = source   = stream.Endpoint(video_data_layout)
         self.underflow = Signal()
@@ -1030,8 +1037,26 @@ class VideoFrameBuffer(LiteXModule):
         # # #
 
         # Video DMA.
-        from litedram.frontend.dma import LiteDRAMDMAReader
-        self.dma = LiteDRAMDMAReader(dram_port, fifo_depth=fifo_depth//(dram_port.data_width//8), fifo_buffered=True)
+        is_wishbone = isinstance(port, wishbone.Interface)
+        if not is_wishbone:
+            from litedram.common import LiteDRAMNativePort
+            from litedram.frontend.axi import LiteDRAMAXIPort
+            if not isinstance(port, (LiteDRAMNativePort, LiteDRAMAXIPort)):
+                raise TypeError("Video framebuffer DMA port must be Wishbone or LiteDRAM Native/AXI.")
+        if port.mode not in ["r", "rw", "read", "both"]:
+            raise ValueError("Video framebuffer DMA port must provide read access.")
+        if (not isinstance(fifo_depth, int)) or isinstance(fifo_depth, bool) or (fifo_depth <= 0):
+            raise ValueError("Video framebuffer FIFO depth must be a positive integer.")
+        if (port.data_width < 8) or (port.data_width % 8):
+            raise ValueError("Video framebuffer DMA port data width must be a multiple of 8.")
+        bytes_per_word = port.data_width//8
+        dma_fifo_depth = max(1, (fifo_depth + bytes_per_word - 1)//bytes_per_word)
+        if is_wishbone:
+            from litex.soc.cores.dma import WishboneDMAReader
+            self.dma = WishboneDMAReader(port, with_byteswap=False, fifo_depth=dma_fifo_depth)
+        else:
+            from litedram.frontend.dma import LiteDRAMDMAReader
+            self.dma = LiteDRAMDMAReader(port, fifo_depth=dma_fifo_depth, fifo_buffered=True)
         self.dma.add_csr(
             default_base   = base,
             default_length = video_framebuffer_size(hres, vres, format),
@@ -1040,23 +1065,23 @@ class VideoFrameBuffer(LiteXModule):
         )
 
         # If DRAM Data Width > depth and Video clock is faster than sys_clk:
-        if (dram_port.data_width > depth) and clock_faster_than_sys:
+        if (port.data_width > depth) and clock_faster_than_sys:
             # Do Clock Domain Crossing first...
-            self.cdc = stream.ClockDomainCrossing([("data", dram_port.data_width)], cd_from="sys", cd_to=clock_domain)
+            self.cdc = stream.ClockDomainCrossing([("data", port.data_width)], cd_from="sys", cd_to=clock_domain)
             self.comb += self.dma.source.connect(self.cdc.sink)
             # ... and then Data-Width Conversion.
-            self.conv = ClockDomainsRenamer(clock_domain)(stream.Converter(dram_port.data_width, depth))
+            self.conv = ClockDomainsRenamer(clock_domain)(stream.Converter(port.data_width, depth))
             self.comb += self.cdc.source.connect(self.conv.sink)
             video_pipe_source = self.conv.source
-        # Elsif DRAM Data Width <= depth or Video clock is slower than sys_clk:
+        # Elsif DMA Data Width <= depth or Video clock is slower than sys_clk:
         else:
             # Do Data-Width Conversion first...
-            self.conv = stream.Converter(dram_port.data_width, depth)
+            self.conv = stream.Converter(port.data_width, depth)
             self.comb += self.dma.source.connect(self.conv.sink)
             # ... and then Clock Domain Crossing.
             self.cdc = stream.ClockDomainCrossing([("data", depth)], cd_from="sys", cd_to=clock_domain)
             self.comb += self.conv.source.connect(self.cdc.sink)
-            if (dram_port.data_width < depth) and (depth == 32): # FIXME.
+            if (port.data_width < depth) and (depth == 32): # FIXME.
                 self.comb += [
                     self.cdc.sink.data[ 0: 8].eq(self.conv.source.data[16:24]),
                     self.cdc.sink.data[16:24].eq(self.conv.source.data[ 0: 8]),

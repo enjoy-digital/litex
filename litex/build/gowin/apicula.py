@@ -19,6 +19,17 @@ class GowinApiculaToolchain(YosysNextPNRToolchain):
         super().__init__()
         self.options = {}
         self.additional_cst_commands = []
+        self._sys_clk_freq = None
+
+    def build(self, platform, fragment, *args, **kwargs):
+        self._sys_clk_freq = getattr(fragment, "sys_clk_freq", None)
+        return YosysNextPNRToolchain.build(self, platform, fragment, *args, **kwargs)
+
+    def _get_timing_target(self):
+        frequencies = [1e3/period for period, _ in self.clocks.values()]
+        if self._sys_clk_freq is not None:
+            frequencies.append(self._sys_clk_freq/1e6)
+        return max(frequencies, default=0)
 
     def build_io_constraints(self):
         _build_cst(self.named_sc, self.named_pc, self.additional_cst_commands, self._build_name)
@@ -51,6 +62,13 @@ class GowinApiculaToolchain(YosysNextPNRToolchain):
             device     = self.platform.device,
             devicename = devicename
         )
+
+        # nextpnr's Gowin arch takes no SDC, so --freq is the only way to pass a
+        # timing target; without it nextpnr defaults to 12 MHz. Include the SoC's
+        # system frequency since PLL-generated clocks are not always constrained.
+        max_freq = self._get_timing_target()
+        if max_freq > 0:
+            self._pnr_opts += f" --freq {round(max_freq, 3)}"
 
         self._packer_opts += "-d {devicename} -o {top}.fs {top}_routed.json".format(
             devicename = devicename,

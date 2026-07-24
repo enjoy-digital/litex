@@ -537,6 +537,58 @@ class LatticeiCE40DDRInput:
     def lower(dr):
         return LatticeiCE40DDRInputImpl(dr.i, dr.o1, dr.o2, dr.clk)
 
+# iCE40 DDR Tristate -------------------------------------------------------------------------------
+
+class LatticeiCE40DDRTristateImpl(Module):
+    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, i_async):
+        if oe2 is not None:
+            raise ValueError("iCE40 DDRTristate does not support DDR output enable")
+
+        for j in range(len(io)):
+            parameters = dict(
+                p_PIN_TYPE      = C(0b110000, 6), # PIN_OUTPUT_DDR_REGISTERED_ENABLE + PIN_INPUT_DDR
+                p_IO_STANDARD   = "SB_LVCMOS",
+                io_PACKAGE_PIN  = io[j],
+                i_CLOCK_ENABLE  = 1,
+                i_INPUT_CLK     = clk,
+                i_OUTPUT_CLK    = clk,
+                i_OUTPUT_ENABLE = oe1[j],
+                i_D_OUT_0       = o1[j],
+                i_D_OUT_1       = o2[j],
+            )
+
+            if i_async is not None:
+                # SB_IO cannot expose its registered posedge input and asynchronous input at the
+                # same time. Select the asynchronous input and recreate the posedge register in a
+                # fabric flip-flop; the negedge input remains in the I/O cell.
+                pin_i = Signal()
+                parameters.update(
+                    p_PIN_TYPE = C(0b110001, 6),
+                    o_D_IN_0   = pin_i,
+                )
+                self.comb += i_async[j].eq(pin_i)
+                if i1 is not None:
+                    parameters.update(o_D_IN_1=i2[j])
+                    self.specials += Instance("SB_DFF",
+                        i_C = clk,
+                        i_D = pin_i,
+                        o_Q = i1[j],
+                    )
+            elif i1 is not None:
+                parameters.update(
+                    o_D_IN_0 = i1[j],
+                    o_D_IN_1 = i2[j],
+                )
+
+            self.specials += Instance("SB_IO", **parameters)
+
+
+class LatticeiCE40DDRTristate:
+    @staticmethod
+    def lower(dr):
+        return LatticeiCE40DDRTristateImpl(
+            dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.i_async)
+
 # iCE40 SDR Output ---------------------------------------------------------------------------------
 
 class LatticeiCE40SDROutputImpl(Module):
@@ -599,6 +651,7 @@ lattice_ice40_special_overrides = {
     DifferentialInput:      LatticeiCE40DifferentialInput,
     DDROutput:              LatticeiCE40DDROutput,
     DDRInput:               LatticeiCE40DDRInput,
+    DDRTristate:            LatticeiCE40DDRTristate,
     SDROutput:              LatticeiCE40SDROutput,
     SDRInput:               LatticeiCE40SDRInput,
     SDRTristate:            LatticeiCE40SDRTristate,

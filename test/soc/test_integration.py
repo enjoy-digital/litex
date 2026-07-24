@@ -268,9 +268,11 @@ TESTED_CPU_VARIANTS = {
     "microwatt": "standard+irq",
 }
 UNTESTED_CPUS = [
+    "agilex_hps",   # (aarch64 / hardcore) -> Hardcore.
     "cortex_m1",    # (arm     / softcore) -> Proprietary code.
     "cortex_m3",    # (arm     / softcore) -> Proprieraty code.
     "cva5",         # (riscv   / softcore) -> Verilator misses generated interface header.
+    "cyclonev_hps", # (arm     / hardcore) -> Hardcore.
     "eos_s3",       # (arm     / hardcore) -> Hardcore.
     "gowin_emcu",   # (arm     / hardcore) -> Hardcore.
     "rocket",       # (riscv   / softcore) -> Not enough RAM in CI.

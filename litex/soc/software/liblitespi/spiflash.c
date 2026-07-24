@@ -214,6 +214,8 @@ static void spiflash_write_enable(void)
 
 #ifdef SPIFLASH_MODULE_QUAD_CAPABLE
 #define SPIFLASH_READY_TIMEOUT 1000
+#define SPIFLASH_SR1_QE_BIT6   0x40
+#define SPIFLASH_SR1_WRITABLE  0xfc
 
 static bool spiflash_wait_until_ready(void)
 {
@@ -231,7 +233,21 @@ static bool spiflash_wait_until_ready(void)
 
 static bool spiflash_enable_quad_mode(void)
 {
-#ifdef SPIFLASH_MODULE_QUAD_ENABLE_WRR_CR1_BIT1
+#if defined(SPIFLASH_MODULE_QUAD_ENABLE_WRSR_SR1_BIT6)
+	uint32_t sr = spiflash_read_status_register();
+
+	if (sr == 0xff) {
+		printf("Unable to read SPI Flash status register.\n");
+		return false;
+	}
+
+	if (sr & SPIFLASH_SR1_QE_BIT6)
+		return true;
+
+	spiflash_write_enable();
+	/* Preserve writable SR1 bits while excluding the WIP/WEL status bits. */
+	spiflash_master_write((0x01 << 8) | ((sr | SPIFLASH_SR1_QE_BIT6) & SPIFLASH_SR1_WRITABLE), 2, 1, 0x1);
+#elif defined(SPIFLASH_MODULE_QUAD_ENABLE_WRR_CR1_BIT1)
 	uint32_t sr = spiflash_read_status_register();
 	uint32_t cr = spiflash_read_register(0x35);
 
@@ -252,7 +268,13 @@ static bool spiflash_enable_quad_mode(void)
 		return false;
 	}
 
-#ifdef SPIFLASH_MODULE_QUAD_ENABLE_WRR_CR1_BIT1
+#if defined(SPIFLASH_MODULE_QUAD_ENABLE_WRSR_SR1_BIT6)
+	sr = spiflash_read_status_register();
+	if ((sr == 0xff) || ((sr & SPIFLASH_SR1_QE_BIT6) == 0)) {
+		printf("SPI Flash quad enable failed.\n");
+		return false;
+	}
+#elif defined(SPIFLASH_MODULE_QUAD_ENABLE_WRR_CR1_BIT1)
 	if ((spiflash_read_register(0x35) & 0x02) == 0) {
 		printf("SPI Flash quad enable failed.\n");
 		return false;
@@ -273,28 +295,48 @@ static void page_program(uint32_t addr, uint8_t *data, int len)
 	transfer_cmd(w_buf, r_buf, len+4);
 }
 
-static void spiflash_sector_erase(uint32_t addr)
+static void spiflash_erase_command(uint32_t addr, uint8_t opcode, uint8_t addr_bits)
 {
-	w_buf[0] = 0xd8;
-	w_buf[1] = addr>>16;
-	w_buf[2] = addr>>8;
-	w_buf[3] = addr>>0;
-	transfer_cmd(w_buf, r_buf, 4);
+	uint8_t addr_bytes = addr_bits/8;
+
+	w_buf[0] = opcode;
+	for (uint8_t i = 0; i < addr_bytes; i++)
+		w_buf[1+i] = addr >> (8*(addr_bytes - i - 1));
+	transfer_cmd(w_buf, r_buf, 1 + addr_bytes);
 }
 
-/* erase page size in bytes, check flash datasheet */
-#define SPI_FLASH_ERASE_SIZE (64*1024)
+/* Compatibility with LiteSPI module definitions predating erase geometry. */
+#ifndef SPIFLASH_MODULE_ERASE_OPCODE
+#define SPIFLASH_MODULE_ERASE_OPCODE    0xd8
+#define SPIFLASH_MODULE_ERASE_SIZE      (64*1024)
+#define SPIFLASH_MODULE_ERASE_ADDR_BITS 24
+#endif
 
 #define min(x, y) (((x) < (y)) ? (x) : (y))
 
 void spiflash_erase_range(uint32_t addr, uint32_t len)
 {
-	uint32_t i = 0;
+	uint32_t erase_addr;
+	uint32_t last_addr;
 
-	for (i=0; i<len; i+=SPI_FLASH_ERASE_SIZE) {
-		printf("Erase SPI Flash @0x%08lx", ((uint32_t)addr+i));
+	if (len == 0)
+		return;
+	if (addr > UINT32_MAX - (len - 1)) {
+		printf("Error: SPI Flash erase range wraps the address space.\n");
+		return;
+	}
+
+	erase_addr = addr - (addr % SPIFLASH_MODULE_ERASE_SIZE);
+	last_addr  = addr + len - 1;
+	last_addr -= last_addr % SPIFLASH_MODULE_ERASE_SIZE;
+
+	for (;;) {
+		printf("Erase SPI Flash @0x%08lx", erase_addr);
 		spiflash_write_enable();
-		spiflash_sector_erase(addr+i);
+		spiflash_erase_command(
+			erase_addr,
+			SPIFLASH_MODULE_ERASE_OPCODE,
+			SPIFLASH_MODULE_ERASE_ADDR_BITS);
 
 		while (spiflash_read_status_register() & 1) {
 			printf(".");
@@ -303,26 +345,30 @@ void spiflash_erase_range(uint32_t addr, uint32_t len)
 		printf("\n");
 
 #ifdef SPIFLASH_BASE
-		invd_cpu_dcache_range((void *)SPIFLASH_BASE + addr + i, SPI_FLASH_ERASE_SIZE);
+		invd_cpu_dcache_range(
+			(void *)SPIFLASH_BASE + erase_addr,
+			SPIFLASH_MODULE_ERASE_SIZE);
 
 		/* check if region was really erased */
-		for (uint32_t j = 0; j < SPI_FLASH_ERASE_SIZE; j++) {
-			uint8_t* peek = (((uint8_t*)SPIFLASH_BASE)+addr+i+j);
+		for (uint32_t j = 0; j < SPIFLASH_MODULE_ERASE_SIZE; j++) {
+			uint8_t* peek = (((uint8_t*)SPIFLASH_BASE)+erase_addr+j);
 			if (*peek != 0xff) {
-				printf("Error: location 0x%08lx not erased (%0x2x)\n", addr+i+j, *peek);
+				printf("Error: location 0x%08lx not erased (%0x2x)\n", erase_addr+j, *peek);
 			}
 		}
 #endif
+
+		if (erase_addr == last_addr)
+			break;
+		erase_addr += SPIFLASH_MODULE_ERASE_SIZE;
 	}
 }
 
 void spiflash_erase_4k_sector(uint32_t addr)
 {
-	w_buf[0] = 0x20;
-	w_buf[1] = addr>>16;
-	w_buf[2] = addr>>8;
-	w_buf[3] = addr>>0;
-	transfer_cmd(w_buf, r_buf, 4);
+	spiflash_write_enable();
+	spiflash_erase_command(addr, 0x20, 24);
+	while (spiflash_read_status_register() & 1);
 }
 
 /* Returns the number of bytes written and verified, or -1 when the readback

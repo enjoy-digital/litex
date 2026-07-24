@@ -22,6 +22,7 @@ extern "C" {
 #define SD_CRCERROR   1
 #define SD_TIMEOUT    2
 #define SD_WRITEERROR 3
+#define SD_SWITCHERROR 4
 
 #define SD_SWITCH_CHECK  0
 #define SD_SWITCH_SWITCH 1

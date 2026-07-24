@@ -220,7 +220,8 @@ class Ibex(CPU):
         platform.add_verilog_include_path(os.path.join(ibexdir,
             "dv", "uvm", "core_ibex", "common", "prim")
         )
-        platform.add_source(os.path.join(ibexdir, "syn", "rtl", "prim_clock_gating.v"))
+        platform.add_source(os.path.join(ibexdir, "syn", "rtl", "prim_clock_gating.v"),
+            language="systemverilog")
         platform.add_sources(os.path.join(ibexdir, "vendor", "lowrisc_ip", "ip", "prim", "rtl"),
             "prim_util_pkg.sv",
             "prim_count_pkg.sv",
@@ -263,7 +264,8 @@ class Ibex(CPU):
 
         platform.add_sources(os.path.join(ibexdir, "vendor", "lowrisc_ip", "ip", "prim_generic", "rtl"),
             "prim_generic_ram_1p.sv",
-            "prim_generic_buf.sv"
+            "prim_generic_buf.sv",
+            "prim_generic_flop.sv"
         )
 
         rtl_base = os.path.join(ibexdir, "rtl")
@@ -279,7 +281,32 @@ class Ibex(CPU):
             "ibex_csr.sv",
             "ibex_top.sv"
             )
-        platform.add_source(os.path.join(ibexdir, "dv", "uvm", "core_ibex", "common", "prim", "prim_buf.sv"))
+        platform.add_sources(os.path.join(ibexdir, "dv", "uvm", "core_ibex", "common", "prim"),
+            "prim_buf.sv",
+            "prim_flop.sv"
+        )
+
+        regfiles = {
+            "ff"   : 0,
+            "fpga" : 1,
+        }
+        regfile = getattr(platform, "ibex_regfile", "ff")
+        if regfile not in regfiles:
+            raise ValueError("Ibex: unknown ibex_regfile {}, expected one of {}.".format(
+                repr(regfile), ", ".join(regfiles)))
+        if regfile == "fpga":
+            platform.add_source(os.path.join(rtl_base, "ibex_register_file_fpga.sv"))
+
+        yosys_slang_opts = [
+            "--relax-enum-conversions",
+            "--ignore-initial",
+            "--infer-input-ports-as-vars",
+            "--top ibex_top",
+            "-G RegFile={}".format(regfiles[regfile]),
+        ]
+        platform.yosys_use_slang  = True
+        platform.yosys_slang_opts = " ".join(yosys_slang_opts)
+
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
         self.cpu_params.update(i_boot_addr_i=Signal(32, reset=reset_address))

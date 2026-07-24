@@ -35,17 +35,26 @@ static bool finalized = false;
 #if defined(__GNUC__) || defined(__clang__)
 extern "C" void litex_sim_user_pre_eval(void *vsim, uint64_t time_ps) __attribute__((weak));
 extern "C" void litex_sim_user_post_eval(void *vsim, uint64_t time_ps) __attribute__((weak));
+extern "C" void litex_sim_user_pre_eval(void *vsim, uint64_t time_ps)
+{
+  (void)vsim;
+  (void)time_ps;
+}
+
+extern "C" void litex_sim_user_post_eval(void *vsim, uint64_t time_ps)
+{
+  (void)vsim;
+  (void)time_ps;
+}
 
 static void litex_sim_call_user_pre_eval(void *vsim, uint64_t time_ps)
 {
-  if (litex_sim_user_pre_eval != nullptr)
-    litex_sim_user_pre_eval(vsim, time_ps);
+  litex_sim_user_pre_eval(vsim, time_ps);
 }
 
 static void litex_sim_call_user_post_eval(void *vsim, uint64_t time_ps)
 {
-  if (litex_sim_user_post_eval != nullptr)
-    litex_sim_user_post_eval(vsim, time_ps);
+  litex_sim_user_post_eval(vsim, time_ps);
 }
 #else
 static void litex_sim_call_user_pre_eval(void *vsim, uint64_t time_ps)

@@ -18,6 +18,48 @@ from litex.build.generic_toolchain import GenericToolchain
 from litex.build.generic_platform import *
 from litex.build import tools
 
+# WSL Helpers --------------------------------------------------------------------------------------
+
+def _is_wsl():
+    if sys.platform != "linux":
+        return False
+    release = platform.release().lower()
+    return "microsoft" in release or "wsl" in release
+
+def _find_gowin_shell():
+    gw_sh      = "gw_sh"
+    gw_sh_path = which(gw_sh)
+
+    # On WSL, prefer native Linux Gowin when available but allow falling back to
+    # the Windows Gowin executable exposed through PATH.
+    if gw_sh_path is None and _is_wsl():
+        gw_sh      = "gw_sh.exe"
+        gw_sh_path = which(gw_sh)
+
+    return gw_sh, gw_sh_path
+
+def _gowin_uses_windows_paths():
+    if not _is_wsl():
+        return False
+
+    _, gw_sh_path = _find_gowin_shell()
+    if gw_sh_path is None:
+        return False
+
+    return os.path.basename(os.path.realpath(gw_sh_path)).lower().endswith(".exe")
+
+def _gowin_tcl_path(path, use_windows_paths=False):
+    if use_windows_paths and os.path.isabs(path):
+        path = subprocess.check_output(
+            ["wslpath", "-w", path],
+            universal_newlines=True
+        ).strip()
+
+    if sys.platform == "win32" or use_windows_paths:
+        path = path.replace("\\", "\\\\")
+
+    return path
+
 # Constraints (.cst) -------------------------------------------------------------------------------
 
 def _is_differential_iostandard(iostandard):
@@ -97,7 +139,12 @@ class GowinToolchain(GenericToolchain):
 
     def finalize(self):
         if self.platform.verilog_include_paths:
-            self.options["include_path"] = "{" + ";".join(self.platform.verilog_include_paths) + "}"
+            use_windows_paths = _gowin_uses_windows_paths()
+            include_paths = [
+                _gowin_tcl_path(p, use_windows_paths=use_windows_paths)
+                for p in self.platform.verilog_include_paths
+            ]
+            self.options["include_path"] = "{" + ";".join(include_paths) + "}"
 
         self.apply_hyperram_integration_hack(self._build_name + ".v")
 
@@ -164,11 +211,11 @@ class GowinToolchain(GenericToolchain):
         # Add Timings Constraints.
         tcl.append(f"add_file {self._build_name}.sdc")
 
+        use_windows_paths = _gowin_uses_windows_paths()
+
         # Add Sources.
         for f, typ, lib, *_ in self.platform.sources:
-            # Support windows/powershell
-            if sys.platform == "win32":
-                f = f.replace("\\", "\\\\")
+            f = _gowin_tcl_path(f, use_windows_paths=use_windows_paths)
             tcl.append(f"add_file {f}")
 
         # Set Options.
@@ -191,11 +238,7 @@ class GowinToolchain(GenericToolchain):
         return "" # gw_sh use
 
     def run_script(self, script):
-        # Support Powershell/WSL platform
-        # Some python distros for windows (e.g, oss-cad-suite)
-        # which does not have 'os.uname' support, we should check 'sys.platform' firstly.
-        gw_sh      = "gw_sh"
-        gw_sh_path = which(gw_sh)
+        gw_sh, gw_sh_path = _find_gowin_shell()
 
         if gw_sh_path is None:
             msg = "Unable to find Gowin toolchain, please:\n"

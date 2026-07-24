@@ -217,14 +217,19 @@ def main():
     parser.add_argument("--usb-vid",         default=None,           help="Set USB vendor ID.")
     parser.add_argument("--usb-pid",         default=None,           help="Set USB product ID.")
     parser.add_argument("--usb-max-retries", default=10,             help="Number of USB reconnecting retries.")
+
+    # DevMem arguments
+    parser.add_argument("--devmem",          action="store_true",    help="Select DevMem interface (/dev/mem on a Hard CPU).")
+    parser.add_argument("--devmem-base",     default="0xff200000",   help="Set DevMem window base address.")
+    parser.add_argument("--devmem-size",     default="0x200000",     help="Set DevMem window size.")
     args = parser.parse_args()
 
     if args.udp_scan:
         args.udp = True
-    interfaces          = ["uart", "jtag", "udp", "pcie", "usb"]
+    interfaces          = ["uart", "jtag", "udp", "pcie", "usb", "devmem"]
     selected_interfaces = [name for name in interfaces if getattr(args, name)]
     if len(selected_interfaces) == 0:
-        parser.error("select one interface: --uart, --jtag, --udp, --udp-scan, --pcie or --usb.")
+        parser.error("select one interface: --uart, --jtag, --udp, --udp-scan, --pcie, --usb or --devmem.")
     if len(selected_interfaces) > 1:
         parser.error("select only one interface (got: {}).".format(
             ", ".join("--" + name for name in selected_interfaces)))
@@ -290,6 +295,14 @@ def main():
         if vid is not None:
             vid = int(vid, base=0)
         comm = CommUSB(vid=vid, pid=pid, max_retries=args.usb_max_retries, debug=args.debug)
+
+    # DevMem mode
+    elif args.devmem:
+        from litex.tools.remote.comm_devmem import CommDevMem
+        devmem_base = int(args.devmem_base, base=0)
+        devmem_size = int(args.devmem_size, base=0)
+        print("[CommDevMem] base: 0x{:08x} / size: 0x{:08x} / ".format(devmem_base, devmem_size), end="")
+        comm = CommDevMem(base=devmem_base, size=devmem_size, debug=args.debug)
 
     server = RemoteServer(comm, args.bind_ip, int(args.bind_port), addr_width=int(args.addr_width))
     server.open()

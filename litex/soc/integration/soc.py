@@ -303,9 +303,10 @@ class SoCBusHandler(LiteXModule):
             self.logger.error("{} already declared as Region:".format(colorer(name, color="red")))
             self.logger.error(self)
             raise SoCError()
-        # Check Region fits in the Bus Address Space (the decode extent for SoCRegions, since the
-        # decoder matches the full power-of-2 window).
-        if isinstance(region, SoCRegion) and (region.origin is not None):
+        # Check decoded Bus Regions fit in the Bus Address Space. SoCIORegions describe CPU-side
+        # IO/cacheability windows and can be wider than the LiteX bus address width.
+        if (isinstance(region, SoCRegion) and not isinstance(region, SoCIORegion) and
+            (region.origin is not None)):
             if (region.origin < 0) or (self._region_overlap_end(region) > 2**self.address_width):
                 self.logger.error("{} Region {} {}-bit Bus Address Space:".format(
                     colorer(name, color="red"),
@@ -481,7 +482,7 @@ class SoCBusHandler(LiteXModule):
         is_in = True
         if not (region.origin >= container.origin):
             is_in = False
-        if not ((region.origin + region.size) <= (container.origin + container.size)):
+        if not (self._region_overlap_end(region) <= (container.origin + container.size)):
             is_in = False
         return is_in
 
@@ -907,6 +908,17 @@ class SoCBusHandler(LiteXModule):
                 if region_added:
                     self.regions.pop(name, None)
                 raise SoCError()
+        slave_regions = {slave_name: self.regions[slave_name] for slave_name in self.slaves}
+        overlap_name = self.check_region_overlap(region, slave_regions, check_linker=True)
+        if overlap_name is not None:
+            self.logger.error("{} Bus Slave Region overlaps decoded Slave {}:".format(
+                colorer(name, color="red"),
+                colorer(overlap_name)))
+            self.logger.error(str(region))
+            self.logger.error(str(slave_regions[overlap_name]))
+            if region_added:
+                self.regions.pop(name, None)
+            raise SoCError()
         try:
             if strip_origin:
                 slave = self.add_offset(name, slave, self.regions[name].origin)
@@ -929,20 +941,16 @@ class SoCBusHandler(LiteXModule):
     def add_peripheral(self, name=None, peripheral=None, region=None):
         self.add_slave(name=name, slave=peripheral, region=region)
 
-    def get_address_width(self, standard):
-        standard_from = self.standard
-        standard_to   = standard
+    def get_address_width(self, standard, addressing=None):
+        if addressing is None:
+            addressing = "word" if standard == "wishbone" else "byte"
 
-        # AXI or AXI-Lite SoC Bus and Wishbone requested:
-        if standard_from in ["axi", "axi-lite"] and standard_to in ["wishbone"]:
-            address_shift = log2_int(self.data_width//8)
-            return self.address_width - address_shift
-        # Wishbone SoC Bus and AXI, AXI-Lite requested:
-        if standard_from in ["wishbone"] and standard_to in ["axi", "axi-lite"]:
-            address_shift = log2_int(self.data_width//8)
-            return self.address_width + address_shift
-        # Else just return address_width:
-        return self.address_width
+        address_shift = log2_int(self.data_width//8)
+        source_shift = address_shift if (
+            (self.standard == "wishbone") and (self.addressing == "word")) else 0
+        target_shift = address_shift if (
+            (standard == "wishbone") and (addressing == "word")) else 0
+        return self.address_width + source_shift - target_shift
 
     def do_finalize(self):
         interconnect_p2p_cls = {
@@ -964,10 +972,16 @@ class SoCBusHandler(LiteXModule):
         self._interconnect = None
         if len(self.masters) and len(self.slaves):
             slave_name = next(iter(self.slaves))
-            # If 1 bus_master, 1 bus_slave and no address translation, use InterconnectPointToPoint.
+            slave_region = self.regions[slave_name]
+            unconditional_region = (
+                not slave_region.decode or
+                ((slave_region.origin == 0) and (slave_region.size_pow2 == 2**self.address_width))
+            )
+            # Point-to-point has no decoder or timeout, so only use it when neither is required.
             if ((len(self.masters) == 1)  and
                 (len(self.slaves)  == 1)  and
-                (self.regions[slave_name].origin == 0)):
+                unconditional_region      and
+                (self.timeout is None)):
                 self._interconnect = interconnect_p2p_cls(
                     master = next(iter(self.masters.values())),
                     slave  = next(iter(self.slaves.values())))
@@ -1270,9 +1284,10 @@ class SoCIRQHandler(SoCLocHandler):
         self.enabled = False
 
         # Check IRQ Number.
-        if n_irqs > 32:
+        if ((not isinstance(n_irqs, int)) or isinstance(n_irqs, bool) or
+            not (0 <= n_irqs <= 32)):
             self.logger.error("Unsupported IRQs number: {} supported are: {:s}".format(
-                colorer(n_irqs, color="red"), colorer("Up to 32", color="green")))
+                colorer(n_irqs, color="red"), colorer("Integer from 0 to 32", color="green")))
             raise SoCError()
 
         # Create IRQ Handler.
@@ -2774,12 +2789,16 @@ class LiteXSoC(SoC):
 
     # Add SPI Master --------------------------------------------------------------------------------
     def add_spi_master(self, name="spimaster", pads=None, data_width=8, spi_clk_freq=1e6, with_clk_divider=True, **kwargs):
+        spi_clk_freq = int(spi_clk_freq)
+        if spi_clk_freq <= 0:
+            self.logger.error("SPI Master {} {}: must be positive.".format(
+                colorer("spi_clk_freq"), colorer(spi_clk_freq, color="red")))
+            raise SoCError()
+
         # Imports.
         from litex.soc.cores.spi import SPIMaster
 
         self.check_if_exists(f"{name}")
-
-        spi_clk_freq = int(spi_clk_freq)
 
         if pads is None:
             pads = self.platform.request(name)
@@ -2856,6 +2875,13 @@ class LiteXSoC(SoC):
             self.add_constant(f"{name}_MODULE_NAME",       module.name)
             self.add_constant(f"{name}_MODULE_TOTAL_SIZE", module.total_size)
             self.add_constant(f"{name}_MODULE_PAGE_SIZE",  module.page_size)
+            erase_opcode    = getattr(module, "erase_opcode", None)
+            erase_size      = getattr(module, "erase_size", None)
+            erase_addr_bits = getattr(module, "erase_addr_bits", None)
+            if None not in [erase_opcode, erase_size, erase_addr_bits]:
+                self.add_constant(f"{name}_MODULE_ERASE_OPCODE",    erase_opcode.code)
+                self.add_constant(f"{name}_MODULE_ERASE_SIZE",      erase_size)
+                self.add_constant(f"{name}_MODULE_ERASE_ADDR_BITS", erase_addr_bits)
             if mode in [ "4x" ]:
                 if module.bus_width >= 4 and SpiNorFlashOpCodes.READ_1_1_4 in module.supported_opcodes:
                     self.add_constant(f"{name}_MODULE_QUAD_CAPABLE")
@@ -3026,7 +3052,7 @@ class LiteXSoC(SoC):
                 if "read" in mode:
                     bus = wishbone.Interface(
                         data_width = soc.bus.data_width,
-                        adr_width  = soc.bus.get_address_width(standard="wishbone"),
+                        adr_width  = soc.bus.get_address_width(standard="wishbone", addressing="word"),
                         addressing = "word",
                         mode = "w",
                     )
@@ -3039,7 +3065,7 @@ class LiteXSoC(SoC):
                 if "write" in mode:
                     bus = wishbone.Interface(
                         data_width = soc.bus.data_width,
-                        adr_width  = soc.bus.get_address_width(standard="wishbone"),
+                        adr_width  = soc.bus.get_address_width(standard="wishbone", addressing="word"),
                         addressing = "word",
                         mode = "r",
                     )
@@ -3145,7 +3171,7 @@ class LiteXSoC(SoC):
             self.check_if_exists(f"{name}_sector2mem")
             bus = wishbone.Interface(
                 data_width = self.bus.data_width,
-                adr_width  = self.bus.get_address_width(standard="wishbone"),
+                adr_width  = self.bus.get_address_width(standard="wishbone", addressing="word"),
                 addressing = "word",
                 mode       = "w",
             )
@@ -3163,7 +3189,7 @@ class LiteXSoC(SoC):
             self.check_if_exists(f"{name}_mem2sector")
             bus = wishbone.Interface(
                 data_width = self.bus.data_width,
-                adr_width  = self.bus.get_address_width(standard="wishbone"),
+                adr_width  = self.bus.get_address_width(standard="wishbone", addressing="word"),
                 addressing = "word",
                 mode       = "r",
             )
@@ -3426,44 +3452,69 @@ class LiteXSoC(SoC):
         self.comb += vt.source.connect(phy if isinstance(phy, stream.Endpoint) else phy.sink)
 
     # Add Video Framebuffer ------------------------------------------------------------------------
-    def _get_video_framebuffer_default_region(self, name, size):
-        main_ram = self.bus.regions.get("main_ram", None)
-        if main_ram is None:
-            return SoCRegion(
-                origin = 0x40c00000,
-                size   = size,
-                linker = True)
+    def _get_video_framebuffer_region(self, name, size, region_name="main_ram", base=None):
+        memory = self.bus.regions.get(region_name, None)
+        if memory is None:
+            self.logger.error("Video framebuffer memory region {} {}.".format(
+                colorer(region_name, color="red"), colorer("not found", color="red")))
+            raise SoCError()
+        if "r" not in memory.mode:
+            self.logger.error("Video framebuffer memory region {} is not {}.".format(
+                colorer(region_name, color="red"), colorer("readable", color="red")))
+            raise SoCError()
 
-        size_pow2    = 2**log2_int(size, False)
-        main_ram_end = main_ram.origin + main_ram.size
-        origin       = (main_ram_end - size_pow2) & ~(size_pow2 - 1)
-        if origin < main_ram.origin:
-            self.logger.error("{} of size {} does not fit in main_ram:".format(
+        size_pow2 = 2**log2_int(size, False)
+        if base is None:
+            base = self.mem_map.get(name, None)
+        if base is None:
+            memory_end = memory.origin + memory.size
+            base       = (memory_end - size_pow2) & ~(size_pow2 - 1)
+        if (not isinstance(base, int)) or isinstance(base, bool):
+            self.logger.error("Video framebuffer base must be an {}.".format(
+                colorer("integer", color="red")))
+            raise SoCError()
+        if (base < memory.origin) or ((base + size_pow2) > (memory.origin + memory.size)):
+            self.logger.error("{} of size {} does not fit in {}:".format(
                 colorer(name, color="red"),
-                colorer("0x{:08x}".format(size))))
-            self.logger.error(str(main_ram))
+                colorer("0x{:08x}".format(size)),
+                colorer(region_name)))
+            self.logger.error(str(memory))
             raise SoCError()
 
         return SoCRegion(
-            origin = origin,
+            origin = base,
             size   = size,
-            linker = True)
+            mode   = memory.mode,
+            cached = memory.cached,
+            linker = True,
+        )
 
-    def _get_video_framebuffer_base(self, name, size):
-        base = self.mem_map.get(name, None)
-        if base is not None:
-            return base
+    def _get_video_framebuffer_dma_port(self, region_name="main_ram", dma_port=None):
+        if dma_port is None and hasattr(self, "sdram") and region_name == "main_ram":
+            return self.sdram.crossbar.get_port(mode="read"), None
 
-        self.bus.add_region(name, self._get_video_framebuffer_default_region(name, size))
-        return self.bus.regions[name].origin
+        dma_bus = getattr(self, "dma_bus", self.bus)
+        if dma_port is None:
+            dma_port = wishbone.Interface(
+                data_width = dma_bus.data_width,
+                adr_width  = dma_bus.get_address_width(standard="wishbone", addressing="word"),
+                addressing = "word",
+                mode       = "r",
+            )
+        return dma_port, dma_bus if isinstance(dma_port, wishbone.Interface) else None
 
-    def add_video_framebuffer(self, name="video_framebuffer", phy=None, timings="800x600@60Hz", clock_domain="sys", format="rgb888", fifo_depth=64*KILOBYTE):
+    def add_video_framebuffer(self, name="video_framebuffer", phy=None,
+        timings="800x600@60Hz", clock_domain="sys", format="rgb888",
+        fifo_depth=64*KILOBYTE, region_name="main_ram", base=None, dma_port=None):
+        """Add a memory-backed video framebuffer.
+
+        ``region_name`` selects the readable memory region containing the
+        framebuffer. Main RAM uses a native LiteDRAM read port when available;
+        other regions use a read-only Wishbone master on the SoC DMA/system bus.
+        ``dma_port`` can override the automatically selected port.
+        """
         if phy is None:
             self.logger.error("Video framebuffer requires {}.".format(colorer("phy", color="red")))
-            raise SoCError()
-        if not hasattr(self, "sdram"):
-            self.logger.error("Video framebuffer requires {}.".format(
-                colorer("sdram", color="red")))
             raise SoCError()
         try:
             _, hres, vres = parse_video_timing_resolution(timings)
@@ -3475,25 +3526,64 @@ class LiteXSoC(SoC):
         from litex.soc.cores.video import VideoTimingGenerator, VideoFrameBuffer
         from litex.soc.cores.video import video_framebuffer_size
 
-        # Video Timing Generator.
+        # Video Timing Generator / FrameBuffer Checks.
         self.check_if_exists(f"{name}_vtg")
+        self.check_if_exists(name)
+        if name in self.bus.regions or name in self.bus.io_regions:
+            self.logger.error("{} already declared as video framebuffer Region.".format(
+                colorer(name, color="red")))
+            raise SoCError()
+        try:
+            framebuffer_size = video_framebuffer_size(hres, vres, format)
+        except KeyError as e:
+            self.logger.error("Unsupported video framebuffer format {}.".format(
+                colorer(format, color="red")))
+            raise SoCError() from e
+        if (not isinstance(fifo_depth, int)) or isinstance(fifo_depth, bool) or (fifo_depth <= 0):
+            self.logger.error("Video framebuffer FIFO depth must be a {}.".format(
+                colorer("positive integer", color="red")))
+            raise SoCError()
+        framebuffer_region = self._get_video_framebuffer_region(
+            name        = name,
+            size        = framebuffer_size,
+            region_name = region_name,
+            base        = base,
+        )
+        dma_port, dma_bus = self._get_video_framebuffer_dma_port(
+            region_name = region_name,
+            dma_port    = dma_port,
+        )
+        if dma_bus is not None and f"{name}_dma" in dma_bus.masters:
+            self.logger.error("{} already declared as video framebuffer DMA Bus Master.".format(
+                colorer(f"{name}_dma", color="red")))
+            raise SoCError()
+
+        # Video Timing Generator.
         vtg = VideoTimingGenerator(default_video_timings=timings if isinstance(timings, str) else timings[1])
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
-        self.add_module(name=f"{name}_vtg", module=vtg)
 
         # Video FrameBuffer.
-        self.check_if_exists(name)
-        framebuffer_size = video_framebuffer_size(hres, vres, format)
-        base = self._get_video_framebuffer_base(name, framebuffer_size)
-        vfb = VideoFrameBuffer(self.sdram.crossbar.get_port(),
+        vfb = VideoFrameBuffer(dma_port,
             hres                  = hres,
             vres                  = vres,
-            base                  = base,
+            base                  = framebuffer_region.origin,
             fifo_depth            = fifo_depth,
             format                = format,
             clock_domain          = clock_domain,
             clock_faster_than_sys = vtg.video_timings["pix_clk"] >= self.sys_clk_freq,
         )
+        bytes_per_word = dma_port.data_width//8
+        if framebuffer_region.origin % bytes_per_word:
+            self.logger.error("Video framebuffer base {} is not aligned to the DMA port's {}-byte data width.".format(
+                colorer("0x{:08x}".format(framebuffer_region.origin), color="red"),
+                colorer(bytes_per_word)))
+            raise SoCError()
+
+        # Bus / Modules.
+        self.bus.add_region(name, framebuffer_region)
+        if dma_bus is not None:
+            dma_bus.add_master(name=f"{name}_dma", master=dma_port)
+        self.add_module(name=f"{name}_vtg", module=vtg)
         self.add_module(name=name, module=vfb)
 
         # Connect Video Timing Generator to Video FrameBuffer.
@@ -3503,7 +3593,7 @@ class LiteXSoC(SoC):
         self.comb += vfb.source.connect(phy if isinstance(phy, stream.Endpoint) else phy.sink)
 
         # Constants.
-        self.add_constant("VIDEO_FRAMEBUFFER_BASE", base)
+        self.add_constant("VIDEO_FRAMEBUFFER_BASE", framebuffer_region.origin)
         self.add_constant("VIDEO_FRAMEBUFFER_HRES", hres)
         self.add_constant("VIDEO_FRAMEBUFFER_VRES", vres)
         self.add_constant("VIDEO_FRAMEBUFFER_DEPTH", vfb.depth)

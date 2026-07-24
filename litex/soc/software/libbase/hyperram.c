@@ -55,12 +55,38 @@ static uint16_t hyperram_get_chip_latency_setting(uint32_t clk_freq) {
     return 0b0010; /* Default to highest latency for safety */
 }
 
+static uint16_t hyperram_get_chip_latency_setting_from_latency(uint16_t latency) {
+    switch (latency) {
+        case 3: return HYPERRAM_CONFIG_0_REG_IL_3_CLOCKS;
+        case 4: return HYPERRAM_CONFIG_0_REG_IL_4_CLOCKS;
+        case 5: return HYPERRAM_CONFIG_0_REG_IL_5_CLOCKS;
+        case 6: return HYPERRAM_CONFIG_0_REG_IL_6_CLOCKS;
+        case 7: return HYPERRAM_CONFIG_0_REG_IL_7_CLOCKS;
+        default: return HYPERRAM_CONFIG_0_REG_IL_7_CLOCKS;
+    }
+}
+
+static uint16_t hyperram_get_chip_drive_strength_setting(uint16_t drive_strength_ohms) {
+    switch (drive_strength_ohms) {
+        case  34: return HYPERRAM_CONFIG_0_REG_DS_34_OHM;
+        case 115: return HYPERRAM_CONFIG_0_REG_DS_115_OHM;
+        case  67: return HYPERRAM_CONFIG_0_REG_DS_67_OHM;
+        case  46: return HYPERRAM_CONFIG_0_REG_DS_46_OHM;
+        case  27: return HYPERRAM_CONFIG_0_REG_DS_27_OHM;
+        case  22: return HYPERRAM_CONFIG_0_REG_DS_22_OHM;
+        case  19: return HYPERRAM_CONFIG_0_REG_DS_19_OHM;
+        default: return HYPERRAM_CONFIG_0_REG_DS_19_OHM;
+    }
+}
+
 void hyperram_init(void) {
     uint16_t config_reg_0;
     uint8_t  core_clk_ratio;
     uint8_t  core_latency_mode;
     uint16_t core_latency_setting;
     uint16_t chip_latency_setting;
+    uint16_t drive_strength_ohms;
+    uint16_t drive_strength_setting;
 
     printf("HyperRAM init...\n");
 
@@ -70,10 +96,23 @@ void hyperram_init(void) {
     core_latency_setting = hyperram_get_core_latency_setting(CONFIG_CLOCK_FREQUENCY / core_clk_ratio);
     chip_latency_setting = hyperram_get_chip_latency_setting(CONFIG_CLOCK_FREQUENCY / core_clk_ratio);
 
+#ifdef CONFIG_HYPERRAM_INIT_LATENCY
+    core_latency_setting = CONFIG_HYPERRAM_INIT_LATENCY;
+    chip_latency_setting = hyperram_get_chip_latency_setting_from_latency(core_latency_setting);
+#endif
+
+    drive_strength_ohms    = 19;
+    drive_strength_setting = HYPERRAM_CONFIG_0_REG_DS_19_OHM;
+#ifdef CONFIG_HYPERRAM_INIT_DRIVE_STRENGTH
+    drive_strength_ohms    = CONFIG_HYPERRAM_INIT_DRIVE_STRENGTH;
+    drive_strength_setting = hyperram_get_chip_drive_strength_setting(drive_strength_ohms);
+#endif
+
     /* Configure Latency on HyperRAM Core */
     core_latency_mode = (hyperram_status_read() >> CSR_HYPERRAM_STATUS_LATENCY_MODE_OFFSET) & 0b1;
     printf("HyperRAM %s Latency: %d CK (X1)\n", (core_latency_mode == 0) ? "Fixed" : "Variable", core_latency_setting);
     hyperram_config_write(core_latency_setting << CSR_HYPERRAM_CONFIG_LATENCY_OFFSET);
+    printf("HyperRAM Drive Strength: %d ohm\n", drive_strength_ohms);
 
     /* Configure HyperRAM Chip */
     config_reg_0 = (
@@ -93,7 +132,7 @@ void hyperram_init(void) {
         (0b1111                                   << HYPERRAM_CONFIG_0_REG_RSD_OFFSET) |
 
         /* Drive Strength */
-        (HYPERRAM_CONFIG_0_REG_DS_19_OHM          << HYPERRAM_CONFIG_0_REG_DS_OFFSET)   |
+        (drive_strength_setting                   << HYPERRAM_CONFIG_0_REG_DS_OFFSET)   |
 
         /* Deep Power Down: Normal operation */
         (HYPERRAM_CONFIG_0_REG_DPD_DISABLED       << HYPERRAM_CONFIG_0_REG_DPD_OFFSET)

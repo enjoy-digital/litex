@@ -483,21 +483,30 @@ class TestJTAGStreamEncoding(unittest.TestCase):
 
         return inspect.getsource(openocd_mod)
 
-    def test_binary_format_not_format_c(self):
-        """jtagstream must use 'binary format c', not 'format %c'.
+    def test_byte_construction_is_binary_safe(self):
+        """jtagstream must build RX bytes through a binary-safe helper.
 
-        Jim Tcl's 'format %c' creates a Unicode codepoint stored as UTF-8.
-        For values 0x80-0xFF this produces a two-byte sequence, corrupting
-        the binary stream.  'binary format c' produces a raw byte.
+        Jim Tcl builds with UTF-8 string representation encode 'format %c'
+        values 0x80-0xFF as two bytes, corrupting the binary stream: those
+        builds must use 'binary format c'. Jim Tcl builds without the binary
+        command (e.g. OpenOCD 0.11) would abort the poll callback on it, but
+        are byte-exact with 'format %c': a capability probe must select the
+        right implementation at runtime.
         """
         source = self.get_openocd_source()
 
-        self.assertIn("binary format c", source,
-            "jtagstream Tcl does not use 'binary format c' -- "
-            "bytes > 0x7F will be corrupted by UTF-8 encoding")
-        self.assertNotIn("format %c", source,
-            "jtagstream Tcl still uses 'format %c' -- "
-            "this creates UTF-8 codepoints instead of raw bytes")
+        self.assertIn("append rx [jtagstream_byte", source,
+            "jtagstream Tcl must build RX bytes through the jtagstream_byte "
+            "helper, not a direct construction")
+        self.assertIn("catch {binary format c", source,
+            "jtagstream Tcl must probe for the binary command to support "
+            "Jim Tcl builds without it (e.g. OpenOCD 0.11)")
+        self.assertIn("binary format c $value", source,
+            "jtagstream Tcl must use 'binary format c' on Jim Tcl builds "
+            "with UTF-8 strings -- 'format %c' would corrupt bytes > 0x7F")
+        self.assertIn("format %c $value", source,
+            "jtagstream Tcl must fall back to 'format %c' on Jim Tcl builds "
+            "without the binary command (byte-exact there)")
 
     def test_openocd_011_and_012_drscan_word_formats_are_supported(self):
         """jtagstream must accept bare and 0x-prefixed drscan words."""

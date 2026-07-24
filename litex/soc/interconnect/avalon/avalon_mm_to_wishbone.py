@@ -12,6 +12,42 @@ from migen import *
 from litex.soc.interconnect import wishbone
 from litex.soc.interconnect.avalon import AvalonMMInterface
 
+# Wishbone -> Avalon MM Bridge ---------------------------------------------------------------------
+
+class Wishbone2AvalonMM(Module):
+    """Wishbone Slave to Avalon-MM Master bridge (Classic single-beat accesses)."""
+    def __init__(self, data_width=32, avalon_address_width=30, avalon_base_address=0x0):
+        self.w2a_wb  = wb  = wishbone.Interface(data_width=data_width, adr_width=avalon_address_width, addressing="word")
+        self.w2a_avl = avl = AvalonMMInterface(data_width=data_width, adr_width=avalon_address_width)
+
+        # # #
+
+        read_done = Signal() # Read command accepted, waiting for Read-Data.
+
+        # Wishbone -> Avalon.
+        self.comb += [
+            # Both sides are word-addressed here (avalon_base_address is a word address).
+            avl.address.eq(wb.adr - avalon_base_address),
+            avl.writedata.eq(wb.dat_w),
+            avl.byteenable.eq(wb.sel),
+            avl.burstcount.eq(1),
+            avl.write.eq(wb.cyc & wb.stb &  wb.we),
+            avl.read.eq( wb.cyc & wb.stb & ~wb.we & ~read_done),
+        ]
+
+        # Avalon -> Wishbone.
+        self.comb += [
+            wb.dat_r.eq(avl.readdata),
+            wb.ack.eq((avl.write & ~avl.waitrequest) | (read_done & avl.readdatavalid)),
+        ]
+        self.sync += [
+            If(wb.ack,
+                read_done.eq(0)
+            ).Elif(avl.read & ~avl.waitrequest,
+                read_done.eq(1)
+            ),
+        ]
+
 # Avalon MM <--> Wishbone Bridge -------------------------------------------------------------------
 
 class AvalonMM2Wishbone(Module):

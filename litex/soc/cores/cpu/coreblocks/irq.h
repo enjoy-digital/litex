@@ -24,10 +24,10 @@ static inline void irq_setie(unsigned int ie)
 #ifdef __riscv_plic__
 
 #define PLIC_BASE    0xe2000000L // Base address and per-pin priority array
-#define PLIC_PENDING 0xe2001000L // Bit field matching currently pending pins
-#define PLIC_ENABLED 0xe2002000L // Bit field corresponding to the current mask
-#define PLIC_THRSHLD 0xe2200000L // Per-pin priority must be >= this to trigger
-#define PLIC_CLAIM   0xe2200004L // Claim & completion register address
+#define PLIC_PENDING (PLIC_BASE + 0x001000L) // Bit field matching currently pending pins
+#define PLIC_ENABLED (PLIC_BASE + 0x002000L) // Bit field corresponding to the current mask
+#define PLIC_THRSHLD (PLIC_BASE + 0x200000L) // Per-pin priority must be >= this to trigger
+#define PLIC_CLAIM   (PLIC_BASE + 0x200004L) // Claim & completion register address
 
 #define PLIC_EXT_IRQ_BASE 0
 

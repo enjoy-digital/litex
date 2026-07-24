@@ -13,6 +13,18 @@ from litex.soc.interconnect.stream import *
 
 
 class TestStream(unittest.TestCase):
+    def test_endpoint_datapath_is_resetless(self):
+        endpoint = Endpoint(EndpointDescription(
+            payload_layout = [("data", 8)],
+            param_layout   = [("tag",  4)],
+        ))
+
+        self.assertFalse(endpoint.valid.reset_less)
+        self.assertTrue(endpoint.first.reset_less)
+        self.assertTrue(endpoint.last.reset_less)
+        self.assertTrue(endpoint.data.reset_less)
+        self.assertTrue(endpoint.tag.reset_less)
+
     def test_endpoint_description_duplicate_field(self):
         description = EndpointDescription(
             payload_layout=[("data", 8)],

@@ -36,7 +36,7 @@ class LatticeIceStormToolchain(YosysNextPNRToolchain):
 
     def __init__(self):
         super().__init__()
-        self._synth_opts  = "-dsp"
+        self._synth_opts  = "-dsp "
         self._pnr_opts    = ""
         self._packer_opts = "-s"
 

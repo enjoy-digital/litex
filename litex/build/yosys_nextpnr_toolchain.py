@@ -90,6 +90,8 @@ class YosysNextPNRToolchain(GenericToolchain):
         nowidelut    = False,
         abc9         = False,
         flow3        = False,
+        use_slang    = False,
+        slang_plugin = False,
         timingstrict = False,
         ignoreloops  = False,
         seed         = 1,
@@ -106,6 +108,10 @@ class YosysNextPNRToolchain(GenericToolchain):
             use new ABC9 flow (Yosys)
         flow3 : str
             use ABC9 with flow3 (Yosys)
+        use_slang : bool
+            use Yosys's slang frontend for SystemVerilog sources.
+        slang_plugin : bool
+            load the legacy external slang plugin before using read_slang.
         timingstrict : list
             check timing failures (nextpnr)
         ignoreloops : str
@@ -116,6 +122,8 @@ class YosysNextPNRToolchain(GenericToolchain):
 
         self._nowidelut   = nowidelut
         self._abc9        = abc9 
+        self._use_slang    = use_slang
+        self._slang_plugin = slang_plugin
         if flow3:
             self._abc9 = True
             cmd = "scratchpad -copy abc9.script.flow3 abc9.script"
@@ -139,6 +147,8 @@ class YosysNextPNRToolchain(GenericToolchain):
             template     = self._yosys_template,
             yosys_cmds   = self._yosys_cmds,
             yosys_opts   = self._synth_opts,
+            use_slang    = self._use_slang,
+            slang_plugin = self._slang_plugin,
             synth_format = self.synth_fmt,
             nowidelut    = self._nowidelut,
             abc9         = self._abc9,

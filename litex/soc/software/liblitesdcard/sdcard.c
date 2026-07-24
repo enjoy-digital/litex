@@ -53,6 +53,10 @@ static unsigned int support_cmd23;
    ver2.00+ standard capacity cards (byte addressing). */
 static unsigned int sdcard_ccs = 1;
 
+#ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
+static uint8_t sdcard_switch_status[64] __attribute__((aligned(4)));
+#endif
+
 static inline uint32_t sdcard_block_to_addr(uint32_t block) {
 	return sdcard_ccs ? block : block * 512;
 }
@@ -248,11 +252,60 @@ int sdcard_switch(unsigned int mode, unsigned int group, unsigned int value) {
 #endif
 	sdcard_core_block_length_write(64);
 	sdcard_core_block_count_write(1);
+
+#ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
+	memset(sdcard_switch_status, 0, sizeof(sdcard_switch_status));
+	sdcard_block2mem_dma_enable_write(0);
+	sdcard_block2mem_dma_base_write((uint64_t)(uintptr_t)sdcard_switch_status);
+	sdcard_block2mem_dma_length_write(sizeof(sdcard_switch_status));
+	sdcard_block2mem_dma_enable_write(1);
+#endif
+
 	if (sdcard_send_command_retry(arg, 6,
 		(SDCARD_CTRL_DATA_TRANSFER_READ << 5) |
-		SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC) != SD_OK)
+		SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC) != SD_OK) {
+#ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
+		sdcard_block2mem_dma_enable_write(0);
+#endif
 		return SD_TIMEOUT;
-	return sdcard_wait_data_done();
+	}
+
+	int status = sdcard_wait_data_done();
+	if (status != SD_OK) {
+#ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
+		sdcard_block2mem_dma_enable_write(0);
+#endif
+		return status;
+	}
+
+#ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
+	unsigned int timeout = SDCARD_DMA_TIMEOUT_US;
+	while ((sdcard_block2mem_dma_done_read() & 0x1) == 0) {
+		if (timeout-- == 0) {
+			sdcard_block2mem_dma_enable_write(0);
+			return SD_TIMEOUT;
+		}
+		busy_wait_us(1);
+	}
+	sdcard_block2mem_dma_enable_write(0);
+
+#ifndef CONFIG_CPU_HAS_DMA_BUS
+	/* Flush caches */
+	flush_cpu_dcache();
+	flush_l2_cache();
+#endif
+
+	/* Compiler barrier */
+	__asm__ __volatile__("" ::: "memory");
+
+	if ((mode == SD_SWITCH_SWITCH) && (group < 6)) {
+		unsigned int selected = (sdcard_switch_status[16 + group/2] >> (4*(group & 1))) & 0xf;
+		if (selected != value)
+			return SD_SWITCHERROR;
+	}
+#endif
+
+	return SD_OK;
 }
 
 int sdcard_app_send_scr(void) {

@@ -7,6 +7,7 @@ typedef void (*isr_t)(void);
 extern "C" {
 #endif
 
+extern void irq_init(void);
 extern int irq_attach(unsigned int irq, isr_t isr) __attribute__((weak));
 extern int irq_detach(unsigned int irq) __attribute__((weak));
 

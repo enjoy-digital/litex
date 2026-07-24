@@ -131,6 +131,27 @@ class _SharedMemoryTop(Module):
         self.comb += self.o.eq(self.reader.dat_r)
 
 
+class _InlineDropLeaf(Module):
+    def __init__(self):
+        self.out = Signal(name="out")
+        self.comb += self.out.eq(1)
+
+
+class _InlineDropChild(Module):
+    def __init__(self):
+        self.trigger = Signal(name="trigger")
+        self.submodules.leaf = _InlineDropLeaf()
+
+
+class _InlineDropTop(Module):
+    def __init__(self):
+        self.io = Signal(name="io")
+        self.submodules.child = _InlineDropChild()
+        self.comb += self.io.eq(self.child.leaf.out)
+        # Force the child and its subtree to be inlined.
+        self.comb += self.child.trigger.eq(1)
+
+
 class TestHierarchicalVerilog(unittest.TestCase):
     @staticmethod
     def _module_body(verilog, name):
@@ -277,6 +298,23 @@ class TestHierarchicalVerilog(unittest.TestCase):
         self.assertRegex(leaf_module, r"input\s+wire\s+sys_clk")
         self.assertIn("always @(posedge sys_clk)", leaf_module)
         self.assertIn(".sys_clk(sys_clk)", top_module)
+
+    def test_hierarchical_inlined_child_keeps_grandchild_logic(self):
+        top = _InlineDropTop()
+
+        old_top = LiteXContext.top
+        try:
+            LiteXContext.top = top
+            verilog = convert(top, ios={top.io}, name="top", hierarchical=True).main_source
+        finally:
+            LiteXContext.top = old_top
+
+        top_module = self._module_body(verilog, "top")
+
+        self.assertEqual(verilog.count("assign out = 1'd1"), 1)
+        self.assertIn("assign out = 1'd1", top_module)
+        self.assertNotIn("module top__child (", verilog)
+        self.assertNotIn("module top__child__leaf (", verilog)
 
     def test_hierarchical_shared_memory_is_emitted_once(self):
         top = _SharedMemoryTop()
