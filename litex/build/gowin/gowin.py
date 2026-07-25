@@ -48,6 +48,14 @@ def _gowin_uses_windows_paths():
 
     return os.path.basename(os.path.realpath(gw_sh_path)).lower().endswith(".exe")
 
+def _gowin_ide_path():
+    _, gw_sh_path = _find_gowin_shell()
+    if gw_sh_path is None:
+        return None
+    gw_bin_path   = os.path.split(gw_sh_path)[0]
+    gw_ide_path   = os.sep.join(gw_bin_path.split(os.sep)[:-1])
+    return gw_ide_path
+
 def _gowin_tcl_path(path, use_windows_paths=False):
     if use_windows_paths and os.path.isabs(path):
         path = subprocess.check_output(
@@ -146,7 +154,22 @@ class GowinToolchain(GenericToolchain):
             ]
             self.options["include_path"] = "{" + ";".join(include_paths) + "}"
 
+        self.apply_gw_jtag_integration(self._build_name + ".v")
         self.apply_hyperram_integration_hack(self._build_name + ".v")
+
+    def apply_gw_jtag_integration(self, v_file):
+        with open(v_file, "r") as f:
+            verilog = f.read()
+
+        # No JTAG? skip
+        if "GW_JTAG" not in verilog:
+            return
+
+        # Integrates gw_jtag.v file from Gowin toolchain.
+        gw_ide_path = _gowin_ide_path()
+        if gw_ide_path is not None:
+            gw_ipcores_path = os.path.join(gw_ide_path, "data", "ipcores")
+            self.platform.add_source(os.path.join(gw_ipcores_path, "gw_jtag.v"))
 
     def apply_hyperram_integration_hack(self, v_file):
         # FIXME: Gowin EDA expects a very specific HypeRAM integration pattern, modify generated verilog to match it.
