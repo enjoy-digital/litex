@@ -395,6 +395,101 @@ class ECP5JTAG(LiteXModule):
             tck = new_tck
         self.comb += self.tck.eq(tck)
 
+# Gowin JTAG ---------------------------------------------------------------------------------------
+
+class GowinJTAG(LiteXModule):
+    def __init__(self, platform=None, chain=1, tck_delay_luts=8):
+        assert chain in [1, 2], "GowinJTAG chain must be 1 or 2."
+        assert platform is not None
+
+        self.reset   = Signal()
+        self.capture = Signal()
+        self.shift   = Signal()
+        self.update  = Signal()
+
+        self.tck     = Signal()
+        self.tms     = Signal()
+        self.tdi     = Signal()
+        self.tdo     = Signal()
+
+        # # #
+
+        tck             = Signal()
+        shift_capture   = Signal()
+        shift_capture_d = Signal()
+        update          = Signal()
+        enable          = Signal()
+
+        # Added fake pins required in .v not in .cst.
+        from litex.build.generic_platform import Pins
+        platform.add_extension([
+            ("tck_pad_i", 0, Pins("X")),
+            ("tms_pad_i", 0, Pins("X")),
+            ("tdi_pad_i", 0, Pins("X")),
+            ("tdo_pad_o", 0, Pins("X")),
+        ])
+        tck_pad_i = platform.request("tck_pad_i")
+        tms_pad_i = platform.request("tms_pad_i")
+        tdi_pad_i = platform.request("tdi_pad_i")
+        tdo_pad_o = platform.request("tdo_pad_o")
+
+        self.specials += Instance("GW_JTAG",
+            # Physical Pads
+            i_tck_pad_i             = tck_pad_i,
+            i_tms_pad_i             = tms_pad_i,
+            i_tdi_pad_i             = tdi_pad_i,
+            o_tdo_pad_o             = tdo_pad_o,
+
+            o_tck_o                 = tck,
+            o_tdi_o                 = self.tdi,
+            o_test_logic_reset_o    = Open(),
+            o_run_test_idle_er1_o   = Open(),
+            o_run_test_idle_er2_o   = Open(),
+            o_shift_dr_capture_dr_o = shift_capture,
+            o_pause_dr_o            = Open(),
+            o_update_dr_o           = update,
+            o_enable_er1_o          = {True: enable,   False: Open()        }[chain==1],
+            o_enable_er2_o          = {True: enable,   False: Open()        }[chain==2],
+            i_tdo_er1_i             = {True: self.tdo, False: Constant(0, 1)}[chain==1],
+            i_tdo_er2_i             = {True: self.tdo, False: Constant(0, 1)}[chain==2],
+        )
+
+        # GW_JTAG provides a combined Capture/Shift indication.
+        # Reconstruct shift/capture by looking at previous and
+        # current state.
+        self.sync.jtag += shift_capture_d.eq(shift_capture),
+        self.comb      += [
+            self.capture.eq(enable & ~shift_capture_d & shift_capture),
+            self.shift.eq(enable & shift_capture_d & shift_capture),
+        ]
+
+        self.comb += [
+            self.reset.eq(0), # test_logic_reset_o is always 1 ...
+            self.update.eq(enable & update),
+        ]
+
+        # TDI/TCK are synchronous on GW_JTAG output (TDI being registered with TCK). Introduce a delay
+        # on TCK with multiple LUT4s to allow its use as the JTAG Clk.
+        for i in range(tck_delay_luts):
+            new_tck = Signal()
+            self.specials += Instance("LUT4",
+                attr   = {"keep"},
+                p_INIT = 2,
+                i_I0   = tck,
+                i_I1   = 0,
+                i_I2   = 0,
+                i_I3   = 0,
+                o_F    = new_tck
+            )
+            tck = new_tck
+        self.comb += self.tck.eq(tck)
+
+        platform.add_period_constraint(tck_pad_i, 30e6)
+
+    @staticmethod
+    def get_tdi_delay(device):
+        return 1
+
 # JTAG PHY -----------------------------------------------------------------------------------------
 
 class JTAGPHY(LiteXModule):
@@ -448,6 +543,9 @@ class JTAGPHY(LiteXModule):
                     primitive = AlteraJTAG.get_primitive(device),
                     pads      = platform.get_reserved_jtag_pads()
                 )
+            # Gowin
+            elif device[:4] in ["GW1N", "GW2A"]:
+                jtag = GowinJTAG(platform)
             else:
                 print(device)
                 raise NotImplementedError
