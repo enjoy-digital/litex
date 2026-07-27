@@ -1591,9 +1591,21 @@ class SoC(LiteXModule):
 
     # Add HyperRAM ---------------------------------------------------------------------------------
     def add_hyperram(self, name="hyperram", pads=None, origin=None, size=None, mode="rwx",
-        region_name=None, number=None, cached=True, linker=False, **kwargs):
+        region_name=None, number=None, cached=True, linker=False,
+        l2_cache_size           = 0,
+        l2_cache_reverse        = True,
+        l2_cache_full_memory_we = True,
+        **kwargs):
         if size is None:
             self.logger.error("HyperRAM requires {}.".format(colorer("size", color="red")))
+            raise SoCError()
+        l2_cache_size_valid = (
+            isinstance(l2_cache_size, int) and l2_cache_size >= 0 and
+            (l2_cache_size == 0 or (
+                l2_cache_size >= 8 and not (l2_cache_size & (l2_cache_size - 1))))
+        )
+        if not l2_cache_size_valid:
+            self.logger.error("HyperRAM L2 cache size must be zero or a power of two of at least 8 bytes.")
             raise SoCError()
         for arg in ["bus_standard", "axi_id_width", "sys_clk_freq"]:
             if arg in kwargs:
@@ -1614,13 +1626,33 @@ class SoC(LiteXModule):
 
         # Core.
         self.check_if_exists(name)
+        bus_kwargs = (
+            {"bus_standard": "wishbone"} if l2_cache_size else
+            self.bus.get_bus_standard_kwargs(with_axi_id_width=True)
+        )
         hyperram = HyperRAM(
             pads         = pads,
             sys_clk_freq = self.sys_clk_freq,
-            **self.bus.get_bus_standard_kwargs(with_axi_id_width=True),
+            **bus_kwargs,
             **kwargs,
         )
-        self.bus.add_slave(name=region_name, slave=hyperram.bus, region=SoCRegion(
+
+        # Optional L2 Cache.
+        bus = hyperram.bus
+        if l2_cache_size:
+            bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+            cache = wishbone.Cache(
+                cachesize = l2_cache_size//4,
+                master    = bus,
+                slave     = hyperram.bus,
+                reverse   = l2_cache_reverse,
+            )
+            if l2_cache_full_memory_we:
+                cache = FullMemoryWE()(cache)
+            self.add_module(name="{}_cache".format(name), module=cache)
+            self.add_config("L2_SIZE", l2_cache_size)
+
+        self.bus.add_slave(name=region_name, slave=bus, region=SoCRegion(
             origin = origin,
             size   = size,
             mode   = mode,

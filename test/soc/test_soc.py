@@ -1287,6 +1287,47 @@ class TestSoC(unittest.TestCase):
 
         self.assertEqual(soc.bus.regions["hyperram"].origin, 0x2000_0000)
 
+    def test_add_hyperram_inserts_l2_cache(self):
+        cases = [
+            ("wishbone", wishbone.Interface),
+            ("axi-lite", axi.AXILiteInterface),
+            ("axi",      axi.AXIInterface),
+        ]
+
+        for bus_standard, interface_cls in cases:
+            with self.subTest(bus_standard=bus_standard):
+                soc = SoC(_FakePlatform(), sys_clk_freq=100e6, bus_standard=bus_standard)
+                if bus_standard == "axi":
+                    soc.bus.add_master("cpu", axi.AXIInterface(id_width=4))
+
+                hyperram = soc.add_hyperram(
+                    pads          = _HyperRamPads(),
+                    region_name   = "main_ram",
+                    origin        = 0x4000_0000,
+                    size          = 0x1000,
+                    l2_cache_size = 16*1024,
+                    with_csr      = False,
+                )
+
+                self.assertIsInstance(hyperram.bus, wishbone.Interface)
+                self.assertTrue(hasattr(soc, "hyperram_cache"))
+                self.assertIs(soc.hyperram_cache.slave, hyperram.bus)
+                self.assertIsInstance(soc.bus.slaves["main_ram"], interface_cls)
+                self.assertEqual(soc.constants["CONFIG_L2_SIZE"], 16*1024)
+
+    def test_add_hyperram_rejects_invalid_l2_cache_size(self):
+        soc = SoC(_FakePlatform(), sys_clk_freq=100e6)
+
+        for size in [-1, 4, 12]:
+            with self.subTest(size=size):
+                with _assert_raises_soc_error(self):
+                    soc.add_hyperram(
+                        pads          = _HyperRamPads(),
+                        size          = 0x1000,
+                        l2_cache_size = size,
+                        with_csr      = False,
+                    )
+
     def test_add_hyperram_requests_platform_pads(self):
         platform = _FakePlatform()
         platform.requests[("hyperram", 1)] = _HyperRamPads()
