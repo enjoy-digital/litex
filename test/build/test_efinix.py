@@ -251,6 +251,60 @@ def test_generate_ddr_emits_controller_interfaces_and_swizzle():
     assert 'design.assign_resource("ddr_inst1", "DDR_0", "DDR")' in cmds
 
 
+def test_add_trion_ddr_xml_emits_ports_and_configuration():
+    writer = InterfaceWriter("/tmp/efinity")
+    block = {
+        "type"              : "TRION_DDR",
+        "name"              : "ddr_inst1",
+        "location"          : "DDR_0",
+        "preset_id"         : 173,
+        "memory_type"       : "LPDDR3",
+        "controller_width"  : 32,
+        "dram_width"        : 32,
+        "memory_density"    : "8G",
+        "speedbin"          : 800,
+        "interface_name"    : "axi",
+        "port_count"        : 2,
+        "clock_name"        : "sys_pll0_clk",
+        "fpga_config"       : {"FPGA_ITERM": "120"},
+        "memory_config"     : {"CL": "RL=6/WL=3"},
+        "memory_timing"     : {"tRAS": 42.0},
+        "control_config"    : {"EN_AUTO_PWR_DN": "Off"},
+        "gate_delay_config" : {"GATE_C_DLY": 3},
+    }
+    namespace = "http://www.efinixinc.com/peri_design_db"
+    root = et.Element("root")
+    ddr_info = et.SubElement(root, "{{{}}}ddr_info".format(namespace))
+
+    writer.add_trion_ddr_xml(root, block)
+
+    ddr = list(ddr_info)[0]
+    assert ddr.attrib["cs_mem_type"] == "LPDDR3"
+    assert ddr.attrib["target1_enable"] == "true"
+    assert list(ddr)[0][0].attrib == {
+        "name"      : "axi0_wdata",
+        "type_name" : "WDATA_0",
+        "is_bus"    : "true",
+    }
+    assert list(ddr)[1][-1].attrib == {
+        "name"          : "sys_pll0_clk",
+        "type_name"     : "ACLK_1",
+        "is_bus"        : "false",
+        "is_clk"        : "true",
+        "is_clk_invert" : "false",
+    }
+    assert list(ddr)[5][0].attrib == {
+        "name"       : "tRAS",
+        "value"      : "42.000",
+        "value_type" : "float",
+    }
+    assert list(ddr)[7][0].attrib == {
+        "name"       : "GATE_C_DLY",
+        "value"      : "3",
+        "value_type" : "int",
+    }
+
+
 def test_find_efinity_path_prefers_env(monkeypatch, tmp_path):
     efinity_root = tmp_path / "efinity"
     bin_dir = efinity_root / "bin"

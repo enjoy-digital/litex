@@ -14,6 +14,136 @@ from litex.soc.integration.soc import SoCRegion
 from litex.soc.interconnect import axi
 
 
+# Efinix Trion DDR ---------------------------------------------------------------------------------
+
+class EfinixTrionDDR(LiteXModule):
+    """Efinix Trion hardened DDR controller."""
+    def __init__(self, platform,
+        preset_id,
+        memory_type,
+        controller_width,
+        dram_width,
+        memory_density,
+        speedbin,
+        clock_domain      = "sys",
+        location          = "DDR_0",
+        name              = "ddr_inst1",
+        interface_name    = "axi",
+        port_data_widths  = (256, 128),
+        address_width     = 28,
+        id_width          = 8,
+        fpga_config       = None,
+        memory_config     = None,
+        memory_timing     = None,
+        control_config    = None,
+        gate_delay_config = None):
+
+        if platform.family != "Trion":
+            raise ValueError("Efinix Trion DDR requires a Trion device.")
+        if clock_domain not in platform.clks:
+            raise ValueError("Efinix Trion DDR clock domain {} has no Efinity clock.".format(clock_domain))
+        if not 1 <= len(port_data_widths) <= 2:
+            raise ValueError("Efinix Trion DDR requires one or two target ports.")
+
+        self.clock_domain = clock_domain
+        self.buses         = []
+        self.axi_pads      = []
+
+        for n, data_width in enumerate(port_data_widths):
+            bus = axi.AXIInterface(
+                data_width    = data_width,
+                address_width = address_width,
+                id_width      = id_width,
+                clock_domain  = clock_domain,
+            )
+            ios = [("{}{}".format(interface_name, n), 0,
+                Subsignal("wdata",   Pins(data_width)),
+                Subsignal("wready",  Pins(1)),
+                Subsignal("wid",     Pins(id_width)),
+                Subsignal("bready",  Pins(1)),
+                Subsignal("rdata",   Pins(data_width)),
+                Subsignal("aid",     Pins(id_width)),
+                Subsignal("bvalid",  Pins(1)),
+                Subsignal("rlast",   Pins(1)),
+                Subsignal("bid",     Pins(id_width)),
+                Subsignal("asize",   Pins(3)),
+                Subsignal("atype",   Pins(1)),
+                Subsignal("aburst",  Pins(2)),
+                Subsignal("wvalid",  Pins(1)),
+                Subsignal("aaddr",   Pins(32)),
+                Subsignal("rid",     Pins(id_width)),
+                Subsignal("avalid",  Pins(1)),
+                Subsignal("rvalid",  Pins(1)),
+                Subsignal("alock",   Pins(2)),
+                Subsignal("rready",  Pins(1)),
+                Subsignal("rresp",   Pins(2)),
+                Subsignal("wstrb",   Pins(data_width//8)),
+                Subsignal("aready",  Pins(1)),
+                Subsignal("alen",    Pins(8)),
+                Subsignal("wlast",   Pins(1)),
+            )]
+            pads = platform.add_iface_ios(ios)
+            read = bus.ar.valid
+            self.comb += [
+                # The Trion controller combines AXI AW/AR into one address channel.
+                pads.atype.eq(~read),
+                pads.aaddr.eq( Mux(read,  bus.ar.addr,  bus.aw.addr)),
+                pads.aid.eq(   Mux(read,    bus.ar.id,    bus.aw.id)),
+                pads.alen.eq(  Mux(read,   bus.ar.len,   bus.aw.len)),
+                pads.asize.eq( Mux(read,  bus.ar.size,  bus.aw.size)),
+                pads.aburst.eq(Mux(read, bus.ar.burst, bus.aw.burst)),
+                pads.alock.eq( Mux(read,  bus.ar.lock,  bus.aw.lock)),
+                pads.avalid.eq(Mux(read, bus.ar.valid, bus.aw.valid)),
+                bus.aw.ready.eq(~read & pads.aready),
+                bus.ar.ready.eq( read & pads.aready),
+
+                # Read channel.
+                bus.r.id.eq(pads.rid),
+                bus.r.data.eq(pads.rdata),
+                bus.r.last.eq(pads.rlast),
+                bus.r.resp.eq(pads.rresp),
+                bus.r.valid.eq(pads.rvalid),
+                pads.rready.eq(bus.r.ready),
+
+                # Write channel.
+                pads.wid.eq(bus.w.id),
+                pads.wstrb.eq(bus.w.strb),
+                pads.wdata.eq(bus.w.data),
+                pads.wlast.eq(bus.w.last),
+                pads.wvalid.eq(bus.w.valid),
+                bus.w.ready.eq(pads.wready),
+
+                # Write response channel.
+                bus.b.id.eq(pads.bid),
+                bus.b.resp.eq(axi.RESP_OKAY),
+                bus.b.valid.eq(pads.bvalid),
+                pads.bready.eq(bus.b.ready),
+            ]
+            self.buses.append(bus)
+            self.axi_pads.append(pads)
+
+        self.bus = self.buses[0]
+        platform.toolchain.ifacewriter.xml_blocks.append({
+            "type"              : "TRION_DDR",
+            "name"              : name,
+            "location"          : location,
+            "preset_id"         : preset_id,
+            "memory_type"       : memory_type,
+            "controller_width"  : controller_width,
+            "dram_width"        : dram_width,
+            "memory_density"    : memory_density,
+            "speedbin"          : speedbin,
+            "interface_name"    : interface_name,
+            "port_count"        : len(self.buses),
+            "clock_name"        : platform.clks[clock_domain],
+            "fpga_config"       : {} if fpga_config       is None else fpga_config,
+            "memory_config"     : {} if memory_config     is None else memory_config,
+            "memory_timing"     : {} if memory_timing     is None else memory_timing,
+            "control_config"    : {} if control_config    is None else control_config,
+            "gate_delay_config" : {} if gate_delay_config is None else gate_delay_config,
+        })
+
+
 # Efinix DDR ---------------------------------------------------------------------------------------
 
 class EfinixDDR(LiteXModule):
@@ -175,3 +305,37 @@ def add_efinix_ddr(soc, ddr, size, origin=None):
     soc.comb += ddr.awallstrb.eq(0)
     soc.bus.add_slave("main_ram", axi_lite_bus, region)
     return axi_lite_bus
+
+
+# Efinix Trion DDR SoC Integration ----------------------------------------------------------------
+
+def add_efinix_trion_ddr(soc, ddr, size, origin=None):
+    if origin is None:
+        origin = soc.mem_map.get("main_ram", None)
+    if origin is None:
+        raise ValueError("Efinix Trion DDR main RAM origin is not defined.")
+    if size < 1:
+        raise ValueError("Efinix Trion DDR port size must be positive.")
+
+    frontends = []
+    for n, bus in enumerate(ddr.buses):
+        name = "main_ram" if n == 0 else "main_ram{}".format(n)
+        frontend = axi.AXILiteInterface(
+            data_width    = bus.data_width,
+            address_width = bus.address_width,
+            clock_domain  = ddr.clock_domain,
+        )
+        soc.submodules += axi.AXILite2AXI(frontend, bus)
+        soc.bus.add_slave(
+            name   = name,
+            slave  = frontend,
+            region = SoCRegion(
+                origin = origin + n*size,
+                size   = size,
+                mode   = "rwx",
+                linker = (n == 0),
+            ),
+            strip_origin = True,
+        )
+        frontends.append(frontend)
+    return frontends
