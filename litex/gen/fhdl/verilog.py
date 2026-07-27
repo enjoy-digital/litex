@@ -166,26 +166,66 @@ def _build_module_tree(top):
         seen[id(module)] = node
         used_names = set()
         for name, mod in module._submodules:
+            if name is None:
+                name = allocate_generated_name(mod, used_names)
+            elif name in used_names:
+                # Duplicate sibling name: migen's _ModuleSubmodules allows
+                # registering several submodules under the same name (e.g.
+                # liteusb's USBDevice names both of its USBStreamInEndpoint
+                # instances "USBStreamInEndpoint"). Disambiguate or the
+                # path-derived module names and the instance names in the
+                # parent module would collide in the emitted Verilog.
+                base = name
+                idx  = 2
+                name = f"{base}_{idx}"
+                while name in used_names:
+                    idx += 1
+                    name = f"{base}_{idx}"
+            used_names.add(name)
             # Avoid emitting shared submodules multiple times. This mirrors
             # Migen's get_fragment_called behavior for shared instances.
             if id(mod) in seen:
-                if name is None:
-                    name = allocate_generated_name(mod, used_names)
-                used_names.add(name)
                 alias = _ModuleNode(module=mod, parent=node, inst_name=name,
                                     path=(path or []) + [name])
                 alias.shared_alias = True
                 alias.shared_owner = seen[id(mod)]
                 node.children.append(alias)
                 continue
-            if name is None:
-                name = allocate_generated_name(mod, used_names)
-            used_names.add(name)
             child = _walk(mod, parent=node, inst_name=name, path=(path or []) + [name], seen=seen)
             node.children.append(child)
         return node
 
     return _walk(top, parent=None, inst_name=None, path=[], seen={})
+
+
+def _collect_cd_remaps(module):
+    """Recover ClockDomainsRenamer mappings from a (possibly decorated) module.
+
+    ClockDomainsRenamer patches the instance's get_fragment with a closure
+    capturing the renamer object, which stores the old->new domain mapping as
+    cd_remapping. Nested decorators chain such closures, so walk them all.
+    Returns a list of mapping dicts (outermost decorator first).
+    """
+    remaps = []
+    seen   = set()
+
+    def _visit(fn):
+        if id(fn) in seen:
+            return
+        seen.add(id(fn))
+        for cell in getattr(fn, "__closure__", None) or ():
+            try:
+                value = cell.cell_contents
+            except ValueError:
+                continue
+            mapping = getattr(value, "cd_remapping", None)
+            if isinstance(mapping, dict):
+                remaps.append(mapping)
+            if callable(value) and getattr(value, "__closure__", None):
+                _visit(value)
+
+    _visit(getattr(module, "get_fragment", None))
+    return remaps
 
 # ------------------------------------------------------------------------------------------------ #
 #                                    RESERVED KEYWORDS                                             #
@@ -778,11 +818,19 @@ def _prepare_fragment(f, platform, special_overrides, global_clock_domains=None)
     if global_clock_domains is not None:
         # Merge global and local clock domains so submodules can use their
         # locally-defined domains (e.g. renamed/derived CDC domains).
+        # Globals win name collisions (first occurrence): ClockDomainsRenamer
+        # mutates shared ClockDomain objects in place, so local fragments may
+        # carry "phantom" domains that merely share a name with the real
+        # global domain; the global list's first domain with a given name is
+        # authoritative (same first-match semantics as _ClockDomainList
+        # lookups in flat conversion).
         merged = {}
         for cd in global_clock_domains:
-            merged[cd.name] = cd
+            if cd.name not in merged:
+                merged[cd.name] = cd
         for cd in f.clock_domains:
-            merged[cd.name] = cd
+            if cd.name not in merged:
+                merged[cd.name] = cd
         merged_list = _ClockDomainList()
         for cd in merged.values():
             merged_list.append(cd)
@@ -904,6 +952,7 @@ class _HierarchicalBuildContext:
     time_unit: str
     time_precision: str
     ios: set
+    keep_hierarchy: bool = False
     conv_output: ConvOutput = field(default_factory=ConvOutput)
     root: object = None
     global_clock_domains: object = None
@@ -913,7 +962,7 @@ class _HierarchicalBuildContext:
     ns: object = None
 
 
-def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_translate, regs_init, comb_cycle_policy, time_unit, time_precision):
+def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_translate, regs_init, comb_cycle_policy, time_unit, time_precision, keep_hierarchy=False):
     if LiteXContext.top is None:
         raise ValueError("Hierarchical Verilog generation requires LiteXContext.top to be set.")
 
@@ -933,12 +982,26 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
         time_unit         = time_unit,
         time_precision    = time_precision,
         ios               = _resolve_ios(ios, platform),
+        keep_hierarchy      = keep_hierarchy,
     )
     _apply_io_name_overrides(ctx.ios)
 
     # Prepare global clock domains from the full fragment and build hierarchy.
     ctx.global_clock_domains = f.clock_domains
     ctx.root = _build_module_tree(ctx.top)
+
+    # Clock domain remap chains per node (ClockDomainsRenamer mappings of the
+    # module itself and its ancestors, nearest decorator first). Used to
+    # resolve renamed clock domains when aliasing child clock ports (e.g.
+    # GrayCounter write/read clocks inside an AsyncFIFO wrapped with
+    # {"write": "usb", "read": "sys"}).
+    def _assign_remap_chains(node, inherited):
+        node.own_remaps  = _collect_cd_remaps(node.module)
+        node.remap_chain = node.own_remaps + inherited
+        for child in node.children:
+            _assign_remap_chains(child, node.remap_chain)
+
+    _assign_remap_chains(ctx.root, [])
 
     def _path_component_matches(path_name, trace_name):
         if path_name == trace_name:
@@ -1159,15 +1222,20 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
                 child.inline = True
 
         # Policy 2: parent drives a signal owned under a child path -> inline child.
-        for sig in parent_drivers:
-            owner_path = _normalize_hier_path(_signal_owner_path(sig, default_path=parent_path))
-            if owner_path == parent_path:
-                continue
-            for child in node.children:
-                child_path = _normalize_hier_path(child.path)
-                if owner_path[:len(child_path)] == child_path:
-                    child.inline = True
-                    break
+        # With keep_hierarchy, the child stays a module and the signal becomes
+        # a proper input port instead (used-outside detection in
+        # _compute_external/_compute_ports lifts it to a port), preserving
+        # the internal hierarchy of the child subtree.
+        if not ctx.keep_hierarchy:
+            for sig in parent_drivers:
+                owner_path = _normalize_hier_path(_signal_owner_path(sig, default_path=parent_path))
+                if owner_path == parent_path:
+                    continue
+                for child in node.children:
+                    child_path = _normalize_hier_path(child.path)
+                    if owner_path[:len(child_path)] == child_path:
+                        child.inline = True
+                        break
 
         # Policy 3: siblings drive same signal object -> inline all conflicting siblings.
         drivers = {}
@@ -1196,7 +1264,13 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             _set_hier_children(child)
 
     def _set_inline_children(node):
-        node.filter_children = [c for c in node.children if not getattr(c, "inline", False)]
+        # Shared aliases are excluded from filter_children: they are never
+        # emitted (the owner instance is), and their descendant statement ids
+        # are copies of the owner's. Subtracting those ids in _lower_tree
+        # would wrongly drop the owner's logic when it arrives via an inline
+        # chain from its real registration site.
+        node.filter_children = [c for c in node.children if not getattr(c, "inline", False)
+                                and not getattr(c, "shared_alias", False)]
         node.hier_children = [c for c in node.children if not getattr(c, "inline", False) and not getattr(c, "shared_alias", False)]
         node.inline_children = [c for c in node.children if getattr(c, "inline", False)]
         for child in node.children:
@@ -1314,6 +1388,34 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             node.subtree_specials |= child.subtree_specials
 
     _aggregate(ctx.root)
+
+    # Renamed-domain clock/reset signals (fresh domains created locally for
+    # ClockDomainsRenamer-renamed sync keys, e.g. GrayCounter "write"/"read"
+    # clocks) are treated as owned by the nearest ancestor module whose
+    # remap covers the domain name (e.g. the AsyncFIFO wrapped with
+    # {"write": "usb"}). This keeps them as local wires of that ancestor —
+    # driven there by the alias block — instead of lifting them to input
+    # ports all the way up the hierarchy.
+    def _virtual_clock_owner_node(node, cd_name):
+        n = node
+        while n is not None:
+            for remap in getattr(n, "own_remaps", []):
+                if cd_name in remap:
+                    return n
+            n = n.parent
+        return None
+
+    clock_virtual_owner = {}
+    for node in ctx.root.subtree_nodes:
+        for cd in node.fragment.clock_domains:
+            owner = _virtual_clock_owner_node(node, cd.name)
+            if owner is None or owner is node:
+                continue
+            owner_path = _normalize_hier_path(owner.path)
+            clock_virtual_owner[cd.clk] = owner_path
+            if cd.rst is not None:
+                clock_virtual_owner[cd.rst] = owner_path
+
     ctx.all_signals |= set(ctx.ios)
     ctx.ns = build_signal_namespace(
         signals=ctx.all_signals,
@@ -1322,6 +1424,25 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
     ctx.ns.clock_domains = ctx.global_clock_domains
 
     signal_local_nodes = collections.defaultdict(set)
+
+    # ── Absorb child clock signals into immediate parent ──────────
+    # If a child module has clock signals that the parent doesn't
+    # drive, absorb them as local wires so _compute_external won't
+    # promote them to input ports.  This allows _emit aliases to
+    # drive them (e.g. assign write_clk = usb_clk inside AsyncFIFO).
+    # Only absorb at the DIRECT parent — not recursively upward.
+    def _absorb_child_clock_wires(node):
+        for child in node.hier_children:
+            for sig in child.external_signals:
+                for cd in child.fragment.clock_domains:
+                    if sig is cd.clk or sig is cd.rst:
+                        if sig not in node.local_signals:
+                            node.local_signals.add(sig)
+                            ctx.all_signals.add(sig)
+                        break
+        for child in node.hier_children:
+            _absorb_child_clock_wires(child)
+    _absorb_child_clock_wires(ctx.root)
     for node in ctx.root.subtree_nodes:
         for sig in node.local_signals:
             signal_local_nodes[sig].add(node)
@@ -1336,7 +1457,10 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             node.external_signals = set()
             node_path = _normalize_hier_path(node.path)
             for sig in node.subtree_signals:
-                owner_path = _normalize_hier_path(_signal_owner_path(sig, default_path=node_path))
+                if sig in clock_virtual_owner:
+                    owner_path = list(clock_virtual_owner[sig])
+                else:
+                    owner_path = _normalize_hier_path(_signal_owner_path(sig, default_path=node_path))
                 owner_in_subtree = owner_path[:len(node_path)] == node_path
                 used_outside = any(n not in node.subtree_nodes for n in signal_local_nodes[sig])
                 if (not owner_in_subtree) or used_outside:
@@ -1376,6 +1500,124 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             _compute_ports(child)
 
     _compute_ports(ctx.root)
+
+    def _generate_clock_reset_aliases(node):
+        """Emit clock/reset alias assignments for child submodule clock ports.
+
+        Children expose their clock domain clk/rst signals as input ports.
+        When such a port is not already tied to the parent's own net by the
+        port connection, emit an alias assign driven by (first match wins):
+
+        1) The parent's domain with the same name, after resolving
+           ClockDomainsRenamer mappings on this module and its ancestors
+           (e.g. write→usb inside an AsyncFIFO wrapped with
+           {"write": "usb", "read": "sys"}).
+        2) The canonical sibling signal for that domain (daisy-chain), when
+           the parent has no domain with that name.
+        3) Any parent clock domain (fallback), only when the parent has no
+           domain with that name at all.
+
+        No alias is emitted when the child's port IS the parent's own
+        clock/reset net (shared ClockDomain object): the port connection
+        already ties them and an alias would add a second driver to a net
+        the parent may already drive (e.g. CRG logic).
+        """
+        if not node.hier_children:
+            return ""
+        clock_assigns = []
+        parent_cd_by_name = {}
+        parent_cd_list = list(node.fragment.clock_domains)
+        for cd in parent_cd_list:
+            parent_cd_by_name[cd.name] = cd
+        canonical_clk = {}
+        canonical_rst = {}
+        for child in node.hier_children:
+            for cd in child.fragment.clock_domains:
+                if cd.name not in canonical_clk:
+                    canonical_clk[cd.name] = cd.clk
+                if cd.rst is not None and cd.name not in canonical_rst:
+                    canonical_rst[cd.name] = cd.rst
+        for child in node.hier_children:
+            for sig in child.external_signals:
+                cd_name = None
+                is_rst  = False
+                for cd in child.fragment.clock_domains:
+                    if sig is cd.clk:
+                        cd_name = cd.name; is_rst = False; break
+                    if sig is cd.rst:
+                        cd_name = cd.name; is_rst = True; break
+                if cd_name is None:
+                    continue
+                if sig not in child.port_directions:
+                    continue
+                if child.port_directions[sig] != "input":
+                    continue
+                if node.port_directions.get(sig) == "input":
+                    # The clock/reset net is also an input of THIS module:
+                    # it is driven from above, a local alias would be
+                    # illegal (assign to an input port) and duplicate the
+                    # driver. Aliases are emitted at the boundary module
+                    # where the net is a local wire (e.g. the renamer
+                    # boundary for renamed domains), not here.
+                    continue
+                source_sig = None
+                # Resolve ClockDomainsRenamer mappings on this module and
+                # its ancestors (e.g. write→usb inside an AsyncFIFO
+                # wrapped with {"write": "usb", "read": "sys"}).
+                mapped_cd_name = cd_name
+                for remap in getattr(node, "remap_chain", []):
+                    if mapped_cd_name in remap:
+                        mapped_cd_name = remap[mapped_cd_name]
+                # 1) Parent domain by (possibly remapped) name.
+                parent_cd = parent_cd_by_name.get(mapped_cd_name)
+                if parent_cd is not None:
+                    source_sig = parent_cd.rst if is_rst else parent_cd.clk
+                    if source_sig is sig:
+                        # The child's clock/reset port IS the parent's own
+                        # net (shared global ClockDomain object): the port
+                        # connection already ties them. Emitting any alias
+                        # here would add a second driver to a net the
+                        # parent may already drive (e.g. CRG logic).
+                        continue
+                # 2) Canonical child signal (sibling daisy-chain).
+                if source_sig is None:
+                    source_sig = (canonical_rst if is_rst
+                                  else canonical_clk).get(cd_name)
+                    if source_sig is sig:
+                        # This child provides the canonical net itself.
+                        if parent_cd is not None:
+                            # Same net as the parent's: nothing to do.
+                            continue
+                        # Parent has no domain with this name (e.g.
+                        # renamed domains write→usb): try the fallback.
+                        source_sig = None
+                # 3) Fallback: any parent clock domain, but only when the
+                #    parent has no domain with this name at all.
+                #    Handles renamed domains (write→usb, read→sys).
+                if source_sig is None and parent_cd is None and parent_cd_list:
+                    for pcd in parent_cd_list:
+                        source_sig = pcd.rst if is_rst else pcd.clk
+                        if source_sig is not None:
+                            break
+                if source_sig is None:
+                    continue
+                # Reject self-aliases (same name both sides).
+                if ctx.ns.get_name(source_sig) == ctx.ns.get_name(sig):
+                    continue
+                child_name  = ctx.ns.get_name(sig)
+                source_name = ctx.ns.get_name(source_sig)
+                # Ensure source signal is declared in this module.
+                if source_sig not in node.local_signals:
+                    node.local_signals.add(source_sig)
+                    ctx.all_signals.add(source_sig)
+                clock_assigns.append(
+                    f"assign {child_name} = {source_name};")
+        r = ""
+        if clock_assigns:
+            for a in sorted(clock_assigns):
+                r += a + "\n"
+            r += "\n"
+        return r
 
     verilog = ""
     verilog += _generate_banner(
@@ -1427,6 +1669,45 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
         parts.append(_generate_separator("Submodules"))
         parts.append(_generate_submodule_instances(node, ctx.ns))
         parts.append(_generate_separator("Combinatorial Logic"))
+        # ── Clock / Reset aliasing for child submodule ports ────
+        parts.append(_generate_clock_reset_aliases(node))
+        # ── Reset-only constant materialization ─────────────────
+        # Signals that are never assigned anywhere (e.g. Record fields with
+        # reset=1 like USB interface tx_data_pid) keep their reset value in
+        # flat conversion (`reg = <reset>`). Here they would otherwise
+        # become a floating chain of input ports with an undriven net,
+        # delivering GND instead of the reset constant to consumers. The
+        # topmost module passing the signal (not importing it as an input
+        # port itself) drives it with its reset value.
+        constant_assigns = []
+        # Clock/reset domain signals are handled by the alias block above;
+        # never materialize them as constants (a phantom renamed-domain clock
+        # IS never targeted but is driven by its boundary alias).
+        clock_reset_signals = set()
+        for n in [node] + node.hier_children:
+            for cd in n.fragment.clock_domains:
+                clock_reset_signals.add(cd.clk)
+                if cd.rst is not None:
+                    clock_reset_signals.add(cd.rst)
+        for sig in sorted(interconnect_signals, key=lambda x: ctx.ns.get_name(x)):
+            if sig in node.local_targets:
+                continue
+            if sig in child_output_signals:
+                continue
+            if sig in ctx.root.subtree_targets:
+                continue
+            if sig in clock_reset_signals:
+                continue
+            if sig in ctx.ios:
+                continue
+            if sig in node.external_signals and node.port_directions.get(sig) == "input":
+                continue
+            constant_assigns.append(
+                f"assign {ctx.ns.get_name(sig)} = {_generate_expression(ctx.ns, sig.reset)[0]};")
+        if constant_assigns:
+            for a in constant_assigns:
+                parts.append(a + "\n")
+            parts.append("\n")
         parts.append(_generate_combinatorial_logic(node.fragment, ctx.ns, ctx.comb_cycle_policy))
         parts.append(_generate_separator("Synchronous Logic"))
         parts.append(_generate_synchronous_logic(node.fragment, ctx.ns))
@@ -1470,6 +1751,14 @@ def convert(f, ios=set(), name="top", platform=None,
     comb_cycle_policy = _normalize_comb_cycle_policy(comb_cycle_policy)
 
     # Hierarchical Verilog generation (opt-in path).
+    # `hierarchical` may also be a dict of options, e.g.
+    # {"enabled": True, "keep_hierarchy": True}; "keep_hierarchy" keeps children
+    # as modules by lifting parent-driven child-internal signals to proper
+    # input ports instead of inlining the whole child subtree.
+    keep_hierarchy = False
+    if isinstance(hierarchical, dict):
+        keep_hierarchy = bool(hierarchical.get("keep_hierarchy", False))
+        hierarchical = bool(hierarchical.get("enabled", True))
     if hierarchical:
         return _convert_hierarchical(
             f                 = f,
@@ -1482,6 +1771,7 @@ def convert(f, ios=set(), name="top", platform=None,
             comb_cycle_policy = comb_cycle_policy,
             time_unit         = time_unit,
             time_precision    = time_precision,
+            keep_hierarchy      = keep_hierarchy,
         )
 
     # Create ConvOutput for flat path.

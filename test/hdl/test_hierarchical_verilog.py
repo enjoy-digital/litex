@@ -4,6 +4,7 @@ import re
 from migen import *
 from migen.fhdl.decorators import ClockDomainsRenamer
 from migen.fhdl.specials import Tristate
+from migen.genlib.fifo import AsyncFIFO
 
 from litex.gen import LiteXContext
 from litex.gen.fhdl.hierarchy import LiteXHierarchyExplorer
@@ -152,6 +153,188 @@ class _InlineDropTop(Module):
         self.comb += self.child.trigger.eq(1)
 
 
+class _USBClockLeaf(Module):
+    """Leaf using the 'usb' clock domain; defines no domain itself, so its
+    fragment shares the parent's global 'usb' ClockDomain object."""
+    def __init__(self):
+        self.o = Signal(name="leaf_o")
+        self.sync.usb += self.o.eq(~self.o)
+
+
+class _TwoDomainTop(Module):
+    """Top with a CRG-style 'usb' domain: the top module itself drives the
+    usb clk/rst nets (from a PLL output / POR), and a child leaf uses
+    sync.usb, exposing usb_clk/usb_rst as input ports tied to the very same
+    top-level nets."""
+    def __init__(self, n_leaves=1):
+        # Domain order matters: 'sys' first, mirroring SoC clock domain
+        # lists, so the alias fallback would pick sys_clk/sys_rst.
+        self.clock_domains.cd_sys = ClockDomain("sys")
+        self.clock_domains.cd_usb = ClockDomain("usb")
+        self.por     = Signal(name="por")
+        self.pll_out = Signal(name="pll_out")
+        self.o       = Signal(name="o")
+        # CRG-like: top drives its own usb clock/reset nets.
+        self.comb += [
+            self.cd_usb.clk.eq(self.pll_out),
+            self.cd_usb.rst.eq(self.por),
+        ]
+        leaves = []
+        for i in range(n_leaves):
+            leaf = _USBClockLeaf()
+            setattr(self.submodules, f"leaf{i}" if n_leaves > 1 else "leaf", leaf)
+            leaves.append(leaf)
+        terms = [l.o for l in leaves]
+        x = terms[0]
+        for t in terms[1:]:
+            x = x ^ t
+        self.comb += self.o.eq(x)
+
+
+class _DupNamedLeaf(Module):
+    def __init__(self):
+        self.o = Signal(name="dup_o")
+        self.sync += self.o.eq(~self.o)
+
+
+class _DupNamedSiblingTop(Module):
+    """Two children registered under the SAME submodule name (migen allows
+    it: _ModuleSubmodules.__setattr__ appends to a list; liteusb's USBDevice
+    does this for its two USBStreamInEndpoint instances). Each child has a
+    leaf grandchild so that path-derived module names would collide too."""
+    def __init__(self):
+        self.o = Signal(name="o")
+        for _ in range(2):
+            child = Module()
+            child.submodules.leaf = _DupNamedLeaf()
+            setattr(self.submodules, "endpoint", child)
+        self.comb += self.o.eq(0)
+
+
+class _RenamedFIFOTop(Module):
+    """AsyncFIFO wrapped in ClockDomainsRenamer: GrayCounters keep 'write'/
+    'read' domains while the FIFO parent uses 'usb'/'sys'. Mirrors the
+    liteusb ACM tx_fifo/rx_fifo structure."""
+    def __init__(self):
+        self.i = Signal(8, reset_less=True, name="i")
+        self.o = Signal(8, name="o")
+        self.submodules.fifo = ClockDomainsRenamer(
+            {"write": "usb", "read": "sys"})(AsyncFIFO(width=8, depth=4))
+        self.comb += [
+            self.fifo.din.eq(self.i),
+            self.fifo.we.eq(1),
+            self.fifo.re.eq(1),
+            self.o.eq(self.fifo.dout),
+        ]
+
+
+class _TwiceRegisteredSerializer(Module):
+    """Leaf with real logic, mimics StreamSerializer wrapped in a renamer."""
+    def __init__(self):
+        self.i = Signal(8, name="ser_i")
+        self.o = Signal(8, name="ser_o")
+        self.sync += self.o.eq(self.i)
+
+
+class _TwiceRegisteredHandler(Module):
+    """Handler whose transmitter child is added in do_finalize (like
+    liteusb's UAC2RequestHandlers)."""
+    def __init__(self):
+        self.claim = Signal(name="claim")
+
+    def do_finalize(self):
+        self.submodules.transmitter = ClockDomainsRenamer("usb")(
+            _TwiceRegisteredSerializer())
+        self.comb += self.claim.eq(self.transmitter.o[0])
+
+
+class _TwiceRegisteredControlEp(Module):
+    def __init__(self, handler):
+        self.inner = Signal(name="ctrl_inner")
+        self.submodules.H = handler
+        # Parent drives the same signal as the child: policy-1 inlines H.
+        self.comb += handler.claim.eq(1)
+
+
+class _TwiceRegisteredTop(Module):
+    """The same handler module registered under two parents (like liteusb's
+    add_request_handler + self.submodules.uac2_handlers): the second
+    registration becomes a shared alias. With the whole chain inlined into
+    the top (policy 1 then policy 2), the alias's descendant statement ids
+    must not filter out the handler logic arriving via the inline chain."""
+    def __init__(self):
+        self.o = Signal(name="o")
+        handler = _TwiceRegisteredHandler()
+        self.submodules.ctrl = _TwiceRegisteredControlEp(handler)
+        self.submodules.uac2_handlers = handler
+        # Drive a signal owned under ctrl: policy-2 inlines ctrl into top.
+        self.comb += self.ctrl.inner.eq(1)
+        self.comb += self.o.eq(0)
+
+
+class _StreamerGenLeaf(Module):
+    def __init__(self):
+        self.o = Signal(name="gen_o")
+        self.sync += self.o.eq(~self.o)
+
+
+class _StreamerMid(Module):
+    """Middle module using the 'sys' domain with a child that also uses
+    'sys' (mirrors PacketListStreamer + ConstantStreamGenerator inside the
+    ClockDomainsRenamer("usb")-wrapped AudioInit of the DECA audio design)."""
+    def __init__(self):
+        self.o = Signal(name="strm_o")
+        self.submodules.generator = _StreamerGenLeaf()
+        self.sync += self.o.eq(self.generator.o)
+
+
+class _RenamedInit(Module):
+    def __init__(self):
+        self.submodules.init_streamer = _StreamerMid()
+
+
+class _RenamedInitTop(Module):
+    """Top with a real 'usb' domain; a ClockDomainsRenamer("usb")-wrapped
+    subtree whose middle/leaf levels use 'sys'. The mapped alias must only
+    be emitted at the renamer boundary module — intermediate modules get
+    the net from above, so aliasing there would drive their own input
+    ports (Quartus: "value cannot be assigned to input")."""
+    def __init__(self):
+        self.clock_domains.cd_sys = ClockDomain("sys")
+        self.clock_domains.cd_usb = ClockDomain("usb")
+        self.pll_out = Signal(name="pll_out")
+        self.por     = Signal(name="por")
+        self.o       = Signal(name="o")
+        self.comb += [
+            self.cd_usb.clk.eq(self.pll_out),
+            self.cd_usb.rst.eq(self.por),
+        ]
+        self.submodules.audio_init = ClockDomainsRenamer("usb")(_RenamedInit())
+        self.comb += self.o.eq(self.audio_init.init_streamer.o)
+
+
+class _ConstFieldProducer(Module):
+    """Owns a Record-like field that is never assigned (a reset-only
+    constant), mirroring UAC2RequestHandlers.interface.tx_data_pid."""
+    def __init__(self):
+        self.tx_data_pid = Signal(reset=1, name="tx_data_pid")
+
+
+class _ConstFieldConsumer(Module):
+    def __init__(self, sig):
+        self.o = Signal(name="cons_o")
+        self.comb += self.o.eq(sig)
+
+
+class _ConstFieldTop(Module):
+    def __init__(self):
+        self.o = Signal(name="o")
+        self.submodules.producer = _ConstFieldProducer()
+        self.submodules.consumer = _ConstFieldConsumer(
+            self.producer.tx_data_pid)
+        self.comb += self.o.eq(self.consumer.o)
+
+
 class TestHierarchicalVerilog(unittest.TestCase):
     @staticmethod
     def _module_body(verilog, name):
@@ -159,6 +342,21 @@ class TestHierarchicalVerilog(unittest.TestCase):
         if match is None:
             raise AssertionError(f"module {name} not found")
         return match.group(0)
+
+    def _assert_no_input_port_drivers(self, verilog):
+        # Structural invariant: no module assigns to one of its own input
+        # ports (illegal in Verilog: Quartus "value cannot be assigned to
+        # input ...").
+        for mod in re.finditer(r"module (\S+) \((.*?)\);(.*?)endmodule",
+                               verilog, re.S):
+            header = mod.group(2)
+            body   = mod.group(3)
+            inputs = set(re.findall(r"input\s+wire\s+(?:\[[^\]]*\]\s*)?(\w+)",
+                                    header))
+            for assign in re.finditer(r"assign (\w+) =", body):
+                self.assertNotIn(assign.group(1), inputs,
+                    f"module {mod.group(1)} assigns to its own input port "
+                    f"{assign.group(1)}")
 
     def test_hierarchy_golden_text(self):
         expected = "\n".join([
@@ -316,6 +514,44 @@ class TestHierarchicalVerilog(unittest.TestCase):
         self.assertNotIn("module top__child (", verilog)
         self.assertNotIn("module top__child__leaf (", verilog)
 
+    def test_hierarchical_no_flatten_lifts_child_internal_drive_to_port(self):
+        # With --no-flatten, a parent driving a child-internal signal must
+        # NOT inline the child; the signal becomes a proper input port.
+        # (Dedicated fixture: the driven signal is referenced inside the
+        # child, which is what forces the input-port lifting.)
+        class _NoFlattenChild(Module):
+            def __init__(self):
+                self.trigger = Signal(name="trigger")
+                self.o = Signal(name="nf_o")
+                self.comb += self.o.eq(self.trigger)
+
+        class _NoFlattenTop(Module):
+            def __init__(self):
+                self.o = Signal(name="o")
+                self.submodules.child = _NoFlattenChild()
+                self.comb += self.child.trigger.eq(1)
+                self.comb += self.o.eq(self.child.o)
+
+        top = _NoFlattenTop()
+
+        old_top = LiteXContext.top
+        try:
+            LiteXContext.top = top
+            verilog = convert(top, ios={top.o}, name="top",
+                hierarchical={"enabled": True, "keep_hierarchy": True}).main_source
+        finally:
+            LiteXContext.top = old_top
+
+        # Child stays a module...
+        child_module = self._module_body(verilog, "top__child")
+        top_module   = self._module_body(verilog, "top")
+        # ...with trigger as an input port...
+        self.assertRegex(child_module, r"input\s+wire\s+trigger")
+        self.assertIn(".trigger(trigger)", top_module)
+        # ...and its logic is intact.
+        self.assertIn("assign nf_o = trigger;", child_module)
+        self.assertIn("assign o = nf_o;", top_module)
+
     def test_hierarchical_shared_memory_is_emitted_once(self):
         top = _SharedMemoryTop()
 
@@ -334,3 +570,219 @@ class TestHierarchicalVerilog(unittest.TestCase):
         self.assertNotIn("reg [7:0] mem[0:3];", reader_module)
         self.assertRegex(owner_module, r"output\s+wire\s+\[7:0\]\s+dat_r")
         self.assertRegex(reader_module, r"input\s+wire\s+\[7:0\]\s+dat_r")
+
+    def _convert_hier(self, top, ios):
+        old_top = LiteXContext.top
+        try:
+            LiteXContext.top = top
+            return convert(top, ios=ios, name="top", hierarchical=True).main_source
+        finally:
+            LiteXContext.top = old_top
+
+    def test_hierarchical_parent_driven_clock_not_double_driven(self):
+        # Regression test for the multiple-constant-driver bug (Quartus:
+        # "Can't resolve multiple constant drivers for net usb_rst").
+        # The child's usb_clk/usb_rst input ports ARE the top module's own
+        # nets (shared global ClockDomain object). The clock/reset aliasing
+        # block must NOT emit a fallback alias (assign usb_clk = sys_clk):
+        # the port connection already ties the nets, and an extra assign
+        # creates a second, conflicting driver on a net the top module
+        # already drives from its CRG logic.
+        top = _TwoDomainTop()
+        verilog = self._convert_hier(top, ios={top.por, top.pll_out, top.o})
+        top_module = self._module_body(verilog, "top")
+        leaf_module = self._module_body(verilog, "top__leaf")
+
+        # No cross-domain fallback aliases.
+        self.assertNotIn("assign usb_clk = sys_clk;", top_module)
+        self.assertNotIn("assign usb_rst = sys_rst;", top_module)
+
+        # Each clock/reset net has exactly one continuous-assign driver:
+        # the CRG-like comb logic, nothing else.
+        self.assertEqual(len(re.findall(r"assign usb_clk =", top_module)), 1)
+        self.assertEqual(len(re.findall(r"assign usb_rst =", top_module)), 1)
+        self.assertIn("assign usb_clk = pll_out;", top_module)
+        self.assertIn("assign usb_rst = por;", top_module)
+
+        # The child still gets proper input ports tied to the top nets.
+        self.assertRegex(leaf_module, r"input\s+wire\s+usb_clk")
+        self.assertRegex(leaf_module, r"input\s+wire\s+usb_rst")
+        self.assertIn(".usb_clk(usb_clk)", top_module)
+        self.assertIn(".usb_rst(usb_rst)", top_module)
+
+    def test_hierarchical_sibling_clocks_not_double_driven(self):
+        # Same as above but with two siblings sharing the 'usb' domain
+        # (mirrors the liteusb ACM example, where two USBDevice subtrees
+        # both sit under the top module): no fallback aliases, single
+        # driver per clock/reset net.
+        top = _TwoDomainTop(n_leaves=2)
+        verilog = self._convert_hier(top, ios={top.por, top.pll_out, top.o})
+        top_module = self._module_body(verilog, "top")
+
+        self.assertNotIn("assign usb_clk = sys_clk;", top_module)
+        self.assertNotIn("assign usb_rst = sys_rst;", top_module)
+        self.assertEqual(len(re.findall(r"assign usb_clk =", top_module)), 1)
+        self.assertEqual(len(re.findall(r"assign usb_rst =", top_module)), 1)
+        self.assertEqual(top_module.count(".usb_clk(usb_clk)"), 2)
+        self.assertEqual(top_module.count(".usb_rst(usb_rst)"), 2)
+
+    def test_hierarchical_duplicate_sibling_names_are_disambiguated(self):
+        # Regression test for duplicate module/instance declarations with
+        # --no-flatten: two siblings registered under the same submodule
+        # name (liteusb USBDevice names both of its USBStreamInEndpoint
+        # instances "USBStreamInEndpoint") produced two modules with the same
+        # path-derived name and two instances with the same name in the
+        # parent scope (Quartus: "module ... cannot be declared more than
+        # once", "identifier ... is already declared in the present scope").
+        top = _DupNamedSiblingTop()
+        verilog = self._convert_hier(top, ios={top.o})
+
+        # Every module declaration must be unique.
+        module_names = re.findall(r"^module (\S+) \(", verilog, re.M)
+        self.assertEqual(len(module_names), len(set(module_names)),
+            f"duplicate module declarations: "
+            f"{sorted(n for n in module_names if module_names.count(n) > 1)}")
+
+        # Both siblings emitted, with disambiguated names.
+        self.assertIn("module top__endpoint (", verilog)
+        self.assertIn("module top__endpoint_2 (", verilog)
+        self.assertIn("module top__endpoint__leaf (", verilog)
+        self.assertIn("module top__endpoint_2__leaf (", verilog)
+
+        # Instance names inside the parent must be unique too.
+        top_module = self._module_body(verilog, "top")
+        self.assertIn("top__endpoint endpoint (", top_module)
+        self.assertIn("top__endpoint_2 endpoint_2 (", top_module)
+
+    def test_hierarchical_renamed_domain_aliased_to_mapped_parent_domain(self):
+        # Regression test for Issue 3 (renamed clock domains): the
+        # GrayCounter 'write'/'read' clock ports inside a
+        # ClockDomainsRenamer-wrapped AsyncFIFO must be aliased to the
+        # mapped parent domains (write->usb, read->sys), not to an arbitrary
+        # fallback domain, and the aliased nets must be FIFO-local wires,
+        # not input ports of the FIFO module itself (assigning to an input
+        # port is illegal: Quartus "value cannot be assigned to input").
+        top = _RenamedFIFOTop()
+        old_top = LiteXContext.top
+        try:
+            LiteXContext.top = top
+            verilog = convert(top, ios={top.i, top.o}, name="top",
+                hierarchical={"enabled": True, "keep_hierarchy": True}).main_source
+        finally:
+            LiteXContext.top = old_top
+        fifo_module = self._module_body(verilog, "top__fifo")
+        fifo_header  = fifo_module.split(");", 1)[0]
+
+        # Aliases exist and use the MAPPED parent domains.
+        self.assertIn("assign write_clk = usb_clk;", fifo_module)
+        self.assertIn("assign write_rst = usb_rst;", fifo_module)
+        self.assertIn("assign read_clk = sys_clk;",  fifo_module)
+        self.assertIn("assign read_rst = sys_rst;",  fifo_module)
+
+        # Exactly one driver per phantom clock/reset net (the reset-only
+        # constant materialization must not fire on clock/reset signals:
+        # they are driven by the boundary alias).
+        for net in ("write_clk", "write_rst", "read_clk", "read_rst"):
+            self.assertEqual(
+                len(re.findall(rf"assign {net} =", fifo_module)), 1,
+                f"{net} has != 1 driver in fifo module")
+            self.assertNotIn(f"assign {net} = 1'd0;", fifo_module)
+
+        # The aliased clock/reset nets are local wires, not input ports.
+        self.assertNotRegex(fifo_header, r"input\s+wire\s+write_clk")
+        self.assertNotRegex(fifo_header, r"input\s+wire\s+write_rst")
+        self.assertNotRegex(fifo_header, r"input\s+wire\s+read_clk")
+        self.assertNotRegex(fifo_header, r"input\s+wire\s+read_rst")
+        self.assertRegex(fifo_module, r"wire\s+write_clk;")
+        self.assertRegex(fifo_module, r"wire\s+read_clk;")
+
+        # The GrayCounter instances still get their clock ports connected.
+        self.assertIn(".write_clk(write_clk)", fifo_module)
+        self.assertIn(".read_clk(read_clk)",   fifo_module)
+
+        # Structural invariant: no module assigns to one of its own input
+        # ports anywhere in the output.
+        self._assert_no_input_port_drivers(verilog)
+
+    def test_hierarchical_renamed_subtree_aliases_only_at_boundary(self):
+        # Regression test (DECA audio --no-flatten): inside a
+        # ClockDomainsRenamer("usb")-wrapped subtree, intermediate modules
+        # receive the renamed clock/reset nets via their input ports. The
+        # alias block must NOT fire at those levels: assigning to an input
+        # port is illegal. Aliases belong at the renamer boundary module
+        # only, where the phantom renamed-domain clocks are local wires.
+        top = _RenamedInitTop()
+        old_top = LiteXContext.top
+        try:
+            LiteXContext.top = top
+            verilog = convert(top, ios={top.pll_out, top.por, top.o}, name="top",
+                hierarchical={"enabled": True, "keep_hierarchy": True}).main_source
+        finally:
+            LiteXContext.top = old_top
+
+        # No module anywhere assigns to its own input port.
+        self._assert_no_input_port_drivers(verilog)
+
+        # The middle/leaf modules keep their (phantom-named) clock/reset
+        # input ports and contain no clock aliases at all.
+        for mod_name in ("top__audio_init__init_streamer",
+                         "top__audio_init__init_streamer__generator"):
+            mod = self._module_body(verilog, mod_name)
+            header = mod.split(");", 1)[0]
+            self.assertRegex(header, r"input\s+wire\s+sys_clk")
+            self.assertRegex(header, r"input\s+wire\s+sys_rst")
+            self.assertNotRegex(mod, r"assign \w+_clk = ")
+            self.assertNotRegex(mod, r"assign \w+_rst = ")
+
+        # The renamer boundary module drives the phantom sys-domain nets
+        # from the mapped usb domain.
+        init_module = self._module_body(verilog, "top__audio_init")
+        self.assertIn("assign sys_clk = usb_clk;", init_module)
+        self.assertIn("assign sys_rst = usb_rst;", init_module)
+
+    def test_hierarchical_shared_alias_does_not_drop_inlined_logic(self):
+        # Regression test: a module registered under two parents (shared
+        # alias) whose first registration sits inside a subtree that gets
+        # inlined into the top. The alias is never emitted; its copied
+        # descendant statement ids must not filter the handler logic that
+        # legitimately arrives at the top via the inline chain. (Audio
+        # interface bug: UAC2RequestHandlers' StreamSerializer was dropped,
+        # the device enumerated but could not answer class requests.)
+        top = _TwiceRegisteredTop()
+        verilog = self._convert_hier(top, ios={top.o})
+
+        # The serializer's logic must be emitted somewhere in the netlist.
+        self.assertIn("ser_i", verilog)
+        self.assertIn("ser_o", verilog)
+        self.assertRegex(verilog, r"ser_o <= ser_i")
+
+    def test_hierarchical_never_driven_signal_gets_reset_constant(self):
+        # Regression test (DECA UAC2 --no-flatten): a signal that is
+        # never assigned anywhere (a reset-only constant, e.g.
+        # UAC2RequestHandlers.interface.tx_data_pid with reset=1) but is
+        # referenced across module boundaries became a floating chain of
+        # input ports with an undriven top-level wire (GND at the consumer
+        # instead of the reset constant). The topmost module passing the
+        # signal must materialize the reset value as a constant driver,
+        # matching flat conversion (`reg = <reset>` for untargeted signals).
+        top = _ConstFieldTop()
+        old_top = LiteXContext.top
+        try:
+            LiteXContext.top = top
+            verilog = convert(top, ios={top.o}, name="top",
+                hierarchical={"enabled": True, "keep_hierarchy": True}).main_source
+        finally:
+            LiteXContext.top = old_top
+
+        top_module      = self._module_body(verilog, "top")
+        consumer_module = self._module_body(verilog, "top__consumer")
+
+        # The consumer reads the signal through an input port...
+        self.assertRegex(consumer_module, r"input\s+wire\s+tx_data_pid")
+        self.assertIn(".tx_data_pid(tx_data_pid)", top_module)
+
+        # ...and the top materializes the reset value as a constant driver.
+        self.assertIn("assign tx_data_pid = 1'd1;", top_module)
+
+        # The consumer's logic uses the port.
+        self.assertIn("assign cons_o = tx_data_pid;", consumer_module)
