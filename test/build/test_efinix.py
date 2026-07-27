@@ -173,6 +173,34 @@ def test_generate_seu_emits_wait_interval_for_auto_mode():
     assert 'WAIT_INTERVAL", "42"' in cmds
 
 
+@pytest.mark.parametrize("partnumber, with_feedback_mode", [
+    ("T4F49",  False),
+    ("T8F81",  False),
+    ("T8Q144",  True),
+    ("T20F256", True),
+])
+def test_generate_pll_handles_trion_v1_feedback_mode(partnumber, with_feedback_mode):
+    writer = InterfaceWriter("/tmp/efinity")
+    block = {
+        "name"         : "pll0",
+        "input_freq"   : 33.333e6,
+        "input_clock"  : "CORE",
+        "input_signal" : "clk",
+        "resource"     : "PLL_0",
+        "locked"       : "locked",
+        "rstn"         : "rstn",
+        "clk_out"      : [["sys_clk", 33.333e6, 0, 0, False]],
+        "feedback"     : -1,
+        "version"      : "V1_V2",
+    }
+
+    cmds = writer.generate_pll(block, partnumber, verbose=False)
+    feedback_mode_cmd = 'design.set_property("pll0","FEEDBACK_MODE","INTERNAL","PLL")'
+
+    assert (feedback_mode_cmd in cmds) is with_feedback_mode
+    assert 'design.auto_calc_pll_clock("pll0", target_freq)' in cmds
+
+
 def test_generate_ddr_emits_controller_interfaces_and_swizzle():
     def signal(name):
         return migen.Signal(name_override=name)
