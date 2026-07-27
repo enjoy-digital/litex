@@ -564,6 +564,118 @@ design.create("{2}", "{3}", "./", overwrite=True)
 
         return '\n'.join(cmd) + '\n'
 
+    def generate_ddr(self, block, verbose=True):
+        block_type = "DDR"
+        name       = block["name"]
+        location   = block["location"]
+        axi        = block["axi"]
+        cfg        = block["cfg"]
+
+        cmd = []
+        cmd.append('design.create_block("{}", "{}")'.format(name, block_type))
+
+        properties = [
+            ("MEMORY_TYPE",    block["memory_type"]),
+            ("DQ_WIDTH",       block["dq_width"]),
+            ("MEMORY_DENSITY", block["memory_density"]),
+            ("PHYSICAL_RANK",  block["physical_rank"]),
+            ("CLKIN_SEL",      block["clkin_sel"]),
+            ("TARGET0_EN",     "1"),
+            ("TARGET1_EN",     "0"),
+        ]
+        for prop, value in properties:
+            cmd.append('design.set_property("{}", "{}", "{}", "{}")'.format(
+                name, prop, value, block_type))
+
+        axi_properties = [
+            ("AXI0_ARADDR_BUS",     axi.araddr),
+            ("AXI0_ARAPCMD_PIN",    axi.arapcmd),
+            ("AXI0_ARBURST_BUS",    axi.arburst),
+            ("AXI0_ARID_BUS",       axi.arid),
+            ("AXI0_ARLEN_BUS",      axi.arlen),
+            ("AXI0_ARLOCK_PIN",     axi.arlock),
+            ("AXI0_ARQOS_PIN",      axi.arqos),
+            ("AXI0_ARREADY_PIN",    axi.arready),
+            ("AXI0_ARSIZE_BUS",     axi.arsize),
+            ("AXI0_ARSTN_PIN",      axi.resetn),
+            ("AXI0_ARVALID_PIN",    axi.arvalid),
+            ("AXI0_AWADDR_BUS",     axi.awaddr),
+            ("AXI0_AWALLSTRB_PIN",  axi.awallstrb),
+            ("AXI0_AWAPCMD_PIN",    axi.awapcmd),
+            ("AXI0_AWBURST_BUS",    axi.awburst),
+            ("AXI0_AWCACHE_BUS",    axi.awcache),
+            ("AXI0_AWCOBUF_PIN",    axi.awcobuf),
+            ("AXI0_AWID_BUS",       axi.awid),
+            ("AXI0_AWLEN_BUS",      axi.awlen),
+            ("AXI0_AWLOCK_PIN",     axi.awlock),
+            ("AXI0_AWQOS_PIN",      axi.awqos),
+            ("AXI0_AWREADY_PIN",    axi.awready),
+            ("AXI0_AWSIZE_BUS",     axi.awsize),
+            ("AXI0_AWVALID_PIN",    axi.awvalid),
+            ("AXI0_BID_BUS",        axi.bid),
+            ("AXI0_BREADY_PIN",     axi.bready),
+            ("AXI0_BRESP_BUS",      axi.bresp),
+            ("AXI0_BVALID_PIN",     axi.bvalid),
+            ("AXI0_CLK_INPUT_PIN",  block["axi_clk"]),
+            ("AXI0_CLK_INVERT_EN",  "0"),
+            ("AXI0_DATA_WIDTH",     block["axi_data_width"]),
+            ("AXI0_RDATA_BUS",      axi.rdata),
+            ("AXI0_RID_BUS",        axi.rid),
+            ("AXI0_RLAST_PIN",      axi.rlast),
+            ("AXI0_RREADY_PIN",     axi.rready),
+            ("AXI0_RRESP_BUS",      axi.rresp),
+            ("AXI0_RVALID_PIN",     axi.rvalid),
+            ("AXI0_WDATA_BUS",      axi.wdata),
+            ("AXI0_WLAST_PIN",      axi.wlast),
+            ("AXI0_WREADY_PIN",     axi.wready),
+            ("AXI0_WSTRB_BUS",      axi.wstrb),
+            ("AXI0_WVALID_PIN",     axi.wvalid),
+        ]
+        for prop, value in axi_properties:
+            if isinstance(value, Signal):
+                value = value.name_override
+            cmd.append('design.set_property("{}", "{}", "{}", "{}")'.format(
+                name, prop, value, block_type))
+
+        cfg_properties = [
+            ("CFG_DONE_PIN",  cfg.done),
+            ("CFG_RESET_PIN", cfg.reset),
+            ("CFG_SEL_PIN",   cfg.sel),
+            ("CFG_START_PIN", cfg.start),
+        ]
+        for prop, value in cfg_properties:
+            cmd.append('design.set_property("{}", "{}", "{}", "{}")'.format(
+                name, prop, value.name_override, block_type))
+
+        ctrl_properties = [
+            ("CTRL_BUSY_PIN",              ""),
+            ("CTRL_CKE_PIN",               ""),
+            ("CTRL_CLK_INVERT_EN",         "0"),
+            ("CTRL_CLK_PIN",               ""),
+            ("CTRL_CMD_Q_ALMOST_FULL_PIN", ""),
+            ("CTRL_DP_IDLE_PIN",           ""),
+            ("CTRL_INT_PIN",               ""),
+            ("CTRL_MEM_RST_VALID_PIN",     ""),
+            ("CTRL_PORT_BUSY_PIN",          ""),
+            ("CTRL_REFRESH_PIN",            ""),
+        ]
+        for prop, value in ctrl_properties:
+            cmd.append('design.set_property("{}", "{}", "{}", "{}")'.format(
+                name, prop, value, block_type))
+
+        pin_swizzle = block.get("pin_swizzle", {})
+        for group, value in pin_swizzle.items():
+            cmd.append('design.set_property("{}", "PIN_SWIZZLE_{}", "{}", "{}")'.format(
+                name, group, value, block_type))
+        if pin_swizzle:
+            cmd.append('design.set_property("{}", "PIN_SWIZZLE_EN", "1", "{}")'.format(
+                name, block_type))
+
+        cmd.append('design.assign_resource("{}", "{}", "{}")\n'.format(
+            name, location, block_type))
+
+        return '\n'.join(cmd) + '\n'
+
     def generate_spiflash(self, block, verbose=True):
         pads       = block["pads"]
         name       = block["name"]
@@ -671,6 +783,8 @@ design.create("{2}", "{3}", "./", overwrite=True)
                     output += self.generate_lvds(block)
                 if block["type"] == "HYPERRAM":
                     output += self.generate_hyperram(block)
+                if block["type"] == "DDR":
+                    output += self.generate_ddr(block)
                 if block["type"] == "JTAG":
                     output += self.generate_jtag(block)
                 if block["type"] == "SPI_FLASH":
