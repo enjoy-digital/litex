@@ -475,8 +475,37 @@ def litex_setup_update_repos(config="standard", tag=None, assume_yes=False):
 
 # Git repositories install -------------------------------------------------------------------------
 
+def pip_install_in_virtualenv():
+    return sys.prefix != getattr(sys, "base_prefix", sys.prefix)
+
+def pip_install_in_uv_virtualenv():
+    if not pip_install_in_virtualenv():
+        return False
+    pyvenv_cfg = os.path.join(sys.prefix, "pyvenv.cfg")
+    try:
+        with open(pyvenv_cfg, "r", encoding="utf-8") as f:
+            for line in f:
+                key, sep, _ = line.partition("=")
+                if sep and key.strip().lower() == "uv":
+                    return True
+    except OSError:
+        pass
+    return False
+
+def pip_install_base_cmd():
+    if pip_install_in_uv_virtualenv():
+        uv_cmd = shutil.which("uv")
+        if uv_cmd is not None:
+            return [uv_cmd, "pip", "install", "--python", sys.executable]
+        scripts_path = sysconfig.get_path("scripts")
+        if scripts_path is not None:
+            venv_pip_cmd = os.path.join(scripts_path, "pip")
+            if os.path.exists(venv_pip_cmd):
+                return [venv_pip_cmd, "install"]
+    return [sys.executable, "-m", "pip", "install"]
+
 def pip_install_cmd(packages, user_mode=False, editable=False, no_build_isolation=False):
-    pip_cmd = [sys.executable, "-m", "pip", "install"]
+    pip_cmd = pip_install_base_cmd()
     if no_build_isolation:
         pip_cmd.append("--no-build-isolation")
     if editable:
@@ -485,9 +514,6 @@ def pip_install_cmd(packages, user_mode=False, editable=False, no_build_isolatio
     if user_mode:
         pip_cmd.append("--user")
     return pip_cmd
-
-def pip_install_in_virtualenv():
-    return sys.prefix != getattr(sys, "base_prefix", sys.prefix)
 
 def pip_install_externally_managed():
     if pip_install_in_virtualenv():
