@@ -173,6 +173,56 @@ def test_generate_seu_emits_wait_interval_for_auto_mode():
     assert 'WAIT_INTERVAL", "42"' in cmds
 
 
+def test_generate_ddr_emits_controller_interfaces_and_swizzle():
+    def signal(name):
+        return migen.Signal(name_override=name)
+
+    axi_names = [
+        "araddr", "arapcmd", "arburst", "arid", "arlen", "arlock", "arqos", "arready",
+        "arsize", "resetn", "arvalid", "awaddr", "awallstrb", "awapcmd", "awburst",
+        "awcache", "awcobuf", "awid", "awlen", "awlock", "awqos", "awready", "awsize",
+        "awvalid", "bid", "bready", "bresp", "bvalid", "rdata", "rid", "rlast", "rready",
+        "rresp", "rvalid", "wdata", "wlast", "wready", "wstrb", "wvalid",
+    ]
+    writer = InterfaceWriter("/tmp/efinity")
+    writer.blocks.append({
+        "type"            : "DDR",
+        "name"            : "ddr_inst1",
+        "location"        : "DDR_0",
+        "memory_type"     : "LPDDR4x",
+        "memory_density"  : "8G",
+        "dq_width"        : 32,
+        "physical_rank"   : 1,
+        "clkin_sel"       : "CLKIN 0",
+        "axi"             : SimpleNamespace(**{name: signal(f"ddr0_{name}") for name in axi_names}),
+        "axi_clk"         : "sys_pll0_clk",
+        "axi_data_width"  : 512,
+        "cfg"             : SimpleNamespace(
+            done  = signal("cfg_done"),
+            reset = signal("cfg_reset"),
+            sel   = signal("cfg_sel"),
+            start = signal("cfg_start"),
+        ),
+        "pin_swizzle" : {
+            "CA"   : "CA[0],CA[1],CA[2],CA[3],CA[4],CA[5]",
+            "DQM0" : "DQ[3],DQ[6],DQ[4],DQ[5],DQ[0],DQ[1],DQ[7],DQ[2],DM[0]",
+        },
+    })
+
+    cmds = writer.generate(partnumber="Ti375C529")
+
+    assert 'design.create_block("ddr_inst1", "DDR")' in cmds
+    assert '"MEMORY_TYPE", "LPDDR4x", "DDR"' in cmds
+    assert '"AXI0_ARADDR_BUS", "ddr0_araddr", "DDR"' in cmds
+    assert '"AXI0_AWALLSTRB_PIN", "ddr0_awallstrb", "DDR"' in cmds
+    assert '"AXI0_CLK_INPUT_PIN", "sys_pll0_clk", "DDR"' in cmds
+    assert '"CFG_DONE_PIN", "cfg_done", "DDR"' in cmds
+    assert '"CTRL_BUSY_PIN", "", "DDR"' in cmds
+    assert '"PIN_SWIZZLE_DQM0", "DQ[3],DQ[6],DQ[4],DQ[5],DQ[0],DQ[1],DQ[7],DQ[2],DM[0]", "DDR"' in cmds
+    assert '"PIN_SWIZZLE_EN", "1", "DDR"' in cmds
+    assert 'design.assign_resource("ddr_inst1", "DDR_0", "DDR")' in cmds
+
+
 def test_find_efinity_path_prefers_env(monkeypatch, tmp_path):
     efinity_root = tmp_path / "efinity"
     bin_dir = efinity_root / "bin"
