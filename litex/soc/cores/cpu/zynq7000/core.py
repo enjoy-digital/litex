@@ -8,6 +8,7 @@
 
 import os
 import re
+import logging
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -20,8 +21,11 @@ from litex.soc.interconnect import axi
 from litex.soc.interconnect.csr import CSRStatus, CSRField
 
 from litex.soc.cores.cpu import CPU
+from litex.soc.software.libxil import LibXil
 
 # Zynq 7000 ----------------------------------------------------------------------------------------
+
+logger = logging.getLogger("Zynq7000")
 
 class Zynq7000(CPU):
     variants                 = ["standard"]
@@ -60,6 +64,7 @@ class Zynq7000(CPU):
         self.axi_gp_masters = []    # General Purpose AXI Masters.
         self.axi_gp_slaves  = []    # General Purpose AXI Slaves.
         self.axi_hp_slaves  = []    # High Performance AXI Slaves.
+        self.libxil         = None  # Optional Xilinx libxil software package configuration.
 
         # PS7 peripherals.
         self.can_use        = []
@@ -176,6 +181,38 @@ class Zynq7000(CPU):
         # GP0 as Bus master ------------------------------------------------------------------------
         self.pbus = self.add_axi_gp_master()
         self.periph_buses.append(self.pbus)
+
+    """
+    Configure the Xilinx libxil software package
+    Attributes
+    ==========
+    xparameters: dict
+        xparameters.h defines
+    bspconfig: dict (optional)
+        bspconfig.h contents (defaults: CPU-generic settings)
+    embeddedsw_dir: str (optional)
+        path to an existing Xilinx embeddedsw checkout
+    embeddedsw_git_url: str (optional)
+        embeddedsw git URL, used when no local checkout is provided
+    """
+    def set_libxil(self, xparameters, bspconfig=None, embeddedsw_dir=None, embeddedsw_git_url=None):
+        self.libxil = LibXil(self, xparameters, bspconfig, embeddedsw_dir, embeddedsw_git_url)
+
+    """
+    Add the configured libxil software package/library to Builder.
+    """
+    def add_software_packages(self, builder):
+        if self.libxil is None:
+            logger.warning("libxil software package not enabled, use cpu.set_libxil(...) to enable it.")
+            return
+        self.libxil.add_software_packages(builder)
+
+    """
+    Prepare the configured libxil software environment after SoC finalization.
+    """
+    def prepare_software(self, builder):
+        if self.libxil is not None:
+            self.libxil.prepare_software(builder)
 
     def set_ps7_xci(self, xci):
         # Add .xci as Vivado IP and set ps7_name from .xci filename.

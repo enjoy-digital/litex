@@ -17,6 +17,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+from litex.soc.cores.cpu import CPU
 from litex.soc.integration.builder import Builder, builder_argdict, builder_args
 from litex.soc.integration.soc import SoCRegion
 from litex.build.log import buffer_build_log, start_build_log, stop_build_log
@@ -44,10 +45,14 @@ class _FakeSoC:
         return self.platform.name
 
 
+class _FakeCPU(CPU):
+    use_rom = False
+
+
 class _BuildableFakeSoC(_FakeSoC):
     def __init__(self):
         _FakeSoC.__init__(self, cpu_type="unitcpu")
-        self.cpu         = SimpleNamespace(use_rom=False)
+        self.cpu         = _FakeCPU()
         self.finalized   = 0
         self.build_calls = []
         self.exit_calls  = []

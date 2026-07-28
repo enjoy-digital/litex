@@ -45,6 +45,18 @@ class CPU(LiteXModule):
     def bios_map(self, addr, cached):
         return addr
 
+    """
+    Add CPU-specific software packages/libraries to Builder.
+    """
+    def add_software_packages(self, builder):
+        pass
+
+    """
+    Prepare CPU-specific software environment after SoC finalization.
+    """
+    def prepare_software(self, builder):
+        pass
+
     def enable_reset_address_check(self):
         self.reset_address_check = True
 

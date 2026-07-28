@@ -5,17 +5,21 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import logging
 
 from migen import *
 
 from litex.gen                  import *
 
 from litex.soc.cores.cpu        import CPU
+from litex.soc.software.libxil  import LibXil
 from litex.soc.interconnect     import axi
 from litex.soc.interconnect.csr import *
 
 
 # Zynq MP ------------------------------------------------------------------------------------------
+
+logger = logging.getLogger("ZynqMP")
 
 class ZynqMP(CPU):
     variants                 = ["standard"]
@@ -57,6 +61,7 @@ class ZynqMP(CPU):
         self.uart_use       = []          # UART reserved ports.
         self.can_use        = []          # CAN reserved/used ports.
         self.pps            = Signal(4)   # Optional PPS (with gemX and PTP enabled)
+        self.libxil         = None        # Optional Xilinx libxil software package configuration.
 
         # [ 7: 0]: PL_PS_Group0 [128:121]
         # [15: 8]: PL_PS_Group1 [143:136]
@@ -88,6 +93,38 @@ class ZynqMP(CPU):
 
         self.comb += ResetSignal("ps").eq(~rst_n)
         self.ps_tcl.append(f"set ps [create_ip -vendor xilinx.com -name zynq_ultra_ps_e -module_name {self.ps_name}]")
+
+    """
+    Configure the Xilinx libxil software package
+    Attributes
+    ==========
+    xparameters: dict
+        xparameters.h defines
+    bspconfig: dict (optional)
+        bspconfig.h contents (defaults: CPU-generic settings)
+    embeddedsw_dir: str (optional)
+        path to an existing Xilinx embeddedsw checkout
+    embeddedsw_git_url: str (optional)
+        embeddedsw git URL, used when no local checkout is provided
+    """
+    def set_libxil(self, xparameters, bspconfig=None, embeddedsw_dir=None, embeddedsw_git_url=None):
+        self.libxil = LibXil(self, xparameters, bspconfig, embeddedsw_dir, embeddedsw_git_url)
+
+    """
+    Add the configured libxil software package/library to Builder.
+    """
+    def add_software_packages(self, builder):
+        if self.libxil is None:
+            logger.warning("libxil software package not enabled, use cpu.set_libxil(...) to enable it.")
+            return
+        self.libxil.add_software_packages(builder)
+
+    """
+    Prepare the configured libxil software environment after SoC finalization.
+    """
+    def prepare_software(self, builder):
+        if self.libxil is not None:
+            self.libxil.prepare_software(builder)
 
     def set_preset(self, preset):
         preset = os.path.abspath(preset)

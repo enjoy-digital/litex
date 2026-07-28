@@ -528,6 +528,8 @@ class Builder:
         with_bios = self.soc.cpu_type is not None
         if with_bios and not self._has_software_package("bios"):
             self.add_software_package("bios")
+        if with_bios:
+            self.soc.cpu.add_software_packages(self)
 
         # Create Gateware directory.
         _create_dir(self.gateware_dir)
@@ -554,6 +556,8 @@ class Builder:
 
         # Finalize the SoC.
         self.soc.finalize()
+        if with_bios:
+            self.soc.cpu.prepare_software(self)
         bundle_platform_sources += [
             source for source in self.soc.platform.sources
             if source not in bundle_platform_sources
