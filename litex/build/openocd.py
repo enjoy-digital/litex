@@ -54,7 +54,7 @@ class OpenOCD(GenericProgrammer):
         return "$_CHIPNAME.tap"
 
     def get_ir(self, chain, config):
-        cfg_str = open(config).read()
+        cfg_str = open(config).read().lower()
 
         def lookup_ir(family, irs):
             if chain not in irs:
@@ -66,8 +66,16 @@ class OpenOCD(GenericProgrammer):
             if chain != 1:
                 print(f"Warning: chain={chain} ignored on {family} (hardcoded IR 0x{ir:x}).")
 
+        # Gowin GW1N/GW2A.
+        if "gw1n" in cfg_str or "gw2a" in cfg_str:
+            chain = {
+                1: 0x42, # USER1.
+                2: 0x43, # USER2.
+            }[chain]
+            warn_ignored("Gowin GW1N/GW2A", chain)
+            return chain
         # Lattice ECP5.
-        if "ecp5" in cfg_str:
+        elif "ecp5" in cfg_str:
             warn_ignored("Lattice ECP5", 0x32)
             return 0x32
         # Intel Max10.

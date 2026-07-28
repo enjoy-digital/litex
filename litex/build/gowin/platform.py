@@ -26,7 +26,8 @@ class GowinPlatform(GenericPlatform):
             raise ValueError(f"devicename not provided, maybe {likely_name}?")
         self.devicename = devicename
         if toolchain == "gowin":
-            self.toolchain = gowin.GowinToolchain()
+            self.toolchain     = gowin.GowinToolchain()
+            self._jtag_support = True
         elif toolchain == "apicula":
             self.toolchain = apicula.GowinApiculaToolchain()
         else:
