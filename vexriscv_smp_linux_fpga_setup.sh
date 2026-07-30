@@ -31,6 +31,22 @@ print_banner() {
     echo ""
 }
 
+print_flag() {
+
+    # Check if virtual environment is activated
+    if [ -z "$VIRTUAL_ENV" ]; then
+        if [ -d "venv" ]; then
+            source venv/bin/activate
+            echo -e "${GREEN}✓ Virtual environment activated${NC}"
+        else
+            echo -e "${RED}Error: Virtual environment not found!${NC}"
+            exit 1
+        fi
+    fi
+    
+    python3 -m litex_boards.targets.digilent_arty --help      for board-specific options
+}
+
 # Print usage
 print_usage() {
     cat << EOF
@@ -42,6 +58,7 @@ Options:
     --flash-only        Skip build, flash existing bitstream for specified CPU + open terminal
     --extra-args="..."  Extra arguments to pass to the build command (e.g., --sys-clk-freq=100e6)
     --help, -h          Show this help message
+    --flag               Show the flag for the for passing in extra_args 
 
 Examples:
     ./vexriscv_smp_linux_fpga_setup.sh                    # Full flow: build + flash + terminal
@@ -61,6 +78,7 @@ parse_args() {
             --extra-args=*)   EXTRA_ARGS="${1#*=}";     shift ;;
             --flash-only)     FLASH_ONLY=1;             shift ;;
             --help|-h)        HELP=1;                   shift ;;
+            --flag)         FLAG_HELP=1;              shift ;;
             --)               shift; EXTRA_ARGS="$*"; break ;;
             *)                echo -e "${RED}Unknown option: $1${NC}"; print_usage; exit 1 ;;
         esac
@@ -233,8 +251,21 @@ flash_bitstream() {
     CMD="python3 -m litex_boards.targets.${BOARD} --load --cpu-type=$CPU_TYPE"
     [ -n "$BOARD_VARIANT" ] && CMD="$CMD --variant=$BOARD_VARIANT"
 
+    if [ -n "$EXTRA_ARGS" ]; then
+        CMD="$CMD $EXTRA_ARGS"
+    fi
+    
     echo -e "${BLUE}Running: $CMD${NC}"
     eval "$CMD"
+
+    # Regenerate DTB from this build's actual csr.json (avoid stale/generic DTB)
+    CSR_JSON=$(find build -name csr.json | head -1)
+    if [ -n "$CSR_JSON" ]; then
+        python3 -m litex.tools.litex_json2dts_linux "$CSR_JSON" > rv32.dtb.dts
+        dtc -O dtb -o linux_image/rv32.dtb rv32.dtb.dts
+        rm rv32.dtb.dts
+        echo -e "${GREEN}✓ rv32.dtb regenerated${NC}"
+    fi
 
     cd - > /dev/null
     echo -e "${GREEN}✓ FPGA loaded successfully${NC}"
@@ -269,6 +300,11 @@ main() {
     
     if [ $HELP -eq 1 ]; then
         print_usage
+        exit 0
+    fi
+
+    if [ $FLAG_HELP -eq 1 ]; then
+        print_flag
         exit 0
     fi
 

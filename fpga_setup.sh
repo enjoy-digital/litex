@@ -20,6 +20,7 @@ SERIAL_PORT="/dev/ttyUSB1"
 BAUDRATE="115200"
 FPGA_ONLY=0
 FLASH_ONLY=0
+FLAG_HELP=0
 HELP=0
 EXTRA_ARGS=""
 SCRIPT_DIR="$(pwd)"
@@ -31,6 +32,11 @@ print_banner() {
     echo -e "${BLUE}  EmuLiteX - FPGA Setup Script${NC}"
     echo -e "${BLUE}========================================${NC}"
     echo ""
+}
+
+print_flag() {
+    setup_venv
+    python3 -m litex_boards.targets.digilent_arty --help      for board-specific options
 }
 
 # Print usage
@@ -50,7 +56,7 @@ Options:
     --demo              Build and run demo application on FPGA (bare metal)
     --extra-args="..."  Extra arguments to pass to the build command (e.g., --sys-clk-freq=100e6)
     --help, -h          Show this help message
-
+    --flag               Show the flag for the for passing in extra_args 
 Examples:
     ./fpga_setup.sh                                    # Full flow: deps + build + flash + terminal
     ./fpga_setup.sh --extra-args="--sys-clk-freq=100e6"  # Build with 100MHz
@@ -77,6 +83,7 @@ parse_args() {
             --flash-only)     FLASH_ONLY=1;             shift ;;
             --demo) DEMO_MODE=1; shift ;;
             --help|-h)        HELP=1;                   shift ;;
+            --flag)         FLAG_HELP=1;              shift ;;
             --)               shift; EXTRA_ARGS="$*"; break ;;
             *)                echo -e "${RED}Unknown option: $1${NC}"; print_usage; exit 1 ;;
         esac
@@ -326,11 +333,16 @@ flash_bitstream() {
     CMD="python3 -m litex_boards.targets.${BOARD} --load --cpu-type=$FPGA_CPU"
     [ -n "$BOARD_VARIANT" ] && CMD="$CMD --variant=$BOARD_VARIANT"
 
+    if [ -n "$EXTRA_ARGS" ]; then
+        CMD="$CMD $EXTRA_ARGS"
+    fi
+    
     echo -e "${BLUE}Running: $CMD${NC}"
     eval "$CMD"
 
     cd - > /dev/null
     echo -e "${GREEN}✓ FPGA loaded successfully${NC}"
+    echo -e "\n${GREEN}📁 Project Folder:${NC}\n${BLUE}$(cd "$PROJECT_WITH_BIT" && pwd)${NC}\n"
 }
 
 # Open serial terminal
@@ -424,10 +436,25 @@ build_demo_fpga() {
 # Main function
 main() {
     print_banner
+
+    # =============================================
+    # Set default clock for CVA6 if not specified
+    # CVA6 crashes at 100MHz with WNS -25ns, needs 50MHz
+    if [ "$FPGA_CPU" = "cva6" ] && [[ ! "$EXTRA_ARGS" =~ --sys-clk-freq ]]; then
+        echo -e "${YELLOW}Note: CVA6 requires 50MHz clock. Adding --sys-clk-freq=50e6${NC}"
+        EXTRA_ARGS="$EXTRA_ARGS --sys-clk-freq=50e6"
+    fi
+    # =============================================
+    
     parse_args "$@"
     
     if [ $HELP -eq 1 ]; then
         print_usage
+        exit 0
+    fi
+
+    if [ $FLAG_HELP -eq 1 ]; then
+        print_flag
         exit 0
     fi
 
@@ -439,15 +466,6 @@ main() {
         echo ""
     fi
 
-    # =============================================
-    # Set default clock for CVA6 if not specified
-    # CVA6 crashes at 100MHz with WNS -25ns, needs 50MHz
-    if [ "$FPGA_CPU" = "cva6" ] && [[ ! "$EXTRA_ARGS" =~ --sys-clk-freq ]]; then
-        echo -e "${YELLOW}Note: CVA6 requires 50MHz clock. Adding --sys-clk-freq=50e6${NC}"
-        EXTRA_ARGS="$EXTRA_ARGS --sys-clk-freq=50e6"
-    fi
-    # =============================================
-    
     echo -e "${BLUE}Board: $BOARD${NC}"
     [ -n "$BOARD_VARIANT" ] && echo -e "${BLUE}Board variant: $BOARD_VARIANT${NC}"
     echo -e "${BLUE}CPU: $FPGA_CPU${NC}"

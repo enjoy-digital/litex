@@ -16,6 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LINUX_IMAGES_DIR="${SCRIPT_DIR}/../linux_images"
 CPU_TYPE="vexriscv_smp"
 EXTRA_ARGS=""
+FLAG=0
 HELP=0
 
 # Print banner
@@ -33,6 +34,7 @@ Usage: ./vexriscv_smp_linux_sim_setup.sh [OPTIONS]
 
 Options:
     --extra-args="..."  Extra arguments to pass to litex_sim (e.g., --trace --trace-fst --sim-debug)
+    --flag              see all flags for simulation
     --help, -h          Show this help message
 
 Examples:
@@ -48,11 +50,29 @@ parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
             --extra-args=*)   EXTRA_ARGS="${1#*=}";     shift ;;
+            --flag) FLAG=1; shift ;;
             --help|-h)        HELP=1;                   shift ;;
             --)               shift; EXTRA_ARGS="$*"; break ;;
             *)                echo -e "${RED}Unknown option: $1${NC}"; print_usage; exit 1 ;;
         esac
     done
+}
+
+# Function to check if command exists
+sim_flags() {
+
+    # Check if virtual environment is activated
+    if [ -z "$VIRTUAL_ENV" ]; then
+        if [ -d "venv" ]; then
+            source venv/bin/activate
+            echo -e "${GREEN}✓ Virtual environment activated${NC}"
+        else
+            echo -e "${RED}Error: Virtual environment not found!${NC}"
+            exit 1
+        fi
+    fi
+        
+    litex_sim --help
 }
 
 # Function to setup Linux images
@@ -182,6 +202,12 @@ main() {
         exit 0
     fi
     
+    # Show flag
+    if [ $FLAG -eq 1 ]; then
+        sim_flags
+        exit 0
+    fi    
+
     print_banner
     setup_linux_images
     create_project

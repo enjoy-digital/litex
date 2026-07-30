@@ -16,6 +16,7 @@ CONFIG="standard"
 SIMULATION_CPU="vexriscv"
 CPU_VARIANT="standard"
 HELP=0
+FLAG=0
 UPDATE=0
 SIMULATION_ONLY=0
 EXTRA_ARGS=""
@@ -43,6 +44,7 @@ Options:
     --sim-only          Only run simulation (skip setup)
     --demo              Build and run demo application
     --update            Force update repositories and reinstall
+    --flag              see all flags for simulation
     --help, -h          Show this help message
 
 Examples:
@@ -74,10 +76,17 @@ parse_args() {
             --sim-only) SIMULATION_ONLY=1; shift ;;
             --demo) DEMO_MODE=1; shift ;;
             --update) UPDATE=1; shift ;;
+            --flag) FLAG=1; shift ;;
             --help|-h) HELP=1; shift ;;
             *) echo -e "${RED}Unknown option: $1${NC}"; print_usage; exit 1 ;;
         esac
     done
+}
+
+# Function to check if command exists
+sim_flags() {
+    setup_venv
+    litex_sim --help
 }
 
 # Function to check if command exists
@@ -395,10 +404,16 @@ main() {
     
     # Parse arguments
     parse_args "$@"
-    
+
     # Show help
     if [ $HELP -eq 1 ]; then
         print_usage
+        exit 0
+    fi
+    
+    # Show flag
+    if [ $FLAG -eq 1 ]; then
+        sim_flags
         exit 0
     fi
     
