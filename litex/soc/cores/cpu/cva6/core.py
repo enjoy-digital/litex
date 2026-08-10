@@ -211,6 +211,9 @@ class CVA6(CPU):
         soc.bus.add_region("clint", SoCRegion(origin=soc.mem_map.get("clint"), size=0x000c_0000, cached=True, linker=True))
         soc.bus.add_region("plic",  SoCRegion(origin=soc.mem_map.get("plic"), size=0x0400_0000, cached=True, linker=True))
 
+        # CLINT rtc (and hence mtime) ticks at sys_clk/2
+        soc.add_config("CPU_TIMEBASE_FREQUENCY", int(soc.sys_clk_freq // 2))
+
     def add_jtag(self, pads):
         self.jtag_tck  = Signal()
         self.jtag_tms  = Signal()
