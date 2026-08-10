@@ -588,7 +588,7 @@ AXI_BUS #(
     .AXI_DATA_WIDTH ( AxiDataWidth     ),
     .AXI_ID_WIDTH   ( AxiIdWidthSlaves ),
     .AXI_USER_WIDTH ( AxiUserWidth     )
-) ext();
+) ext_amo();
 
 axi_riscv_atomics_wrap #(
     .AXI_ADDR_WIDTH     ( AxiAddrWidth     ),
@@ -601,7 +601,33 @@ axi_riscv_atomics_wrap #(
     .clk_i  ( clk_i      ),
     .rst_ni ( ndmreset_n ),
     .slv    ( master[cva6_wrapper_pkg::External] ),
-    .mst    ( ext        )
+    .mst    ( ext_amo    )
+);
+
+// The adapter has combinational ready/valid feedthrough on both sides;
+// the LiteX AXI logic couples aw_valid back into its ready signals,
+// which closes a combinatorial loop through the adapter. Register the
+// channels here to break the cycle and gives the adapter a clean timing
+// boundary.
+
+AXI_BUS #(
+    .AXI_ADDR_WIDTH ( AxiAddrWidth     ),
+    .AXI_DATA_WIDTH ( AxiDataWidth     ),
+    .AXI_ID_WIDTH   ( AxiIdWidthSlaves ),
+    .AXI_USER_WIDTH ( AxiUserWidth     )
+) ext();
+
+axi_cut_intf #(
+    .BYPASS     ( 1'b0             ),
+    .ADDR_WIDTH ( AxiAddrWidth     ),
+    .DATA_WIDTH ( AxiDataWidth     ),
+    .ID_WIDTH   ( AxiIdWidthSlaves ),
+    .USER_WIDTH ( AxiUserWidth     )
+) i_ext_cut (
+    .clk_i  ( clk_i      ),
+    .rst_ni ( ndmreset_n ),
+    .in     ( ext_amo    ),
+    .out    ( ext        )
 );
 
 // ---------------
