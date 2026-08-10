@@ -54,10 +54,12 @@ package cva6_wrapper_pkg;
     RASDepth: 2,
     BTBEntries: 32,
     BHTEntries: 128,
-    // idempotent region
-    NrNonIdempotentRules:  1,
-    NonIdempotentAddrBase: {64'b0},
-    NonIdempotentLength:   {ExternalBase},
+    // Device memory: everything below the External window (Debug, CLINT,
+    // PLIC) and the LiteX IO region at 0x8000_0000 and above (CSRs, ethmac
+    // buffers). No speculative accesses there.
+    NrNonIdempotentRules:  2,
+    NonIdempotentAddrBase: {64'h8000_0000, 64'b0},
+    NonIdempotentLength:   {64'h8000_0000, ExternalBase},
     NrExecuteRegionRules:  2,
     ExecuteRegionAddrBase: {DebugBase, ExternalBase},
     ExecuteRegionLength:   {DebugLength, ExternalLength},
