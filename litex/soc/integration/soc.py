@@ -1525,11 +1525,14 @@ class SoC(LiteXModule):
             "axi-lite": axi.AXILiteInterface,
             "axi"     : axi.AXIInterface,
         }[self.bus.standard]
-        ram_bus = interface_cls(
+        ram_bus_kwargs = dict(
             data_width    = self.bus.data_width,
             address_width = self.bus.address_width,
             bursting      = self.bus.bursting
         )
+        if self.bus.standard == "axi":
+            ram_bus_kwargs["id_width"] = self.bus.get_axi_id_width()
+        ram_bus = interface_cls(**ram_bus_kwargs)
         self.check_if_exists(name)
         ram = ram_cls(size, bus=ram_bus, init=contents, read_only=("w" not in mode), name=name)
         self.bus.add_slave(name=name, slave=ram.bus, region=SoCRegion(origin=origin, size=size, mode=mode))
