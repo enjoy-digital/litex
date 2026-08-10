@@ -103,9 +103,11 @@ class CVA6(CPU):
     @property
     def mem_map(self):
         return {
-            "rom"  : 0x1000_0000,
-            "sram" : 0x2000_0000,
-            "csr"  : 0xf000_0000,
+            "clint" : 0x0200_0000,
+            "plic"  : 0x0c00_0000,
+            "rom"   : 0x1000_0000,
+            "sram"  : 0x2000_0000,
+            "csr"   : 0xf000_0000,
         }
 
     def __init__(self, platform, variant="standard"):
@@ -194,6 +196,20 @@ class CVA6(CPU):
             "core", manifest))
         # Add wrapper sources
         add_manifest_sources(platform, os.path.join(wrapper_root, "Flist.cva6_wrapper"))
+
+    def add_soc_components(self, soc):
+        from litex.soc.integration.soc import SoCRegion
+
+        if self.variant == "standard32":
+            soc.add_config("CPU_ISA", "rv32imac_zicsr_zifencei")
+            soc.add_config("CPU_MMU", "sv32")
+        else:
+            soc.add_config("CPU_ISA", "rv64imafdc_zicsr_zifencei")
+            soc.add_config("CPU_MMU", "sv39")
+
+        # Linker regions so litex_json2dts_linux creates DT nodes
+        soc.bus.add_region("clint", SoCRegion(origin=soc.mem_map.get("clint"), size=0x000c_0000, cached=True, linker=True))
+        soc.bus.add_region("plic",  SoCRegion(origin=soc.mem_map.get("plic"), size=0x0400_0000, cached=True, linker=True))
 
     def add_jtag(self, pads):
         self.jtag_tck  = Signal()
