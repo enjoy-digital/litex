@@ -105,7 +105,7 @@ class CVA6(CPU):
         return {
             "rom"  : 0x1000_0000,
             "sram" : 0x2000_0000,
-            "csr"  : 0x8000_0000,
+            "csr"  : 0xf000_0000,
         }
 
     def __init__(self, platform, variant="standard"):
