@@ -31,9 +31,9 @@ class VeeREH1(CPU):
     io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
 
     # Default parameters
-    iccm_enable          = 1
-    dccm_enable          = 1
-    reset_vec            = 0x80000000
+    iccm_enable          = 0
+    dccm_enable          = 0
+    reset_vec            = 0x00000000
 
     # GCC Flags.
     @property
@@ -46,15 +46,24 @@ class VeeREH1(CPU):
     @staticmethod
     def args_fill(parser):
         cpu_group = parser.add_argument_group(title="VeeR EH1 CPU options")
-        cpu_group.add_argument("--veer-iccm-enable",    default=1,          help="Enable ICCM (Instruction Tightly Coupled Memory).", type=int)
-        cpu_group.add_argument("--veer-dccm-enable",    default=1,          help="Enable DCCM (Data Tightly Coupled Memory).", type=int)
-        cpu_group.add_argument("--veer-reset-vec",      default="0x80000000", help="Reset vector address.")
+        cpu_group.add_argument("--veer-iccm-enable",    default=0,          help="Enable ICCM (Instruction Tightly Coupled Memory).", type=int)
+        cpu_group.add_argument("--veer-dccm-enable",    default=0,          help="Enable DCCM (Data Tightly Coupled Memory).", type=int)
+        cpu_group.add_argument("--veer-reset-vec",      default="0x10000000", help="Reset vector address.")
 
     @staticmethod
     def args_read(args):
         VeeREH1.iccm_enable       = args.veer_iccm_enable
         VeeREH1.dccm_enable       = args.veer_dccm_enable
         VeeREH1.reset_vec         = int(args.veer_reset_vec, 16)
+
+    # # Memory Mapping.
+    # @property
+    # def mem_map(self):
+    #     return {
+    #         "rom"  : 0x1000_0000,
+    #         "sram" : 0x2000_0000,
+    #         "csr"  : 0x8000_0000,
+    #     }
 
     def __init__(self, platform, variant="standard"):
         self.platform     = platform
@@ -91,11 +100,10 @@ class VeeREH1(CPU):
         self.cpu_params = dict(
             # Clk / Rst.
             i_clk               = ClockSignal("sys"),
-            i_rst_l             = ~(ResetSignal("sys") | self.reset),
+            i_rst_l             = ~ResetSignal("sys") & ~self.reset,
             i_dbg_rst_l         = ~ResetSignal("sys"),
 
             # Reset/NMI Vectors
-            i_rst_vec           = VeeREH1.reset_vec >> 1,
             i_nmi_vec           = 0x11110000 >> 1,
             i_jtag_id           = 0xDEADBEEF,
 
@@ -283,8 +291,8 @@ class VeeREH1(CPU):
 
             # Debug - tie off
             i_mpc_debug_halt_req = 0,
-            i_mpc_debug_run_req  = 0,
-            i_mpc_reset_run_req  = 0,
+            i_mpc_debug_run_req  = 1,
+            i_mpc_reset_run_req  = 1,
             o_mpc_debug_halt_ack = Open(),
             o_mpc_debug_run_ack  = Open(),
             o_debug_brkpt_status = Open(),
@@ -316,7 +324,6 @@ class VeeREH1(CPU):
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
-        VeeREH1.reset_vec = reset_address
         self.cpu_params.update(i_rst_vec=reset_address >> 1)
 
     def add_jtag(self, pads):
