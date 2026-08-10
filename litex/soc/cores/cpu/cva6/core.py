@@ -6,7 +6,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
-import re
 
 from migen import *
 
@@ -16,11 +15,23 @@ from litex import get_data_mod
 from litex.soc.interconnect import axi
 from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV64
-from litex.build.xilinx import XilinxPlatform
 
 # Variants -----------------------------------------------------------------------------------------
 
 CPU_VARIANTS = ["standard", "standard32", "full"]
+
+# *_litex from cva6_wrapper/, otherwise core/include/ in cva6 tree.
+TARGET_CFGS = {
+    "standard"   : "cv64a6_imac_sv39_litex",
+    "standard32" : "cv32a6_imac_sv32",
+    "full"       : "cv64a6_imafdc_sv39",
+}
+
+CPU_ISAS = {
+    "standard"   : "rv64imac_zicsr_zifencei_zicntr_zicond_zihpm_zcb",
+    "standard32" : "rv32imac_zicsr_zifencei",
+    "full"       : "rv64imafdc_zicsr_zifencei_zicntr_zicond_zihpm_zba_zbb_zbc_zbs_zcb",
+}
 
 # GCC Flags ----------------------------------------------------------------------------------------
 
@@ -39,26 +50,35 @@ GCC_FLAGS = {
 
 # Helpers ------------------------------------------------------------------------------------------
 
-def add_manifest_sources(platform, manifest):
-    cva6_dir = get_data_mod("cpu", "cva6").data_location
-    lx_core_dir = os.path.abspath(os.path.dirname(__file__))
-    with open(os.path.join(manifest), 'r') as f:
-        for l in f:
-            res = re.search(r'\$\{(CVA6_REPO_DIR|LX_CVA6_CORE_DIR)\}/(.+)', l)
-            if res and not re.match('//', l):
-                if res.group(1) == "LX_CVA6_CORE_DIR":
-                    basedir = lx_core_dir
-                else:
-                    basedir = cva6_dir
-                if re.match(r'\+incdir\+', l):
-                    platform.add_verilog_include_path(os.path.join(basedir, res.group(2)))
-                else:
-                    filename = res.group(2)
-                    if True: # TODO: other FPGAs
-                        if filename.endswith("tc_sram_wrapper.sv"):
-                            filename = filename.replace("tc_sram_wrapper.sv", "tc_sram_fpga_wrapper.sv")
-                            platform.add_source(os.path.join(basedir, "common/local/techlib/fpga/rtl/SyncSpRamBeNx64.sv"))
-                    platform.add_source(os.path.join(basedir, filename))
+def add_manifest_sources(platform, manifest, variables):
+    with open(manifest) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("//") or line.startswith("#"):
+                continue
+            for name, value in variables.items():
+                line = line.replace("${" + name + "}", value)
+            if line.startswith("+incdir+"):
+                platform.add_verilog_include_path(line[len("+incdir+"):])
+            elif line.startswith("-F"):
+                # Nested manifest (e.g. hpdcache.Flist).
+                add_manifest_sources(platform, line.split(None, 1)[1].strip(), variables)
+            else:
+                filename = line
+                basename = os.path.basename(filename)
+                if basename == variables["TARGET_CFG"] + "_config_pkg.sv":
+                    # Target config packages in cva6_wrapper take precedence
+                    local = os.path.join(variables["LX_CVA6_CORE_DIR"], "cva6_wrapper", basename)
+                    if os.path.exists(local):
+                        filename = local
+                if basename == "instr_tracer.sv":
+                    continue
+                if basename == "tc_sram_wrapper.sv":
+                    # Use the FPGA SRAM implementation.
+                    filename = filename.replace("tc_sram_wrapper.sv", "tc_sram_fpga_wrapper.sv")
+                    platform.add_source(os.path.join(variables["CVA6_REPO_DIR"],
+                        "vendor/pulp-platform/fpga-support/rtl/SyncSpRamBeNx64.sv"))
+                platform.add_source(filename)
 
 # CVA6 ---------------------------------------------------------------------------------------------
 
@@ -91,7 +111,6 @@ class CVA6(CPU):
         flags = GCC_FLAGS[self.variant]
         flags += "-D__cva6__ "
         flags += "-D__riscv_plic__ "
-        #flags += f" -DUART_POLLING"
         return flags
 
     # Reserved Interrupts.
@@ -116,7 +135,8 @@ class CVA6(CPU):
         self.reset        = Signal()
         self.interrupt    = Signal(32)
         # Peripheral bus (Connected to main SoC's bus).
-        axi_if = axi.AXIInterface(data_width=64, address_width=32, id_width=4)
+        # ID width matches the wrapper's AxiIdWidthSlaves (core id width 4 + $clog2(2 masters)).
+        axi_if = axi.AXIInterface(data_width=64, address_width=32, id_width=5)
         self.periph_buses = [axi_if]
         # Memory buses (Connected directly to LiteDRAM).
         self.memory_buses = []
@@ -184,28 +204,25 @@ class CVA6(CPU):
         )
 
         # Add Verilog sources.
-        # Defines must come first
+        cva6_dir     = get_data_mod("cpu", "cva6").data_location
         wrapper_root = os.path.join(os.path.abspath(os.path.dirname(__file__)), "cva6_wrapper")
-        platform.add_source(os.path.join(wrapper_root, "cva6_defines.sv"))
-        # TODO: use Flist.cv64a6_imafdc_sv39 and Flist.cv32a6_imac_sv0 instead
-        if self.variant == "standard32":
-            manifest = "Flist.cv32a6_imac_sv32"
-        else:
-            manifest = "Flist.cv64a6_imafdc_sv39"
-        add_manifest_sources(platform, os.path.join(get_data_mod("cpu", "cva6").data_location,
-            "core", manifest))
-        # Add wrapper sources
-        add_manifest_sources(platform, os.path.join(wrapper_root, "Flist.cva6_wrapper"))
+        variables    = {
+            "CVA6_REPO_DIR"    : cva6_dir,
+            "LX_CVA6_CORE_DIR" : os.path.abspath(os.path.dirname(__file__)),
+            "TARGET_CFG"       : TARGET_CFGS[self.variant],
+            "HPDCACHE_DIR"     : os.path.join(cva6_dir, "core", "cache_subsystem", "hpdcache"),
+        }
+        # Core sources (core/Flist.cva6 resolves core/include/${TARGET_CFG}_config_pkg.sv).
+        add_manifest_sources(platform, os.path.join(cva6_dir, "core", "Flist.cva6"), variables)
+        # Wrapper sources.
+        add_manifest_sources(platform, os.path.join(wrapper_root, "Flist.cva6_wrapper"), variables)
 
     def add_soc_components(self, soc):
         from litex.soc.integration.soc import SoCRegion
 
-        if self.variant == "standard32":
-            soc.add_config("CPU_ISA", "rv32imac_zicsr_zifencei")
-            soc.add_config("CPU_MMU", "sv32")
-        else:
-            soc.add_config("CPU_ISA", "rv64imafdc_zicsr_zifencei")
-            soc.add_config("CPU_MMU", "sv39")
+        # ISA/MMU descriptors for the DT (riscv,isa / mmu-type).
+        soc.add_config("CPU_ISA", CPU_ISAS[self.variant])
+        soc.add_config("CPU_MMU", {32: "sv32", 64: "sv39"}[self.data_width])
 
         # Linker regions so litex_json2dts_linux creates DT nodes
         soc.bus.add_region("clint", SoCRegion(origin=soc.mem_map.get("clint"), size=0x000c_0000, cached=True, linker=True))

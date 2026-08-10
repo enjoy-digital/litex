@@ -17,14 +17,14 @@ package cva6_wrapper_pkg;
   localparam int unsigned NumSources = 30;
   localparam int unsigned MaxPriority = 7;
 
-  // 24 MByte in 8 byte words
   localparam NBSlave = 2; // debug, cva6
   localparam NBMaster = 4; // debug, plic, clint, external
   localparam AxiAddrWidth = 64;
   localparam AxiDataWidth = 64;
-  localparam AxiIdWidthMaster = $clog2(NBMaster);
+  // Must match ariane_axi::IdWidth (cva6 core AXI master ID width).
+  localparam AxiIdWidthMaster = cva6_config_pkg::CVA6ConfigAxiIdWidth;
   localparam AxiIdWidthSlaves = AxiIdWidthMaster + $clog2(NBSlave);
-  localparam AxiUserWidth = 1;
+  localparam AxiUserWidth = cva6_config_pkg::CVA6ConfigDataUserWidth;
 
   typedef enum int unsigned {
     External = 0,
@@ -50,29 +50,39 @@ package cva6_wrapper_pkg;
 
   localparam NrRegion = 1;
 
-  localparam ariane_pkg::ariane_cfg_t CVA6Cfg = '{
-    RASDepth: 2,
-    BTBEntries: 32,
-    BHTEntries: 128,
+  // CVA6 configuration: take the target config package (selected by the
+  // LiteX variant through the core manifest) and overlay the LiteX SoC
+  // memory map, then run it through build_config_pkg. This follows the
+  // build_fpga_config() precedent in corev_apu/fpga/src/ariane_xilinx.sv.
+  function automatic config_pkg::cva6_cfg_t build_litex_config(config_pkg::cva6_user_cfg_t CVA6UserCfg);
+    config_pkg::cva6_user_cfg_t cfg = CVA6UserCfg;
+    // FPGA softcore trims, applied to every variant: FPGA-optimised
+    // primitives, no CVXIF (the wrapper ties it off), no PMP, smaller TLBs.
+    cfg.FpgaEn          = 1'b1;
+    cfg.CvxifEn         = 1'b0;
+    cfg.NrPMPEntries    = unsigned'(0);
+    cfg.InstrTlbEntries = unsigned'(8);
+    cfg.DataTlbEntries  = unsigned'(8);
+    // Debug module lives at address 0 on the wrapper-internal xbar.
+    cfg.DmBaseAddress = 64'(DebugBase);
     // Device memory: everything below the External window (Debug, CLINT,
     // PLIC) and the LiteX IO region at 0x8000_0000 and above (CSRs, ethmac
     // buffers). No speculative accesses there.
-    NrNonIdempotentRules:  2,
-    NonIdempotentAddrBase: {64'h8000_0000, 64'b0},
-    NonIdempotentLength:   {64'h8000_0000, ExternalBase},
-    NrExecuteRegionRules:  2,
-    ExecuteRegionAddrBase: {DebugBase, ExternalBase},
-    ExecuteRegionLength:   {DebugLength, ExternalLength},
-    // cached region
-    NrCachedRegionRules:    1,
-    CachedRegionAddrBase:  {ExternalBase},
-    CachedRegionLength:    {64'h7000_0000},
-    //  cache config
-    AxiCompliant:      1'b1,
-    SwapEndianess:          1'b0,
-    // debug
-    DmBaseAddress:          DebugBase,
-    NrPMPEntries:           8
-  };
+    cfg.NrNonIdempotentRules  = unsigned'(2);
+    cfg.NonIdempotentAddrBase = 1024'({64'h8000_0000, 64'b0});
+    cfg.NonIdempotentLength   = 1024'({64'h8000_0000, 64'(ExternalBase)});
+    // Executable: debug ROM and the whole External window (LiteX rom,
+    // sram and main_ram all live there).
+    cfg.NrExecuteRegionRules  = unsigned'(2);
+    cfg.ExecuteRegionAddrBase = 1024'({64'(DebugBase), 64'(ExternalBase)});
+    cfg.ExecuteRegionLength   = 1024'({DebugLength, ExternalLength});
+    // Cacheable: External window up to the LiteX CSR region at 0x8000_0000.
+    cfg.NrCachedRegionRules   = unsigned'(1);
+    cfg.CachedRegionAddrBase  = 1024'({64'(ExternalBase)});
+    cfg.CachedRegionLength    = 1024'({64'h7000_0000});
+    return build_config_pkg::build_config(cfg);
+  endfunction
+
+  localparam config_pkg::cva6_cfg_t CVA6Cfg = build_litex_config(cva6_config_pkg::cva6_cfg);
 
 endpackage

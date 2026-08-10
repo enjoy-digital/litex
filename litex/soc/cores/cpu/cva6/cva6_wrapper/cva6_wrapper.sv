@@ -1,7 +1,6 @@
 `include "axi/typedef.svh"
 `include "axi/assign.svh"
 `include "register_interface/typedef.svh"
-`include "register_interface/assign.svh"
 
 import cva6_wrapper_pkg::*;
 
@@ -161,7 +160,15 @@ localparam axi_pkg::xbar_cfg_t AXI_XBAR_CFG = '{
   MaxMstTrans:        1, // Probably requires update
   MaxSlvTrans:        1, // Probably requires update
   FallThrough:        1'b0,
-  LatencyMode:        axi_pkg::CUT_ALL_PORTS,
+  // Spill registers on the slave ports only (core and debug-module
+  // masters): cva6's axi_shim/wt_axi_adapter couple valid combinationally
+  // to ready (write gnt = aw_ready & w_ready feeds the rd/wr arbiter), so
+  // a fully transparent xbar (NO_LATENCY) creates real combinational
+  // loops through the fabric (Vivado Synth 8-295). Registering the
+  // slave-port handshakes breaks every such cycle while still dropping
+  // the master-port spill registers of CUT_ALL_PORTS. The xbar is nowhere
+  // near the critical path at LiteX SoC frequencies (50 MHz on Arty).
+  LatencyMode:        axi_pkg::CUT_SLV_PORTS,
   AxiIdWidthSlvPorts: AxiIdWidthMaster,
   AxiIdUsedSlvPorts:  AxiIdWidthMaster,
   UniqueIds:          1'b0,
@@ -361,16 +368,15 @@ assign axi_adapter_size = (riscv::XLEN == 64) ? 2'b11 : 2'b10;
 
 
 axi_adapter #(
-    .DATA_WIDTH            ( riscv::XLEN      ),
-    .AXI_DATA_WIDTH        ( AxiDataWidth     ),
-    .AXI_ID_WIDTH          ( AxiIdWidthSlaves ),
-    .axi_req_t             ( axi_slave_req_t  ),
-    .axi_rsp_t             ( axi_slave_resp_t )
+    .CVA6Cfg               ( cva6_wrapper_pkg::CVA6Cfg ),
+    .DATA_WIDTH            ( riscv::XLEN        ),
+    .axi_req_t             ( ariane_axi::req_t  ),
+    .axi_rsp_t             ( ariane_axi::resp_t )
 ) i_dm_axi_master (
     .clk_i                 ( clk_i                     ),
     .rst_ni                ( rst_n                     ),
     .req_i                 ( dm_master_req             ),
-    .type_i                ( ariane_axi::SINGLE_REQ    ),
+    .type_i                ( ariane_pkg::SINGLE_REQ    ),
     .amo_i                 ( ariane_pkg::AMO_NONE      ),
     .gnt_o                 ( dm_master_gnt             ),
     .addr_i                ( dm_master_add             ),
@@ -398,7 +404,7 @@ ariane_axi::req_t    axi_ariane_req;
 ariane_axi::resp_t   axi_ariane_resp;
 
 ariane #(
-    .ArianeCfg ( cva6_wrapper_pkg::CVA6Cfg )
+    .CVA6Cfg ( cva6_wrapper_pkg::CVA6Cfg )
 ) i_ariane (
     .clk_i        ( clk_i               ),
     .rst_ni       ( ndmreset_n          ),
@@ -408,8 +414,9 @@ ariane #(
     .ipi_i        ( ipi                 ),
     .time_irq_i   ( timer_irq           ),
     .debug_req_i  ( debug_req_irq       ),
-    .axi_req_o    ( axi_ariane_req      ),
-    .axi_resp_i   ( axi_ariane_resp     )
+    .rvfi_probes_o(                     ),
+    .noc_req_o    ( axi_ariane_req      ),
+    .noc_resp_i   ( axi_ariane_resp     )
 );
 
 `AXI_ASSIGN_FROM_REQ(slave[0], axi_ariane_req)
@@ -431,6 +438,7 @@ axi_slave_req_t  axi_clint_req;
 axi_slave_resp_t axi_clint_resp;
 
 clint #(
+    .CVA6Cfg        ( cva6_wrapper_pkg::CVA6Cfg ),
     .AXI_ADDR_WIDTH ( AxiAddrWidth     ),
     .AXI_DATA_WIDTH ( AxiDataWidth     ),
     .AXI_ID_WIDTH   ( AxiIdWidthSlaves ),
@@ -454,109 +462,75 @@ clint #(
     // ---------------
     // PLIC
     // ---------------
+    // Single-outstanding AXI-lite style bridge (same one the CLINT uses)
+    // plus a 64-to-32 bit lane shim onto the PLIC register interface. This
+    // replaces the much larger axi2apb_64_32 + apb_to_reg chain. The PLIC
+    // is only ever accessed with single-beat 32-bit loads/stores.
 
-    REG_BUS #(
-        .ADDR_WIDTH ( 32 ),
-        .DATA_WIDTH ( 32 )
-    ) reg_bus (clk_i);
+    axi_slave_req_t  axi_plic_req;
+    axi_slave_resp_t axi_plic_resp;
 
-    logic         plic_penable;
-    logic         plic_pwrite;
-    logic [31:0]  plic_paddr;
-    logic         plic_psel;
-    logic [31:0]  plic_pwdata;
-    logic [31:0]  plic_prdata;
-    logic         plic_pready;
-    logic         plic_pslverr;
+    `AXI_ASSIGN_TO_REQ(axi_plic_req, master[cva6_wrapper_pkg::PLIC])
+    `AXI_ASSIGN_FROM_RESP(master[cva6_wrapper_pkg::PLIC], axi_plic_resp)
 
-    axi2apb_64_32 #(
-        .AXI4_ADDRESS_WIDTH ( AxiAddrWidth  ),
-        .AXI4_RDATA_WIDTH   ( AxiDataWidth  ),
-        .AXI4_WDATA_WIDTH   ( AxiDataWidth  ),
-        .AXI4_ID_WIDTH      ( AxiIdWidthSlaves    ),
-        .AXI4_USER_WIDTH    ( AxiUserWidth  ),
-        .BUFF_DEPTH_SLAVE   ( 2             ),
-        .APB_ADDR_WIDTH     ( 32            )
-    ) i_axi2apb_64_32_plic (
-        .ACLK      ( clk_i          ),
-        .ARESETn   ( ndmreset_n         ),
-        .test_en_i ( 1'b0           ),
-        .AWID_i    ( master[cva6_wrapper_pkg::PLIC].aw_id     ),
-        .AWADDR_i  ( master[cva6_wrapper_pkg::PLIC].aw_addr   ),
-        .AWLEN_i   ( master[cva6_wrapper_pkg::PLIC].aw_len    ),
-        .AWSIZE_i  ( master[cva6_wrapper_pkg::PLIC].aw_size   ),
-        .AWBURST_i ( master[cva6_wrapper_pkg::PLIC].aw_burst  ),
-        .AWLOCK_i  ( master[cva6_wrapper_pkg::PLIC].aw_lock   ),
-        .AWCACHE_i ( master[cva6_wrapper_pkg::PLIC].aw_cache  ),
-        .AWPROT_i  ( master[cva6_wrapper_pkg::PLIC].aw_prot   ),
-        .AWREGION_i( master[cva6_wrapper_pkg::PLIC].aw_region ),
-        .AWUSER_i  ( master[cva6_wrapper_pkg::PLIC].aw_user   ),
-        .AWQOS_i   ( master[cva6_wrapper_pkg::PLIC].aw_qos    ),
-        .AWVALID_i ( master[cva6_wrapper_pkg::PLIC].aw_valid  ),
-        .AWREADY_o ( master[cva6_wrapper_pkg::PLIC].aw_ready  ),
-        .WDATA_i   ( master[cva6_wrapper_pkg::PLIC].w_data    ),
-        .WSTRB_i   ( master[cva6_wrapper_pkg::PLIC].w_strb    ),
-        .WLAST_i   ( master[cva6_wrapper_pkg::PLIC].w_last    ),
-        .WUSER_i   ( master[cva6_wrapper_pkg::PLIC].w_user    ),
-        .WVALID_i  ( master[cva6_wrapper_pkg::PLIC].w_valid   ),
-        .WREADY_o  ( master[cva6_wrapper_pkg::PLIC].w_ready   ),
-        .BID_o     ( master[cva6_wrapper_pkg::PLIC].b_id      ),
-        .BRESP_o   ( master[cva6_wrapper_pkg::PLIC].b_resp    ),
-        .BVALID_o  ( master[cva6_wrapper_pkg::PLIC].b_valid   ),
-        .BUSER_o   ( master[cva6_wrapper_pkg::PLIC].b_user    ),
-        .BREADY_i  ( master[cva6_wrapper_pkg::PLIC].b_ready   ),
-        .ARID_i    ( master[cva6_wrapper_pkg::PLIC].ar_id     ),
-        .ARADDR_i  ( master[cva6_wrapper_pkg::PLIC].ar_addr   ),
-        .ARLEN_i   ( master[cva6_wrapper_pkg::PLIC].ar_len    ),
-        .ARSIZE_i  ( master[cva6_wrapper_pkg::PLIC].ar_size   ),
-        .ARBURST_i ( master[cva6_wrapper_pkg::PLIC].ar_burst  ),
-        .ARLOCK_i  ( master[cva6_wrapper_pkg::PLIC].ar_lock   ),
-        .ARCACHE_i ( master[cva6_wrapper_pkg::PLIC].ar_cache  ),
-        .ARPROT_i  ( master[cva6_wrapper_pkg::PLIC].ar_prot   ),
-        .ARREGION_i( master[cva6_wrapper_pkg::PLIC].ar_region ),
-        .ARUSER_i  ( master[cva6_wrapper_pkg::PLIC].ar_user   ),
-        .ARQOS_i   ( master[cva6_wrapper_pkg::PLIC].ar_qos    ),
-        .ARVALID_i ( master[cva6_wrapper_pkg::PLIC].ar_valid  ),
-        .ARREADY_o ( master[cva6_wrapper_pkg::PLIC].ar_ready  ),
-        .RID_o     ( master[cva6_wrapper_pkg::PLIC].r_id      ),
-        .RDATA_o   ( master[cva6_wrapper_pkg::PLIC].r_data    ),
-        .RRESP_o   ( master[cva6_wrapper_pkg::PLIC].r_resp    ),
-        .RLAST_o   ( master[cva6_wrapper_pkg::PLIC].r_last    ),
-        .RUSER_o   ( master[cva6_wrapper_pkg::PLIC].r_user    ),
-        .RVALID_o  ( master[cva6_wrapper_pkg::PLIC].r_valid   ),
-        .RREADY_i  ( master[cva6_wrapper_pkg::PLIC].r_ready   ),
-        .PENABLE   ( plic_penable   ),
-        .PWRITE    ( plic_pwrite    ),
-        .PADDR     ( plic_paddr     ),
-        .PSEL      ( plic_psel      ),
-        .PWDATA    ( plic_pwdata    ),
-        .PRDATA    ( plic_prdata    ),
-        .PREADY    ( plic_pready    ),
-        .PSLVERR   ( plic_pslverr   )
+    logic                    plic_en;
+    logic                    plic_we;
+    logic [AxiAddrWidth-1:0] plic_addr;
+    logic [AxiDataWidth-1:0] plic_wdata64;
+    logic [AxiDataWidth-1:0] plic_rdata64;
+    logic                    plic_done_q;
+    logic [31:0]             plic_rdata_q;
+
+    axi_lite_interface #(
+        .AXI_ADDR_WIDTH ( AxiAddrWidth     ),
+        .AXI_DATA_WIDTH ( AxiDataWidth     ),
+        .AXI_ID_WIDTH   ( AxiIdWidthSlaves ),
+        .axi_req_t      ( axi_slave_req_t  ),
+        .axi_resp_t     ( axi_slave_resp_t )
+    ) i_axi_lite_plic (
+        .clk_i      ( clk_i         ),
+        .rst_ni     ( ndmreset_n    ),
+        .axi_req_i  ( axi_plic_req  ),
+        .axi_resp_o ( axi_plic_resp ),
+        .address_o  ( plic_addr     ),
+        .en_o       ( plic_en       ),
+        .we_o       ( plic_we       ),
+        .be_o       (               ),
+        .data_i     ( plic_rdata64  ),
+        .data_o     ( plic_wdata64  )
     );
 
-    apb_to_reg i_apb_to_reg (
-        .clk_i     ( clk_i        ),
-        .rst_ni    ( ndmreset_n   ),
-        .penable_i ( plic_penable ),
-        .pwrite_i  ( plic_pwrite  ),
-        .paddr_i   ( plic_paddr   ),
-        .psel_i    ( plic_psel    ),
-        .pwdata_i  ( plic_pwdata  ),
-        .prdata_o  ( plic_prdata  ),
-        .pready_o  ( plic_pready  ),
-        .pslverr_o ( plic_pslverr ),
-        .reg_o     ( reg_bus      )
-    );
-
-    // define reg type according to REG_BUS above
+    // define reg type for the PLIC register interface
     `REG_BUS_TYPEDEF_ALL(plic, logic[31:0], logic[31:0], logic[3:0])
     plic_req_t plic_req;
     plic_rsp_t plic_rsp;
 
-    // assign REG_BUS.out to (req_t, rsp_t) pair
-    `REG_BUS_ASSIGN_TO_REQ(plic_req, reg_bus)
-    `REG_BUS_ASSIGN_FROM_RSP(reg_bus, plic_rsp)
+    // PLIC claim reads have side effects, and axi_lite_interface keeps en_o
+    // asserted for the whole READ state (until r_ready). Issue the register
+    // access exactly once per AXI transaction and hold the read data until
+    // the R beat is accepted.
+    always_ff @(posedge clk_i or negedge ndmreset_n) begin
+        if (!ndmreset_n) begin
+            plic_done_q  <= 1'b0;
+            plic_rdata_q <= '0;
+        end else begin
+            plic_done_q <= plic_en;
+            if (plic_req.valid && !plic_req.write)
+                plic_rdata_q <= plic_rsp.rdata;
+        end
+    end
+
+    assign plic_req.valid = plic_en & ~plic_done_q;
+    assign plic_req.write = plic_we;
+    assign plic_req.addr  = plic_addr[31:0];
+    // 32-bit registers on a 64-bit bus: select the active lane by addr[2],
+    // mirror read data on both lanes. Full-word strobes match the previous
+    // apb_to_reg behavior (the PLIC regmap ignores wstrb anyway).
+    assign plic_req.wdata = plic_addr[2] ? plic_wdata64[63:32] : plic_wdata64[31:0];
+    assign plic_req.wstrb = '1;
+    assign plic_rdata64   = {2{plic_done_q ? plic_rdata_q : plic_rsp.rdata}};
+    // plic_rsp.ready is constant 1 and plic_rsp.error is not representable
+    // on this bridge (responses are always OKAY, as for the CLINT).
 
     plic_top #(
       .N_SOURCE    ( cva6_wrapper_pkg::NumSources  ),
