@@ -575,50 +575,80 @@ clint #(
     );
 
 // ---------------
+// AXI RISC-V atomics adapter
+// ---------------
+// The LiteX AXI to Wishbone side doesn't understand AXI5 ATOPs or exclusive
+// accesses. As CVA6 issues AMOs as ATOPs (and LR/SC as exclusive
+// transactions), this adapter is required to avoid amoswap hanging waiting
+// for its R response. Resolve AMOs and LR/SC here by read-modify-write. As
+// the external port is the only path to RAM, this should be race free.
+
+AXI_BUS #(
+    .AXI_ADDR_WIDTH ( AxiAddrWidth     ),
+    .AXI_DATA_WIDTH ( AxiDataWidth     ),
+    .AXI_ID_WIDTH   ( AxiIdWidthSlaves ),
+    .AXI_USER_WIDTH ( AxiUserWidth     )
+) ext();
+
+axi_riscv_atomics_wrap #(
+    .AXI_ADDR_WIDTH     ( AxiAddrWidth     ),
+    .AXI_DATA_WIDTH     ( AxiDataWidth     ),
+    .AXI_ID_WIDTH       ( AxiIdWidthSlaves ),
+    .AXI_USER_WIDTH     ( AxiUserWidth     ),
+    .AXI_MAX_WRITE_TXNS ( 1                ),
+    .RISCV_WORD_WIDTH   ( riscv::XLEN      )
+) i_axi_riscv_atomics (
+    .clk_i  ( clk_i      ),
+    .rst_ni ( ndmreset_n ),
+    .slv    ( master[cva6_wrapper_pkg::External] ),
+    .mst    ( ext        )
+);
+
+// ---------------
 // AXI to the outside world
 // ---------------
 
-    assign AWID_o     = master[cva6_wrapper_pkg::External].aw_id;
-    assign AWADDR_o   = master[cva6_wrapper_pkg::External].aw_addr;
-    assign AWLEN_o    = master[cva6_wrapper_pkg::External].aw_len;
-    assign AWSIZE_o   = master[cva6_wrapper_pkg::External].aw_size;
-    assign AWBURST_o  = master[cva6_wrapper_pkg::External].aw_burst;
-    assign AWLOCK_o   = master[cva6_wrapper_pkg::External].aw_lock;
-    assign AWCACHE_o  = master[cva6_wrapper_pkg::External].aw_cache;
-    assign AWPROT_o   = master[cva6_wrapper_pkg::External].aw_prot;
-    assign AWREGION_o = master[cva6_wrapper_pkg::External].aw_region;
+    assign AWID_o     = ext.aw_id;
+    assign AWADDR_o   = ext.aw_addr;
+    assign AWLEN_o    = ext.aw_len;
+    assign AWSIZE_o   = ext.aw_size;
+    assign AWBURST_o  = ext.aw_burst;
+    assign AWLOCK_o   = ext.aw_lock;
+    assign AWCACHE_o  = ext.aw_cache;
+    assign AWPROT_o   = ext.aw_prot;
+    assign AWREGION_o = ext.aw_region;
     assign AWUSER_o   = '0;
-    assign AWQOS_o    = master[cva6_wrapper_pkg::External].aw_qos;
-    assign AWVALID_o  = master[cva6_wrapper_pkg::External].aw_valid;
-    assign master[cva6_wrapper_pkg::External].aw_ready = AWREADY_i;
-    assign WDATA_o    = master[cva6_wrapper_pkg::External].w_data;
-    assign WSTRB_o    = master[cva6_wrapper_pkg::External].w_strb;
-    assign WLAST_o    = master[cva6_wrapper_pkg::External].w_last;
+    assign AWQOS_o    = ext.aw_qos;
+    assign AWVALID_o  = ext.aw_valid;
+    assign ext.aw_ready = AWREADY_i;
+    assign WDATA_o    = ext.w_data;
+    assign WSTRB_o    = ext.w_strb;
+    assign WLAST_o    = ext.w_last;
     assign WUSER_o    = '0;
-    assign WVALID_o   = master[cva6_wrapper_pkg::External].w_valid;
-    assign master[cva6_wrapper_pkg::External].w_ready = WREADY_i;
-    assign master[cva6_wrapper_pkg::External].b_id = BID_i;
-    assign master[cva6_wrapper_pkg::External].b_resp = BRESP_i;
-    assign master[cva6_wrapper_pkg::External].b_valid = BVALID_i;
-    assign BREADY_o   = master[cva6_wrapper_pkg::External].b_ready;
-    assign ARID_o     = master[cva6_wrapper_pkg::External].ar_id;
-    assign ARADDR_o   = master[cva6_wrapper_pkg::External].ar_addr;
-    assign ARLEN_o    = master[cva6_wrapper_pkg::External].ar_len;
-    assign ARSIZE_o   = master[cva6_wrapper_pkg::External].ar_size;
-    assign ARBURST_o  = master[cva6_wrapper_pkg::External].ar_burst;
-    assign ARLOCK_o   = master[cva6_wrapper_pkg::External].ar_lock;
-    assign ARCACHE_o  = master[cva6_wrapper_pkg::External].ar_cache;
-    assign ARPROT_o   = master[cva6_wrapper_pkg::External].ar_prot;
-    assign ARREGION_o = master[cva6_wrapper_pkg::External].ar_region;
+    assign WVALID_o   = ext.w_valid;
+    assign ext.w_ready = WREADY_i;
+    assign ext.b_id = BID_i;
+    assign ext.b_resp = BRESP_i;
+    assign ext.b_valid = BVALID_i;
+    assign BREADY_o   = ext.b_ready;
+    assign ARID_o     = ext.ar_id;
+    assign ARADDR_o   = ext.ar_addr;
+    assign ARLEN_o    = ext.ar_len;
+    assign ARSIZE_o   = ext.ar_size;
+    assign ARBURST_o  = ext.ar_burst;
+    assign ARLOCK_o   = ext.ar_lock;
+    assign ARCACHE_o  = ext.ar_cache;
+    assign ARPROT_o   = ext.ar_prot;
+    assign ARREGION_o = ext.ar_region;
     assign ARUSER_o   = '0;
-    assign ARQOS_o    = master[cva6_wrapper_pkg::External].ar_qos;
-    assign ARVALID_o  = master[cva6_wrapper_pkg::External].ar_valid;
-    assign master[cva6_wrapper_pkg::External].ar_ready = ARREADY_i;
-    assign master[cva6_wrapper_pkg::External].r_id = RID_i;
-    assign master[cva6_wrapper_pkg::External].r_data = RDATA_i;
-    assign master[cva6_wrapper_pkg::External].r_resp = RRESP_i;
-    assign master[cva6_wrapper_pkg::External].r_last = RLAST_i;
-    assign master[cva6_wrapper_pkg::External].r_valid = RVALID_i;
-    assign RREADY_o   = master[cva6_wrapper_pkg::External].r_ready;
+    assign ARQOS_o    = ext.ar_qos;
+    assign ARVALID_o  = ext.ar_valid;
+    assign ext.ar_ready = ARREADY_i;
+    assign ext.r_id = RID_i;
+    assign ext.r_data = RDATA_i;
+    assign ext.r_resp = RRESP_i;
+    assign ext.r_last = RLAST_i;
+    assign ext.r_valid = RVALID_i;
+    assign RREADY_o   = ext.r_ready;
 
 endmodule

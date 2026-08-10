@@ -59,6 +59,15 @@ ${CVA6_REPO_DIR}/corev_apu/axi/src/axi_serializer.sv
 ${CVA6_REPO_DIR}/corev_apu/axi/src/axi_to_axi_lite.sv
 ${CVA6_REPO_DIR}/corev_apu/axi/src/axi_xbar.sv
 
+// AXI RISC-V atomics adapter (resolves AMOs/LR-SC in front of the
+// LiteX bus, which supports neither ATOPs nor exclusive accesses)
+${CVA6_REPO_DIR}/corev_apu/src/axi_riscv_atomics/src/axi_res_tbl.sv
+${CVA6_REPO_DIR}/corev_apu/src/axi_riscv_atomics/src/axi_riscv_amos_alu.sv
+${CVA6_REPO_DIR}/corev_apu/src/axi_riscv_atomics/src/axi_riscv_amos.sv
+${CVA6_REPO_DIR}/corev_apu/src/axi_riscv_atomics/src/axi_riscv_lrsc.sv
+${CVA6_REPO_DIR}/corev_apu/src/axi_riscv_atomics/src/axi_riscv_atomics.sv
+${CVA6_REPO_DIR}/corev_apu/src/axi_riscv_atomics/src/axi_riscv_atomics_wrap.sv
+
 ${CVA6_REPO_DIR}/corev_apu/axi_mem_if/src/axi2mem.sv
 ${CVA6_REPO_DIR}/core/axi_adapter.sv
 ${CVA6_REPO_DIR}/corev_apu/fpga/src/axi2apb/src/axi2apb_64_32.sv
