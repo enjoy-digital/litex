@@ -1,25 +1,20 @@
 #ifndef __IRQ_H
 #define __IRQ_H
 
-#include <stdint.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include <system.h>
+
 static inline unsigned int irq_getie(void)
 {
-    unsigned int mstatus;
-    __asm__ __volatile__ ("csrr %0, mstatus" : "=r"(mstatus));
-    return (mstatus >> 3) & 1; /* MIE bit */
+	return (csrr(mstatus) & CSR_MSTATUS_MIE) != 0;
 }
 
 static inline void irq_setie(unsigned int ie)
 {
-    if (ie)
-        __asm__ __volatile__ ("csrs mstatus, %0" :: "r"(1 << 3));
-    else
-        __asm__ __volatile__ ("csrc mstatus, %0" :: "r"(1 << 3));
+	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE);
 }
 
 /* TODO: these three don't yet talk to VeeR's PIC (pic_ctrl.sv). They need the

@@ -1,76 +1,91 @@
-#define MIE_MEIE 	0x800
+.global main
+.global isr
+.global _start
 
-	.global _start
 _start:
-	j reset_vector
+  j crt_init
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
 
-reset_vector:
-	la sp, _fstack
-	la t0, trap_vector
-	csrw mtvec, t0
+.global  trap_entry
+trap_entry:
+  sw x1,  - 1*4(sp)
+  sw x5,  - 2*4(sp)
+  sw x6,  - 3*4(sp)
+  sw x7,  - 4*4(sp)
+  sw x10, - 5*4(sp)
+  sw x11, - 6*4(sp)
+  sw x12, - 7*4(sp)
+  sw x13, - 8*4(sp)
+  sw x14, - 9*4(sp)
+  sw x15, -10*4(sp)
+  sw x16, -11*4(sp)
+  sw x17, -12*4(sp)
+  sw x28, -13*4(sp)
+  sw x29, -14*4(sp)
+  sw x30, -15*4(sp)
+  sw x31, -16*4(sp)
+  addi sp,sp,-16*4
+  call isr
+  lw x1 , 15*4(sp)
+  lw x5,  14*4(sp)
+  lw x6,  13*4(sp)
+  lw x7,  12*4(sp)
+  lw x10, 11*4(sp)
+  lw x11, 10*4(sp)
+  lw x12,  9*4(sp)
+  lw x13,  8*4(sp)
+  lw x14,  7*4(sp)
+  lw x15,  6*4(sp)
+  lw x16,  5*4(sp)
+  lw x17,  4*4(sp)
+  lw x28,  3*4(sp)
+  lw x29,  2*4(sp)
+  lw x30,  1*4(sp)
+  lw x31,  0*4(sp)
+  addi sp,sp,16*4
+  mret
+  .text
 
-	// initialize .data
-	la t0, _fdata
-	la t1, _edata
-	la t2, _fdata_rom
-1:	beq t0, t1, 2f
-	lw t3, 0(t2)
-	sw t3, 0(t0)
-	addi t0, t0, 4
-	addi t2, t2, 4
-	j 1b
-2:
 
-	// initialize .bss
-	la t0, _fbss
-	la t1, _ebss
-1:	beq t0, t1, 3f
-	sw zero, 0(t0)
-	addi t0, t0, 4
-	j 1b
-3:
-	// enable external interrupts
-	li t0, MIE_MEIE
-	csrs mie, t0
+crt_init:
+  la sp, _fstack
+  la a0, trap_entry
+  csrw mtvec, a0
 
-	call litex_startup_init
-	call main
-1:	j 1b
+data_init:
+  la a0, _fdata
+  la a1, _edata
+  la a2, _fdata_rom
+data_loop:
+  beq a0,a1,data_done
+  lw a3,0(a2)
+  sw a3,0(a0)
+  add a0,a0,4
+  add a2,a2,4
+  j data_loop
+data_done:
 
-trap_vector:
-	addi sp, sp, -16*4
-	sw ra,  0*4(sp)
-	sw t0,  1*4(sp)
-	sw t1,  2*4(sp)
-	sw t2,  3*4(sp)
-	sw a0,  4*4(sp)
-	sw a1,  5*4(sp)
-	sw a2,  6*4(sp)
-	sw a3,  7*4(sp)
-	sw a4,  8*4(sp)
-	sw a5,  9*4(sp)
-	sw a6, 10*4(sp)
-	sw a7, 11*4(sp)
-	sw t3, 12*4(sp)
-	sw t4, 13*4(sp)
-	sw t5, 14*4(sp)
-	sw t6, 15*4(sp)
-	call isr
-	lw ra,  0*4(sp)
-	lw t0,  1*4(sp)
-	lw t1,  2*4(sp)
-	lw t2,  3*4(sp)
-	lw a0,  4*4(sp)
-	lw a1,  5*4(sp)
-	lw a2,  6*4(sp)
-	lw a3,  7*4(sp)
-	lw a4,  8*4(sp)
-	lw a5,  9*4(sp)
-	lw a6, 10*4(sp)
-	lw a7, 11*4(sp)
-	lw t3, 12*4(sp)
-	lw t4, 13*4(sp)
-	lw t5, 14*4(sp)
-	lw t6, 15*4(sp)
-	addi sp, sp, 16*4
-	mret
+bss_init:
+  la a0, _fbss
+  la a1, _ebss
+bss_loop:
+  beq a0,a1,bss_done
+  sw zero,0(a0)
+  add a0,a0,4
+  j bss_loop
+bss_done:
+
+  # li a0, 0x880  //880 enable timer + external interrupt sources (until mstatus.MIE is set, they will never trigger an interrupt)
+  li a0, 0x800  //880 enable timer (until mstatus.MIE is set, they will never trigger an interrupt)
+  csrw mie,a0
+
+  call litex_startup_init
+  call main
+infinit_loop:
+  j infinit_loop
