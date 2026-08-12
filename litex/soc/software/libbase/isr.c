@@ -23,6 +23,9 @@ void plic_init(void);
 #if defined(__riscv_aplic__)
 void aplic_init(void);
 #endif
+#if defined(__veer_eh1__)
+void veer_pic_init(void);
+#endif
 #endif
 
 /*
@@ -37,6 +40,8 @@ void irq_init(void)
 #elif defined(CONFIG_CPU_HAS_INTERRUPT) && defined(__riscv_aplic__)
     aplic_init();
     csrs(mie, 0x800);
+#elif defined(CONFIG_CPU_HAS_INTERRUPT) && defined(__veer_eh1__)
+    veer_pic_init();
 #endif
 }
 
@@ -171,7 +176,53 @@ void isr(void)
         }
     }
 }
+/***********************************************/
+/* ISR and PIC Initialization for VeeR EH1.     */
+/***********************************************/
+#elif defined(__veer_eh1__)
 
+void veer_pic_init(void)
+{
+    unsigned int src;
+
+    PIC_MPICCFG = 0;                                    /* standard priority order */
+    asm volatile ("csrw 0xBC9, %0" :: "r"(0));           /* meipt: nothing masked */
+    asm volatile ("csrw 0xBCB, %0" :: "r"(0));           /* meicidpl: nesting threshold */
+    asm volatile ("csrw 0xBCC, %0" :: "r"(0));           /* meicurpl: nesting threshold */
+
+    for (src = 1; src <= CONFIG_CPU_INTERRUPTS; src++) {
+        PIC_MEIGWCTRL(src) = 0;   /* level-triggered, active-high */
+        PIC_MEIGWCLR(src)  = 0;
+        PIC_MEIPL(src)     = 1;   /* any nonzero priority; 0 = never */
+        PIC_MEIE(src)      = 0;   /* irq_setmask() enables per-source */
+    }
+}
+
+/* Interrupt Service Routine. Uses the PIC's own claim mechanism
+ * (meicpct/meihap), the VeeR equivalent of PLIC_CLAIM above, instead
+ * of a bitmask scan. */
+void isr(void)
+{
+    unsigned int claimid, irq;
+
+    for (;;) {
+        asm volatile ("csrw 0xBCA, x0");                  /* meicpct: trigger capture */
+        asm volatile ("csrr %0, 0xFC8" : "=r"(claimid));  /* meihap */
+        claimid = (claimid >> 2) & 0xFF;                  /* claimid field, bits [9:2] */
+
+        if (claimid == 0)
+            break; /* nothing pending */
+
+        irq = claimid - 1; /* PIC source ID -> LiteX irq number */
+
+        if (irq < CONFIG_CPU_INTERRUPTS && irq_table[irq].isr) {
+            irq_table[irq].isr();
+        } else {
+            PIC_MEIE(claimid) = 0;
+            printf("\n*** disabled spurious irq %d ***\n", irq);
+        }
+    }
+}
 
 /************************************************/
 /* ISR Handling for CV32E40P and CV32E41P CPUs. */

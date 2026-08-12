@@ -6,6 +6,30 @@ extern "C" {
 #endif
 
 #include <system.h>
+#include <generated/csr.h>
+#include <generated/soc.h>
+
+// VeeR EH1 routes all external interrupts through an on-core PIC rather
+// than mapping each source to its own mip/mie bit. All sources are OR'd
+// into the single standard mie.meie/mip.meip bit (bit 11); per-source
+// enable and pending state live in the PIC's memory-mapped registers
+// below.
+//
+// PIC_base_addr = (pic_region << 28) | pic_offset, from veer_eh1.py's
+// mem_map(). With current defaults (region=0xf, offset=0xc0000) this
+// is 0xf00c0000.
+//
+// PIC source IDs are 1-based; source 0 means "no interrupt pending"
+// (meihap.claimid). LiteX irq numbers are 0-based, so throughout:
+//     PIC source ID = LiteX irq number + 1
+
+#define PIC_BASE         0xf00c0000L
+#define PIC_MEIPL(s)     (*((unsigned int *)(PIC_BASE + 0x0000 + ((s) * 4))))
+#define PIC_MEIP(x)      (*((unsigned int *)(PIC_BASE + 0x1000 + ((x) * 4))))
+#define PIC_MEIE(s)      (*((unsigned int *)(PIC_BASE + 0x2000 + ((s) * 4))))
+#define PIC_MPICCFG      (*((unsigned int *)(PIC_BASE + 0x3000)))
+#define PIC_MEIGWCTRL(s) (*((unsigned int *)(PIC_BASE + 0x4000 + ((s) * 4))))
+#define PIC_MEIGWCLR(s)  (*((unsigned int *)(PIC_BASE + 0x5000 + ((s) * 4))))
 
 static inline unsigned int irq_getie(void)
 {
@@ -17,31 +41,35 @@ static inline void irq_setie(unsigned int ie)
 	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE);
 }
 
-/* TODO: these three don't yet talk to VeeR's PIC (pic_ctrl.sv). They need the
- * PIC's priority-based CSR interface (meipt/meicurpl/meicidpl/meivt/meicpct,
- * per the SweRV EH1 PRM) to correctly gate/read individual external interrupt
- * lines. For now this just uses the coarse MEIE bit so the BIOS links and
- * boots; per-source masking (UART vs timer0, etc.) is not yet functional. */
 static inline unsigned int irq_getmask(void)
 {
-    unsigned int mie;
-    __asm__ __volatile__ ("csrr %0, mie" : "=r"(mie));
-    return (mie >> 11) & 1; /* MEIE bit only, not per-source */
+	unsigned int mask = 0;
+	unsigned int irq;
+
+	for (irq = 0; irq < CONFIG_CPU_INTERRUPTS; irq++)
+		if (PIC_MEIE(irq + 1) & 1)
+			mask |= 1u << irq;
+
+	return mask;
 }
 
 static inline void irq_setmask(unsigned int mask)
 {
-    if (mask)
-        __asm__ __volatile__ ("csrs mie, %0" :: "r"(1 << 11));
-    else
-        __asm__ __volatile__ ("csrc mie, %0" :: "r"(1 << 11));
+	unsigned int irq;
+
+	for (irq = 0; irq < CONFIG_CPU_INTERRUPTS; irq++)
+		PIC_MEIE(irq + 1) = (mask >> irq) & 1;
+
+	// Individual sources are gated above; this is the aggregate
+	// machine-external-interrupt enable the PIC's output feeds into.
+	if (mask) csrs(mie, 1 << 11); else csrc(mie, 1 << 11);
 }
 
 static inline unsigned int irq_pending(void)
 {
-    unsigned int mip;
-    __asm__ __volatile__ ("csrr %0, mip" : "=r"(mip));
-    return (mip >> 11) & 1; /* MEIP only, not per-source */
+	// meipX(0) covers PIC source IDs 1..31; fine while
+	// CONFIG_CPU_INTERRUPTS stays under 31.
+	return PIC_MEIP(0) >> 1;
 }
 
 #ifdef __cplusplus

@@ -191,12 +191,15 @@ class VeeREH1(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
-        self.interrupt      = Signal(32)   # bit 0 = timer, bits 1-31 = 31 PIC external sources
+
+        n_ext_int = VeeREH1.pic_total_int   # RV_PIC_TOTAL_INT = Default 8
+        self.interrupt      = Signal(n_ext_int)  
 
         # Create individual interrupt signals
-        self.timer_int = Signal()
-        n_ext_int = VeeREH1.pic_total_int - 1
-        self.extintsrc_req = Signal(n_ext_int)  # RV_PIC_TOTAL_INT = Default 8
+        self.extintsrc_req = Signal(n_ext_int)  
+
+        # Connect interrupt signals bit by bit 
+        self.comb += self.extintsrc_req.eq(self.interrupt)
 
         # AXI Interfaces
         self.ibus = axi.AXIInterface(data_width=64, address_width=32, id_width=3)  # RV_IFU_BUS_TAG = 3
@@ -212,13 +215,6 @@ class VeeREH1(CPU):
         self.jtag_tdi  = Signal()
         self.jtag_tdo  = Signal()
 
-        # Connect interrupt signals bit by bit (avoid slice issues)
-        self.comb += [
-            self.timer_int.eq(self.interrupt[0]),
-        ]
-        for i in range(n_ext_int):
-            self.comb += self.extintsrc_req[i].eq(self.interrupt[i+1])
-
         # CPU Instance parameters
         self.cpu_params = dict(
             # Clk / Rst.
@@ -232,7 +228,7 @@ class VeeREH1(CPU):
 
             # Interrupts
             i_nmi_int           = 0,
-            i_timer_int         = self.timer_int,
+            i_timer_int         = 0,
             i_extintsrc_req     = self.extintsrc_req,
 
             # Bus clock enables
