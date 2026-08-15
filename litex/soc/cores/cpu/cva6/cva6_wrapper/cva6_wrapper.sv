@@ -570,7 +570,7 @@ clint #(
       .req_i         ( plic_req    ),
       .resp_o        ( plic_rsp   ),
       .le_i          ( '0          ), // 0:level 1:edge
-      .irq_sources_i ( irq_sources[cva6_wrapper_pkg::NumSources-1:0] ),
+      .irq_sources_i ( irq_sources[cva6_wrapper_pkg::NumSources:1] ),
       .eip_targets_o ( irq       )
     );
 

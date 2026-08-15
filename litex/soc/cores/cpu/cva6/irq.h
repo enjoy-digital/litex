@@ -32,17 +32,17 @@ static inline void irq_setie(unsigned int ie)
 
 static inline unsigned int irq_getmask(void)
 {
-	return *((unsigned int *)PLIC_ENABLED) >> 1;
+	return *((unsigned int *)PLIC_ENABLED) >> PLIC_EXT_IRQ_BASE;
 }
 
 static inline void irq_setmask(unsigned int mask)
 {
-	*((unsigned int *)PLIC_ENABLED) = mask << 1;
+	*((unsigned int *)PLIC_ENABLED) = mask << PLIC_EXT_IRQ_BASE;
 }
 
 static inline unsigned int irq_pending(void)
 {
-	return *((unsigned int *)PLIC_PENDING) >> 1;
+	return *((unsigned int *)PLIC_PENDING) >> PLIC_EXT_IRQ_BASE;
 }
 
 #ifdef __cplusplus

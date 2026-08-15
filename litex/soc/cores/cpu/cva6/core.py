@@ -94,6 +94,11 @@ class CVA6(CPU):
         #flags += f" -DUART_POLLING"
         return flags
 
+    # Reserved Interrupts.
+    @property
+    def reserved_interrupts(self):
+        return {"noirq": 0}
+
     # Memory Mapping.
     @property
     def mem_map(self):
