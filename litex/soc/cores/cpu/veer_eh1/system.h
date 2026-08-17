@@ -5,8 +5,15 @@
 extern "C" {
 #endif
 
-__attribute__((unused)) static void flush_cpu_icache(void){}  /* FIXME: do something useful here! */
-__attribute__((unused)) static void flush_cpu_dcache(void){}; /* FIXME: do something useful here! */
+__attribute__((unused)) static void flush_cpu_icache(void)
+{
+    asm volatile ("fence.i" ::: "memory");
+}
+__attribute__((unused)) static void flush_cpu_dcache(void)
+{
+    /* VeeR EH1 has no data cache -- only DCCM (a tightly-coupled RAM,
+     * not a cache) and an optional I-cache. Nothing to flush here. */
+}
 void flush_l2_cache(void);
 
 void busy_wait(unsigned int ms);
