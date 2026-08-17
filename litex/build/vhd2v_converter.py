@@ -185,8 +185,8 @@ class VHD2VConverter(Module):
         return normalize_instance_ports(params, top_entity=self._top_entity, target="VHD2V")
 
     @staticmethod
-    def _extract_generics(params):
-        return extract_prefixed_generics(params, prefix="p_")
+    def _extract_generics(params, target="GHDL"):
+        return extract_prefixed_generics(params, prefix="p_", target=target)
 
     @staticmethod
     def _sanitize_ghdl_escaped_identifiers(content):
