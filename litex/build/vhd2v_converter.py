@@ -244,6 +244,7 @@ class VHD2VConverter(Module):
         if self._platform.support_mixed_language and not self._force_convert:
             if (self._params is not None) and self._add_instance:
                 ip_params = self._normalize_instance_ports(self._params)
+                ip_params.update(self._extract_generics(self._params, target="native"))
             elif self._instance is not None:
                 ip_params = self._instance.items
             for file in sources:
