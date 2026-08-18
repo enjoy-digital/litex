@@ -29,12 +29,17 @@ class VeeREH1(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
-    io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
+    io_regions           = {
+        0x8000_0000: 0x8000_0000,   # existing: CSR/PIC space
+        0x0000_0000: 0x1000_0000,   # new: covers region 0x0 (256MB) for ICCM+DCCM
+    } # Origin, Length.
+
+    bscan_tap   = 0     # Default     # Options: 0, 1 (1=Use BSCAN TAP for JTAG; 0=Use standard JTAG pins)
 
     # Enable/disable ------------------------------------------------------------------------------
-    iccm_enable          = 0          # Default=0             # Options: 0, 1
-    dccm_enable          = 0          # Default=1             # Options: 0, 1
-    icache_enable        = 0          # Default=1             # Options: 0, 1
+    iccm_enable          = 1          # Default=0             # Options: 0, 1
+    dccm_enable          = 1          # Default=1             # Options: 0, 1
+    icache_enable        = 1          # Default=1             # Options: 0, 1
     reset_vec            = 0x10000000 # Default=0x80000000 (veer.config default; LiteX targets often use 0x10000000)
 
     # Core parameters -------------------------------------------------------------------------------
@@ -43,19 +48,19 @@ class VeeREH1(CPU):
     bht_size             = 128        # Default=128  # Minimum: 32   # Options: 32,64,128,256,512,1024,2048
 
     # DCCM (Data Closely Coupled Memory) -------------------------------------------------------------
-    dccm_region          = "0xf"      # Default="0xf"
+    dccm_region          = "0x0"      # Default="0xf"
     dccm_offset          = "0x40000"  # Default="0x40000"
-    dccm_size            = 64          # Default=64   # Minimum: 4 KB   # Options: 4,8,16,32,48,64,128,256,512
-    dccm_num_banks       = 8          # Default=8    # Minimum: 4      # Options: 4,8,16 (16 only if size!=4)
+    dccm_size            = 128          # Default=64   # Minimum: 4 KB   # Options: 4,8,16,32,48,64,128,256,512
+    dccm_num_banks       = 4          # Default=8    # Minimum: 4      # Options: 4,8,16 (16 only if size!=4)
 
     # ICCM (Instruction Closely Coupled Memory) ------------------------------------------------------
-    iccm_region          = "0xe"      # Default="0xe"
-    iccm_offset          = "0xe000000" # Default="0xe000000"
-    iccm_size            = 512         # Default=512  # Minimum: 4 KB   # Options: 4,8,16,32,64,128,256,512
-    iccm_num_banks       = 8          # Default=8    # Minimum: 4      # Options: 4,8,16 (16 only if size!=4)
+    iccm_region          = "0x0"      # Default="0xe"
+    iccm_offset          = "0x0"      # Default="0xe000000"
+    iccm_size            = 128         # Default=512  # Minimum: 4 KB   # Options: 4,8,16,32,64,128,256,512
+    iccm_num_banks       = 4          # Default=8    # Minimum: 4      # Options: 4,8,16 (16 only if size!=4)
 
     # ICache ------------------------------------------------------------------------------------------
-    icache_size          = 16         # Default=16   # Minimum: 16 KB  # Options: 16,32,64,128,256
+    icache_size          = 64         # Default=16   # Minimum: 16 KB  # Options: 16,32,64,128,256
     icache_ecc           = 0          # Default=0 (parity)  # Options: 0=parity, 1=ECC (ECC = ~30% bigger)
 
     # PIC (Platform Interrupt Controller) ---------------------------------------------------------------
@@ -80,6 +85,8 @@ class VeeREH1(CPU):
     @staticmethod
     def args_fill(parser):
         cpu_group = parser.add_argument_group(title="VeeR EH1 CPU options")
+        # BSCAN TAP for JTAG
+        cpu_group.add_argument("--veer-bscan-tap",      default=VeeREH1.bscan_tap,      help=f"Enable BSCAN TAP for JTAG. Default={VeeREH1.bscan_tap}", type=int)
         # Enable/disable options
         cpu_group.add_argument("--veer-iccm-enable",    default=VeeREH1.iccm_enable,    help=f"Enable ICCM (Instruction Tightly Coupled Memory). Default={VeeREH1.iccm_enable}", type=int)
         cpu_group.add_argument("--veer-dccm-enable",    default=VeeREH1.dccm_enable,    help=f"Enable DCCM (Data Tightly Coupled Memory). Default={VeeREH1.dccm_enable}", type=int)
@@ -125,6 +132,8 @@ class VeeREH1(CPU):
 
     @staticmethod
     def args_read(args):
+        # BSCAN TAP for JTAG
+        VeeREH1.bscan_tap         = args.veer_bscan_tap
         # Enable/disable
         VeeREH1.iccm_enable       = args.veer_iccm_enable
         VeeREH1.dccm_enable       = args.veer_dccm_enable
@@ -178,18 +187,29 @@ class VeeREH1(CPU):
     # Memory Mapping.
     @property
     def mem_map(self):
-        # PIC base = (pic_region << 28) | pic_offset, matches _generate_snapshot()'s veer.config values.
+        # PIC base = (pic_region << 28) | pic_offset
         pic_base = (int(VeeREH1.pic_region, 16) << 28) | int(VeeREH1.pic_offset, 16)
-        return {
+        
+        # Start with required regions
+        mem_map = {
             "rom"  : 0x1000_0000,
             "sram" : 0x2000_0000,
             "csr"  : 0x8000_0000,
             "pic"  : pic_base,
         }
+        
+        # Add optional regions only if enabled
+        if VeeREH1.iccm_enable:
+            mem_map["iccm"] = (int(VeeREH1.iccm_region, 16) << 28) | int(VeeREH1.iccm_offset, 16)
+        if VeeREH1.dccm_enable:
+            mem_map["dccm"] = (int(VeeREH1.dccm_region, 16) << 28) | int(VeeREH1.dccm_offset, 16)
+
+        return mem_map
 
     def __init__(self, platform, variant="standard"):
         self.platform     = platform
         self.variant      = variant
+        self.bscan_tap = VeeREH1.bscan_tap
         self.reset        = Signal()
 
         n_ext_int = VeeREH1.pic_total_int   # RV_PIC_TOTAL_INT = Default 8
@@ -204,16 +224,12 @@ class VeeREH1(CPU):
         # AXI Interfaces
         self.ibus = axi.AXIInterface(data_width=64, address_width=32, id_width=3)  # RV_IFU_BUS_TAG = 3
         self.dbus = axi.AXIInterface(data_width=64, address_width=32, id_width=4)  # RV_LSU_BUS_TAG = 4
+        self.sbus = axi.AXIInterface(data_width=64, address_width=32, id_width=1)  # RV_SB_BUS_TAG = 1
 
-        self.periph_buses = [self.ibus, self.dbus]
+        self.dmabus = dmabus = axi.AXIInterface(data_width=64, address_width=32, id_width=1)  # RV_DMA_BUS_TAG = 1
+
+        self.periph_buses = [self.ibus, self.dbus, self.sbus]
         self.memory_buses = []
-
-        # JTAG signals
-        self.jtag_tck  = Signal()
-        self.jtag_tms  = Signal()
-        self.jtag_trst = Signal()
-        self.jtag_tdi  = Signal()
-        self.jtag_tdo  = Signal()
 
         # CPU Instance parameters
         self.cpu_params = dict(
@@ -224,7 +240,6 @@ class VeeREH1(CPU):
 
             # Reset/NMI Vectors
             i_nmi_vec           = 0x11110000 >> 1,
-            i_jtag_id           = 0xDEADBEEF,
 
             # Interrupts
             i_nmi_int           = 0,
@@ -236,13 +251,6 @@ class VeeREH1(CPU):
             i_ifu_bus_clk_en    = 1,
             i_dbg_bus_clk_en    = 1,
             i_dma_bus_clk_en    = 1,
-
-            # JTAG
-            i_jtag_tck          = self.jtag_tck,
-            i_jtag_tms          = self.jtag_tms,
-            i_jtag_tdi          = self.jtag_tdi,
-            i_jtag_trst_n       = self.jtag_trst,
-            o_jtag_tdo          = self.jtag_tdo,
 
             # IFU AXI4 Ports
             o_ifu_axi_awvalid   = self.ibus.aw.valid,
@@ -334,79 +342,87 @@ class VeeREH1(CPU):
             i_lsu_axi_rresp     = self.dbus.r.resp,
             i_lsu_axi_rlast     = self.dbus.r.last,
 
-            # SB AXI - tie off
-            o_sb_axi_awvalid    = Open(),
-            i_sb_axi_awready    = 0,
-            o_sb_axi_awid       = Open(),
-            o_sb_axi_awaddr     = Open(),
-            o_sb_axi_awlen      = Open(),
-            o_sb_axi_awsize     = Open(),
-            o_sb_axi_awburst    = Open(),
-            o_sb_axi_awlock     = Open(),
-            o_sb_axi_awcache    = Open(),
-            o_sb_axi_awprot     = Open(),
-            o_sb_axi_awqos      = Open(),
-            o_sb_axi_awregion   = Open(),
-            o_sb_axi_wvalid     = Open(),
-            i_sb_axi_wready     = 0,
-            o_sb_axi_wdata      = Open(),
-            o_sb_axi_wstrb      = Open(),
-            o_sb_axi_wlast      = Open(),
-            i_sb_axi_bvalid     = 0,
-            o_sb_axi_bready     = Open(),
-            i_sb_axi_bresp      = 0,
-            i_sb_axi_bid        = 0,
-            o_sb_axi_arvalid    = Open(),
-            i_sb_axi_arready    = 0,
-            o_sb_axi_arid       = Open(),
-            o_sb_axi_araddr     = Open(),
-            o_sb_axi_arlen      = Open(),
-            o_sb_axi_arsize     = Open(),
-            o_sb_axi_arburst    = Open(),
-            o_sb_axi_arlock     = Open(),
-            o_sb_axi_arcache    = Open(),
-            o_sb_axi_arprot     = Open(),
-            o_sb_axi_arqos      = Open(),
-            o_sb_axi_arregion   = Open(),
-            i_sb_axi_rvalid     = 0,
-            o_sb_axi_rready     = Open(),
-            i_sb_axi_rid        = 0,
-            i_sb_axi_rdata      = 0,
-            i_sb_axi_rresp      = 0,
-            i_sb_axi_rlast      = 0,
+            # SB AXI4 Ports
+            o_sb_axi_awvalid   = self.sbus.aw.valid,
+            i_sb_axi_awready   = self.sbus.aw.ready,
+            o_sb_axi_awid      = self.sbus.aw.id,
+            o_sb_axi_awaddr    = self.sbus.aw.addr,
+            o_sb_axi_awlen     = self.sbus.aw.len,
+            o_sb_axi_awsize    = self.sbus.aw.size,
+            o_sb_axi_awburst   = self.sbus.aw.burst,
+            o_sb_axi_awlock    = self.sbus.aw.lock,
+            o_sb_axi_awcache   = self.sbus.aw.cache,
+            o_sb_axi_awprot    = self.sbus.aw.prot,
+            o_sb_axi_awqos     = self.sbus.aw.qos,
+            o_sb_axi_awregion  = Open(),
 
-            # DMA AXI - tie off
-            i_dma_axi_awvalid   = 0,
-            o_dma_axi_awready   = Open(),
-            i_dma_axi_awid      = 0,
-            i_dma_axi_awaddr    = 0,
-            i_dma_axi_awsize    = 0,
-            i_dma_axi_awprot    = 0,
-            i_dma_axi_awlen     = 0,
-            i_dma_axi_awburst   = 0,
-            i_dma_axi_wvalid    = 0,
-            o_dma_axi_wready    = Open(),
-            i_dma_axi_wdata     = 0,
-            i_dma_axi_wstrb     = 0,
-            i_dma_axi_wlast     = 0,
-            o_dma_axi_bvalid    = Open(),
-            i_dma_axi_bready    = 0,
-            o_dma_axi_bresp     = Open(),
-            o_dma_axi_bid       = Open(),
-            i_dma_axi_arvalid   = 0,
-            o_dma_axi_arready   = Open(),
-            i_dma_axi_arid      = 0,
-            i_dma_axi_araddr    = 0,
-            i_dma_axi_arsize    = 0,
-            i_dma_axi_arprot    = 0,
-            i_dma_axi_arlen     = 0,
-            i_dma_axi_arburst   = 0,
-            o_dma_axi_rvalid    = Open(),
-            i_dma_axi_rready    = 0,
-            o_dma_axi_rid       = Open(),
-            o_dma_axi_rdata     = Open(),
-            o_dma_axi_rresp     = Open(),
-            o_dma_axi_rlast     = Open(),
+            o_sb_axi_wvalid    = self.sbus.w.valid,
+            i_sb_axi_wready    = self.sbus.w.ready,
+            o_sb_axi_wdata     = self.sbus.w.data,
+            o_sb_axi_wstrb     = self.sbus.w.strb,
+            o_sb_axi_wlast     = self.sbus.w.last,
+
+            i_sb_axi_bvalid    = self.sbus.b.valid,
+            o_sb_axi_bready    = self.sbus.b.ready,
+            i_sb_axi_bresp     = self.sbus.b.resp,
+            i_sb_axi_bid       = self.sbus.b.id,
+
+            o_sb_axi_arvalid   = self.sbus.ar.valid,
+            i_sb_axi_arready   = self.sbus.ar.ready,
+            o_sb_axi_arid      = self.sbus.ar.id,
+            o_sb_axi_araddr    = self.sbus.ar.addr,
+            o_sb_axi_arlen     = self.sbus.ar.len,
+            o_sb_axi_arsize    = self.sbus.ar.size,
+            o_sb_axi_arburst   = self.sbus.ar.burst,
+            o_sb_axi_arlock    = self.sbus.ar.lock,
+            o_sb_axi_arcache   = self.sbus.ar.cache,
+            o_sb_axi_arprot    = self.sbus.ar.prot,
+            o_sb_axi_arqos     = self.sbus.ar.qos,
+            o_sb_axi_arregion  = Open(),
+
+            i_sb_axi_rvalid    = self.sbus.r.valid,
+            o_sb_axi_rready    = self.sbus.r.ready,
+            i_sb_axi_rid       = self.sbus.r.id,
+            i_sb_axi_rdata     = self.sbus.r.data,
+            i_sb_axi_rresp     = self.sbus.r.resp,
+            i_sb_axi_rlast     = self.sbus.r.last,
+
+            # DMA AXI4 Ports (slave — CPU is target)
+            i_dma_axi_awvalid   = dmabus.aw.valid,
+            o_dma_axi_awready   = dmabus.aw.ready,
+            i_dma_axi_awid      = dmabus.aw.id,
+            i_dma_axi_awaddr    = dmabus.aw.addr,
+            i_dma_axi_awlen     = dmabus.aw.len,
+            i_dma_axi_awsize    = dmabus.aw.size,
+            i_dma_axi_awburst   = dmabus.aw.burst,
+            i_dma_axi_awprot    = dmabus.aw.prot,
+
+            i_dma_axi_wvalid    = dmabus.w.valid,
+            o_dma_axi_wready    = dmabus.w.ready,
+            i_dma_axi_wdata     = dmabus.w.data,
+            i_dma_axi_wstrb     = dmabus.w.strb,
+            i_dma_axi_wlast     = dmabus.w.last,
+
+            o_dma_axi_bvalid    = dmabus.b.valid,
+            i_dma_axi_bready    = dmabus.b.ready,
+            o_dma_axi_bresp     = dmabus.b.resp,
+            o_dma_axi_bid       = dmabus.b.id,
+
+            i_dma_axi_arvalid   = dmabus.ar.valid,
+            o_dma_axi_arready   = dmabus.ar.ready,
+            i_dma_axi_arid      = dmabus.ar.id,
+            i_dma_axi_araddr    = dmabus.ar.addr,
+            i_dma_axi_arlen     = dmabus.ar.len,
+            i_dma_axi_arsize    = dmabus.ar.size,
+            i_dma_axi_arburst   = dmabus.ar.burst,
+            i_dma_axi_arprot    = dmabus.ar.prot,
+
+            o_dma_axi_rvalid    = dmabus.r.valid,
+            i_dma_axi_rready    = dmabus.r.ready,
+            o_dma_axi_rid       = dmabus.r.id,
+            o_dma_axi_rdata     = dmabus.r.data,
+            o_dma_axi_rresp     = dmabus.r.resp,
+            o_dma_axi_rlast     = dmabus.r.last,
 
             # Debug - tie off
             i_mpc_debug_halt_req = 0,
@@ -440,6 +456,53 @@ class VeeREH1(CPU):
             o_trace_rv_i_interrupt_ip = Open(),
             o_trace_rv_i_tval_ip      = Open(),
         )
+        if VeeREH1.bscan_tap == 1: 
+            # BSCAN TAP signals 
+            self.dmi_reg_en = Signal()
+            self.dmi_reg_addr = Signal(7)
+            self.dmi_reg_wr_en = Signal()
+            self.dmi_reg_wdata = Signal(32)
+            self.dmi_reg_rdata = Signal(32)
+            self.dmi_hard_reset = Signal()
+            
+            self.cpu_params.update(
+                i_dmi_reg_en=self.dmi_reg_en,
+                i_dmi_reg_addr=self.dmi_reg_addr,
+                i_dmi_reg_wr_en=self.dmi_reg_wr_en,
+                i_dmi_reg_wdata=self.dmi_reg_wdata,
+                o_dmi_reg_rdata=self.dmi_reg_rdata,
+                i_dmi_hard_reset=self.dmi_hard_reset,
+            )
+            # BSCAN TAP Instance parameters
+            self.bscan_params = dict(
+                i_clk = ClockSignal("sys"),
+                i_rst = ResetSignal("sys") | self.reset,  
+                i_jtag_id = 0,  
+                o_dmi_reg_wdata = self.dmi_reg_wdata,
+                o_dmi_reg_addr = self.dmi_reg_addr,
+                o_dmi_reg_wr_en = self.dmi_reg_wr_en,
+                o_dmi_reg_en = self.dmi_reg_en,
+                i_dmi_reg_rdata = self.dmi_reg_rdata,
+                o_dmi_hard_reset = self.dmi_hard_reset,
+                i_rd_status = 0,
+                i_idle = 0,
+                i_dmi_stat = 0,
+                i_version = 1,
+            )
+        else:
+            # JTAG signals
+            self.jtag_tck  = Signal()
+            self.jtag_tms  = Signal()
+            self.jtag_trst = Signal()
+            self.jtag_tdi  = Signal()
+            self.jtag_tdo  = Signal()
+            self.cpu_params.update(
+                i_jtag_tck = self.jtag_tck,
+                i_jtag_tms = self.jtag_tms,
+                i_jtag_trst_n = self.jtag_trst,
+                i_jtag_tdi = self.jtag_tdi,
+                o_jtag_tdo = self.jtag_tdo,
+            )
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
@@ -459,16 +522,48 @@ class VeeREH1(CPU):
             self.comb += self.jtag_trst.eq(1)
 
     def add_soc_components(self, soc):
-        # Informational region only - PIC is accessed internally by the core via its own
-        # LSU bus, not routed through the SoC bus. This just exposes the PIC base address
-        # and size to generated software headers (csr.h / DTS) so firmware doesn't need
-        # to hardcode 0xf00c0000.
         soc.bus.add_region("pic", SoCRegion(
             origin = soc.mem_map.get("pic"),
             size   = VeeREH1.pic_size * 1024,  # pic_size is in KB, SoCRegion wants bytes
             cached = False,
             linker = True,
         ))
+        # ICCM: Route through DMA bus (dmabus)
+        if VeeREH1.iccm_enable:
+            iccm_origin = soc.mem_map.get("iccm")
+            iccm_size = VeeREH1.iccm_size * 1024
+            
+            # # Add ICCM region to main bus (for linker/memory map)
+            # soc.bus.add_region("iccm", SoCRegion(
+            #     origin=iccm_origin,
+            #     size=iccm_size,
+            #     cached=False,
+            #     linker=True,  # Allow linker to place code here
+            # ))
+            
+            # CRITICAL: Add dmabus as a slave for the ICCM region
+            # This registers dmabus like any other peripheral/memory
+            soc.bus.add_slave(
+                name="iccm_dma",
+                slave=self.dmabus,  # The CPU's DMA slave port
+                region=SoCRegion(
+                    origin=iccm_origin,
+                    size=iccm_size,
+                    cached=False,
+                    decode=True,  # Enable address decoding
+                    linker=True
+                )
+            )
+            
+            soc.logger.info(f"✅ ICCM routed through dmabus at 0x{iccm_origin:08x}")
+            
+        if VeeREH1.dccm_enable:
+            soc.bus.add_region("dccm", SoCRegion(
+                origin = soc.mem_map.get("dccm"),
+                size   = VeeREH1.dccm_size * 1024,
+                cached = False,
+                linker = True,
+            ))     
 
     @staticmethod
     def _generate_snapshot(build_dir, vdir):
@@ -565,7 +660,7 @@ class VeeREH1(CPU):
         return snapshot_dir
 
     @staticmethod
-    def add_sources(platform):
+    def add_sources(platform, bscan_tap=False):
         vdir = get_data_mod("cpu", "veer_eh1").data_location
 
         if getattr(platform, "output_dir", None) is not None:
@@ -618,7 +713,54 @@ class VeeREH1(CPU):
                         continue
                     platform.add_source(file_path)
 
+        import subprocess
+        # Check if files already exist
+        axi_lsu_dma_bridge = os.path.join(vdir, "axi_lsu_dma_bridge.sv")
+        
+        # Download bscan_tap.sv
+        if not os.path.exists(axi_lsu_dma_bridge) or os.path.getsize(axi_lsu_dma_bridge) == 0:
+            print("VeeREH1: Downloading axi_lsu_dma_bridge.sv...")
+            subprocess.check_call([
+                "wget", "-O", axi_lsu_dma_bridge,
+                "https://raw.githubusercontent.com/chipsalliance/Cores-VeeR-EH1/main/testbench/axi_lsu_dma_bridge.sv"
+            ])
+        platform.add_source(axi_lsu_dma_bridge)
+
+        # Add BSCAN TAP files if enabled
+        if bscan_tap:
+            import subprocess
+            
+            # Check if files already exist
+            bscan_tap_file = os.path.join(vdir, "bscan_tap.sv")
+            wrapper_file = os.path.join(vdir, "veer_eh1_wrapper.sv")
+            
+            # Download bscan_tap.sv
+            if not os.path.exists(bscan_tap_file) or os.path.getsize(bscan_tap_file) == 0:
+                print("VeeREH1: Downloading bscan_tap.sv...")
+                subprocess.check_call([
+                    "wget", "-O", bscan_tap_file,
+                    "https://raw.githubusercontent.com/chipsalliance/VeeRwolf/main/rtl/bscan_tap.sv"
+                ])
+            platform.add_source(bscan_tap_file)
+            
+            # Download veer_eh1_wrapper.sv
+            if not os.path.exists(wrapper_file) or os.path.getsize(wrapper_file) == 0:
+                print("VeeREH1: Downloading veer_eh1_wrapper.sv...")
+                subprocess.check_call([
+                    "wget", "-O", wrapper_file,
+                    "https://raw.githubusercontent.com/chipsalliance/VeeRwolf/main/rtl/veer_eh1_wrapper.sv"
+                ])
+            platform.add_source(wrapper_file)
+
     def do_finalize(self):
         assert hasattr(self, "reset_address")
-        self.add_sources(self.platform)
-        self.specials += Instance("veer_wrapper", **self.cpu_params)
+        bscan_tap = getattr(self, "bscan_tap", False)
+        self.add_sources(self.platform, bscan_tap)  # Pass the parameter
+        
+        if self.bscan_tap:
+            # Use the VeeRwolf wrapper with BSCAN TAP
+            self.specials += Instance("veer_wrapper_dmi", **self.cpu_params)
+            self.specials += Instance("bscan_tap", **self.bscan_params)  # Fixed: removed .sv
+        else:
+            # Use the standard wrapper
+            self.specials += Instance("veer_wrapper", **self.cpu_params)
