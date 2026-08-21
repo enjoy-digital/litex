@@ -80,6 +80,7 @@ enum {
 	ACK_OK
 };
 
+#ifndef BOOT_LOAD_MAX_SIZE_OVERRIDDEN
 #if defined(MAIN_RAM_BASE) || defined(MAIN_RAM_BASE_VA) || defined(SRAM_BASE) || defined(SRAM_BASE_VA)
 static int boot_region_max_size(unsigned long addr, unsigned long base, unsigned long size, size_t *max_size)
 {
@@ -117,6 +118,7 @@ static int boot_load_max_size(unsigned long addr, size_t *max_size)
 	printf("Error: boot load address 0x%08lx is outside writable memory\n", addr);
 	return 0;
 }
+#endif
 
 /*-----------------------------------------------------------------------*/
 /* ROM Boot                                                              */
