@@ -3,6 +3,9 @@
 .global _start
 
 _start:
+  li  x3, 4 + (1<<13)     // unblock DMA be stalled by fences mfdc[13]!!!
+  csrw    0x7f9, x3        // disable store merging mfdc[2]
+  
   j crt_init
   nop
   nop
@@ -89,3 +92,8 @@ bss_done:
   call main
 infinit_loop:
   j infinit_loop
+
+# ================================================================
+# ADD THIS TO THE ABSOLUTE BOTTOM OF CRT0.S
+# ================================================================
+.include "memcpy_iccm.S"
