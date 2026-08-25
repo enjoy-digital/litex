@@ -86,6 +86,7 @@ git_repos = {
     "pythondata-cpu-rocket":       GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-sentinel":     GitRepo(url="https://github.com/litex-hub/", branch="main"),
     "pythondata-cpu-serv":         GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-veer_eh1":     GitRepo(url="https://github.com/BilalAli-Silver/"),
     "pythondata-cpu-vexiiriscv":   GitRepo(url="https://github.com/litex-hub/", branch="main"),
     "pythondata-cpu-vexriscv":     GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-vexriscv-smp": GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
