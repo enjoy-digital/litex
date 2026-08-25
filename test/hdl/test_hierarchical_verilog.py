@@ -3,6 +3,7 @@ import re
 
 from migen import *
 from migen.fhdl.decorators import ClockDomainsRenamer
+from migen.fhdl.simplify import FullMemoryWE
 from migen.fhdl.specials import Tristate
 
 from litex.gen import LiteXContext
@@ -129,6 +130,23 @@ class _SharedMemoryTop(Module):
         self.submodules.owner = _SharedMemoryOwner(mem)
         self.submodules.reader = _SharedMemoryReader(mem, self.adr)
         self.comb += self.o.eq(self.reader.dat_r)
+
+
+class _GrainMemoryTop(Module):
+    def __init__(self):
+        self.adr   = Signal(9)
+        self.dat_w = Signal(128)
+        self.we    = Signal(16)
+        self.dat_r = Signal(128)
+        mem = Memory(128, 512)
+        port = mem.get_port(write_capable=True, we_granularity=8)
+        self.specials += mem, port
+        self.comb += [
+            port.adr.eq(self.adr),
+            port.dat_w.eq(self.dat_w),
+            port.we.eq(self.we),
+            self.dat_r.eq(port.dat_r),
+        ]
 
 
 class _InlineDropLeaf(Module):
@@ -334,3 +352,20 @@ class TestHierarchicalVerilog(unittest.TestCase):
         self.assertNotIn("reg [7:0] mem[0:3];", reader_module)
         self.assertRegex(owner_module, r"output\s+wire\s+\[7:0\]\s+dat_r")
         self.assertRegex(reader_module, r"input\s+wire\s+\[7:0\]\s+dat_r")
+
+    def test_hierarchical_grain_memory_port_dat_r_is_wire(self):
+        # Wide memory with byte-granular write enables: FullMemoryWE splits it
+        # into byte grains whose read-data slices are assembled via continuous
+        # assigns. The aggregate dat_r must be declared wire (like the flat
+        # converter does), never reg, or synthesis rejects it (Synth 8-9315).
+        top = FullMemoryWE()(_GrainMemoryTop())
+
+        old_top = LiteXContext.top
+        try:
+            LiteXContext.top = top
+            verilog = convert(top, ios={top.adr, top.dat_w, top.we, top.dat_r}, name="top", hierarchical=True).main_source
+        finally:
+            LiteXContext.top = old_top
+
+        self.assertRegex(verilog, r"wire\s+\[127:0\]")
+        self.assertNotRegex(verilog, r"reg\s+\[127:0\]")

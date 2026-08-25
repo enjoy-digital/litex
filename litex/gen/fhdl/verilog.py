@@ -871,12 +871,18 @@ def _collect_memory_port_signals(specials, clock_domains=None):
                 sig = getattr(port, attr, None)
                 if isinstance(sig, ClockSignal) and (clock_domains is not None):
                     sig = clock_domains[sig.cd].clk
+                if isinstance(sig, _Slice):
+                    sig = sig.value
                 if isinstance(sig, Signal):
                     signals.add(sig)
-            # Memory read data is always driven by the memory.
+            # Memory read data is always driven by the memory.  The port may
+            # drive a slice of a wider aggregate signal (e.g. after a
+            # byte-granular FullMemoryWE split): classify the aggregate itself.
             sig = getattr(port, "dat_r", None)
             if isinstance(sig, ClockSignal) and (clock_domains is not None):
                 sig = clock_domains[sig.cd].clk
+            if isinstance(sig, _Slice):
+                sig = sig.value
             if isinstance(sig, Signal):
                 targets.add(sig)
                 wires.add(sig)
