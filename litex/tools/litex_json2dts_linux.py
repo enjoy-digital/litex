@@ -8,6 +8,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import re
 import sys
 import json
 import argparse
@@ -1079,16 +1080,21 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 
     # I2C ------------------------------------------------------------------------------------------
 
-    if "i2c0" in d["csr_bases"]:
+    # One node per i2c<N> CSR base: a SoC may instantiate several I2C masters, and only the first
+    # was emitted before. The label matches the CSR name so overlays can reference &i2cN.
+    for name in sorted(
+        (n for n in d["csr_bases"] if re.fullmatch(r"i2c\d+", n)),
+        key=lambda n: int(n[3:]),
+    ):
         dts += """
-            i2c0: i2c@{i2c0_csr_base:x} {{
+            {i2c_name}: i2c@{i2c_csr_base:x} {{
                 compatible = "litex,i2c";
-                reg = <0x{i2c0_csr_base:x} 0x5>;
+                reg = <0x{i2c_csr_base:x} 0x5>;
                 #address-cells = <1>;
                 #size-cells = <0>;
                 status = "okay";
             }};
-""".format(i2c0_csr_base=d["csr_bases"]["i2c0"])
+""".format(i2c_name=name, i2c_csr_base=d["csr_bases"][name])
 
     # Hardware Monitors ----------------------------------------------------------------------------
 
