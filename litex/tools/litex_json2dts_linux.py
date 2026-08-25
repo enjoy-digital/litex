@@ -583,12 +583,14 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
 		cache-unified;
 	    }};""".format(l2size=l2_size, l2block=l2_block_size, l2sets=l2_sets)
 
+        # Prefer CPU_TIMEBASE_FREQUENCY when present.
         dts += """
         cpus {{
             #address-cells = <1>;
             #size-cells    = <0>;
-            timebase-frequency = <{sys_clk_freq}>;
-""".format(sys_clk_freq=d["constants"]["config_clock_frequency"])
+            timebase-frequency = <{timebase_freq}>;
+""".format(timebase_freq=d["constants"].get("config_cpu_timebase_frequency",
+                                            d["constants"]["config_clock_frequency"]))
         for cpu in range(cpu_count):
             dts += """
             CPU{cpu}: cpu@{cpu} {{
