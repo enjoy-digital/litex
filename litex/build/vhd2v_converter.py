@@ -185,8 +185,8 @@ class VHD2VConverter(Module):
         return normalize_instance_ports(params, top_entity=self._top_entity, target="VHD2V")
 
     @staticmethod
-    def _extract_generics(params):
-        return extract_prefixed_generics(params, prefix="p_")
+    def _extract_generics(params, target="GHDL"):
+        return extract_prefixed_generics(params, prefix="p_", target=target)
 
     @staticmethod
     def _sanitize_ghdl_escaped_identifiers(content):
@@ -244,6 +244,7 @@ class VHD2VConverter(Module):
         if self._platform.support_mixed_language and not self._force_convert:
             if (self._params is not None) and self._add_instance:
                 ip_params = self._normalize_instance_ports(self._params)
+                ip_params.update(self._extract_generics(self._params, target="native"))
             elif self._instance is not None:
                 ip_params = self._instance.items
             for file in sources:

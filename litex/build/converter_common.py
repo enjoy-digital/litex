@@ -134,5 +134,7 @@ def normalize_instance_ports(params, *, top_entity, target="converter", generic_
     return ip_params
 
 
-def extract_prefixed_generics(params, *, prefix="p_"):
+def extract_prefixed_generics(params, *, prefix="p_", target="GHDL"):
+    if target != "GHDL":
+        return {k: v for k, v in params.items() if k.startswith(prefix)}
     return ["-g" + k[len(prefix):] + "=" + str(v) for k, v in params.items() if k.startswith(prefix)]
