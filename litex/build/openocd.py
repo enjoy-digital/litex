@@ -90,6 +90,10 @@ class OpenOCD(GenericProgrammer):
         elif "ep4ce" in cfg_str:
             warn_ignored("Intel CycloneIV", 0xe)
             return 0xe
+        # Intel StratixV (5SGX/5SGS/5SGT/5SEE device codes).
+        elif any(s in cfg_str for s in ["stratixv", "5sgx", "5sgs", "5sgt", "5see"]):
+            warn_ignored("Intel StratixV", 0xe)
+            return 0xe
         # Xilinx ZynqMP.
         elif "zynqmp" in cfg_str:
             return lookup_ir("Xilinx ZynqMP", {
