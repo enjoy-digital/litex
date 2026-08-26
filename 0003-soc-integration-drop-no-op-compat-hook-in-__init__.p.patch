@@ -1,0 +1,46 @@
+From f03ddc001d4692144a724016a1b9ea3d76c0f650 Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Mon, 27 Apr 2026 09:44:31 +0000
+Subject: [PATCH 03/22] soc/integration: drop no-op compat hook in __init__.py
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+litex/soc/integration/__init__.py was loading
+litex.compat.add_compat("litex.soc.integration") at import time,
+but the corresponding branch in litex/compat/__init__.py was
+just `pass` — nothing happened. Two lines of import-time work
+for zero behavior. Empty the __init__.py and drop the dead
+branch in compat.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+---
+ litex/compat/__init__.py          | 3 ---
+ litex/soc/integration/__init__.py | 3 ---
+ 2 files changed, 6 deletions(-)
+
+diff --git a/litex/compat/__init__.py b/litex/compat/__init__.py
+index b8ae8fcb8..880a1253a 100644
+--- a/litex/compat/__init__.py
++++ b/litex/compat/__init__.py
+@@ -20,9 +20,6 @@ def compat_notice(name, date, info=""):
+     print("thanks :)")
+ 
+ def add_compat(location):
+-    # Integration.
+-    if location == "litex.soc.integration":
+-        pass
+     # Interconnect.
+     if location == "litex.soc.interconnect":
+         class compat_stream_sim:
+diff --git a/litex/soc/integration/__init__.py b/litex/soc/integration/__init__.py
+index 1660b4cf5..e69de29bb 100644
+--- a/litex/soc/integration/__init__.py
++++ b/litex/soc/integration/__init__.py
+@@ -1,3 +0,0 @@
+-import sys
+-from litex.compat import add_compat
+-add_compat(__name__)
+-- 
+2.53.0
+

@@ -1,0 +1,59 @@
+From 4e949a4b306315ff42d063c3c9e3d694ea9e274a Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Mon, 27 Apr 2026 09:47:21 +0000
+Subject: [PATCH 07/22] soc/integration: add SoCRegion.is_rom property; use in
+ init_ram
+
+init_ram had two `"w" not in ram_region.mode` string-membership
+checks to decide if a region is a ROM. That's brittle (mode="r"
+is technically writable-with-zero-write-permissions in the
+literal string sense, etc.) and the intent isn't immediately
+obvious to a reader.
+
+Add a tiny `SoCRegion.is_rom` property that captures the rule
+once, and rewrite both call sites to use it.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+---
+ litex/soc/integration/soc.py | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/litex/soc/integration/soc.py b/litex/soc/integration/soc.py
+index 2b63ed6c7..c549b49e3 100644
+--- a/litex/soc/integration/soc.py
++++ b/litex/soc/integration/soc.py
+@@ -87,6 +87,10 @@ class SoCRegion:
+         self.linker    = linker
+         self.type      = ""
+ 
++    @property
++    def is_rom(self):
++        return "w" not in self.mode
++
+     def decoder(self, bus):
+         origin = self.origin
+         size   = self.size_pow2
+@@ -1135,10 +1139,7 @@ class SoC(LiteXModule):
+         # RAM Parameters.
+         ram        = getattr(self, name)
+         ram_region = self.bus.regions[name]
+-        ram_type   = {
+-            True  : "ROM",
+-            False : "RAM",
+-        }["w" not in ram_region.mode]
++        ram_type   = "ROM" if ram_region.is_rom else "RAM"
+         contents_size = 4*len(contents) # FIXME.
+ 
+         # Size Check.
+@@ -1159,7 +1160,7 @@ class SoC(LiteXModule):
+         ram.mem.init = contents
+ 
+         # RAM Auto-Resize (Optional).
+-        if auto_size and ("w" not in ram_region.mode):
++        if auto_size and ram_region.is_rom:
+             self.logger.info("Auto-Resizing {} {} from {} to {}.".format(
+                 ram_type,
+                 colorer(name),
+-- 
+2.53.0
+

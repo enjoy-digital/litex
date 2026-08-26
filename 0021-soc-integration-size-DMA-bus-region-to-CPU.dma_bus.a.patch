@@ -1,0 +1,54 @@
+From 348cb7f8ee85433ade98820bee9de1039755458a Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Mon, 27 Apr 2026 11:42:29 +0000
+Subject: [PATCH 21/22] soc/integration: size DMA-bus region to
+ CPU.dma_bus.address_width
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The DMA bus has a single slave (the CPU's DMA port) covering the
+entire address space. The region was hardcoded to size=0x100000000
+(4 GiB) regardless of the bus width — fine for 32-bit DMA buses
+(every in-tree CPU today: vexriscv_smp, vexiiriscv, naxriscv,
+rocket all use address_width=32) but silently undersized for any
+future CPU exposing a 64-bit DMA bus.
+
+Use size=2**self.cpu.dma_bus.address_width so the region matches
+the bus's actual width.  At 32-bit address_width the result is
+identical (2**32 = 0x100000000); at 64-bit the SoCRegion decoder
+recognises (origin=0, size=2**address_width) and short-circuits
+to the always-match lambda, the right behaviour since this DMA
+bus only has one slave.
+
+Verified the decoder shape for both 32-bit and 64-bit
+address_widths; test_wishbone.py 23/23; digilent_arty (uses
+VexRiscv with no DMA bus, so unchanged) still builds at the
+byte-identical 778 KiB.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+---
+ litex/soc/integration/soc.py | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/litex/soc/integration/soc.py b/litex/soc/integration/soc.py
+index f2d4319f9..1f78b5eb7 100644
+--- a/litex/soc/integration/soc.py
++++ b/litex/soc/integration/soc.py
+@@ -1377,7 +1377,12 @@ class SoC(LiteXModule):
+                     address_width    = self.cpu.dma_bus.address_width,
+                     bursting         = self.cpu.dma_bus.bursting
+                 )
+-                self.dma_bus.add_slave(name="dma", slave=self.cpu.dma_bus, region=SoCRegion(origin=0x00000000, size=0x100000000)) # FIXME: covers lower 4GB only
++                # The DMA bus has a single slave (the CPU's DMA port) covering the entire address
++                # space — size the region to the bus's address_width so the decoder generates the
++                # always-match lambda regardless of whether the CPU exposes a 32-bit or 64-bit
++                # DMA bus.
++                self.dma_bus.add_slave(name="dma", slave=self.cpu.dma_bus,
++                    region=SoCRegion(origin=0x00000000, size=2**self.cpu.dma_bus.address_width))
+ 
+             # Connect SoCController's reset to CPU reset.
+             if hasattr(self, "ctrl"):
+-- 
+2.53.0
+

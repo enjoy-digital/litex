@@ -1,0 +1,44 @@
+- Merge pull request #2161 from VOGL-electronic/expression_slice (fefe3171c) gen: fhdl: expression: resolve slice completly
+- Merge pull request #2160 from FlyGoat/ibex (a9265ef7a) cores/cpu/ibex: Align with latest RTL
+- gen: fhdl: expression: resolve slice completly (29fc4715b) resolve slice completly, to reduce complexity
+in the verilog files.
+
+Signed-off-by: Fin Maaß <f.maass@vogl-electronic.com>
+
+- cores/cpu/ibex: Align with latest RTL (c13cbd3b0) Fix up file path and workaround verilator limitation
+on parameter type.
+
+Also fix crt0 and system.h to reflect RTL changes.
+
+Signed-off-by: Jiaxun Yang <jiaxun.yang@flygoat.com>
+
+- Merge pull request #2159 from FlyGoat/openc906-fixes (5619d48f8) cores/cpu/openc906: Align with pythondata RTL
+- litex/gen/fhdl/expression: Improve _generate_slice to avoid slicing all 1-bit Signals and cleanup. (279b75858) 
+- litex/gen/fhdl/instance: Switch to expression.py. (e71e404ef) 
+- litex/gen/fhdl: Move expression generation function to expression.py. (0bfaf39d5) 
+- Merge pull request #2105 from VOGL-electronic/add_io_bus (4933bcb6b) build: io: add multibit/bus variants of SDR and DDR
+- cores/cpu/openc906: Align with pythondata RTL (ea3106877) Use RTL from pythondata-openc906, remove unused file lists,
+remove outdated bus conversion logic, remove "riscv-dm" and
+"ethmac" from mem_map as they can be allocated automatically,
+use DTM to implement add_jtag.
+
+Signed-off-by: Jiaxun Yang <jiaxun.yang@flygoat.com>
+
+- build: io: SDRIO/Tristate: check len after wrap (e7a55fa73) check len after wrap, because len won't work on int and bool.
+
+Signed-off-by: Fin Maaß <f.maass@vogl-electronic.com>
+
+- build: common: extend SDR/DDR (410804c8b) extend SDR/DDR variants to support
+Signals longer than 1.
+
+Signed-off-by: Fin Maaß <f.maass@vogl-electronic.com>
+
+- build: efinix: common: implement bus variants (0d40708ea) implement bus variants of SDR/DDR IO for
+efinix.
+
+Signed-off-by: Fin Maaß <f.maass@vogl-electronic.com>
+
+- build: io: support multibit/bus variants of SDR and DDR (ae28178be) expand variants of SDR and DDR to
+support more than one pin.
+
+Signed-off-by: Fin Maaß <f.maass@vogl-electronic.com>

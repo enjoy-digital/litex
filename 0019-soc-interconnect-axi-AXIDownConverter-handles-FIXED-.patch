@@ -1,0 +1,587 @@
+From 932aad5853b9e7193b0007e296a2224b8fe9f06b Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Mon, 27 Apr 2026 11:35:09 +0000
+Subject: [PATCH 19/22] soc/interconnect/axi: AXIDownConverter handles FIXED
+ bursts properly
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The previous AXIDownConverter silently translated BURST_FIXED to
+BURST_INCR on the narrow side. That worked for FIXED-1 (a single
+wide beat is equivalent to a single-beat INCR after splitting),
+but corrupted FIXED bursts of length > 1: the narrow side
+marched forward (length*ratio narrow beats stepping by
+narrow_size each) instead of repeating the same wide-beat-sized
+window per wide beat.
+
+AXI4 has no native "INCR within a wide-beat window then reset"
+burst type, so the converter cannot express the right semantics
+in a single narrow burst. Add a slow-path FSM that issues
+`len + 1` independent narrow INCR-`ratio` bursts back-to-back,
+all at the captured wide address, alternating between AW emission
+and B reception:
+
+  IDLE -> [FIXED-EMIT-AW -> FIXED-WAIT-B]^(len+1) -> FIXED-EMIT-B
+
+The W stream's `last` is overridden when a FIXED burst is in
+flight so each ratio-block of narrow beats terminates as its own
+narrow burst (the slave needs `last` to commit each B). The R
+path mirrors this: AR FSM issues N narrow ARs, each followed by
+draining its `ratio` narrow R beats (merged by the StrideConverter
+into one wide R beat), and r.last is overridden to fire only on
+the final wide beat. The L narrow B responses are coalesced
+into one wide B with the worst response winning (RESP_OKAY < ...
+< RESP_DECERR).
+
+INCR / WRAP / FIXED-1 keep the original combinational fast path
+unchanged, so the common case has no added latency.
+
+Test coverage:
+
+  - The pre-existing test_axi_down_converter_fixed_burst was
+    pinning the broken behavior; flipped to verify correctness.
+  - Sub-tests now cover: FIXED-1 round-trip; FIXED-2 write
+    (only beat[1] survives at X, X+8 untouched); FIXED-4 read
+    (every wide beat returns the value at X); FIXED-8 write
+    (only beat[7] survives at X).
+  - All previous tests stay green: test_axi_down_converter_burst,
+    _wrap, _back_to_back, _id_and_last (the INCR/WRAP/back-to-back
+    fast paths are unchanged).
+
+Verified: 74 + 29 subtests passing across test_axi.py /
+test_axi_lite.py / test_wishbone.py. digilent_arty builds clean
+on both --bus-standard=wishbone (778 KB) and --bus-standard=axi
+(1017 KB) — no SoC-side regression.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+---
+ litex/soc/interconnect/axi/axi_full.py | 374 ++++++++++++++++++++-----
+ test/test_axi.py                       |  83 ++++--
+ 2 files changed, 363 insertions(+), 94 deletions(-)
+
+diff --git a/litex/soc/interconnect/axi/axi_full.py b/litex/soc/interconnect/axi/axi_full.py
+index 47a890eaf..d98fc63f0 100644
+--- a/litex/soc/interconnect/axi/axi_full.py
++++ b/litex/soc/interconnect/axi/axi_full.py
+@@ -280,92 +280,336 @@ class AXIUpConverter(LiteXModule):
+         self.comb += axi_from.r.dest.eq(axi_to.r.dest)
+ 
+ class AXIDownConverter(LiteXModule):
++    """AXI4-Full data-width down-converter.
++
++    Reduces the data width of an AXI4 master from `dw_from` to `dw_to` (with `dw_from > dw_to`,
++    integer multiple). The master sees full AXI4 semantics including bursts of any type
++    (FIXED, INCR, WRAP).
++
++    INCR/WRAP/FIXED-1 take the cheap combinational fast path: 1 wide AW becomes 1 narrow AW with
++    `len*ratio - 1`, and the W/R streams use a `StrideConverter` to split/merge data ratio:1.
++
++    FIXED bursts of length > 1 (every wide beat targets the same address X) cannot be expressed
++    as a single narrow AXI4 burst — neither narrow-INCR (marches forward) nor narrow-FIXED
++    (would only write the bottom bytes) preserves the semantics. So they take a slower FSM path
++    that issues `len + 1` separate narrow INCR-`ratio` bursts back-to-back, all at the captured
++    wide address. The W stream's `last` is overridden to fire every ratio-th narrow beat, the
++    R stream's `last` is overridden to fire only on the final wide beat, and the L narrow B
++    responses are coalesced into a single wide B (worst-resp wins).
++    """
+     def __init__(self, axi_from, axi_to):
+         dw_from  = len(axi_from.r.data)
+         dw_to    = len(axi_to.r.data)
+         ratio    = int(dw_from//dw_to)
+         assert dw_from == dw_to*ratio
+ 
+-        # # #
+-
+-        # Helpers ----------------------------------------------------------------------------------
+-
+-
+-        # Addr Conversion: Clear MSBs to align accesses.
+-        def convert_addr(ax_from, ax_to):
+-            return [
+-                ax_to.addr.eq(ax_from.addr),
+-                ax_to.addr[:log2_int(dw_from//8)].eq(0)
+-            ]
+-
+-        # Burst Conversion: Convert FIXED burst to Incr.
+-        def convert_burst(ax_from, ax_to):
+-            return Case(ax_from.burst, {
+-                BURST_FIXED     : ax_to.burst.eq(BURST_INCR),
+-                BURST_INCR      : ax_to.burst.eq(BURST_INCR),
+-                BURST_WRAP      : ax_to.burst.eq(BURST_WRAP),
+-                BURST_RESERVED  : ax_to.burst.eq(BURST_RESERVED),
+-            })
+-
+-        # Len Conversion: X ratio.
+-        def convert_len(ax_from, ax_to):
+-            return ax_to.len.eq(((ax_from.len + 1) << log2_int(ratio)) - 1)
+-
+-        # Size Conversion: max(ax_from.size, log2_int(dw_to//8)).
+-        def convert_size(ax_from, ax_to):
+-            return If(ax_from.size <= log2_int(dw_to//8),
+-                ax_to.size.eq(ax_from.size)
++        wide_size_log2   = log2_int(dw_from // 8)
++        narrow_size_log2 = log2_int(dw_to   // 8)
++
++        # ==========================================================================================
++        # Write path: AW / W / B
++        # ==========================================================================================
++
++        # Captures (FIXED-multi-beat path).
++        cap_aw_addr   = Signal.like(axi_from.aw.addr)
++        cap_aw_len    = Signal.like(axi_from.aw.len)
++        cap_aw_size   = Signal.like(axi_from.aw.size)
++        cap_aw_id     = Signal.like(axi_from.aw.id)
++        cap_aw_lock   = Signal.like(axi_from.aw.lock)
++        cap_aw_prot   = Signal.like(axi_from.aw.prot)
++        cap_aw_cache  = Signal.like(axi_from.aw.cache)
++        cap_aw_qos    = Signal.like(axi_from.aw.qos)
++        cap_aw_region = Signal.like(axi_from.aw.region)
++
++        aw_emit_count    = Signal.like(axi_from.aw.len)
++        b_collect_count  = Signal.like(axi_from.aw.len)
++        b_collected_resp = Signal(2)
++        w_subbeat_count  = Signal(max=max(ratio, 2))
++
++        fixed_aw_active = Signal()  # asserted while AW FSM is in any FIXED-* state.
++
++        is_aw_fixed = (axi_from.aw.burst == BURST_FIXED) & (axi_from.aw.len != 0)
++
++        aw_fsm = FSM(reset_state="IDLE")
++        self.aw_fsm = aw_fsm
++
++        aw_fsm.act("IDLE",
++            If(~is_aw_fixed,
++                # Fast path: combinational forward with len/size/burst conversion.
++                axi_to.aw.valid.eq(axi_from.aw.valid),
++                axi_to.aw.addr.eq(axi_from.aw.addr),
++                axi_to.aw.addr[:wide_size_log2].eq(0),
++                axi_to.aw.len.eq(((axi_from.aw.len + 1) << log2_int(ratio)) - 1),
++                If(axi_from.aw.size <= narrow_size_log2,
++                    axi_to.aw.size.eq(axi_from.aw.size),
++                ).Else(
++                    axi_to.aw.size.eq(narrow_size_log2),
++                ),
++                Case(axi_from.aw.burst, {
++                    BURST_FIXED:    axi_to.aw.burst.eq(BURST_INCR),  # FIXED-1 = single beat = INCR.
++                    BURST_INCR:     axi_to.aw.burst.eq(BURST_INCR),
++                    BURST_WRAP:     axi_to.aw.burst.eq(BURST_WRAP),
++                    BURST_RESERVED: axi_to.aw.burst.eq(BURST_RESERVED),
++                }),
++                axi_to.aw.id.eq(axi_from.aw.id),
++                axi_to.aw.lock.eq(axi_from.aw.lock),
++                axi_to.aw.prot.eq(axi_from.aw.prot),
++                axi_to.aw.cache.eq(axi_from.aw.cache),
++                axi_to.aw.qos.eq(axi_from.aw.qos),
++                axi_to.aw.region.eq(axi_from.aw.region),
++                axi_to.aw.dest.eq(axi_from.aw.dest),
++                axi_to.aw.user.eq(axi_from.aw.user),
++                axi_from.aw.ready.eq(axi_to.aw.ready),
++            ).Else(
++                # Slow path: capture wide AW and switch to FIXED handling.
++                axi_from.aw.ready.eq(1),
++                If(axi_from.aw.valid,
++                    NextValue(cap_aw_addr,   axi_from.aw.addr),
++                    NextValue(cap_aw_len,    axi_from.aw.len),
++                    NextValue(cap_aw_size,   axi_from.aw.size),
++                    NextValue(cap_aw_id,     axi_from.aw.id),
++                    NextValue(cap_aw_lock,   axi_from.aw.lock),
++                    NextValue(cap_aw_prot,   axi_from.aw.prot),
++                    NextValue(cap_aw_cache,  axi_from.aw.cache),
++                    NextValue(cap_aw_qos,    axi_from.aw.qos),
++                    NextValue(cap_aw_region, axi_from.aw.region),
++                    NextValue(aw_emit_count,    0),
++                    NextValue(b_collect_count,  0),
++                    NextValue(b_collected_resp, RESP_OKAY),
++                    NextState("FIXED-EMIT-AW"),
++                )
++            )
++        )
++        aw_fsm.act("FIXED-EMIT-AW",
++            fixed_aw_active.eq(1),
++            axi_to.aw.valid.eq(1),
++            axi_to.aw.addr.eq(cap_aw_addr),
++            axi_to.aw.addr[:wide_size_log2].eq(0),
++            axi_to.aw.len.eq(ratio - 1),
++            axi_to.aw.burst.eq(BURST_INCR),
++            If(cap_aw_size <= narrow_size_log2,
++                axi_to.aw.size.eq(cap_aw_size),
+             ).Else(
+-                ax_to.size.eq(log2_int(dw_to//8))
++                axi_to.aw.size.eq(narrow_size_log2),
++            ),
++            axi_to.aw.id.eq(cap_aw_id),
++            axi_to.aw.lock.eq(cap_aw_lock),
++            axi_to.aw.prot.eq(cap_aw_prot),
++            axi_to.aw.cache.eq(cap_aw_cache),
++            axi_to.aw.qos.eq(cap_aw_qos),
++            axi_to.aw.region.eq(cap_aw_region),
++            # Drive b.ready so the previous burst's response is drained while we (re-)emit AW.
++            If(axi_to.aw.ready,
++                NextState("FIXED-WAIT-B"),
+             )
++        )
++        aw_fsm.act("FIXED-WAIT-B",
++            fixed_aw_active.eq(1),
++            axi_to.b.ready.eq(1),
++            If(axi_to.b.valid,
++                If(axi_to.b.resp > b_collected_resp,
++                    NextValue(b_collected_resp, axi_to.b.resp),
++                ),
++                If(aw_emit_count == cap_aw_len,
++                    NextState("FIXED-EMIT-B"),
++                ).Else(
++                    NextValue(aw_emit_count, aw_emit_count + 1),
++                    NextState("FIXED-EMIT-AW"),
++                )
++            )
++        )
++        aw_fsm.act("FIXED-EMIT-B",
++            fixed_aw_active.eq(1),
++            axi_from.b.valid.eq(1),
++            axi_from.b.id.eq(cap_aw_id),
++            axi_from.b.resp.eq(b_collected_resp),
++            If(axi_from.b.ready,
++                NextState("IDLE"),
++            )
++        )
+ 
+-        # Write path -------------------------------------------------------------------------------
+-
+-        # AW Channel.
+-        self.comb += [
+-            axi_from.aw.connect(axi_to.aw, omit={"addr", "len", "size", "burst"}),
+-            *convert_addr( axi_from.aw, axi_to.aw),
+-            convert_len(   axi_from.aw, axi_to.aw),
+-            convert_size(  axi_from.aw, axi_to.aw),
+-            convert_burst( axi_from.aw, axi_to.aw),
+-        ]
+-
+-        # W Channel.
++        # W Channel: StrideConverter for data/strb, with `last` overridden in FIXED mode so each
++        # ratio-block of narrow beats looks like an independent narrow burst.
+         w_converter = stream.StrideConverter(
+-            description_from = [("data", dw_from), ("strb", dw_from//8)],
+-            description_to   = [("data",   dw_to), ("strb",   dw_to//8)],
++            description_from = [("data", dw_from), ("strb", dw_from // 8)],
++            description_to   = [("data",   dw_to), ("strb",   dw_to // 8)],
+         )
+         self.submodules += w_converter
+         self.comb += axi_from.w.connect(w_converter.sink, omit={"id", "dest", "user"})
+-        self.comb += w_converter.source.connect(axi_to.w)
+-        # ID/Dest/User (self.comb since no latency in StrideConverter).
+-        self.comb += axi_to.w.id.eq(axi_from.w.id)
+-        self.comb += axi_to.w.dest.eq(axi_from.w.dest)
+-        self.comb += axi_to.w.user.eq(axi_from.w.user)
+-
+-        # B Channel.
+-        self.comb += axi_to.b.connect(axi_from.b)
+-
+-        # Read path --------------------------------------------------------------------------------
+-
+-        # AR Channel.
+         self.comb += [
+-            axi_from.ar.connect(axi_to.ar, omit={"addr", "len", "size", "burst"}),
+-            *convert_addr( axi_from.ar, axi_to.ar),
+-            convert_len(   axi_from.ar, axi_to.ar),
+-            convert_size(  axi_from.ar, axi_to.ar),
+-            convert_burst( axi_from.ar, axi_to.ar),
++            axi_to.w.valid.eq(w_converter.source.valid),
++            axi_to.w.data.eq(w_converter.source.data),
++            axi_to.w.strb.eq(w_converter.source.strb),
++            w_converter.source.ready.eq(axi_to.w.ready),
++            axi_to.w.id.eq(axi_from.w.id),
++            axi_to.w.dest.eq(axi_from.w.dest),
++            axi_to.w.user.eq(axi_from.w.user),
++            If(fixed_aw_active,
++                axi_to.w.last.eq(w_subbeat_count == ratio - 1),
++            ).Else(
++                axi_to.w.last.eq(w_converter.source.last),
++            )
++        ]
++        self.sync += [
++            If(axi_to.w.valid & axi_to.w.ready,
++                If(w_subbeat_count == ratio - 1,
++                    w_subbeat_count.eq(0),
++                ).Else(
++                    w_subbeat_count.eq(w_subbeat_count + 1),
++                )
++            )
+         ]
+ 
+-        # R Channel.
++        # B Channel: pass-through for non-FIXED. The FSM drives wide-side b.valid/id/resp and
++        # narrow-side b.ready in FIXED mode.
++        self.comb += If(~fixed_aw_active,
++            axi_from.b.valid.eq(axi_to.b.valid),
++            axi_to.b.ready.eq(axi_from.b.ready),
++            axi_from.b.id.eq(axi_to.b.id),
++            axi_from.b.resp.eq(axi_to.b.resp),
++            axi_from.b.user.eq(axi_to.b.user),
++            axi_from.b.dest.eq(axi_to.b.dest),
++        )
++
++        # ==========================================================================================
++        # Read path: AR / R   (mirror of write path)
++        # ==========================================================================================
++
++        cap_ar_addr   = Signal.like(axi_from.ar.addr)
++        cap_ar_len    = Signal.like(axi_from.ar.len)
++        cap_ar_size   = Signal.like(axi_from.ar.size)
++        cap_ar_id     = Signal.like(axi_from.ar.id)
++        cap_ar_lock   = Signal.like(axi_from.ar.lock)
++        cap_ar_prot   = Signal.like(axi_from.ar.prot)
++        cap_ar_cache  = Signal.like(axi_from.ar.cache)
++        cap_ar_qos    = Signal.like(axi_from.ar.qos)
++        cap_ar_region = Signal.like(axi_from.ar.region)
++
++        ar_emit_count = Signal.like(axi_from.ar.len)
++        r_wide_count  = Signal.like(axi_from.ar.len)
++
++        fixed_ar_active = Signal()
++
++        is_ar_fixed = (axi_from.ar.burst == BURST_FIXED) & (axi_from.ar.len != 0)
++
++        ar_fsm = FSM(reset_state="IDLE")
++        self.ar_fsm = ar_fsm
++
++        ar_fsm.act("IDLE",
++            If(~is_ar_fixed,
++                # Fast path.
++                axi_to.ar.valid.eq(axi_from.ar.valid),
++                axi_to.ar.addr.eq(axi_from.ar.addr),
++                axi_to.ar.addr[:wide_size_log2].eq(0),
++                axi_to.ar.len.eq(((axi_from.ar.len + 1) << log2_int(ratio)) - 1),
++                If(axi_from.ar.size <= narrow_size_log2,
++                    axi_to.ar.size.eq(axi_from.ar.size),
++                ).Else(
++                    axi_to.ar.size.eq(narrow_size_log2),
++                ),
++                Case(axi_from.ar.burst, {
++                    BURST_FIXED:    axi_to.ar.burst.eq(BURST_INCR),
++                    BURST_INCR:     axi_to.ar.burst.eq(BURST_INCR),
++                    BURST_WRAP:     axi_to.ar.burst.eq(BURST_WRAP),
++                    BURST_RESERVED: axi_to.ar.burst.eq(BURST_RESERVED),
++                }),
++                axi_to.ar.id.eq(axi_from.ar.id),
++                axi_to.ar.lock.eq(axi_from.ar.lock),
++                axi_to.ar.prot.eq(axi_from.ar.prot),
++                axi_to.ar.cache.eq(axi_from.ar.cache),
++                axi_to.ar.qos.eq(axi_from.ar.qos),
++                axi_to.ar.region.eq(axi_from.ar.region),
++                axi_to.ar.dest.eq(axi_from.ar.dest),
++                axi_to.ar.user.eq(axi_from.ar.user),
++                axi_from.ar.ready.eq(axi_to.ar.ready),
++            ).Else(
++                axi_from.ar.ready.eq(1),
++                If(axi_from.ar.valid,
++                    NextValue(cap_ar_addr,   axi_from.ar.addr),
++                    NextValue(cap_ar_len,    axi_from.ar.len),
++                    NextValue(cap_ar_size,   axi_from.ar.size),
++                    NextValue(cap_ar_id,     axi_from.ar.id),
++                    NextValue(cap_ar_lock,   axi_from.ar.lock),
++                    NextValue(cap_ar_prot,   axi_from.ar.prot),
++                    NextValue(cap_ar_cache,  axi_from.ar.cache),
++                    NextValue(cap_ar_qos,    axi_from.ar.qos),
++                    NextValue(cap_ar_region, axi_from.ar.region),
++                    NextValue(ar_emit_count, 0),
++                    NextValue(r_wide_count,  0),
++                    NextState("FIXED-EMIT-AR"),
++                )
++            )
++        )
++        ar_fsm.act("FIXED-EMIT-AR",
++            fixed_ar_active.eq(1),
++            axi_to.ar.valid.eq(1),
++            axi_to.ar.addr.eq(cap_ar_addr),
++            axi_to.ar.addr[:wide_size_log2].eq(0),
++            axi_to.ar.len.eq(ratio - 1),
++            axi_to.ar.burst.eq(BURST_INCR),
++            If(cap_ar_size <= narrow_size_log2,
++                axi_to.ar.size.eq(cap_ar_size),
++            ).Else(
++                axi_to.ar.size.eq(narrow_size_log2),
++            ),
++            axi_to.ar.id.eq(cap_ar_id),
++            axi_to.ar.lock.eq(cap_ar_lock),
++            axi_to.ar.prot.eq(cap_ar_prot),
++            axi_to.ar.cache.eq(cap_ar_cache),
++            axi_to.ar.qos.eq(cap_ar_qos),
++            axi_to.ar.region.eq(cap_ar_region),
++            If(axi_to.ar.ready,
++                NextState("FIXED-DRAIN-R"),
++            )
++        )
++        ar_fsm.act("FIXED-DRAIN-R",
++            # Wait for the wide master to consume the wide R beat that this narrow burst feeds
++            # via the StrideConverter. Then issue next AR (or finish).
++            fixed_ar_active.eq(1),
++            If(axi_from.r.valid & axi_from.r.ready,
++                If(ar_emit_count == cap_ar_len,
++                    NextState("IDLE"),
++                ).Else(
++                    NextValue(ar_emit_count, ar_emit_count + 1),
++                    NextState("FIXED-EMIT-AR"),
++                )
++            )
++        )
++
++        # R Channel: StrideConverter merges narrow:ratio -> 1 wide. last is overridden in FIXED
++        # mode (we want exactly one wide last on the final wide beat).
+         r_converter = stream.StrideConverter(
+             description_from = [("data",   dw_to)],
+             description_to   = [("data", dw_from)],
+         )
+         self.submodules += r_converter
+-        self.comb += axi_to.r.connect(r_converter.sink, omit={"id", "dest", "user", "resp"})
+-        self.comb += r_converter.source.connect(axi_from.r)
+-        # ID/Dest/User (self.sync since +1 cycle latency in StrideConverter).
++        self.comb += axi_to.r.connect(r_converter.sink, omit={"id", "dest", "user", "resp", "last"})
++        self.comb += r_converter.sink.last.eq(axi_to.r.last)
++        self.comb += [
++            axi_from.r.valid.eq(r_converter.source.valid),
++            axi_from.r.data.eq(r_converter.source.data),
++            r_converter.source.ready.eq(axi_from.r.ready),
++            If(fixed_ar_active,
++                axi_from.r.last.eq(r_wide_count == cap_ar_len),
++            ).Else(
++                axi_from.r.last.eq(r_converter.source.last),
++            )
++        ]
++        self.sync += [
++            If(axi_from.r.valid & axi_from.r.ready,
++                If(fixed_ar_active,
++                    If(r_wide_count == cap_ar_len,
++                        r_wide_count.eq(0),
++                    ).Else(
++                        r_wide_count.eq(r_wide_count + 1),
++                    )
++                )
++            )
++        ]
++
++        # ID/Resp/User from narrow side: clocked-through (matches the existing 1-cycle
++        # StrideConverter latency). Tracks the most recent narrow beat — same id within a burst,
++        # so the wide value is correct when r.valid fires.
+         self.sync += axi_from.r.resp.eq(axi_to.r.resp)
+         self.sync += axi_from.r.user.eq(axi_to.r.user)
+         self.sync += axi_from.r.dest.eq(axi_to.r.dest)
+diff --git a/test/test_axi.py b/test/test_axi.py
+index fc95046b2..860343936 100644
+--- a/test/test_axi.py
++++ b/test/test_axi.py
+@@ -835,21 +835,19 @@ class TestAXI(unittest.TestCase):
+         self.assertEqual(dut.errors, 0)
+ 
+     def test_axi_down_converter_fixed_burst(self):
+-        # FIXED bursts on a wide master have weird semantics: every beat targets the same address
+-        # (think: pushing N items into a memory-mapped FIFO on the same register).  After
+-        # data-width reduction they should still resolve to repeated writes/reads at the same
+-        # wide-beat-sized window.
++        # FIXED bursts on a wide master target the same address every beat (think: pushing N
++        # items into a memory-mapped FIFO on the same register). After data-width reduction
++        # they must still resolve to repeated writes/reads at the same wide-beat-sized window.
+         #
+-        # Today AXIDownConverter does `BURST_FIXED -> BURST_INCR`, which means the narrow side
+-        # marches forward (length*ratio narrow beats stepping by narrow_size each) instead of
+-        # repeating per wide beat.  A FIXED-1 still works (single wide beat = ratio narrow beats,
+-        # all within the wide-beat window — equivalent to INCR). FIXED with length > 1 is broken.
+-        #
+-        # We document and pin both behaviors.  When the converter learns to emit `ratio` narrow
+-        # beats per wide beat with reset-per-wide-beat addressing, the second sub-test should
+-        # become a positive check.
+-
+-        # Sub-test 1: FIXED-1 burst is equivalent to a single-beat INCR — must work.
++        # AXIDownConverter handles this via a per-FIXED-burst FSM that issues `len + 1`
++        # independent narrow INCR-`ratio` bursts back-to-back, all at the captured wide
++        # address (since AXI4 has no native "increment within a wide-beat window then reset"
++        # burst type). The W stream's `last` is overridden to fire every ratio-th narrow
++        # beat so each narrow burst terminates correctly, the R stream's `last` is overridden
++        # to fire only on the final wide beat, and the L narrow B responses are coalesced
++        # into a single wide B with the worst response winning.
++
++        # Sub-test 1: FIXED-1 — equivalent to single-beat INCR, takes the fast path.
+         def gen_len1(dut):
+             data = 0xdeadbeefcafebabe
+             yield from axi_aw_send(dut.axi_wide, 0x40,
+@@ -866,11 +864,9 @@ class TestAXI(unittest.TestCase):
+         run_simulation(dut, [gen_len1(dut)])
+         self.assertEqual(dut.errors, 0)
+ 
+-        # Sub-test 2: FIXED-2 burst writes two wide beats to the same address.  In a correct
+-        # converter the second beat would overwrite the first, leaving mem[X] = beats[1].
+-        # In the current converter the narrow side marches forward, so the second wide beat
+-        # lands at X+8 instead of X.  We *verify* the broken behavior so a future fix to the
+-        # converter shows up as a test failure here, prompting us to flip this assertion.
++        # Sub-test 2: FIXED-2 — two wide beats, both at address X. After conversion, the
++        # second beat must overwrite the first at X (since both target the same wide
++        # address), and X+8 must be untouched (initial value).
+         def gen_len2(dut, results):
+             beats = [0xaaaaaaaaaaaaaaaa, 0xbbbbbbbbbbbbbbbb]
+             yield from axi_aw_send(dut.axi_wide, 0x80,
+@@ -879,23 +875,52 @@ class TestAXI(unittest.TestCase):
+                 yield from axi_w_send(dut.axi_wide, beat, last=(i == 1))
+             resp = yield from axi_b_recv(dut.axi_wide)
+             results["b_resp"] = resp
+-            # Read back at the original address and at X+8.
+             results["at_X"],  _ = yield from axi_read_single(dut.axi_wide, 0x80, size=3)
+             results["at_X8"], _ = yield from axi_read_single(dut.axi_wide, 0x88, size=3)
+ 
+         dut = self._DownConvDUT(dw_wide=64, dw_narrow=32, mem_bytes=4096)
+         results = {}
+         run_simulation(dut, [gen_len2(dut, results)])
+-        # Document the current (buggy) behavior: beats[0] sits at X, beats[1] at X+8.
+         self.assertEqual(results["b_resp"], RESP_OKAY)
+-        self.assertEqual(results["at_X"],  0xaaaaaaaaaaaaaaaa,
+-            "AXIDownConverter FIXED-2: beat[0] expected at X — if this fails, recheck "
+-            "convert_burst().")
+-        self.assertEqual(results["at_X8"], 0xbbbbbbbbbbbbbbbb,
+-            "AXIDownConverter FIXED-2: beat[1] currently lands at X+8 (broken — converter "
+-            "translates FIXED to INCR). When a real FIXED implementation lands, both reads "
+-            "should return beats[1] and this assertion should be flipped to expect 0 (the "
+-            "initial mem value at X+8) and at_X = beats[1].")
++        self.assertEqual(results["at_X"],  0xbbbbbbbbbbbbbbbb,
++            "AXIDownConverter FIXED-2: beat[1] should overwrite beat[0] at X.")
++        self.assertEqual(results["at_X8"], 0,
++            "AXIDownConverter FIXED-2: X+8 must be untouched (FIXED stays at X).")
++
++        # Sub-test 3: FIXED with read-back via FIXED-N read.  The wide master issues a
++        # FIXED-4 read at X; all 4 wide R beats should return the same value (the last
++        # value written to X).
++        def gen_fixed_read(dut, results):
++            # Pre-write a known value to X.
++            yield from axi_write_single(dut.axi_wide, 0xc0, 0x1122334455667788, size=3)
++            # FIXED-4 read.
++            results["read"] = yield from axi_read_burst(dut.axi_wide, 0xc0, 4,
++                burst_type=BURST_FIXED, size=3)
++
++        dut = self._DownConvDUT(dw_wide=64, dw_narrow=32, mem_bytes=4096)
++        results = {}
++        run_simulation(dut, [gen_fixed_read(dut, results)])
++        self.assertEqual(results["read"], [0x1122334455667788] * 4,
++            "AXIDownConverter FIXED-4 read: every wide beat must return the value at X.")
++
++        # Sub-test 4: longer FIXED — 8 wide beats, alternating values, only beats[7] survives.
++        def gen_fixed_8(dut, results):
++            beats = [(i + 1) * 0x1111111111111111 for i in range(8)]
++            yield from axi_aw_send(dut.axi_wide, 0x100,
++                burst_len=7, burst_type=BURST_FIXED, size=3)
++            for i, beat in enumerate(beats):
++                yield from axi_w_send(dut.axi_wide, beat, last=(i == 7))
++            resp = yield from axi_b_recv(dut.axi_wide)
++            results["b_resp"] = resp
++            results["at_X"], _ = yield from axi_read_single(dut.axi_wide, 0x100, size=3)
++            results["beats_last"] = beats[-1]
++
++        dut = self._DownConvDUT(dw_wide=64, dw_narrow=32, mem_bytes=4096)
++        results = {}
++        run_simulation(dut, [gen_fixed_8(dut, results)])
++        self.assertEqual(results["b_resp"], RESP_OKAY)
++        self.assertEqual(results["at_X"], results["beats_last"],
++            "AXIDownConverter FIXED-8: only the last beat must survive at X.")
+ 
+     # AXISRAM helper: builds a DUT with a 32-bit AXI bus and runs the supplied generator.
+     def _axisram_run(self, generator, size=64*4, init=None, data_width=32):
+-- 
+2.53.0
+

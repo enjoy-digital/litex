@@ -1,0 +1,24 @@
+#-----------------------------------------------------------
+# Vivado v2021.1 (64-bit)
+# SW Build 3247384 on Thu Jun 10 19:36:07 MDT 2021
+# IP Build 3246043 on Fri Jun 11 00:30:35 MDT 2021
+# Start of session at: Tue Aug 26 12:20:30 2025
+# Process ID: 168077
+# Current directory: /home/florent/dev/litex/litex/litex/build/xilinx
+# Command line: vivado
+# Log file: /home/florent/dev/litex/litex/litex/build/xilinx/vivado.log
+# Journal file: /home/florent/dev/litex/litex/litex/build/xilinx/vivado.jou
+#-----------------------------------------------------------
+start_gui
+open_project /home/florent/dev/unitron/litex_m2sdr_unitron_nv/build/litex_m2sdr_baseboard_pcie_x1/gateware/litex_m2sdr_baseboard_pcie_x1.xpr
+update_compile_order -fileset sources_1
+set_property -dict [list CONFIG.Number_Of_Stages {3} CONFIG.Output_Data_Width {16}] [get_ips xilinx_cic_decimator]
+generate_target all [get_files  /home/florent/dev/unitron/litex_m2sdr_unitron_nv/tetra/gateware/xilinx_cic_decimator/xilinx_cic_decimator.xci]
+catch { config_ip_cache -export [get_ips -all xilinx_cic_decimator] }
+export_ip_user_files -of_objects [get_files /home/florent/dev/unitron/litex_m2sdr_unitron_nv/tetra/gateware/xilinx_cic_decimator/xilinx_cic_decimator.xci] -no_script -sync -force -quiet
+create_ip_run [get_files -of_objects [get_fileset sources_1] /home/florent/dev/unitron/litex_m2sdr_unitron_nv/tetra/gateware/xilinx_cic_decimator/xilinx_cic_decimator.xci]
+launch_runs xilinx_cic_decimator_synth_1 -jobs 4
+wait_on_run xilinx_cic_decimator_synth_1
+export_simulation -of_objects [get_files /home/florent/dev/unitron/litex_m2sdr_unitron_nv/tetra/gateware/xilinx_cic_decimator/xilinx_cic_decimator.xci] -directory /home/florent/dev/unitron/litex_m2sdr_unitron_nv/build/litex_m2sdr_baseboard_pcie_x1/gateware/litex_m2sdr_baseboard_pcie_x1.ip_user_files/sim_scripts -ip_user_files_dir /home/florent/dev/unitron/litex_m2sdr_unitron_nv/build/litex_m2sdr_baseboard_pcie_x1/gateware/litex_m2sdr_baseboard_pcie_x1.ip_user_files -ipstatic_source_dir /home/florent/dev/unitron/litex_m2sdr_unitron_nv/build/litex_m2sdr_baseboard_pcie_x1/gateware/litex_m2sdr_baseboard_pcie_x1.ip_user_files/ipstatic -lib_map_path [list {modelsim=/home/florent/dev/unitron/litex_m2sdr_unitron_nv/build/litex_m2sdr_baseboard_pcie_x1/gateware/litex_m2sdr_baseboard_pcie_x1.cache/compile_simlib/modelsim} {questa=/home/florent/dev/unitron/litex_m2sdr_unitron_nv/build/litex_m2sdr_baseboard_pcie_x1/gateware/litex_m2sdr_baseboard_pcie_x1.cache/compile_simlib/questa} {ies=/home/florent/dev/unitron/litex_m2sdr_unitron_nv/build/litex_m2sdr_baseboard_pcie_x1/gateware/litex_m2sdr_baseboard_pcie_x1.cache/compile_simlib/ies} {xcelium=/home/florent/dev/unitron/litex_m2sdr_unitron_nv/build/litex_m2sdr_baseboard_pcie_x1/gateware/litex_m2sdr_baseboard_pcie_x1.cache/compile_simlib/xcelium} {vcs=/home/florent/dev/unitron/litex_m2sdr_unitron_nv/build/litex_m2sdr_baseboard_pcie_x1/gateware/litex_m2sdr_baseboard_pcie_x1.cache/compile_simlib/vcs} {riviera=/home/florent/dev/unitron/litex_m2sdr_unitron_nv/build/litex_m2sdr_baseboard_pcie_x1/gateware/litex_m2sdr_baseboard_pcie_x1.cache/compile_simlib/riviera}] -use_ip_compiled_libs -force -quiet
+update_compile_order -fileset sources_1
+update_compile_order -fileset sources_1

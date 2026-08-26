@@ -1,0 +1,39 @@
+From b1519064b353c1a39c6c9e7d517819e40665f360 Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Mon, 27 Apr 2026 09:47:41 +0000
+Subject: [PATCH 08/22] soc/integration: SoCIORegion defaults cached=False
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Before, SoCIORegion was literally `class SoCIORegion(SoCRegion): pass`
+— the class name alone said nothing; whether a region was IO was
+entirely controlled by passing cached=False at every construction
+site. Override __init__ so cached=False is the default. Existing
+call sites that pass cached= explicitly are unaffected; new call
+sites that just write `SoCIORegion(origin=..., size=...)` now get
+the right behavior automatically.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+---
+ litex/soc/integration/soc.py | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/litex/soc/integration/soc.py b/litex/soc/integration/soc.py
+index c549b49e3..a566bf86b 100644
+--- a/litex/soc/integration/soc.py
++++ b/litex/soc/integration/soc.py
+@@ -115,7 +115,9 @@ class SoCRegion:
+         r += "Linker: {:>13}".format(colorer(self.linker))
+         return r
+ 
+-class SoCIORegion(SoCRegion): pass
++class SoCIORegion(SoCRegion):
++    def __init__(self, origin=None, size=None, mode="rw", cached=False, linker=False, decode=True):
++        SoCRegion.__init__(self, origin=origin, size=size, mode=mode, cached=cached, linker=linker, decode=decode)
+ 
+ # SoCCSRRegion -------------------------------------------------------------------------------------
+ 
+-- 
+2.53.0
+

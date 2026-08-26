@@ -1,0 +1,34 @@
+From a2d0c68c178a8896066498c2dab701bab0ceb852 Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Tue, 14 Jan 2025 17:57:04 +0100
+Subject: [PATCH 3/3] litex/gen/fhdl/expression: Improve _generate_slice to
+ avoid slicing all 1-bit Signals and cleanup.
+
+---
+ litex/gen/fhdl/expression.py | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/litex/gen/fhdl/expression.py b/litex/gen/fhdl/expression.py
+index f5325f027..3a8d537af 100644
+--- a/litex/gen/fhdl/expression.py
++++ b/litex/gen/fhdl/expression.py
+@@ -97,11 +97,13 @@ def _generate_operator(ns, node):
+ 
+ def _generate_slice(ns, node):
+     assert (node.stop - node.start) >= 1
+-    if (isinstance(node.value, Signal) and len(node.value) == 1):
+-        assert node.start == 0
++    if hasattr(node.value, "__len__") and len(node.value) == 1:
+         sr = "" # Avoid slicing 1-bit Signals.
+     else:
+-        sr = f"[{node.stop-1}:{node.start}]" if (node.stop - node.start) > 1 else f"[{node.start}]"
++        if (node.stop - node.start) > 1:
++            sr = f"[{node.stop-1}:{node.start}]"
++        else:
++            sr = f"[{node.start}]"
+     r, s = _generate_expression(ns, node.value)
+     return r + sr, s
+ 
+-- 
+2.34.1
+

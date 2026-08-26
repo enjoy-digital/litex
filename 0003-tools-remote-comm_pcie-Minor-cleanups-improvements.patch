@@ -1,0 +1,49 @@
+From ce792c5d3dd992394cc48fc113be559e1342fa02 Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Wed, 8 Oct 2025 11:02:58 +0200
+Subject: [PATCH 3/3] tools/remote/comm_pcie: Minor cleanups/improvements.
+
+---
+ litex/tools/remote/comm_pcie.py | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/litex/tools/remote/comm_pcie.py b/litex/tools/remote/comm_pcie.py
+index 3b8568105..0da785f58 100644
+--- a/litex/tools/remote/comm_pcie.py
++++ b/litex/tools/remote/comm_pcie.py
+@@ -29,7 +29,7 @@ class CommPCIe(CSRBuilder):
+         self.enable()
+ 
+     def _make_accessible(self, path):
+-        # Change file permissions to allow access.
++        # Change file permissions to allow access (with sudo if needed).
+         cmd = ["chmod", "666", path]
+         if os.geteuid() != 0:
+             cmd = ["sudo"] + cmd
+@@ -37,11 +37,10 @@ class CommPCIe(CSRBuilder):
+ 
+     def enable(self):
+         # Enable PCIe device if not already enabled.
+-        enable = open(self.enable_path, "r+")
+-        if enable.read(1) == "0":
+-            enable.seek(0)
+-            enable.write("1")
+-        enable.close()
++        with open(self.enable_path, "r+") as enable:
++            if enable.read(1) == "0":
++                enable.seek(0)
++                enable.write("1")
+ 
+     def open(self):
+         # Open the BAR file and create mmap.
+@@ -75,7 +74,6 @@ class CommPCIe(CSRBuilder):
+     def write(self, addr, data):
+         # Write data to mmap.
+         data = data if isinstance(data, list) else [data]
+-        length = len(data)
+         for i, value in enumerate(data):
+             ctypes.c_uint32.from_buffer(self.mmap, addr + 4*i).value = value
+             if self.debug:
+-- 
+2.51.0
+

@@ -1,0 +1,77 @@
+From 8618667f7f25f52e443ffbab3cb3c484b3f206ae Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Mon, 27 Apr 2026 10:08:37 +0000
+Subject: [PATCH 12/22] soc/integration: add basic checks to
+ SoCCSRHandler.add_region
+
+The CSR-side add_region was a 1-line dict-set with a long-standing
+`# FIXME: add checks` comment. Add the three checks that catch
+real out-of-tree mistakes without restricting any reasonable use:
+
+  - Type check: region must be a SoCCSRRegion. Catches transposed
+    arguments or misuse of the bus-side SoCRegion class.
+  - Duplicate name: a CSR region added twice raises SoCError
+    (matches the existing behavior of SoCBusHandler.add_region).
+  - Origin alignment: the origin must land on a paging boundary
+    (origin % csr.paging == 0). The standard csr_bankarray flow
+    always satisfies this; the check fires on hand-rolled CSR
+    regions whose origin is computed wrong.
+
+Overlap is *not* checked here: by construction the in-tree CSR
+allocation flow (csr.address_map -> SoCLocHandler.alloc) hands
+out distinct slots, so two regions can't legitimately collide.
+
+Verified: built 6 diverse litex-boards targets end-to-end with
+--no-compile-software --no-compile-gateware:
+
+  digilent_arty            778263 B
+  sipeed_tang_nano_20k     331701 B
+  terasic_de10nano          97760 B
+  alchitry_au              775263 B
+  terasic_de2_115          338874 B
+  berkeleylab_marble      1356632 B
+
+All exit 0, all produce gateware. test_wishbone.py 23/23.
+Three negative-path unit checks confirm each new check raises
+SoCError on bad input.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+---
+ litex/soc/integration/soc.py | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/litex/soc/integration/soc.py b/litex/soc/integration/soc.py
+index aea0284ef..bef9533df 100644
+--- a/litex/soc/integration/soc.py
++++ b/litex/soc/integration/soc.py
+@@ -871,7 +871,26 @@ class SoCCSRHandler(SoCLocHandler):
+ 
+     # Add Region -----------------------------------------------------------------------------------
+     def add_region(self, name, region):
+-        # FIXME: add checks
++        # Type check.
++        if not isinstance(region, SoCCSRRegion):
++            self.logger.error("{} is not a {}.".format(
++                colorer(name, color="red"),
++                colorer("SoCCSRRegion")))
++            raise SoCError()
++        # Duplicate-name check.
++        if name in self.regions:
++            self.logger.error("CSR Region {} {}.".format(
++                colorer(name, color="red"),
++                colorer("already declared")))
++            raise SoCError()
++        # Origin alignment check (origin must land on a paging boundary).
++        if (region.origin % self.paging) != 0:
++            self.logger.error("CSR Region {} origin 0x{:08x} {} CSR paging 0x{:x}.".format(
++                colorer(name, color="red"),
++                region.origin,
++                colorer("not aligned on", color="red"),
++                self.paging))
++            raise SoCError()
+         self.regions[name] = region
+ 
+     # Address map ----------------------------------------------------------------------------------
+-- 
+2.53.0
+

@@ -3,6 +3,7 @@
 
 #include <csr-defs.h>
 #include <stddef.h>
+#include <generated/mem.h> /* MAIN_RAM_BASE/SIZE for the boot-time dcache flush */
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,8 +41,18 @@ __attribute__((unused)) static void flush_cpu_icache(void)
   );
 }
 
+/* The argless flush is what bios/boot.c calls between loading an image and jumping to it.
+ * Leaving it empty breaks serialboot on any write-back L1D configuration whose main_ram has
+ * no coherent L2 behind it (e.g. an AXI HBM window): the image is written through the
+ * dcache, never reaches memory, and the fetch-L1 then executes stale bytes. Observed as
+ * "BIOS runs, loaded firmware never prints" on LiteX-Bonsai/FK33.
+ * With Zicbom (--with-rvZcbm) flush the whole main_ram window; a boot-time full sweep is a
+ * few ms and correctness beats elegance here. Without Zicbom stay a no-op, as before. */
 __attribute__((unused)) static void flush_cpu_dcache(void)
 {
+#if defined(__riscv_zicbom__) && defined(MAIN_RAM_BASE) && defined(MAIN_RAM_SIZE)
+  ALT_CMO_OP(VEXII_CBO_FLUSH, MAIN_RAM_BASE, MAIN_RAM_SIZE, 64);
+#endif
 }
 
 #ifdef __riscv_zicbom__

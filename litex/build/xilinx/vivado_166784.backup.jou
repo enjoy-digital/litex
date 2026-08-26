@@ -1,0 +1,14 @@
+#-----------------------------------------------------------
+# Vivado v2021.1 (64-bit)
+# SW Build 3247384 on Thu Jun 10 19:36:07 MDT 2021
+# IP Build 3246043 on Fri Jun 11 00:30:35 MDT 2021
+# Start of session at: Tue Aug 26 12:14:48 2025
+# Process ID: 166784
+# Current directory: /home/florent/dev/litex/litex/litex/build/xilinx
+# Command line: vivado
+# Log file: /home/florent/dev/litex/litex/litex/build/xilinx/vivado.log
+# Journal file: /home/florent/dev/litex/litex/litex/build/xilinx/vivado.jou
+#-----------------------------------------------------------
+start_gui
+open_project /home/florent/dev/unitron/litex_m2sdr_unitron_nv/build/litex_m2sdr_baseboard_pcie_x1/gateware/litex_m2sdr_baseboard_pcie_x1.xpr
+update_compile_order -fileset sources_1

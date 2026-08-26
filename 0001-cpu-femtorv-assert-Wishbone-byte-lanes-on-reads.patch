@@ -1,0 +1,31 @@
+From 8af8128bf9391aa29c60cbe449e5a719fd8568a0 Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Tue, 16 Jun 2026 18:46:18 +0200
+Subject: [PATCH] cpu/femtorv: assert Wishbone byte lanes on reads
+
+FemtoRV derives Wishbone sel from the write mask, which is zero for read cycles. This can break reads through slaves or converters that honor byte selects, such as the Cmod A7 8-bit async SRAM path.
+
+Use all byte lanes for reads while preserving the write mask for writes, matching the PicoRV32 read-select behavior.
+---
+ litex/soc/cores/cpu/femtorv/core.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/litex/soc/cores/cpu/femtorv/core.py b/litex/soc/cores/cpu/femtorv/core.py
+index d79c6f7c5..081ea9391 100644
+--- a/litex/soc/cores/cpu/femtorv/core.py
++++ b/litex/soc/cores/cpu/femtorv/core.py
+@@ -121,9 +121,9 @@ class FemtoRV(CPU):
+             # Latch Address + Bytes to Words conversion.
+             NextValue(idbus.adr, mbus.addr),
+ 
+-            # Latch Wdata/WMask.
++            # Latch Wdata/Sel.
+             NextValue(idbus.dat_w, mbus.wdata),
+-            NextValue(idbus.sel,   mbus.wmask),
++            NextValue(idbus.sel,   Mux(write, mbus.wmask, 2**len(idbus.sel) - 1)),
+ 
+             # If Read or Write, jump to access.
+             If(read | write,
+-- 
+2.53.0
+

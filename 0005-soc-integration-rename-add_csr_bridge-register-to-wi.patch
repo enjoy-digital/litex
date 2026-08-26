@@ -1,0 +1,60 @@
+From 93e4c12c53a0ff7baa604ea5c1065084d34e23e4 Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Mon, 27 Apr 2026 09:46:21 +0000
+Subject: [PATCH 05/22] soc/integration: rename add_csr_bridge(register=) to
+ with_register=
+
+The plain `register` kwarg name reads strangely
+(`add_csr_bridge(register=True)` looks like "register the bridge")
+and was inconsistent with the rest of the codebase, where every
+other on/off knob is `with_xxx`. Switch the public name to
+`with_register` and keep `register` as a silent alias for
+out-of-tree code that still passes the old name. The single
+in-tree caller in SoC.finalize() is updated accordingly.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+---
+ litex/soc/integration/soc.py | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/litex/soc/integration/soc.py b/litex/soc/integration/soc.py
+index e03387c7b..eb4e69a8d 100644
+--- a/litex/soc/integration/soc.py
++++ b/litex/soc/integration/soc.py
+@@ -1175,7 +1175,10 @@ class SoC(LiteXModule):
+         self.init_ram(name, contents, auto_size)
+ 
+     # Add CSR Bridge -------------------------------------------------------------------------------
+-    def add_csr_bridge(self, name="csr", origin=None, register=False):
++    def add_csr_bridge(self, name="csr", origin=None, with_register=False, register=None):
++        # `register` is the legacy kwarg name, kept as an alias for back-compat.
++        if register is not None:
++            with_register = register
+         csr_bridge_cls = {
+             "wishbone": wishbone.Wishbone2CSR,
+             "axi-lite": axi.AXILite2CSR,
+@@ -1196,7 +1199,7 @@ class SoC(LiteXModule):
+             bus_csr = csr_bus.Interface(
+                 address_width = self.csr.address_width,
+                 data_width    = data_width),
+-            register = register)
++            register = with_register)
+         self.logger.info("CSR Bridge {} {}.".format(
+             colorer(name, color="underline"),
+             colorer("added", color="green")))
+@@ -1399,9 +1402,9 @@ class SoC(LiteXModule):
+ 
+         # SoC CSR bridge ---------------------------------------------------------------------------
+         self.add_csr_bridge(
+-            name     = "csr",
+-            origin   = self.mem_map["csr"],
+-            register = hasattr(self, "sdram"),
++            name          = "csr",
++            origin        = self.mem_map["csr"],
++            with_register = hasattr(self, "sdram"),
+         )
+ 
+         # SoC Bus Interconnect ---------------------------------------------------------------------
+-- 
+2.53.0
+

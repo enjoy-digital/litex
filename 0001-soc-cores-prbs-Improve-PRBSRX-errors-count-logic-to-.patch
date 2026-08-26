@@ -1,0 +1,44 @@
+From a6ce7fb5274730c7930c0a393ec4cbe1ca723fbd Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Wed, 1 Oct 2025 11:31:52 +0200
+Subject: [PATCH] soc/cores/prbs: Improve PRBSRX errors count logic (to improve
+ timings/reduce resource usage).
+
+---
+ litex/soc/cores/prbs.py | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/litex/soc/cores/prbs.py b/litex/soc/cores/prbs.py
+index 9f6409797..e9e46593e 100644
+--- a/litex/soc/cores/prbs.py
++++ b/litex/soc/cores/prbs.py
+@@ -170,18 +170,17 @@ class PRBSRX(LiteXModule):
+         ]
+ 
+         # Errors count (with optional saturation).
++        error = Signal()
+         self.sync += [
++            Case(config, {
++                PRBS_CONFIG_OFF    : error.eq(0),
++                PRBS_CONFIG_PRBS7  : error.eq(prbs7.errors  != 0),
++                PRBS_CONFIG_PRBS15 : error.eq(prbs15.errors != 0),
++                PRBS_CONFIG_PRBS31 : error.eq(prbs31.errors != 0),
++            }),
+             If(config == PRBS_CONFIG_OFF,
+                 errors.eq(0)
+             ).Elif(~self.pause & (~with_errors_saturation | (errors != (2**errors_width-1))),
+-                If(config == PRBS_CONFIG_PRBS7,
+-                    errors.eq(errors + (prbs7.errors != 0))
+-                ),
+-                If(config == PRBS_CONFIG_PRBS15,
+-                    errors.eq(errors + (prbs15.errors != 0))
+-                ),
+-                If(config == PRBS_CONFIG_PRBS31,
+-                    errors.eq(errors + (prbs31.errors != 0))
+-                )
++                errors.eq(errors + error)
+             )
+         ]
+-- 
+2.51.0
+

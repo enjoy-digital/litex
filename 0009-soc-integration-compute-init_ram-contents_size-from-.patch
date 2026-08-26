@@ -1,0 +1,36 @@
+From 75009eb7659277374a25834ef049bc6e89fec97b Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Mon, 27 Apr 2026 09:48:17 +0000
+Subject: [PATCH 09/22] soc/integration: compute init_ram contents_size from
+ bus data_width
+
+init_ram had a long-standing FIXME: `contents_size = 4*len(contents)`
+hard-coded a 32-bit word width. On a SoC with bus_data_width=64 (or
+128, 256, 512), the size check at the next line was therefore using
+half (or less) of the real byte count, masking real overflows and
+mis-formatting the size logged to the user.
+
+Use `(self.bus.data_width // 8) * len(contents)` instead. This is
+correct for every supported bus width and removes the FIXME.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+---
+ litex/soc/integration/soc.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/litex/soc/integration/soc.py b/litex/soc/integration/soc.py
+index a566bf86b..3791a1c3a 100644
+--- a/litex/soc/integration/soc.py
++++ b/litex/soc/integration/soc.py
+@@ -1142,7 +1142,7 @@ class SoC(LiteXModule):
+         ram        = getattr(self, name)
+         ram_region = self.bus.regions[name]
+         ram_type   = "ROM" if ram_region.is_rom else "RAM"
+-        contents_size = 4*len(contents) # FIXME.
++        contents_size = (self.bus.data_width // 8) * len(contents)
+ 
+         # Size Check.
+         if ram_region.size < contents_size:
+-- 
+2.53.0
+

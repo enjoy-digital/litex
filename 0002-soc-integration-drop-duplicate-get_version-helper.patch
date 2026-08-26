@@ -1,0 +1,33 @@
+From 94d52a0e5cb965b3300038af8e8fae99a5ab142d Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Mon, 27 Apr 2026 09:44:09 +0000
+Subject: [PATCH 02/22] soc/integration: drop duplicate get_version helper
+
+common.py:get_version was an exact dupe of soc.py:build_time
+(same signature, same body, same purpose). soc.py uses
+build_time at the two callsites that need it; nothing else
+in tree calls get_version.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+---
+ litex/soc/integration/common.py | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/litex/soc/integration/common.py b/litex/soc/integration/common.py
+index 7391049ee..a2e85783e 100644
+--- a/litex/soc/integration/common.py
++++ b/litex/soc/integration/common.py
+@@ -15,10 +15,6 @@ from migen import *
+ 
+ # Helpers ----------------------------------------------------------------------------------------
+ 
+-def get_version(with_time=True):
+-    fmt = "%Y-%m-%d %H:%M:%S" if with_time else "%Y-%m-%d"
+-    return datetime.datetime.fromtimestamp(time.time()).strftime(fmt)
+-
+ def get_mem_regions(filename_or_regions, offset):
+     if isinstance(filename_or_regions, dict):
+         regions = filename_or_regions
+-- 
+2.53.0
+

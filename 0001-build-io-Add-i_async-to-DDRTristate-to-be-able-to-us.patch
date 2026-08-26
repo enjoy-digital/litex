@@ -1,0 +1,109 @@
+From 05ddd22eb032b8cef7e3923123bc6d644305f9d2 Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Wed, 9 Apr 2025 14:59:43 +0200
+Subject: [PATCH] build/io: Add i_async to DDRTristate to be able to use async
+ input of Tristate in user logic.
+
+Useful when DDRTristate IO is used for different or unrelated features ex as Clock Input but also GPIO (ex M2SDR).
+---
+ litex/build/io.py            | 41 +++++++++++++++++++-----------------
+ litex/build/xilinx/common.py |  5 +++--
+ 2 files changed, 25 insertions(+), 21 deletions(-)
+
+diff --git a/litex/build/io.py b/litex/build/io.py
+index 6559cd2d4..df991a962 100644
+--- a/litex/build/io.py
++++ b/litex/build/io.py
+@@ -184,7 +184,7 @@ class DDROutput(Special):
+ # DDR Tristate -------------------------------------------------------------------------------------
+ 
+ class InferedDDRTristate(Module):
+-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
++    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, i_async):
+         _o  = Signal().like(o1)
+         _oe = Signal().like(oe1)
+         _i  = Signal().like(i1)
+@@ -192,32 +192,35 @@ class InferedDDRTristate(Module):
+         self.specials += DDROutput(oe1, oe2, _oe, clk) if oe2 is not None else SDROutput(oe1, _oe, clk)
+         self.specials += DDRInput(_i, i1, i2, clk)
+         self.specials += Tristate(io, _o, _oe, _i)
++        self.comb += i_async.eq(_i)
+ 
+ class DDRTristate(Special):
+-    def __init__(self, io, o1, o2, oe1, oe2=None, i1=None, i2=None, clk=None):
++    def __init__(self, io, o1, o2, oe1, oe2=None, i1=None, i2=None, clk=None, i_async=None):
+         Special.__init__(self)
+-        self.io  = io
+-        self.o1  = o1
+-        self.o2  = o2
+-        self.oe1 = oe1
+-        self.oe2 = oe2
+-        self.i1  = i1 if i1 is not None else Signal()
+-        self.i2  = i2 if i2 is not None else Signal()
+-        self.clk = clk if clk is not None else ClockSignal()
++        self.io      = io
++        self.o1      = o1
++        self.o2      = o2
++        self.oe1     = oe1
++        self.oe2     = oe2
++        self.i1      = i1      if      i1 is not None else Signal()
++        self.i2      = i2      if      i2 is not None else Signal()
++        self.clk     = clk     if     clk is not None else ClockSignal()
++        self.i_async = i_async if i_async is not None else Signal()
+ 
+     def iter_expressions(self):
+-        yield self, "io" , SPECIAL_INOUT
+-        yield self, "o1" , SPECIAL_INPUT
+-        yield self, "o2" , SPECIAL_INPUT
+-        yield self, "oe1", SPECIAL_INPUT
+-        yield self, "oe2", SPECIAL_INPUT
+-        yield self, "i1" , SPECIAL_OUTPUT
+-        yield self, "i2" , SPECIAL_OUTPUT
+-        yield self, "clk", SPECIAL_INPUT
++        yield self, "io" ,     SPECIAL_INOUT
++        yield self, "o1" ,     SPECIAL_INPUT
++        yield self, "o2" ,     SPECIAL_INPUT
++        yield self, "oe1",     SPECIAL_INPUT
++        yield self, "oe2",     SPECIAL_INPUT
++        yield self, "i1" ,     SPECIAL_OUTPUT
++        yield self, "i2" ,     SPECIAL_OUTPUT
++        yield self, "clk",     SPECIAL_INPUT
++        yield self, "i_async", SPECIAL_OUTPUT
+ 
+     @staticmethod
+     def lower(dr):
+-        return InferedDDRTristate(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
++        return InferedDDRTristate(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.i_async)
+ 
+ # Clock Reset Generator ----------------------------------------------------------------------------
+ 
+diff --git a/litex/build/xilinx/common.py b/litex/build/xilinx/common.py
+index 15c286f08..fc7752c3d 100644
+--- a/litex/build/xilinx/common.py
++++ b/litex/build/xilinx/common.py
+@@ -160,7 +160,7 @@ class XilinxSDRTristate:
+ # Common DDRTristate -------------------------------------------------------------------------------
+ 
+ class XilinxDDRTristateImpl(Module):
+-    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk):
++    def __init__(self, io, o1, o2, oe1, oe2, i1, i2, clk, i_async):
+         _o    = Signal().like(o1)
+         _oe_n = Signal().like(oe1)
+         _i    = Signal().like(i1)
+@@ -174,11 +174,12 @@ class XilinxDDRTristateImpl(Module):
+                 i_I   = _o[j],
+                 i_T   = _oe_n[j],
+             )
++        self.comb += i_async.eq(_i)
+ 
+ class XilinxDDRTristate:
+     @staticmethod
+     def lower(dr):
+-        return XilinxDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk)
++        return XilinxDDRTristateImpl(dr.io, dr.o1, dr.o2, dr.oe1, dr.oe2, dr.i1, dr.i2, dr.clk, dr.i_async)
+ 
+ # Common Special Overrides -------------------------------------------------------------------------
+ 
+-- 
+2.34.1
+

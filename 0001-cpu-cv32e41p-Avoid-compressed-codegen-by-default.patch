@@ -1,0 +1,96 @@
+From cbac44ac3244b8f351907d9fefe55fc39c75d646 Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Thu, 4 Jun 2026 15:07:00 +0200
+Subject: [PATCH] cpu/cv32e41p: Avoid compressed codegen by default
+
+Issue #1364 reports litex_sim hanging with CV32E41P firmware built for RV32IMC. The analyzed failure was a compressed jal storing pc+4 as the return address, which skips the caller return-address restore and loops.
+
+Build the standard variant firmware as RV32IM until the compressed path is validated in LiteX. Keep the previous RV32IMC flags available through an explicit imc variant, and add a focused regression test for the advertised GCC flags.
+---
+ litex/soc/cores/cpu/cv32e41p/core.py |  7 ++++--
+ test/test_cpu.py                     | 34 ++++++++++++++++++++++++++++
+ test/test_integration.py             |  2 +-
+ 3 files changed, 40 insertions(+), 3 deletions(-)
+ create mode 100644 test/test_cpu.py
+
+diff --git a/litex/soc/cores/cpu/cv32e41p/core.py b/litex/soc/cores/cpu/cv32e41p/core.py
+index 909c39730..1e03d621d 100644
+--- a/litex/soc/cores/cpu/cv32e41p/core.py
++++ b/litex/soc/cores/cpu/cv32e41p/core.py
+@@ -19,7 +19,7 @@ from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
+ 
+ # Variants -----------------------------------------------------------------------------------------
+ 
+-CPU_VARIANTS = ["standard"]
++CPU_VARIANTS = ["standard", "imc"]
+ 
+ # GCC Flags ----------------------------------------------------------------------------------------
+ 
+@@ -31,7 +31,10 @@ GCC_FLAGS = {
+     #                       |    |||/--- Single-Precision Floating-Point
+     #                       |    ||||/-- Double-Precision Floating-Point
+     #                       i    macfd
+-    "standard": "-march=rv32i2p0_mc    -mabi=ilp32 ",
++    # Keep the default software build on RV32IM until the compressed path is
++    # validated in LiteX. The CV32E41P hardware itself still supports RVC.
++    "standard": "-march=rv32i2p0_m     -mabi=ilp32 ",
++    "imc":      "-march=rv32i2p0_mc    -mabi=ilp32 ",
+ }
+ 
+ # OBI / APB / Trace Layouts ------------------------------------------------------------------------
+diff --git a/test/test_cpu.py b/test/test_cpu.py
+new file mode 100644
+index 000000000..0f322630c
+--- /dev/null
++++ b/test/test_cpu.py
+@@ -0,0 +1,34 @@
++#
++# This file is part of LiteX.
++#
++# Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
++# SPDX-License-Identifier: BSD-2-Clause
++
++import unittest
++
++from litex.soc.cores.cpu.cv32e41p.core import CV32E41P
++
++
++def _cv32e41p_gcc_flags(variant):
++    cpu = CV32E41P.__new__(CV32E41P)
++    cpu.variant = variant
++    return cpu.gcc_flags
++
++
++class TestCV32E41P(unittest.TestCase):
++    def test_standard_variant_does_not_emit_compressed_instructions(self):
++        flags = _cv32e41p_gcc_flags("standard")
++
++        self.assertIn("-march=rv32i2p0_m", flags)
++        self.assertNotIn("-march=rv32i2p0_mc", flags)
++        self.assertIn("-D__cv32e41p__", flags)
++
++    def test_imc_variant_preserves_compressed_codegen(self):
++        flags = _cv32e41p_gcc_flags("imc")
++
++        self.assertIn("-march=rv32i2p0_mc", flags)
++        self.assertIn("-D__cv32e41p__", flags)
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/test/test_integration.py b/test/test_integration.py
+index afc2e7080..51d437961 100644
+--- a/test/test_integration.py
++++ b/test/test_integration.py
+@@ -262,7 +262,7 @@ UNTESTED_CPUS = [
+     "blackparrot",  # (riscv   / softcore) -> Broken install?
+     "cortex_m1",    # (arm     / softcore) -> Proprietary code.
+     "cortex_m3",    # (arm     / softcore) -> Proprieraty code.
+-    "cv32e41p",     # (riscv   / softcore) -> Broken?
++    "cv32e41p",     # (riscv   / softcore) -> Needs to be tested.
+     "cva5",         # (riscv   / softcore) -> Needs to be tested.
+     "cva6",         # (riscv   / softcore) -> Needs to be tested.
+     "eos_s3",       # (arm     / hardcore) -> Hardcore.
+-- 
+2.53.0
+

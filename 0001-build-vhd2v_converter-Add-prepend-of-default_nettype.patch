@@ -1,0 +1,30 @@
+From 73387a0f2eaca7f85f276431384742e579dab0e2 Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Thu, 25 Sep 2025 13:28:08 +0200
+Subject: [PATCH] build/vhd2v_converter: Add prepend of default_nettype wire to
+ generated verilog file (To allow Vivado to parse some generated files).
+
+---
+ litex/build/vhd2v_converter.py | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/litex/build/vhd2v_converter.py b/litex/build/vhd2v_converter.py
+index 2af24aa57..5e7298519 100644
+--- a/litex/build/vhd2v_converter.py
++++ b/litex/build/vhd2v_converter.py
+@@ -215,6 +215,12 @@ class VHD2VConverter(Module):
+                 if s.returncode:
+                     raise OSError(f"Unable to convert {inst_name} to verilog, please check your GHDL install")
+ 
++            # Prepend `default_nettype wire`
++            with open(verilog_out, 'r') as f:
++                content = f.read()
++            with open(verilog_out, 'w') as f:
++                f.write("`default_nettype wire\n" + content)
++
+             flatten_source = False
+             if which("yosys") is not None and self._flatten_source:
+                 s = subprocess.run(["yosys", "-V"], capture_output=True)
+-- 
+2.51.0
+

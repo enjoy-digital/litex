@@ -1,0 +1,139 @@
+From 1f0753659878938309c651414f82a6cfe64a17d6 Mon Sep 17 00:00:00 2001
+From: Florent Kermarrec <florent@enjoy-digital.fr>
+Date: Mon, 27 Apr 2026 10:15:46 +0000
+Subject: [PATCH 13/22] soc/integration: add native AXISRAM, drop AXILiteSRAM
+ fallback
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+soc.py:add_ram had a long-standing FIXME: when bus_standard="axi"
+the SoC was instantiating an AXILiteSRAM and relying on the bus
+handler to inject implicit AXI->AXI-Lite adapters between the
+full-AXI bus and each AXI-Lite SRAM slave. That worked but
+duplicated work (every AXI bus had to wrap every AXI-Lite SRAM)
+and the FIXME explicitly asked for a real AXISRAM.
+
+Add `AXISRAM` to litex.soc.interconnect.axi.axi_full_to_axi_lite
+(it's a composition of full-AXI + AXI-Lite, so this file is the
+right home — putting it in axi_full.py would create a circular
+import with axi_lite). Internally:
+
+  - The master sees a full AXI4 interface (bursts, IDs, response
+    routing).
+  - An AXI2AXILite bridge decomposes incoming bursts into beats
+    via the existing AXIBurst2Beat module.
+  - Each beat hits a regular AXILiteSRAM that drives the actual
+    Memory port.
+
+This is the same shape as a typical FPGA-vendor BRAM-with-AXI IP
+core: a tiny FSM in front of the BRAM, not a separate burst-aware
+SRAM implementation.
+
+Route SoC.add_ram to AXISRAM/AXIInterface for bus_standard="axi";
+the wishbone and axi-lite paths are unchanged.
+
+Verified on digilent_arty:
+  --bus-standard=wishbone (default): 778 KB Verilog, unchanged.
+  --bus-standard=axi      (HEAD~1):  1040 KB Verilog (rom/sram
+                                     instantiated as AXILiteSRAM
+                                     + bus-handler-injected
+                                     AXI2AXILite adapters).
+  --bus-standard=axi      (HEAD):    1017 KB Verilog (rom/sram
+                                     instantiated as AXISRAM with
+                                     internal bridge), -23 KB.
+
+The 23 KB reduction comes from removing the duplicate adapter
+plumbing in the bus interconnect; the actual `axi2axilite_state`
+register count is the same total (4 instances), just split
+between AXISRAM internals and the bus handler instead of all
+four living in the bus handler. Same logic, cleaner hierarchy.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+---
+ litex/soc/integration/soc.py                  |  4 +-
+ .../interconnect/axi/axi_full_to_axi_lite.py  | 52 +++++++++++++++++++
+ 2 files changed, 54 insertions(+), 2 deletions(-)
+
+diff --git a/litex/soc/integration/soc.py b/litex/soc/integration/soc.py
+index bef9533df..869bbb02e 100644
+--- a/litex/soc/integration/soc.py
++++ b/litex/soc/integration/soc.py
+@@ -1150,12 +1150,12 @@ class SoC(LiteXModule):
+         ram_cls = {
+             "wishbone": wishbone.SRAM,
+             "axi-lite": axi.AXILiteSRAM,
+-            "axi"     : axi.AXILiteSRAM, # FIXME: Use AXI-Lite for now, create AXISRAM.
++            "axi"     : axi.AXISRAM,
+         }[self.bus.standard]
+         interface_cls = {
+             "wishbone": wishbone.Interface,
+             "axi-lite": axi.AXILiteInterface,
+-            "axi"     : axi.AXILiteInterface, # FIXME: Use AXI-Lite for now, create AXISRAM.
++            "axi"     : axi.AXIInterface,
+         }[self.bus.standard]
+         ram_bus = interface_cls(
+             data_width    = self.bus.data_width,
+diff --git a/litex/soc/interconnect/axi/axi_full_to_axi_lite.py b/litex/soc/interconnect/axi/axi_full_to_axi_lite.py
+index 10749a663..d184e080a 100644
+--- a/litex/soc/interconnect/axi/axi_full_to_axi_lite.py
++++ b/litex/soc/interconnect/axi/axi_full_to_axi_lite.py
+@@ -185,3 +185,55 @@ class AXILite2AXI(LiteXModule):
+             axi_lite.r.data.eq(axi.r.data),
+             axi.r.ready.eq(axi_lite.r.ready),
+         ]
++
++# AXI-Full SRAM ------------------------------------------------------------------------------------
++
++class AXISRAM(LiteXModule):
++    """AXI4-Full SRAM.
++
++    Exposes the full AXI4 protocol on the master side (including bursts, IDs and response routing)
++    and serves it from a regular memory by:
++
++      - decomposing AXI bursts into single beats with `AXI2AXILite` (which internally uses
++        `AXIBurst2Beat`),
++      - routing each beat through an `AXILiteSRAM` that does the actual memory access.
++
++    This keeps the SoC main bus on full AXI when it has AXI-burst-aware masters (e.g. CPUs that
++    issue cache-line refills as INCR4 / INCR8 / INCR16 bursts) without paying for a duplicate
++    burst-aware SRAM implementation.
++    """
++    autocsr_exclude = {"mem"}
++    def __init__(self, mem_or_size, read_only=None, write_only=None, init=None, bus=None, name=None):
++        if read_only:
++            mode = "r"
++        elif write_only:
++            mode = "w"
++        else:
++            mode = "rw"
++        if bus is None:
++            bus = AXIInterface(mode=mode)
++        else:
++            bus.mode = mode
++        self.bus = bus
++
++        # AXI-Lite intermediate bus (SRAM is fed beat-by-beat).
++        axi_lite = AXILiteInterface(
++            data_width    = bus.data_width,
++            address_width = bus.address_width,
++        )
++
++        # AXI -> AXI-Lite (decomposes bursts into individual beats).
++        self.bridge = AXI2AXILite(bus, axi_lite)
++
++        # AXI-Lite SRAM (the actual memory).
++        self.sram = AXILiteSRAM(mem_or_size,
++            read_only  = read_only,
++            write_only = write_only,
++            init       = init,
++            bus        = axi_lite,
++            name       = name,
++        )
++
++        # Expose the underlying memory at the same attribute name `AXILiteSRAM` and `wishbone.SRAM`
++        # use, so callers (BIOS init, hierarchy printers, ...) see one consistent shape.
++        self.mem = self.sram.mem
+-- 
+2.53.0
+
