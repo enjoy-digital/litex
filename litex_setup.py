@@ -623,6 +623,16 @@ def pip_install_error(
 def pip_install_build_dependencies(user_mode=False, break_system_packages=False):
     build_packages = [
         "setuptools>=65.5",
+        # setuptools >= 80 calls packaging.utils.canonicalize_version() with the
+        # strip_trailing_zero keyword, which only exists in packaging >= 24.0. On
+        # distributions shipping an older packaging (Ubuntu 22.04 has 21.3), pulling
+        # in a new setuptools without also updating packaging makes every subsequent
+        # metadata build die with:
+        #   TypeError: canonicalize_version() got an unexpected keyword argument
+        #              'strip_trailing_zero'
+        # setuptools itself warns about this just before failing ("Could not find an
+        # up-to-date installation of `packaging`... please install `packaging>=24.2`").
+        "packaging>=24.2",
         "wheel",
     ]
     print_status("Installing Python build dependencies...")
