@@ -50,6 +50,20 @@ GCC_FLAGS = {
 
 # Helpers ------------------------------------------------------------------------------------------
 
+def _is_valid_cva6_dir(path):
+    return os.path.isfile(os.path.join(path, "core", "Flist.cva6"))
+
+def _get_cva6_dir():
+    env_dir = os.environ.get("LITEX_CVA6_DIR")
+    if env_dir is not None:
+        if _is_valid_cva6_dir(env_dir):
+            return env_dir
+        raise OSError("Invalid LITEX_CVA6_DIR: missing core/Flist.cva6 in {}.".format(env_dir))
+    cva6_dir = get_data_mod("cpu", "cva6").data_location
+    if not _is_valid_cva6_dir(cva6_dir):
+        raise OSError("Invalid pythondata-cpu-cva6 install: missing core/Flist.cva6.")
+    return cva6_dir
+
 def add_manifest_sources(platform, manifest, variables):
     with open(manifest) as f:
         for line in f:
@@ -204,7 +218,7 @@ class CVA6(CPU):
         )
 
         # Add Verilog sources.
-        cva6_dir     = get_data_mod("cpu", "cva6").data_location
+        cva6_dir     = _get_cva6_dir()
         wrapper_root = os.path.join(os.path.abspath(os.path.dirname(__file__)), "cva6_wrapper")
         variables    = {
             "CVA6_REPO_DIR"    : cva6_dir,
