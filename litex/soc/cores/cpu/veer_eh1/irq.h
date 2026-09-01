@@ -7,29 +7,27 @@ extern "C" {
 
 #include <system.h>
 #include <generated/csr.h>
+#include <generated/mem.h>
 #include <generated/soc.h>
 
-// VeeR EH1 routes all external interrupts through an on-core PIC rather
-// than mapping each source to its own mip/mie bit. All sources are OR'd
-// into the single standard mie.meie/mip.meip bit (bit 11); per-source
-// enable and pending state live in the PIC's memory-mapped registers
-// below.
+// VeeR EH1 routes all external interrupts through an on-core PIC. The
+// interrupt sources are ORed into mie.meie/mip.meip; per-source state is
+// exposed through the memory-mapped registers below.
 //
-// PIC_base_addr = (pic_region << 28) | pic_offset, from veer_eh1.py's
-// mem_map(). With current defaults (region=0xf, offset=0xc0000) this
-// is 0xf00c0000.
-//
-// PIC source IDs are 1-based; source 0 means "no interrupt pending"
-// (meihap.claimid). LiteX irq numbers are 0-based, so throughout:
-//     PIC source ID = LiteX irq number + 1
+// PIC source IDs are 1-based, while LiteX IRQ numbers are 0-based.
 
-#define PIC_BASE         0xf00c0000L
-#define PIC_MEIPL(s)     (*((unsigned int *)(PIC_BASE + 0x0000 + ((s) * 4))))
-#define PIC_MEIP(x)      (*((unsigned int *)(PIC_BASE + 0x1000 + ((x) * 4))))
-#define PIC_MEIE(s)      (*((unsigned int *)(PIC_BASE + 0x2000 + ((s) * 4))))
-#define PIC_MPICCFG      (*((unsigned int *)(PIC_BASE + 0x3000)))
-#define PIC_MEIGWCTRL(s) (*((unsigned int *)(PIC_BASE + 0x4000 + ((s) * 4))))
-#define PIC_MEIGWCLR(s)  (*((unsigned int *)(PIC_BASE + 0x5000 + ((s) * 4))))
+#define PIC_REG(offset)   (*((volatile unsigned int *)(PIC_BASE + (offset))))
+#define PIC_MEIPL(source) PIC_REG(0x0000 + ((source) * 4))
+#define PIC_MEIP(word)    PIC_REG(0x1000 + ((word)   * 4))
+#define PIC_MEIE(source)  PIC_REG(0x2000 + ((source) * 4))
+#define PIC_MPICCFG       PIC_REG(0x3000)
+#define PIC_MEIGWCTRL(source) PIC_REG(0x4000 + ((source) * 4))
+#define PIC_MEIGWCLR(source)  PIC_REG(0x5000 + ((source) * 4))
+
+static inline void pic_fence(void)
+{
+	asm volatile ("fence" ::: "memory");
+}
 
 static inline unsigned int irq_getie(void)
 {
@@ -38,7 +36,10 @@ static inline unsigned int irq_getie(void)
 
 static inline void irq_setie(unsigned int ie)
 {
-	if(ie) csrs(mstatus,CSR_MSTATUS_MIE); else csrc(mstatus,CSR_MSTATUS_MIE);
+	if (ie)
+		csrs(mstatus, CSR_MSTATUS_MIE);
+	else
+		csrc(mstatus, CSR_MSTATUS_MIE);
 }
 
 static inline unsigned int irq_getmask(void)
@@ -57,19 +58,21 @@ static inline void irq_setmask(unsigned int mask)
 {
 	unsigned int irq;
 
-	for (irq = 0; irq < CONFIG_CPU_INTERRUPTS; irq++)
+	for (irq = 0; irq < CONFIG_CPU_INTERRUPTS; irq++) {
 		PIC_MEIE(irq + 1) = (mask >> irq) & 1;
+		pic_fence();
+	}
 
-	// Individual sources are gated above; this is the aggregate
-	// machine-external-interrupt enable the PIC's output feeds into.
-	if (mask) csrs(mie, 1 << 11); else csrc(mie, 1 << 11);
+	if (mask)
+		csrs(mie, 1 << 11);
+	else
+		csrc(mie, 1 << 11);
 }
 
 static inline unsigned int irq_pending(void)
 {
-	// meipX(0) covers PIC source IDs 1..31; fine while
-	// CONFIG_CPU_INTERRUPTS stays under 31.
-	return PIC_MEIP(0) >> 1;
+	/* Source 32 is bit 0 of the second pending word. */
+	return (PIC_MEIP(0) >> 1) | (PIC_MEIP(1) << 31);
 }
 
 #ifdef __cplusplus

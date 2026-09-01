@@ -177,49 +177,53 @@ void isr(void)
     }
 }
 
-/***********************************************/
-/* ISR and PIC Initialization for VeeR EH1.     */
-/***********************************************/
+/*********************************************/
+/* ISR and PIC Initialization for VeeR EH1. */
+/*********************************************/
 #elif defined(__veer_eh1__)
 
 void veer_pic_init(void)
 {
     unsigned int src;
 
-    PIC_MPICCFG = 0;                                    /* standard priority order */
-    asm volatile ("csrw 0xBC9, %0" :: "r"(0));           /* meipt: nothing masked */
-    asm volatile ("csrw 0xBCB, %0" :: "r"(0));           /* meicidpl: nesting threshold */
-    asm volatile ("csrw 0xBCC, %0" :: "r"(0));           /* meicurpl: nesting threshold */
+    PIC_MPICCFG = 0;     /* Standard priority order. */
+    pic_fence();
+    csrw(0xBC9, 0);      /* meipt: Nothing masked. */
+    csrw(0xBCB, 0);      /* meicidpl: Nesting threshold. */
+    csrw(0xBCC, 0);      /* meicurpl: Nesting threshold. */
 
     for (src = 1; src <= CONFIG_CPU_INTERRUPTS; src++) {
-        PIC_MEIGWCTRL(src) = 0;   /* level-triggered, active-high */
+        PIC_MEIGWCTRL(src) = 0;   /* Level-triggered, active-high. */
+        pic_fence();
         PIC_MEIGWCLR(src)  = 0;
-        PIC_MEIPL(src)     = 1;   /* any nonzero priority; 0 = never */
-        PIC_MEIE(src)      = 0;   /* irq_setmask() enables per-source */
+        pic_fence();
+        PIC_MEIPL(src)     = 1;   /* Any nonzero priority; 0 = never. */
+        pic_fence();
+        PIC_MEIE(src)      = 0;   /* irq_setmask() enables each source. */
+        pic_fence();
     }
 }
 
-/* Interrupt Service Routine. Uses the PIC's own claim mechanism
- * (meicpct/meihap), the VeeR equivalent of PLIC_CLAIM above, instead
- * of a bitmask scan. */
+/* Interrupt Service Routine. */
 void isr(void)
 {
     unsigned int claimid, irq;
 
     for (;;) {
-        asm volatile ("csrw 0xBCA, x0");                  /* meicpct: trigger capture */
-        asm volatile ("csrr %0, 0xFC8" : "=r"(claimid));  /* meihap */
-        claimid = (claimid >> 2) & 0xFF;                  /* claimid field, bits [9:2] */
+        csrw(0xBCA, 0);                                  /* meicpct: Trigger capture. */
+        asm volatile ("csrr %0, 0xFC8" : "=r"(claimid)); /* meihap. */
+        claimid = (claimid >> 2) & 0xFF;                  /* claimid is in bits 9:2. */
 
         if (claimid == 0)
-            break; /* nothing pending */
+            break;
 
-        irq = claimid - 1; /* PIC source ID -> LiteX irq number */
+        irq = claimid - 1;
 
         if (irq < CONFIG_CPU_INTERRUPTS && irq_table[irq].isr) {
             irq_table[irq].isr();
         } else {
             PIC_MEIE(claimid) = 0;
+            pic_fence();
             printf("\n*** disabled spurious irq %d ***\n", irq);
         }
     }

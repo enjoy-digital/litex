@@ -1,25 +1,26 @@
 #ifndef __SYSTEM_H
 #define __SYSTEM_H
 
+#include <csr-defs.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 __attribute__((unused)) static void flush_cpu_icache(void)
 {
-    asm volatile ("fence.i" ::: "memory");
+	asm volatile ("fence.i" ::: "memory");
 }
+
 __attribute__((unused)) static void flush_cpu_dcache(void)
 {
-    /* VeeR EH1 has no data cache -- only DCCM (a tightly-coupled RAM,
-     * not a cache) and an optional I-cache. Nothing to flush here. */
+	/* VeeR EH1 has no data cache. */
 }
+
 void flush_l2_cache(void);
 
 void busy_wait(unsigned int ms);
 void busy_wait_us(unsigned int us);
-
-#include <csr-defs.h>
 
 #define csrr(reg) ({ unsigned long __tmp; \
   asm volatile ("csrr %0, " #reg : "=r"(__tmp)); \

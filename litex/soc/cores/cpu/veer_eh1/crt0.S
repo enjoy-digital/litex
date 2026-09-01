@@ -3,9 +3,9 @@
 .global _start
 
 _start:
-  li  x3, 4 + (1<<13)     // unblock DMA be stalled by fences mfdc[13]!!!
-  csrw    0x7f9, x3        // disable store merging mfdc[2]
-  
+  li t0, 4 + (1<<13)  // Disable store merging and prevent fences from stalling DMA.
+  csrw 0x7f9, t0      // mfdc[2] and mfdc[13].
+
   j crt_init
   nop
   nop
@@ -84,8 +84,7 @@ bss_loop:
   j bss_loop
 bss_done:
 
-  # li a0, 0x880  //880 enable timer + external interrupt sources (until mstatus.MIE is set, they will never trigger an interrupt)
-  li a0, 0x800  //880 enable timer (until mstatus.MIE is set, they will never trigger an interrupt)
+  li a0, 0x800  // Enable external interrupts; mstatus.MIE remains authoritative.
   csrw mie,a0
 
   call litex_startup_init
@@ -93,7 +92,5 @@ bss_done:
 infinit_loop:
   j infinit_loop
 
-# ================================================================
-# ICCM safe memcpy
-# ================================================================
+# ICCM-safe memcpy.
 .include "memcpy_iccm.S"

@@ -1,21 +1,89 @@
+#
 # This file is part of LiteX.
+#
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
 import subprocess
 
 from migen import *
-from litex.gen import *
+
 from litex import get_data_mod
-from litex.soc.interconnect import axi
+
+from litex.gen import *
+
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
-from litex.soc.integration.soc import SoCRegion
+from litex.soc.integration.soc import SoCRegion, auto_int
+from litex.soc.interconnect import axi
 
 # Variants -----------------------------------------------------------------------------------------
 
 CPU_VARIANTS = ["standard"]
 
-# VeeREH1 ---------------------------------------------------------------------------------------------
+# GCC Flags ----------------------------------------------------------------------------------------
+
+GCC_FLAGS = {
+    #                       /------------ Base ISA
+    #                       |    /------- Hardware Multiply + Divide
+    #                       |    |/----- Atomics
+    #                       |    ||/---- Compressed ISA
+    #                       |    |||/--- Single-Precision Floating-Point
+    #                       |    ||||/-- Double-Precision Floating-Point
+    #                       i    macfd
+    "standard": "-march=rv32i2p0_mc   -mabi=ilp32",
+}
+
+# RTL Sources --------------------------------------------------------------------------------------
+
+CPU_SOURCES = [
+    "design/lib/beh_lib.sv",
+    "design/mem.sv",
+    "design/pic_ctrl.sv",
+    "design/dma_ctrl.sv",
+    "design/ifu/ifu_aln_ctl.sv",
+    "design/ifu/ifu_compress_ctl.sv",
+    "design/ifu/ifu_ifc_ctl.sv",
+    "design/ifu/ifu_bp_ctl.sv",
+    "design/ifu/ifu_ic_mem.sv",
+    "design/ifu/ifu_mem_ctl.sv",
+    "design/ifu/ifu_iccm_mem.sv",
+    "design/ifu/ifu.sv",
+    "design/dec/dec_decode_ctl.sv",
+    "design/dec/dec_gpr_ctl.sv",
+    "design/dec/dec_ib_ctl.sv",
+    "design/dec/dec_tlu_ctl.sv",
+    "design/dec/dec_trigger.sv",
+    "design/dec/dec.sv",
+    "design/exu/exu_alu_ctl.sv",
+    "design/exu/exu_mul_ctl.sv",
+    "design/exu/exu_div_ctl.sv",
+    "design/exu/exu.sv",
+    "design/lsu/lsu.sv",
+    "design/lsu/lsu_bus_buffer.sv",
+    "design/lsu/lsu_clkdomain.sv",
+    "design/lsu/lsu_addrcheck.sv",
+    "design/lsu/lsu_lsc_ctl.sv",
+    "design/lsu/lsu_stbuf.sv",
+    "design/lsu/lsu_bus_intf.sv",
+    "design/lsu/lsu_ecc.sv",
+    "design/lsu/lsu_dccm_mem.sv",
+    "design/lsu/lsu_dccm_ctl.sv",
+    "design/lsu/lsu_trigger.sv",
+    "design/dbg/dbg.sv",
+    "design/lib/mem_lib.sv",
+    "design/lib/ahb_to_axi4.sv",
+    "design/lib/axi4_to_ahb.sv",
+    "design/veer.sv",
+]
+
+JTAG_SOURCES = [
+    "design/dmi/dmi_wrapper.v",
+    "design/dmi/dmi_jtag_to_core_sync.v",
+    "design/dmi/rvjtag_tap.sv",
+    "design/veer_wrapper.sv",
+]
+
+# VeeREH1 -----------------------------------------------------------------------------------------
 
 class VeeREH1(CPU):
     category             = "softcore"
@@ -28,191 +96,135 @@ class VeeREH1(CPU):
     gcc_triple           = CPU_GCC_TRIPLE_RISCV32
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
-    io_regions           = {
-        0x8000_0000: 0x8000_0000,   # existing: CSR/PIC space
-    } # Origin, Length.
+    io_regions           = {0x8000_0000: 0x8000_0000} # Origin, Length.
 
-    dmi_enable           = 0          # Default=0             # Options: 0=JTAG pins, 1=DMI register port
+    # Default parameters.
+    dmi_enable        = 0 # 0: JTAG pins, 1: DMI register port.
+    iccm_enable       = 1
+    dccm_enable       = 1
+    icache_enable     = 1
+    ret_stack_size    = 4
+    btb_size          = 32
+    bht_size          = 128
+    dccm_size         = 128 # KiB.
+    dccm_num_banks    = 4
+    iccm_size         = 128 # KiB.
+    iccm_num_banks    = 4
+    icache_size       = 64  # KiB.
+    icache_ecc        = 0
+    pic_2cycle        = 1
+    pic_region        = 0xF
+    pic_offset        = 0xC_0000
+    pic_size          = 32 # KiB.
+    pic_total_int     = 8
+    fpga_optimize     = 1
+    lsu_stbuf_depth   = 8
+    dma_buf_depth     = 4
+    lsu_num_nbload    = 8
+    dec_instbuf_depth = 4
 
-    # Enable/disable ------------------------------------------------------------------------------
-    iccm_enable          = 1          # Default=0             # Options: 0, 1
-    dccm_enable          = 1          # Default=1             # Options: 0, 1
-    icache_enable        = 1          # Default=1             # Options: 0, 1
-    reset_vec            = 0x10000000 # Default=0x80000000 (veer.config default; LiteX targets often use 0x10000000)
-
-    # Core parameters -------------------------------------------------------------------------------
-    ret_stack_size       = 4          # Default=4    # Minimum: 2    # Options: 2-8
-    btb_size             = 32         # Default=32   # Minimum: 32   # Options: 32,48,64,128,256,512
-    bht_size             = 128        # Default=128  # Minimum: 32   # Options: 32,64,128,256,512,1024,2048
-
-    # DCCM (Data Closely Coupled Memory) -------------------------------------------------------------
-    dccm_size            = 128          # Default=64   # Minimum: 4 KB   # Options: 4,8,16,32,48,64,128,256,512
-    dccm_num_banks       = 4          # Default=8    # Minimum: 4      # Options: 4,8,16 (16 only if size!=4)
-
-    # ICCM (Instruction Closely Coupled Memory) ------------------------------------------------------
-    iccm_size            = 128         # Default=512  # Minimum: 4 KB   # Options: 4,8,16,32,64,128,256,512
-    iccm_num_banks       = 4          # Default=8    # Minimum: 4      # Options: 4,8,16 (16 only if size!=4)
-
-    # ICache ------------------------------------------------------------------------------------------
-    icache_size          = 64         # Default=16   # Minimum: 16 KB  # Options: 16,32,64,128,256
-    icache_ecc           = 0          # Default=0 (parity)  # Options: 0=parity, 1=ECC (ECC = ~30% bigger)
-
-    # PIC (Platform Interrupt Controller) ---------------------------------------------------------------
-    # PIC Base Address = (pic_region << 28) + pic_offset = (0xf << 28) + 0xc0000 = 0xf00c0000 
-    # Any software reading or writing to the PIC to manage interrupts will target memory addresses starting at 0xF00C_0000 up to the limit defined by your pic_size
-    pic_2cycle           = 1          # Default=0    # Options: 0, 1 (2-cycle PIC may lower cycle time)
-    pic_region           = "0xf"      # Default="0xf"
-    pic_offset           = "0xc0000"  # Default="0xc0000"
-    pic_size             = 32         # Default=32   # Minimum: 32 KB  # Options: 32,64,128,256
-    pic_total_int        = 8          # Default=8    # Minimum: 1      # Options: 1-255
-
-    # FPGA optimization -----------------------------------------------------------------------------
-    fpga_optimize        = 1          # Default=1 (removes clock gating; keep 1 for FPGA builds)
-
-    # Buffer sizes ----------------------------------------------------------------------------------
-    lsu_stbuf_depth      = 8          # Default=8    # Minimum: 2   # Options: 2,4,8
-    dma_buf_depth        = 4          # Default=4    # Minimum: 2   # Options: 2,4
-    lsu_num_nbload       = 8          # Default=8    # Minimum: 2   # Options: 2,4,8
-    dec_instbuf_depth    = 4          # Default=4    # Minimum: 2   # Options: 2,4
-
-    # Command line configuration arguments
+    # Command line configuration arguments.
     @staticmethod
     def args_fill(parser):
-        cpu_group = parser.add_argument_group(title="VeeR EH1 CPU options")
-        cpu_group.add_argument("--veer-dmi-enable",     default=VeeREH1.dmi_enable,     help=f"Expose DMI register port (1) instead of JTAG pins (0). Default={VeeREH1.dmi_enable}", type=int)
-        # Enable/disable options
-        cpu_group.add_argument("--veer-iccm-enable",    default=VeeREH1.iccm_enable,    help=f"Enable ICCM (Instruction Tightly Coupled Memory). Default={VeeREH1.iccm_enable}", type=int)
-        cpu_group.add_argument("--veer-dccm-enable",    default=VeeREH1.dccm_enable,    help=f"Enable DCCM (Data Tightly Coupled Memory). Default={VeeREH1.dccm_enable}", type=int)
-        cpu_group.add_argument("--veer-icache-enable",  default=VeeREH1.icache_enable,  help=f"Enable ICache (Instruction Cache). Default={VeeREH1.icache_enable}", type=int)
-        cpu_group.add_argument("--veer-reset-vec",      default=hex(VeeREH1.reset_vec), help=f"Reset vector address. Default={hex(VeeREH1.reset_vec)}")
-
-        # Core parameters
-        cpu_group.add_argument("--veer-ret-stack-size", default=VeeREH1.ret_stack_size, help=f"Return stack size (2-8). Default={VeeREH1.ret_stack_size}, Min=2", type=int)
-        cpu_group.add_argument("--veer-btb-size",       default=VeeREH1.btb_size,       help=f"BTB size (32,48,64,128,256,512). Default={VeeREH1.btb_size}, Min=32", type=int)
-        cpu_group.add_argument("--veer-bht-size",       default=VeeREH1.bht_size,       help=f"BHT size (32,64,128,256,512,1024,2048). Default={VeeREH1.bht_size}, Min=32", type=int)
-
-        # DCCM parameters
-        cpu_group.add_argument("--veer-dccm-size",      default=VeeREH1.dccm_size,      help=f"DCCM size in KB (4,8,16,32,48,64,128,256,512). Default={VeeREH1.dccm_size}, Min=4", type=int)
-        cpu_group.add_argument("--veer-dccm-num-banks", default=VeeREH1.dccm_num_banks, help=f"Number of DCCM banks (4,8,16). Default={VeeREH1.dccm_num_banks}, Min=4", type=int)
-
-        # ICCM parameters
-        cpu_group.add_argument("--veer-iccm-size",      default=VeeREH1.iccm_size,      help=f"ICCM size in KB (4,8,16,32,64,128,256,512). Default={VeeREH1.iccm_size}, Min=4", type=int)
-        cpu_group.add_argument("--veer-iccm-num-banks", default=VeeREH1.iccm_num_banks, help=f"Number of ICCM banks (4,8,16). Default={VeeREH1.iccm_num_banks}, Min=4", type=int)
-
-        # ICache parameters
-        cpu_group.add_argument("--veer-icache-size",    default=VeeREH1.icache_size, help=f"ICache size in KB (16,32,64,128,256). Default={VeeREH1.icache_size}, Min=16", type=int)
-        cpu_group.add_argument("--veer-icache-ecc",     default=VeeREH1.icache_ecc,  help=f"Enable ICache ECC (0=parity, 1=ECC). Default={VeeREH1.icache_ecc}", type=int)
-
-        # PIC parameters
-        cpu_group.add_argument("--veer-pic-2cycle",     default=VeeREH1.pic_2cycle,    help=f"Enable 2-cycle PIC. Default={VeeREH1.pic_2cycle}", type=int)
-        cpu_group.add_argument("--veer-pic-region",     default=VeeREH1.pic_region,    help=f"PIC 256MB region number (0x0-0xf). Default={VeeREH1.pic_region}")
-        cpu_group.add_argument("--veer-pic-offset",     default=VeeREH1.pic_offset,    help=f"PIC offset within region. Default={VeeREH1.pic_offset}")
-        cpu_group.add_argument("--veer-pic-size",       default=VeeREH1.pic_size,      help=f"PIC size in KB (32,64,128,256). Default={VeeREH1.pic_size}, Min=32", type=int)
-        cpu_group.add_argument("--veer-pic-total-int",  default=VeeREH1.pic_total_int, help=f"Number of PIC interrupts (1-255). Default={VeeREH1.pic_total_int}, Min=1", type=int)
-
-        # FPGA optimization
-        cpu_group.add_argument("--veer-fpga-optimize",  default=VeeREH1.fpga_optimize, help=f"Enable FPGA optimization (remove clock gating). Default={VeeREH1.fpga_optimize}", type=int)
-
-        # Buffer sizes
-        cpu_group.add_argument("--veer-lsu-stbuf-depth",   default=VeeREH1.lsu_stbuf_depth,   help=f"LSU store buffer depth (2,4,8). Default={VeeREH1.lsu_stbuf_depth}, Min=2", type=int)
-        cpu_group.add_argument("--veer-dma-buf-depth",     default=VeeREH1.dma_buf_depth,     help=f"DMA buffer depth (2,4). Default={VeeREH1.dma_buf_depth}, Min=2", type=int)
-        cpu_group.add_argument("--veer-lsu-num-nbload",    default=VeeREH1.lsu_num_nbload,    help=f"LSU non-blocking load count (2,4,8). Default={VeeREH1.lsu_num_nbload}, Min=2", type=int)
-        cpu_group.add_argument("--veer-dec-instbuf-depth", default=VeeREH1.dec_instbuf_depth, help=f"Decode instruction buffer depth (2,4). Default={VeeREH1.dec_instbuf_depth}, Min=2", type=int)
+        cpu_group = parser.add_argument_group(title="CPU options")
+        cpu_group.add_argument("--veer-dmi-enable",       default=VeeREH1.dmi_enable,       type=int, choices=[0, 1], help="Expose the DMI register port instead of JTAG pins.")
+        cpu_group.add_argument("--veer-iccm-enable",      default=VeeREH1.iccm_enable,      type=int, choices=[0, 1], help="Enable the Instruction Closely Coupled Memory.")
+        cpu_group.add_argument("--veer-dccm-enable",      default=VeeREH1.dccm_enable,      type=int, choices=[0, 1], help="Enable the Data Closely Coupled Memory.")
+        cpu_group.add_argument("--veer-icache-enable",    default=VeeREH1.icache_enable,    type=int, choices=[0, 1], help="Enable the instruction cache.")
+        cpu_group.add_argument("--veer-ret-stack-size",   default=VeeREH1.ret_stack_size,   type=int, choices=range(2, 9), help="Return stack size.")
+        cpu_group.add_argument("--veer-btb-size",         default=VeeREH1.btb_size,         type=int, choices=[32, 48, 64, 128, 256, 512], help="Branch target buffer size.")
+        cpu_group.add_argument("--veer-bht-size",         default=VeeREH1.bht_size,         type=int, choices=[32, 64, 128, 256, 512, 1024, 2048], help="Branch history table size.")
+        cpu_group.add_argument("--veer-dccm-size",        default=VeeREH1.dccm_size,        type=int, choices=[4, 8, 16, 32, 48, 64, 128, 256, 512], help="DCCM size in KiB.")
+        cpu_group.add_argument("--veer-dccm-num-banks",   default=VeeREH1.dccm_num_banks,   type=int, choices=[4, 8, 16], help="Number of DCCM banks.")
+        cpu_group.add_argument("--veer-iccm-size",        default=VeeREH1.iccm_size,        type=int, choices=[4, 8, 16, 32, 64, 128, 256, 512], help="ICCM size in KiB.")
+        cpu_group.add_argument("--veer-iccm-num-banks",   default=VeeREH1.iccm_num_banks,   type=int, choices=[4, 8, 16], help="Number of ICCM banks.")
+        cpu_group.add_argument("--veer-icache-size",      default=VeeREH1.icache_size,      type=int, choices=[16, 32, 64, 128, 256], help="Instruction cache size in KiB.")
+        cpu_group.add_argument("--veer-icache-ecc",       default=VeeREH1.icache_ecc,       type=int, choices=[0, 1], help="Use ECC instead of parity in the instruction cache.")
+        cpu_group.add_argument("--veer-pic-2cycle",       default=VeeREH1.pic_2cycle,       type=int, choices=[0, 1], help="Enable the two-cycle PIC implementation.")
+        cpu_group.add_argument("--veer-pic-region",       default=VeeREH1.pic_region,       type=auto_int, choices=range(16), help="PIC 256MiB region number.")
+        cpu_group.add_argument("--veer-pic-offset",       default=VeeREH1.pic_offset,       type=auto_int, help="PIC offset within its 256MiB region.")
+        cpu_group.add_argument("--veer-pic-size",         default=VeeREH1.pic_size,         type=int, choices=[32, 64, 128, 256], help="PIC size in KiB.")
+        cpu_group.add_argument("--veer-pic-total-int",    default=VeeREH1.pic_total_int,    type=int, help="Number of PIC interrupt sources (1-32).")
+        cpu_group.add_argument("--veer-fpga-optimize",    default=VeeREH1.fpga_optimize,    type=int, choices=[0, 1], help="Remove clock gating for FPGA implementation.")
+        cpu_group.add_argument("--veer-lsu-stbuf-depth",  default=VeeREH1.lsu_stbuf_depth,  type=int, choices=[2, 4, 8], help="LSU store buffer depth.")
+        cpu_group.add_argument("--veer-dma-buf-depth",    default=VeeREH1.dma_buf_depth,    type=int, choices=[2, 4], help="DMA buffer depth.")
+        cpu_group.add_argument("--veer-lsu-num-nbload",   default=VeeREH1.lsu_num_nbload,   type=int, choices=[2, 4, 8], help="Number of LSU non-blocking loads.")
+        cpu_group.add_argument("--veer-dec-instbuf-depth", default=VeeREH1.dec_instbuf_depth, type=int, choices=[2, 4], help="Decode instruction buffer depth.")
 
     @staticmethod
     def args_read(args):
         VeeREH1.dmi_enable        = args.veer_dmi_enable
-        # Enable/disable
         VeeREH1.iccm_enable       = args.veer_iccm_enable
         VeeREH1.dccm_enable       = args.veer_dccm_enable
         VeeREH1.icache_enable     = args.veer_icache_enable
-        VeeREH1.reset_vec         = int(args.veer_reset_vec, 16)
-
-        # Core
         VeeREH1.ret_stack_size    = args.veer_ret_stack_size
         VeeREH1.btb_size          = args.veer_btb_size
         VeeREH1.bht_size          = args.veer_bht_size
-
-        # DCCM
         VeeREH1.dccm_size         = args.veer_dccm_size
         VeeREH1.dccm_num_banks    = args.veer_dccm_num_banks
-
-        # ICCM
         VeeREH1.iccm_size         = args.veer_iccm_size
         VeeREH1.iccm_num_banks    = args.veer_iccm_num_banks
-
-        # ICache
         VeeREH1.icache_size       = args.veer_icache_size
         VeeREH1.icache_ecc        = args.veer_icache_ecc
-
-        # PIC
         VeeREH1.pic_2cycle        = args.veer_pic_2cycle
         VeeREH1.pic_region        = args.veer_pic_region
         VeeREH1.pic_offset        = args.veer_pic_offset
         VeeREH1.pic_size          = args.veer_pic_size
         VeeREH1.pic_total_int     = args.veer_pic_total_int
-
-        # FPGA
         VeeREH1.fpga_optimize     = args.veer_fpga_optimize
-
-        # Buffers
         VeeREH1.lsu_stbuf_depth   = args.veer_lsu_stbuf_depth
         VeeREH1.dma_buf_depth     = args.veer_dma_buf_depth
         VeeREH1.lsu_num_nbload    = args.veer_lsu_num_nbload
         VeeREH1.dec_instbuf_depth = args.veer_dec_instbuf_depth
 
+        if not (1 <= VeeREH1.pic_total_int <= 32):
+            raise ValueError("VeeR EH1 supports 1-32 LiteX interrupt sources.")
+
     # GCC Flags.
     @property
     def gcc_flags(self):
-        flags = "-march=rv32imc -mabi=ilp32"
-        flags += " -D__veer_eh1__ "
+        flags = GCC_FLAGS[self.variant]
+        flags += " -D__veer_eh1__"
         return flags
 
     # Memory Mapping.
     @property
     def mem_map(self):
-        # PIC base = (pic_region << 28) | pic_offset
-        pic_base = (int(VeeREH1.pic_region, 16) << 28) | int(VeeREH1.pic_offset, 16)
-        
-        # Start with required regions
+        pic_base = (VeeREH1.pic_region << 28) | VeeREH1.pic_offset
         mem_map = {
             "rom"  : 0x1000_0000,
             "sram" : 0x2000_0000,
             "csr"  : 0x8000_0000,
             "pic"  : pic_base,
-        }    
-        # Add optional regions only if enabled
+        }
         if VeeREH1.iccm_enable:
-            mem_map["iccm"] = 0xee000000
+            mem_map["iccm"] = 0xEE00_0000
         if VeeREH1.dccm_enable:
-            mem_map["dccm"] = 0xf0040000
+            mem_map["dccm"] = 0xF004_0000
         return mem_map
 
     def __init__(self, platform, variant="standard"):
+        if not (1 <= VeeREH1.pic_total_int <= 32):
+            raise ValueError("VeeR EH1 supports 1-32 LiteX interrupt sources.")
+
         self.platform     = platform
         self.variant      = variant
-        self.dmi_enable   = VeeREH1.dmi_enable
+        self.dmi_enable   = bool(VeeREH1.dmi_enable)
         self.reset        = Signal()
+        self.interrupt    = Signal(VeeREH1.pic_total_int)
 
-        n_ext_int = VeeREH1.pic_total_int   # RV_PIC_TOTAL_INT = Default 8
-        self.interrupt      = Signal(n_ext_int)  
-
-        # Create individual interrupt signals
-        self.extintsrc_req = Signal(n_ext_int)  
-
-        # Connect interrupt signals bit by bit 
-        self.comb += self.extintsrc_req.eq(self.interrupt)
-
-        # AXI Interfaces
+        # AXI Interfaces.
         self.ibus    = axi.AXIInterface(data_width=64, address_width=32, id_width=3)  # RV_IFU_BUS_TAG = 3
         self.dbus    = axi.AXIInterface(data_width=64, address_width=32, id_width=4)  # RV_LSU_BUS_TAG = 4
         self.sbus    = axi.AXIInterface(data_width=64, address_width=32, id_width=1)  # RV_SB_BUS_TAG = 1
         self.dma_axi = axi.AXIInterface(data_width=64, address_width=32, id_width=1)  # RV_DMA_BUS_TAG = 1
 
-        self.periph_buses = [self.ibus, self.dbus, self.sbus]
-        self.memory_buses = []
+        self.periph_buses = [self.ibus, self.dbus, self.sbus] # Peripheral buses (Connected to main SoC's bus).
+        self.memory_buses = []                               # Memory buses (Connected directly to LiteDRAM).
 
-        # CPU Instance parameters
+        # # #
+
+        # CPU Instance.
         self.cpu_params = dict(
             # Clk / Rst.
             i_clk               = ClockSignal("sys"),
@@ -220,12 +232,12 @@ class VeeREH1(CPU):
             i_dbg_rst_l         = ~ResetSignal("sys"),
 
             # Reset/NMI Vectors
-            i_nmi_vec           = 0x11110000 >> 1,
+            i_nmi_vec           = Constant(0x11110000 >> 1, 31),
 
             # Interrupts
             i_nmi_int           = 0,
             i_timer_int         = 0,
-            i_extintsrc_req     = self.extintsrc_req,
+            i_extintsrc_req     = self.interrupt,
 
             # Bus clock enables
             i_lsu_bus_clk_en    = 1,
@@ -245,7 +257,7 @@ class VeeREH1(CPU):
             o_ifu_axi_awcache   = self.ibus.aw.cache,
             o_ifu_axi_awprot    = self.ibus.aw.prot,
             o_ifu_axi_awqos     = self.ibus.aw.qos,
-            o_ifu_axi_awregion  = Open(),
+            o_ifu_axi_awregion  = Open(4),
 
             o_ifu_axi_wvalid    = self.ibus.w.valid,
             i_ifu_axi_wready    = self.ibus.w.ready,
@@ -269,7 +281,7 @@ class VeeREH1(CPU):
             o_ifu_axi_arcache   = self.ibus.ar.cache,
             o_ifu_axi_arprot    = self.ibus.ar.prot,
             o_ifu_axi_arqos     = self.ibus.ar.qos,
-            o_ifu_axi_arregion  = Open(),
+            o_ifu_axi_arregion  = Open(4),
 
             i_ifu_axi_rvalid    = self.ibus.r.valid,
             o_ifu_axi_rready    = self.ibus.r.ready,
@@ -335,7 +347,7 @@ class VeeREH1(CPU):
             o_sb_axi_awcache   = self.sbus.aw.cache,
             o_sb_axi_awprot    = self.sbus.aw.prot,
             o_sb_axi_awqos     = self.sbus.aw.qos,
-            o_sb_axi_awregion  = Open(),
+            o_sb_axi_awregion  = Open(4),
 
             o_sb_axi_wvalid    = self.sbus.w.valid,
             i_sb_axi_wready    = self.sbus.w.ready,
@@ -359,7 +371,7 @@ class VeeREH1(CPU):
             o_sb_axi_arcache   = self.sbus.ar.cache,
             o_sb_axi_arprot    = self.sbus.ar.prot,
             o_sb_axi_arqos     = self.sbus.ar.qos,
-            o_sb_axi_arregion  = Open(),
+            o_sb_axi_arregion  = Open(4),
 
             i_sb_axi_rvalid    = self.sbus.r.valid,
             o_sb_axi_rready    = self.sbus.r.ready,
@@ -423,19 +435,19 @@ class VeeREH1(CPU):
             i_scan_mode         = 0,
             i_mbist_mode        = 0,
 
-            o_dec_tlu_perfcnt0  = Open(),
-            o_dec_tlu_perfcnt1  = Open(),
-            o_dec_tlu_perfcnt2  = Open(),
-            o_dec_tlu_perfcnt3  = Open(),
+            o_dec_tlu_perfcnt0  = Open(2),
+            o_dec_tlu_perfcnt1  = Open(2),
+            o_dec_tlu_perfcnt2  = Open(2),
+            o_dec_tlu_perfcnt3  = Open(2),
 
             # Trace ports (unused)
-            o_trace_rv_i_insn_ip      = Open(),
-            o_trace_rv_i_address_ip   = Open(),
-            o_trace_rv_i_valid_ip     = Open(),
-            o_trace_rv_i_exception_ip = Open(),
-            o_trace_rv_i_ecause_ip    = Open(),
-            o_trace_rv_i_interrupt_ip = Open(),
-            o_trace_rv_i_tval_ip      = Open(),
+            o_trace_rv_i_insn_ip      = Open(64),
+            o_trace_rv_i_address_ip   = Open(64),
+            o_trace_rv_i_valid_ip     = Open(3),
+            o_trace_rv_i_exception_ip = Open(3),
+            o_trace_rv_i_ecause_ip    = Open(5),
+            o_trace_rv_i_interrupt_ip = Open(3),
+            o_trace_rv_i_tval_ip      = Open(32),
         )
 
         if self.dmi_enable:
@@ -454,198 +466,181 @@ class VeeREH1(CPU):
                 i_dmi_hard_reset = self.dmi_hard_reset,
             )
         else:
-            self.jtag_tck  = Signal()
-            self.jtag_tms  = Signal()
-            self.jtag_trst = Signal()
-            self.jtag_tdi  = Signal()
-            self.jtag_tdo  = Signal()
+            self.jtag_tck    = Signal()
+            self.jtag_tms    = Signal()
+            self.jtag_trst_n = Signal()
+            self.jtag_tdi    = Signal()
+            self.jtag_tdo    = Signal()
             self.cpu_params.update(
                 i_jtag_tck    = self.jtag_tck,
                 i_jtag_tms    = self.jtag_tms,
-                i_jtag_trst_n = self.jtag_trst,
+                i_jtag_trst_n = self.jtag_trst_n,
                 i_jtag_tdi    = self.jtag_tdi,
                 o_jtag_tdo    = self.jtag_tdo,
+                i_jtag_id     = Constant(0, 31),
             )
 
     def set_reset_address(self, reset_address):
         self.reset_address = reset_address
-        self.cpu_params.update(i_rst_vec=reset_address >> 1)
+        self.cpu_params.update(i_rst_vec=Constant(reset_address >> 1, 31))
 
     def add_jtag(self, pads):
-        """Add JTAG interface to the CPU."""
+        if self.dmi_enable:
+            raise ValueError("VeeR EH1 JTAG is unavailable when the DMI register port is enabled.")
+
         self.comb += [
             self.jtag_tck.eq(pads.tck),
             self.jtag_tms.eq(pads.tms),
             self.jtag_tdi.eq(pads.tdi),
             pads.tdo.eq(self.jtag_tdo),
         ]
-        if hasattr(pads, 'trst_n'):
-            self.comb += self.jtag_trst.eq(pads.trst_n)
+        if hasattr(pads, "ntrst"):
+            self.comb += self.jtag_trst_n.eq(pads.ntrst)
+        elif hasattr(pads, "trst_n"):
+            self.comb += self.jtag_trst_n.eq(pads.trst_n)
         else:
-            self.comb += self.jtag_trst.eq(1)
+            self.comb += self.jtag_trst_n.eq(1)
 
     def add_soc_components(self, soc):
         soc.bus.add_region("pic", SoCRegion(
-            origin = soc.mem_map.get("pic"),
-            size   = VeeREH1.pic_size * 1024,  # pic_size is in KB, SoCRegion wants bytes
+            origin = self.mem_map["pic"],
+            size   = VeeREH1.pic_size*1024,
             cached = False,
             linker = True,
         ))
         if VeeREH1.iccm_enable:
+            # The LSU reaches ICCM through the SoC fabric and loops back through
+            # the core's DMA AXI slave, since ICCM is not LSU-addressable inside
+            # the core.
             soc.bus.add_slave("iccm", self.dma_axi, region=SoCRegion(
-                origin = soc.mem_map.get("iccm"),
-                size   = VeeREH1.iccm_size * 1024,
+                origin = self.mem_map["iccm"],
+                size   = VeeREH1.iccm_size*1024,
                 cached = False,
                 linker = True,
             ))
         if VeeREH1.dccm_enable:
-            # Add DCCM region  (for linker/memory map)
             soc.bus.add_region("dccm", SoCRegion(
-                origin = soc.mem_map.get("dccm"),
-                size   = VeeREH1.dccm_size * 1024,
+                origin = self.mem_map["dccm"],
+                size   = VeeREH1.dccm_size*1024,
                 cached = False,
                 linker = True,
-            ))     
+            ))
 
-    @staticmethod
-    def _generate_snapshot(build_dir, vdir):
-        """Generate configuration snapshot in the build directory."""
+    def _generate_snapshot(self, build_dir, vdir):
         snapshot_dir = os.path.join(build_dir, "veer_snapshot")
-
-        # Create snapshot directory
         os.makedirs(snapshot_dir, exist_ok=True)
 
-        # Build config command with all parameters
         config_args = [
             "-target=default",
+            "-unset=assert_on",
             f"-set=iccm_enable={VeeREH1.iccm_enable}",
             f"-set=dccm_enable={VeeREH1.dccm_enable}",
-            f"-set=reset_vec={hex(VeeREH1.reset_vec)}",
+            f"-set=reset_vec={self.reset_address:#x}",
             f"-set=icache_enable={VeeREH1.icache_enable}",
-            # Core parameters
             f"-set=ret_stack_size={VeeREH1.ret_stack_size}",
             f"-set=btb_size={VeeREH1.btb_size}",
             f"-set=bht_size={VeeREH1.bht_size}",
-            # DCCM
             f"-set=dccm_size={VeeREH1.dccm_size}",
             f"-set=dccm_num_banks={VeeREH1.dccm_num_banks}",
-            # ICCM
             f"-set=iccm_size={VeeREH1.iccm_size}",
             f"-set=iccm_num_banks={VeeREH1.iccm_num_banks}",
-            # ICache
             f"-set=icache_size={VeeREH1.icache_size}",
             f"-set=icache_ecc={VeeREH1.icache_ecc}",
-            # PIC
             f"-set=pic_2cycle={VeeREH1.pic_2cycle}",
-            f"-set=pic_region={VeeREH1.pic_region}",
-            f"-set=pic_offset={VeeREH1.pic_offset}",
+            f"-set=pic_region={VeeREH1.pic_region:#x}",
+            f"-set=pic_offset={VeeREH1.pic_offset:#x}",
             f"-set=pic_size={VeeREH1.pic_size}",
             f"-set=pic_total_int={VeeREH1.pic_total_int}",
-            # FPGA optimization
             f"-set=fpga_optimize={VeeREH1.fpga_optimize}",
-            # Buffer sizes
             f"-set=lsu_stbuf_depth={VeeREH1.lsu_stbuf_depth}",
             f"-set=dma_buf_depth={VeeREH1.dma_buf_depth}",
             f"-set=lsu_num_nbload={VeeREH1.lsu_num_nbload}",
             f"-set=dec_instbuf_depth={VeeREH1.dec_instbuf_depth}",
         ]
 
-        # Set environment variables
         env = os.environ.copy()
-        env['RV_ROOT'] = vdir
-        env['BUILD_PATH'] = snapshot_dir
+        env["RV_ROOT"]    = vdir
+        env["BUILD_PATH"] = snapshot_dir
 
-        # Run veer.config
         config_script = os.path.join(vdir, "configs/veer.config")
         if not os.path.exists(config_script):
-            raise FileNotFoundError(f"veer.config not found at {config_script}")
-
-        cmd = [config_script] + config_args
+            raise FileNotFoundError(f"VeeR EH1 configuration script not found: {config_script}")
 
         try:
-            subprocess.check_call(cmd, env=env, cwd=vdir)
-            print(f"VeeREH1: Configuration generated at {snapshot_dir}")
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to generate configuration: {e}")
+            subprocess.check_call([config_script] + config_args, env=env, cwd=vdir)
+        except subprocess.CalledProcessError as error:
+            raise OSError("Unable to generate the VeeR EH1 configuration.") from error
 
-        # Patch common_defines.vh to undef disabled features
+        # veer.config currently defines disabled features to 0 instead of
+        # undefining them (Cores-VeeR-EH1 issue #135).
         common_defines = os.path.join(snapshot_dir, "common_defines.vh")
-        if os.path.exists(common_defines):
-            with open(common_defines, 'r') as f:
-                content = f.read()
-            
-            # Replace macro definitions with undefs for disabled features.
-            # These lines can be removed once issue #135 is resolved and the
-            # pythondata-cpu-veer_eh1/system_verilog source is updated accordingly.
-            # https://github.com/chipsalliance/Cores-VeeR-EH1/issues/135
-            # [Bug] veer.config defines disabled features instead of undefining them.
-            if VeeREH1.iccm_enable == 0:
-                content = content.replace('`define RV_ICCM_ENABLE 0', '`undef RV_ICCM_ENABLE')
-            if VeeREH1.dccm_enable == 0:
-                content = content.replace('`define RV_DCCM_ENABLE 0', '`undef RV_DCCM_ENABLE')
-            if VeeREH1.icache_enable == 0:
-                content = content.replace('`define RV_ICACHE_ENABLE 0', '`undef RV_ICACHE_ENABLE')
-            
-            # Add undef ASSERT_ON at the end if not already there
-            if '`undef ASSERT_ON' not in content:
-                content += '\n`undef ASSERT_ON\n'
-            
-            with open(common_defines, 'w') as f:
-                f.write(content)
-            
-            print(f"VeeREH1: Patched {common_defines} to undef disabled features")
+        with open(common_defines, "r") as f:
+            content = f.read()
+
+        features = {
+            "ICCM"   : VeeREH1.iccm_enable,
+            "DCCM"   : VeeREH1.dccm_enable,
+            "ICACHE" : VeeREH1.icache_enable,
+        }
+        for feature, enabled in features.items():
+            if not enabled:
+                content = content.replace(
+                    f"`define RV_{feature}_ENABLE 0",
+                    f"`undef RV_{feature}_ENABLE",
+                )
+
+        with open(common_defines, "w") as f:
+            f.write(content)
 
         return snapshot_dir
 
-    @staticmethod
-    def add_sources(platform, dmi_enable=0):
+    def add_sources(self, platform):
         vdir = get_data_mod("cpu", "veer_eh1").data_location
 
+        # Prepare build directory.
         if getattr(platform, "output_dir", None) is not None:
             build_dir = os.path.join(platform.output_dir, "gateware")
         else:
             build_dir = os.getcwd()
-            print(f"VeeREH1: platform.output_dir is None, using {build_dir}")
-
         os.makedirs(build_dir, exist_ok=True)
 
-        # Generate snapshot in build directory
-        snapshot_dir = VeeREH1._generate_snapshot(build_dir, vdir)
+        # Generate the selected configuration.
+        snapshot_dir = self._generate_snapshot(build_dir, vdir)
 
-        # CRITICAL: Add include paths FIRST so Verilator can find them
+        # Add include paths.
         platform.add_verilog_include_path(os.path.join(vdir, "design"))
-        platform.add_verilog_include_path(os.path.join(vdir, "design/include"))
+        platform.add_verilog_include_path(os.path.join(vdir, "design", "include"))
+        platform.add_verilog_include_path(os.path.join(vdir, "design", "lib"))
         platform.add_verilog_include_path(snapshot_dir)
 
-        # IMPORTANT: common_defines.vh MUST come BEFORE veer_types.sv
+        # The generated defines and type package must precede the RTL.
         platform.add_source(os.path.join(snapshot_dir, "common_defines.vh"))
-
-        # Patch veer_types.sv to include common_defines.vh
-        veer_types_orig = os.path.join(vdir, "design/include/veer_types.sv")
+        veer_types_orig    = os.path.join(vdir, "design", "include", "veer_types.sv")
         veer_types_patched = os.path.join(snapshot_dir, "veer_types_patched.sv")
-        with open(veer_types_orig, 'r') as f:
+        with open(veer_types_orig, "r") as f:
             content = f.read()
-        with open(veer_types_patched, 'w') as f:
+        with open(veer_types_patched, "w") as f:
             f.write('`include "common_defines.vh"\n' + content)
-
-        # Then veer_types.sv (which uses the defines) - use patched version
         platform.add_source(veer_types_patched)
 
-        # Add design files recursively
-        design_dir = os.path.join(vdir, "design")
-        for root, dirs, files in os.walk(design_dir):
-            for file in files:
-                if file.endswith((".sv", ".v")):
-                    file_path = os.path.join(root, file)
-                    platform.add_source(file_path)
+        # Keep the upstream manifest order and avoid adding the unpatched
+        # veer_types.sv package a second time.
+        for source in CPU_SOURCES:
+            platform.add_source(os.path.join(vdir, source))
 
-        if dmi_enable:
-            wrapper_file = os.path.join(os.path.dirname(__file__), "veer_eh1_wrapper", "veer_eh1_dmi_wrapper.sv")
-            platform.add_source(wrapper_file)
+        if self.dmi_enable:
+            platform.add_source(os.path.join(
+                os.path.dirname(__file__),
+                "veer_eh1_wrapper",
+                "veer_eh1_dmi_wrapper.sv",
+            ))
+        else:
+            for source in JTAG_SOURCES:
+                platform.add_source(os.path.join(vdir, source))
 
     def do_finalize(self):
         assert hasattr(self, "reset_address")
-        self.add_sources(self.platform, self.dmi_enable)
+        self.add_sources(self.platform)
         if self.dmi_enable:
             self.specials += Instance("veer_wrapper_dmi", **self.cpu_params)
         else:
