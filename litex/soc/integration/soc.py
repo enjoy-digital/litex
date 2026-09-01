@@ -3483,6 +3483,32 @@ class LiteXSoC(SoC):
         # Connect Video Terminal to Video PHY.
         self.comb += vt.source.connect(phy if isinstance(phy, stream.Endpoint) else phy.sink)
 
+    # Add Video TextGrid ---------------------------------------------------------------------------
+    def add_video_textgrid(self, name="video_textgrid", phy=None, timings="800x600@60Hz", clock_domain="sys"):
+        # Imports.
+        from litex.soc.cores.video import VideoTimingGenerator, VideoTextGrid
+
+        # Video Timing Generator.
+        self.check_if_exists(f"{name}_vtg")
+        vtg = VideoTimingGenerator(default_video_timings=timings if isinstance(timings, str) else timings[1])
+        vtg = ClockDomainsRenamer(clock_domain)(vtg)
+        setattr(self.submodules, f"{name}_vtg", vtg)
+
+        # Video Terminal.
+        timings = timings if isinstance(timings, str) else timings[0]
+        vt = VideoTextGrid(
+            hres = int(timings.split("@")[0].split("x")[0]),
+            vres = int(timings.split("@")[0].split("x")[1]),
+        )
+        vt = ClockDomainsRenamer({ "sys": clock_domain, "csr": "sys" })(vt)
+        setattr(self.submodules, name, vt)
+
+        # Connect Video Timing Generator to Video Terminal.
+        self.comb += vtg.source.connect(vt.vtg_sink)
+
+        # Connect Video Terminal to Video PHY.
+        self.comb += vt.source.connect(phy if isinstance(phy, stream.Endpoint) else phy.sink)
+
     # Add Video Framebuffer ------------------------------------------------------------------------
     def _get_video_framebuffer_region(self, name, size, region_name="main_ram", base=None):
         memory = self.bus.regions.get(region_name, None)
