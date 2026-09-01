@@ -971,6 +971,205 @@ class TestAXI(unittest.TestCase):
         run_simulation(dut, [gen(dut)])
         self.assertEqual(dut.errors, 0)
 
+    def test_axi_down_converter_narrow_interleave_write(self):
+        # A narrow single-beat write must not be accepted while the W StrideConverter is still
+        # converting a previously accepted wide write: the narrow path detaches the converter,
+        # so the wide beat held mid-conversion would be swallowed (silent write-data loss) and
+        # its data delivered under the narrow write's address. The converter must hold the
+        # narrow AW until the wide write fully drained (B received).
+        dw_wide, dw_narrow = 64, 32
+        aw_log, w_log, b_count = [], [], [0]
+        ar2_held = [None]
+
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.axi_wide   = AXIInterface(data_width=dw_wide,   address_width=32, id_width=4)
+                self.axi_narrow = AXIInterface(data_width=dw_narrow, address_width=32, id_width=4)
+                self.converter  = AXIDownConverter(self.axi_wide, self.axi_narrow)
+
+        @passive
+        def monitor(dut):
+            while True:
+                if (yield dut.axi_narrow.aw.valid) and (yield dut.axi_narrow.aw.ready):
+                    aw_log.append((
+                        (yield dut.axi_narrow.aw.addr),
+                        (yield dut.axi_narrow.aw.len),
+                        (yield dut.axi_narrow.aw.size),
+                    ))
+                if (yield dut.axi_narrow.w.valid) and (yield dut.axi_narrow.w.ready):
+                    w_log.append((
+                        (yield dut.axi_narrow.w.data),
+                        (yield dut.axi_narrow.w.strb),
+                        (yield dut.axi_narrow.w.last),
+                    ))
+                if (yield dut.axi_wide.b.valid) and (yield dut.axi_wide.b.ready):
+                    b_count[0] += 1
+                yield
+
+        @passive
+        def b_slave(dut):
+            # Narrow slave B responses: one B after each completed narrow write burst.
+            narrow = dut.axi_narrow
+            yield narrow.b.valid.eq(0)
+            yield narrow.b.resp.eq(RESP_OKAY)
+            while True:
+                w_valid, w_ready, w_last = (yield [narrow.w.valid, narrow.w.ready, narrow.w.last])
+                if w_valid and w_ready and w_last:
+                    yield narrow.b.valid.eq(1)
+                    yield
+                    while (yield narrow.b.ready) == 0:
+                        yield
+                    yield narrow.b.valid.eq(0)
+                    yield
+                else:
+                    yield
+
+        def gen(dut):
+            wide, narrow = dut.axi_wide, dut.axi_narrow
+            # Narrow slave: accept AWs, stall W until released (B responses from b_slave).
+            yield narrow.aw.ready.eq(1)
+            yield narrow.w.ready.eq(0)
+            yield wide.b.ready.eq(1)
+            # Wide write @0x100 (len=0, size=3): AW accepted, W beat presented but stalled
+            # mid-conversion by the narrow slave (0 of its 2 sub-beats emitted).
+            yield from axi_aw_send(wide, 0x100, size=3)
+            yield wide.w.data.eq(0x1111222233334444)
+            yield wide.w.strb.eq(0xff)
+            yield wide.w.last.eq(1)
+            yield wide.w.valid.eq(1)
+            for _ in range(4):
+                yield
+            # Present the narrow write @0x200 (len=0, size=2) while W1 is still held: it must
+            # not be accepted (no B for the wide write yet).
+            yield wide.aw.valid.eq(1)
+            yield wide.aw.addr.eq(0x200)
+            yield wide.aw.len.eq(0)
+            yield wide.aw.size.eq(2)
+            yield wide.aw.burst.eq(BURST_INCR)
+            ar2_held[0] = True
+            for _ in range(10):
+                yield
+                if (yield wide.aw.ready):
+                    ar2_held[0] = False
+                    break
+            # Release the narrow W path: the wide write must now drain completely (both of its
+            # narrow sub-beats, then its B) before the pending narrow write goes through.
+            yield narrow.w.ready.eq(1)
+            for _ in range(20):
+                if (yield wide.w.valid) and (yield wide.w.ready):
+                    break
+                yield
+            yield wide.w.valid.eq(0)  # Well-behaved master: drop valid once the beat is accepted.
+            for _ in range(20):
+                if (yield wide.aw.ready):
+                    break
+                yield
+            yield wide.aw.valid.eq(0)
+            # Data beat of the narrow write (lane 0 of the wide word).
+            yield from axi_w_send(wide, 0xcafebabe, last=True, strb=0xf)
+            for _ in range(20):
+                yield
+
+        dut = DUT()
+        run_simulation(dut, [gen(dut), monitor(dut), b_slave(dut)])
+
+        self.assertTrue(ar2_held[0])
+        self.assertEqual(aw_log, [(0x100, 1, 2), (0x200, 0, 2)])
+        self.assertEqual(w_log, [
+            (0x33334444, 0xf, 0),  # Wide write, sub-beat 0.
+            (0x11112222, 0xf, 1),  # Wide write, sub-beat 1.
+            (0xcafebabe, 0xf, 1),  # Narrow write, selected lane.
+        ])
+        self.assertEqual(b_count[0], 2)
+
+    def test_axi_down_converter_narrow_interleave_read(self):
+        # Mirror of the write test: a narrow single-beat read must not be accepted while the R
+        # StrideConverter is still merging a previously accepted wide read. Accepting it early
+        # would capture the sub-beat completing the wide read as the narrow read's response
+        # (merged word destroyed -> wrong read data) and never deliver the narrow response
+        # (read-channel deadlock).
+        dw_wide, dw_narrow = 64, 32
+        r_log, ar_log = [], []
+        ar2_held = [None]
+        ar2_accepted = [False]
+
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.axi_wide   = AXIInterface(data_width=dw_wide,   address_width=32, id_width=4)
+                self.axi_narrow = AXIInterface(data_width=dw_narrow, address_width=32, id_width=4)
+                self.converter  = AXIDownConverter(self.axi_wide, self.axi_narrow)
+
+        @passive
+        def monitor(dut):
+            ar_count = 0
+            while True:
+                if (yield dut.axi_wide.ar.valid) and (yield dut.axi_wide.ar.ready):
+                    ar_count += 1
+                    ar_log.append(ar_count)
+                    if ar_count == 2:
+                        ar2_accepted[0] = True
+                if (yield dut.axi_wide.r.valid) and (yield dut.axi_wide.r.ready):
+                    r_log.append((
+                        (yield dut.axi_wide.r.data),
+                        (yield dut.axi_wide.r.last),
+                    ))
+                yield
+
+        def send_r(narrow, data, last):
+            # Scripted narrow slave read beat: hold payload until the handshake, then drop valid.
+            yield narrow.r.valid.eq(1)
+            yield narrow.r.data.eq(data)
+            yield narrow.r.last.eq(int(last))
+            yield narrow.r.resp.eq(RESP_OKAY)
+            while (yield narrow.r.ready) == 0:
+                yield
+            yield
+            yield narrow.r.valid.eq(0)
+
+        def gen(dut):
+            wide, narrow = dut.axi_wide, dut.axi_narrow
+            yield narrow.ar.ready.eq(1)
+            yield wide.r.ready.eq(1)
+            # Wide read @0x100 (len=0, size=3) -> narrow burst of 2; slave returns the first
+            # sub-beat then stalls (the converter now holds a partially merged wide word).
+            yield from axi_ar_send(wide, 0x100, size=3)
+            yield from send_r(narrow, 0x11110000, last=False)
+            # Present the narrow read @0x200 (len=0, size=2) while the merge is in flight: it
+            # must not be accepted before the wide read's R beat has been delivered.
+            yield wide.ar.valid.eq(1)
+            yield wide.ar.addr.eq(0x200)
+            yield wide.ar.len.eq(0)
+            yield wide.ar.size.eq(2)
+            yield wide.ar.burst.eq(BURST_INCR)
+            ar2_held[0] = True
+            for _ in range(10):
+                yield
+                if (yield wide.ar.ready):
+                    ar2_held[0] = False
+                    break
+            # Slave completes the wide read.
+            yield from send_r(narrow, 0x22220000, last=True)
+            # The narrow read can now be accepted.
+            for _ in range(30):
+                if ar2_accepted[0]:
+                    break
+                yield
+            yield wide.ar.valid.eq(0)
+            # Slave returns the narrow read's data.
+            yield from send_r(narrow, 0x33330000, last=True)
+            for _ in range(10):
+                yield
+
+        dut = DUT()
+        run_simulation(dut, [gen(dut), monitor(dut)])
+
+        self.assertTrue(ar2_held[0])
+        self.assertEqual(len(ar_log), 2)
+        self.assertEqual(r_log, [
+            (0x2222000011110000, 1),  # Wide read: correctly merged sub-beats.
+            (0x0000000033330000, 1),  # Narrow read: data on the selected lane.
+        ])
+
     def test_axi_down_converter_id_and_last(self):
         # Verify that the wide-side r.id matches what was issued on ar.id, and that r.last
         # is asserted *only* on the final reassembled wide beat of each burst.

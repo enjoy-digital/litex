@@ -543,6 +543,19 @@ class AXIDownConverter(LiteXModule):
         is_aw_slow = ((axi_from.aw.burst == BURST_FIXED) & (axi_from.aw.len != 0)) | \
                      (axi_from.aw.len > max_fast_len)
 
+        # Outstanding-write counter: the narrow single-beat path detaches the W StrideConverter
+        # (its sink is de-validated and the W mux is switched to the lane path), so a narrow AW
+        # may only be accepted once every previously accepted write has fully drained: a B
+        # response is only generated after the converter emitted (and the slave accepted) all of
+        # the write's W beats. Accepting it earlier would swallow the wide beat currently held
+        # mid-conversion: silent write-data loss, one write's data delivered under another
+        # write's address and an extra W beat after a len=0 burst for beat-counting slaves.
+        self.aw_counter = _AXIRequestCounter(
+            request  = axi_from.aw.valid & axi_from.aw.ready,
+            response = axi_from.b.valid  & axi_from.b.ready,
+        )
+        aw_drained = self.aw_counter.empty
+
         aw_fsm = FSM(reset_state="IDLE")
         self.aw_fsm = aw_fsm
 
@@ -550,8 +563,10 @@ class AXIDownConverter(LiteXModule):
             If(narrow_aw_active,
                 axi_from.aw.ready.eq(0),
             ).Elif(is_aw_narrow,
-                aw_narrow_pending.eq(axi_from.aw.valid),
-                axi_to.aw.valid.eq(axi_from.aw.valid),
+                # Hold the narrow AW (and do not present it to the slave) until the W stream of
+                # all previously accepted writes has fully drained through the converter.
+                aw_narrow_pending.eq(axi_from.aw.valid & aw_drained),
+                axi_to.aw.valid.eq(axi_from.aw.valid & aw_drained),
                 axi_to.aw.addr.eq(axi_from.aw.addr),
                 axi_to.aw.len.eq(0),
                 axi_to.aw.size.eq(axi_from.aw.size),
@@ -564,8 +579,8 @@ class AXIDownConverter(LiteXModule):
                 axi_to.aw.region.eq(axi_from.aw.region),
                 axi_to.aw.dest.eq(axi_from.aw.dest),
                 axi_to.aw.user.eq(axi_from.aw.user),
-                axi_from.aw.ready.eq(axi_to.aw.ready),
-                If(axi_from.aw.valid & axi_to.aw.ready,
+                axi_from.aw.ready.eq(aw_drained & axi_to.aw.ready),
+                If(axi_from.aw.valid & axi_from.aw.ready,
                     NextValue(cap_aw_lane, axi_from.aw.addr[narrow_size_log2:wide_size_log2]),
                     NextValue(narrow_aw_active, 1),
                 ),
@@ -778,6 +793,19 @@ class AXIDownConverter(LiteXModule):
         is_ar_slow = ((axi_from.ar.burst == BURST_FIXED) & (axi_from.ar.len != 0)) | \
                      (axi_from.ar.len > max_fast_len)
 
+        # Outstanding-read counter: the narrow single-beat path detaches the R StrideConverter
+        # (its sink is de-validated and the returning sub-beats are captured into narrow_r_*), so
+        # a narrow AR may only be accepted once every previously accepted read has fully drained
+        # (its final wide R beat handed to the master). Accepting it earlier would capture the
+        # sub-beat completing the wide read as the narrow read's response: the merged wide word
+        # is destroyed (wrong read data) and the narrow response is never delivered (permanent
+        # read-channel deadlock).
+        self.ar_counter = _AXIRequestCounter(
+            request  = axi_from.ar.valid & axi_from.ar.ready,
+            response = axi_from.r.valid  & axi_from.r.ready  & axi_from.r.last,
+        )
+        ar_drained = self.ar_counter.empty
+
         ar_fsm = FSM(reset_state="IDLE")
         self.ar_fsm = ar_fsm
 
@@ -785,7 +813,9 @@ class AXIDownConverter(LiteXModule):
             If(narrow_ar_active,
                 axi_from.ar.ready.eq(0),
             ).Elif(is_ar_narrow,
-                axi_to.ar.valid.eq(axi_from.ar.valid),
+                # Hold the narrow AR (and do not present it to the slave) until the R stream of
+                # all previously accepted reads has fully drained through the converter.
+                axi_to.ar.valid.eq(axi_from.ar.valid & ar_drained),
                 axi_to.ar.addr.eq(axi_from.ar.addr),
                 axi_to.ar.len.eq(0),
                 axi_to.ar.size.eq(axi_from.ar.size),
@@ -798,8 +828,8 @@ class AXIDownConverter(LiteXModule):
                 axi_to.ar.region.eq(axi_from.ar.region),
                 axi_to.ar.dest.eq(axi_from.ar.dest),
                 axi_to.ar.user.eq(axi_from.ar.user),
-                axi_from.ar.ready.eq(axi_to.ar.ready),
-                If(axi_from.ar.valid & axi_to.ar.ready,
+                axi_from.ar.ready.eq(ar_drained & axi_to.ar.ready),
+                If(axi_from.ar.valid & axi_from.ar.ready,
                     NextValue(cap_ar_lane, axi_from.ar.addr[narrow_size_log2:wide_size_log2]),
                     NextValue(narrow_ar_active, 1),
                 ),
