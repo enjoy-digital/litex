@@ -47,6 +47,7 @@
 
 #include <libliteeth/udp.h>
 #include <libliteeth/mdio.h>
+#include <libliteeth/sfp_rollball.h>
 
 #include <liblitespi/spiflash.h>
 #include <liblitespi/spiram.h>
@@ -275,6 +276,11 @@ __attribute__((__used__)) int main(int i, char **c)
 
 #ifdef CSR_HYPERRAM_BASE
 	hyperram_init();
+#endif
+
+#if defined(CONFIG_HAS_I2C) && defined(CONFIG_SFP_ROLLBALL_I2C) && defined(CONFIG_SFP_ROLLBALL_MACTYPE)
+	bios_print_section("SFP");
+	sfp_rollball_init();
 #endif
 
 #if defined(CSR_ETHMAC_BASE) || defined(MAIN_RAM_BASE_VA) || defined(CSR_SPIFLASH_BASE)

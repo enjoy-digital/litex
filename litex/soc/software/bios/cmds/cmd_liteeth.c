@@ -8,6 +8,7 @@
 
 #include <libliteeth/mdio.h>
 #include <libliteeth/udp.h>
+#include <libliteeth/sfp_rollball.h>
 
 #include "../command.h"
 #include "../helpers.h"
@@ -226,4 +227,97 @@ static void eth_ping_handler(int nb_params, char **params)
 		printf("Error: failed to send ping request\n");
 }
 define_command(ping, eth_ping_handler, "Ping the given IP address", LITEETH_CMDS);
+#endif
+
+/**
+ * Command "sfp_mactype"
+ *
+ * Show or set a RollBall SFP module's host-interface mode (Marvell MACTYPE).
+ *
+ */
+#if defined(CONFIG_HAS_I2C) && defined(CONFIG_SFP_ROLLBALL_I2C)
+static void sfp_mactype_handler(int nb_params, char **params)
+{
+	char *c;
+	int cur, want;
+	uint32_t id;
+
+	if (!sfp_rollball_open())
+		return;
+	if (!sfp_rollball_present() || !sfp_rollball_unlock()) {
+		printf("No RollBall module at 0x%02x\n", SFP_ROLLBALL_I2C_ADDR);
+		return;
+	}
+	id  = sfp_rollball_phy_id();
+	cur = sfp_rollball_get_mactype();
+	printf("PHY ID 0x%08lx, MACTYPE %d\n", (unsigned long)id, cur);
+	if (nb_params < 1)
+		return;
+	want = strtoul(params[0], &c, 0);
+	if (*c != 0 || want < 0 || want > 7) {
+		printf("Incorrect MACTYPE (0-7)\n");
+		return;
+	}
+	printf("Setting MACTYPE %d... ", want);
+	printf(sfp_rollball_set_mactype(want) ? "done\n" : "failed\n");
+}
+define_command(sfp_mactype, sfp_mactype_handler, "Show/set RollBall SFP MACTYPE", LITEETH_CMDS);
+
+/**
+ * Command "sfp_mdio_read"
+ *
+ * Read a Clause 45 register through a RollBall SFP module.
+ *
+ */
+static void sfp_mdio_read_handler(int nb_params, char **params)
+{
+	char *c;
+	int mmd, reg, v;
+
+	if (nb_params < 2) {
+		printf("sfp_mdio_read <mmd> <reg>");
+		return;
+	}
+	mmd = strtoul(params[0], &c, 0);
+	if (*c != 0) { printf("Incorrect mmd"); return; }
+	reg = strtoul(params[1], &c, 0);
+	if (*c != 0) { printf("Incorrect reg"); return; }
+	if (!sfp_rollball_open())
+		return;
+	if (!sfp_rollball_unlock()) { printf("No RollBall module\n"); return; }
+	v = sfp_rollball_mdio_read(mmd, reg);
+	if (v < 0)
+		printf("Read failed\n");
+	else
+		printf("%d.0x%04x = 0x%04x\n", mmd, reg, v);
+}
+define_command(sfp_mdio_read, sfp_mdio_read_handler, "Read Clause 45 register via RollBall SFP", LITEETH_CMDS);
+
+/**
+ * Command "sfp_mdio_write"
+ *
+ * Write a Clause 45 register through a RollBall SFP module.
+ *
+ */
+static void sfp_mdio_write_handler(int nb_params, char **params)
+{
+	char *c;
+	int mmd, reg, val;
+
+	if (nb_params < 3) {
+		printf("sfp_mdio_write <mmd> <reg> <value>");
+		return;
+	}
+	mmd = strtoul(params[0], &c, 0);
+	if (*c != 0) { printf("Incorrect mmd"); return; }
+	reg = strtoul(params[1], &c, 0);
+	if (*c != 0) { printf("Incorrect reg"); return; }
+	val = strtoul(params[2], &c, 0);
+	if (*c != 0) { printf("Incorrect value"); return; }
+	if (!sfp_rollball_open())
+		return;
+	if (!sfp_rollball_unlock()) { printf("No RollBall module\n"); return; }
+	printf(sfp_rollball_mdio_write(mmd, reg, val) ? "OK\n" : "Write failed\n");
+}
+define_command(sfp_mdio_write, sfp_mdio_write_handler, "Write Clause 45 register via RollBall SFP", LITEETH_CMDS);
 #endif
