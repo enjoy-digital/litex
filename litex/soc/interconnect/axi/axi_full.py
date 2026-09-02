@@ -543,6 +543,14 @@ class AXIDownConverter(LiteXModule):
         is_aw_slow = ((axi_from.aw.burst == BURST_FIXED) & (axi_from.aw.len != 0)) | \
                      (axi_from.aw.len > max_fast_len)
 
+        # The narrow path must not take over the W/B channels while an earlier write is pending.
+        self.aw_counter = aw_counter = _AXIRequestCounter(
+            request  = axi_from.aw.valid & axi_from.aw.ready,
+            response = axi_from.b.valid  & axi_from.b.ready,
+        )
+        aw_drained   = aw_counter.empty
+        aw_available = ~aw_counter.full
+
         aw_fsm = FSM(reset_state="IDLE")
         self.aw_fsm = aw_fsm
 
@@ -550,8 +558,8 @@ class AXIDownConverter(LiteXModule):
             If(narrow_aw_active,
                 axi_from.aw.ready.eq(0),
             ).Elif(is_aw_narrow,
-                aw_narrow_pending.eq(axi_from.aw.valid),
-                axi_to.aw.valid.eq(axi_from.aw.valid),
+                aw_narrow_pending.eq(axi_from.aw.valid & aw_drained),
+                axi_to.aw.valid.eq(axi_from.aw.valid & aw_drained),
                 axi_to.aw.addr.eq(axi_from.aw.addr),
                 axi_to.aw.len.eq(0),
                 axi_to.aw.size.eq(axi_from.aw.size),
@@ -564,8 +572,8 @@ class AXIDownConverter(LiteXModule):
                 axi_to.aw.region.eq(axi_from.aw.region),
                 axi_to.aw.dest.eq(axi_from.aw.dest),
                 axi_to.aw.user.eq(axi_from.aw.user),
-                axi_from.aw.ready.eq(axi_to.aw.ready),
-                If(axi_from.aw.valid & axi_to.aw.ready,
+                axi_from.aw.ready.eq(axi_to.aw.ready & aw_drained),
+                If(axi_from.aw.valid & axi_from.aw.ready,
                     NextValue(cap_aw_lane, axi_from.aw.addr[narrow_size_log2:wide_size_log2]),
                     NextValue(narrow_aw_active, 1),
                 ),
@@ -574,7 +582,7 @@ class AXIDownConverter(LiteXModule):
                 # always runs full-width beats: each wide beat maps to exactly ratio narrow beats
                 # (sub-width transfers are handled through the byte strobes; passing a sub-width
                 # size through with a ratio-multiplied len generated mismatched narrow addresses).
-                axi_to.aw.valid.eq(axi_from.aw.valid),
+                axi_to.aw.valid.eq(axi_from.aw.valid & aw_available),
                 axi_to.aw.addr.eq(axi_from.aw.addr),
                 axi_to.aw.addr[:wide_size_log2].eq(0),
                 axi_to.aw.len.eq(((axi_from.aw.len + 1) << log2_int(ratio)) - 1),
@@ -593,11 +601,11 @@ class AXIDownConverter(LiteXModule):
                 axi_to.aw.region.eq(axi_from.aw.region),
                 axi_to.aw.dest.eq(axi_from.aw.dest),
                 axi_to.aw.user.eq(axi_from.aw.user),
-                axi_from.aw.ready.eq(axi_to.aw.ready),
+                axi_from.aw.ready.eq(axi_to.aw.ready & aw_available),
             ).Else(
                 # Slow path: capture wide AW and switch to FIXED handling.
-                axi_from.aw.ready.eq(1),
-                If(axi_from.aw.valid,
+                axi_from.aw.ready.eq(aw_available),
+                If(axi_from.aw.valid & axi_from.aw.ready,
                     NextValue(cap_aw_addr,   axi_from.aw.addr),
                     NextValue(cap_aw_len,    axi_from.aw.len),
                     NextValue(cap_aw_size,   axi_from.aw.size),
@@ -778,6 +786,14 @@ class AXIDownConverter(LiteXModule):
         is_ar_slow = ((axi_from.ar.burst == BURST_FIXED) & (axi_from.ar.len != 0)) | \
                      (axi_from.ar.len > max_fast_len)
 
+        # The narrow path must not take over the R channel while an earlier read is pending.
+        self.ar_counter = ar_counter = _AXIRequestCounter(
+            request  = axi_from.ar.valid & axi_from.ar.ready,
+            response = axi_from.r.valid  & axi_from.r.ready & axi_from.r.last,
+        )
+        ar_drained   = ar_counter.empty
+        ar_available = ~ar_counter.full
+
         ar_fsm = FSM(reset_state="IDLE")
         self.ar_fsm = ar_fsm
 
@@ -785,7 +801,7 @@ class AXIDownConverter(LiteXModule):
             If(narrow_ar_active,
                 axi_from.ar.ready.eq(0),
             ).Elif(is_ar_narrow,
-                axi_to.ar.valid.eq(axi_from.ar.valid),
+                axi_to.ar.valid.eq(axi_from.ar.valid & ar_drained),
                 axi_to.ar.addr.eq(axi_from.ar.addr),
                 axi_to.ar.len.eq(0),
                 axi_to.ar.size.eq(axi_from.ar.size),
@@ -798,14 +814,14 @@ class AXIDownConverter(LiteXModule):
                 axi_to.ar.region.eq(axi_from.ar.region),
                 axi_to.ar.dest.eq(axi_from.ar.dest),
                 axi_to.ar.user.eq(axi_from.ar.user),
-                axi_from.ar.ready.eq(axi_to.ar.ready),
-                If(axi_from.ar.valid & axi_to.ar.ready,
+                axi_from.ar.ready.eq(axi_to.ar.ready & ar_drained),
+                If(axi_from.ar.valid & axi_from.ar.ready,
                     NextValue(cap_ar_lane, axi_from.ar.addr[narrow_size_log2:wide_size_log2]),
                     NextValue(narrow_ar_active, 1),
                 ),
             ).Elif(~is_ar_slow,
                 # Fast path (see AW fast path: full-width narrow beats).
-                axi_to.ar.valid.eq(axi_from.ar.valid),
+                axi_to.ar.valid.eq(axi_from.ar.valid & ar_available),
                 axi_to.ar.addr.eq(axi_from.ar.addr),
                 axi_to.ar.addr[:wide_size_log2].eq(0),
                 axi_to.ar.len.eq(((axi_from.ar.len + 1) << log2_int(ratio)) - 1),
@@ -824,10 +840,10 @@ class AXIDownConverter(LiteXModule):
                 axi_to.ar.region.eq(axi_from.ar.region),
                 axi_to.ar.dest.eq(axi_from.ar.dest),
                 axi_to.ar.user.eq(axi_from.ar.user),
-                axi_from.ar.ready.eq(axi_to.ar.ready),
+                axi_from.ar.ready.eq(axi_to.ar.ready & ar_available),
             ).Else(
-                axi_from.ar.ready.eq(1),
-                If(axi_from.ar.valid,
+                axi_from.ar.ready.eq(ar_available),
+                If(axi_from.ar.valid & axi_from.ar.ready,
                     NextValue(cap_ar_addr,   axi_from.ar.addr),
                     NextValue(cap_ar_len,    axi_from.ar.len),
                     NextValue(cap_ar_size,   axi_from.ar.size),
