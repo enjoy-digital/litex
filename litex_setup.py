@@ -623,6 +623,7 @@ def pip_install_error(
 def pip_install_build_dependencies(user_mode=False, break_system_packages=False):
     build_packages = [
         "setuptools>=65.5",
+        "packaging>=24.2",
         "wheel",
     ]
     print_status("Installing Python build dependencies...")
