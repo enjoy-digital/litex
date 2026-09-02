@@ -267,4 +267,4 @@ __isr:
 	.data
 	.align 8
 __isr_address:
-	.long isr
+	.quad isr
