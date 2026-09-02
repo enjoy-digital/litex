@@ -248,7 +248,8 @@ def main():
     elif args.jtag:
         from litex.tools.litex_term import JTAGUART
         from litex.tools.remote.comm_uart import CommUART
-        jtag_uart = JTAGUART(config=args.jtag_config, chain=int(args.jtag_chain))
+        jtag_port = int(args.bind_port) + 18766  # server on 1234 -> jtag on 20000
+        jtag_uart = JTAGUART(config=args.jtag_config, chain=int(args.jtag_chain), port=jtag_port)
         jtag_uart.open()
         print("[CommUART] port: JTAG / ", end="")
         comm = CommUART(os.ttyname(jtag_uart.name), debug=args.debug, addr_width=int(args.addr_width))
