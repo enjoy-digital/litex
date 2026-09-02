@@ -797,6 +797,12 @@ class TestAXI(unittest.TestCase):
             self.sram       = AXISRAM(mem_bytes, bus=self.axi_narrow, init=init or [0]*mem_words)
             self.errors     = 0
 
+    class _DownConvRawDUT(LiteXModule):
+        def __init__(self):
+            self.axi_wide   = AXIInterface(data_width=64, address_width=32, id_width=4)
+            self.axi_narrow = AXIInterface(data_width=32, address_width=32, id_width=4)
+            self.converter  = AXIDownConverter(self.axi_wide, self.axi_narrow)
+
     def test_axi_down_converter_narrow_single_read(self):
         # A narrow read on a wide master port must stay a single downstream access. Expanding it
         # to a full wide-word burst can be destructive with MMIO/CSR/FIFO-like slaves.
@@ -885,6 +891,153 @@ class TestAXI(unittest.TestCase):
         self.assertEqual(w_log, [(value, (1 << narrow_bytes) - 1, 1)])
         self.assertEqual(results["resp"], RESP_OKAY)
         self.assertEqual(results["mem"], value)
+
+    def test_axi_down_converter_narrow_interleave_write(self):
+        aw_log, w_log, b_count = [], [], [0]
+
+        @passive
+        def monitor(dut):
+            while True:
+                if (yield dut.axi_narrow.aw.valid) and (yield dut.axi_narrow.aw.ready):
+                    aw_log.append((yield dut.axi_narrow.aw.addr))
+                if (yield dut.axi_narrow.w.valid) and (yield dut.axi_narrow.w.ready):
+                    w_log.append(((yield dut.axi_narrow.w.data), (yield dut.axi_narrow.w.last)))
+                if (yield dut.axi_wide.b.valid) and (yield dut.axi_wide.b.ready):
+                    b_count[0] += 1
+                yield
+
+        @passive
+        def b_responder(dut):
+            narrow = dut.axi_narrow
+            while True:
+                if (yield narrow.w.valid) and (yield narrow.w.ready) and (yield narrow.w.last):
+                    yield narrow.b.valid.eq(1)
+                    yield
+                    while not (yield narrow.b.ready):
+                        yield
+                    yield narrow.b.valid.eq(0)
+                yield
+
+        def gen(dut):
+            wide, narrow = dut.axi_wide, dut.axi_narrow
+            yield narrow.aw.ready.eq(1)
+            yield narrow.w.ready.eq(0)
+            yield wide.b.ready.eq(1)
+
+            yield from axi_aw_send(wide, 0x100, size=3)
+            yield wide.w.valid.eq(1)
+            yield wide.w.data.eq(0x1111222233334444)
+            yield wide.w.strb.eq(0xff)
+            yield wide.w.last.eq(1)
+            yield
+
+            yield wide.aw.valid.eq(1)
+            yield wide.aw.addr.eq(0x200)
+            yield wide.aw.len.eq(0)
+            yield wide.aw.size.eq(2)
+            yield wide.aw.burst.eq(BURST_INCR)
+            for _ in range(4):
+                yield
+                self.assertEqual((yield wide.aw.ready), 0)
+
+            yield narrow.w.ready.eq(1)
+            while not ((yield wide.w.valid) and (yield wide.w.ready)):
+                yield
+            yield wide.w.valid.eq(0)
+            while not (yield wide.aw.ready):
+                yield
+            yield wide.aw.valid.eq(0)
+            yield from axi_w_send(wide, 0xcafebabe, last=True, strb=0xf)
+            for _ in range(4):
+                yield
+
+        dut = self._DownConvRawDUT()
+        run_simulation(dut, [gen(dut), monitor(dut), b_responder(dut)])
+
+        self.assertEqual(aw_log, [0x100, 0x200])
+        self.assertEqual(w_log, [
+            (0x33334444, 0),
+            (0x11112222, 1),
+            (0xcafebabe, 1),
+        ])
+        self.assertEqual(b_count[0], 2)
+
+    def test_axi_down_converter_narrow_interleave_read(self):
+        ar_log, r_log = [], []
+
+        @passive
+        def monitor(dut):
+            while True:
+                if (yield dut.axi_wide.ar.valid) and (yield dut.axi_wide.ar.ready):
+                    ar_log.append((yield dut.axi_wide.ar.addr))
+                if (yield dut.axi_wide.r.valid) and (yield dut.axi_wide.r.ready):
+                    r_log.append((yield dut.axi_wide.r.data))
+                yield
+
+        def send_r(axi, data, last):
+            yield axi.r.valid.eq(1)
+            yield axi.r.data.eq(data)
+            yield axi.r.last.eq(last)
+            while not (yield axi.r.ready):
+                yield
+            yield
+            yield axi.r.valid.eq(0)
+
+        def gen(dut):
+            wide, narrow = dut.axi_wide, dut.axi_narrow
+            yield narrow.ar.ready.eq(1)
+            yield wide.r.ready.eq(1)
+
+            yield from axi_ar_send(wide, 0x100, size=3)
+            yield from send_r(narrow, 0x11110000, last=0)
+
+            yield wide.ar.valid.eq(1)
+            yield wide.ar.addr.eq(0x204)
+            yield wide.ar.len.eq(0)
+            yield wide.ar.size.eq(2)
+            yield wide.ar.burst.eq(BURST_INCR)
+            for _ in range(4):
+                yield
+                self.assertEqual((yield wide.ar.ready), 0)
+
+            yield from send_r(narrow, 0x22220000, last=1)
+            while not (yield wide.ar.ready):
+                yield
+            yield wide.ar.valid.eq(0)
+            yield from send_r(narrow, 0x33330000, last=1)
+            for _ in range(4):
+                yield
+
+        dut = self._DownConvRawDUT()
+        run_simulation(dut, [gen(dut), monitor(dut)])
+
+        self.assertEqual(ar_log, [0x100, 0x204])
+        self.assertEqual(r_log, [
+            0x2222000011110000,
+            0x3333000000000000,
+        ])
+
+    def test_axi_down_converter_request_limit(self):
+        accepted = {"aw": 0, "ar": 0}
+
+        def gen(dut):
+            wide, narrow = dut.axi_wide, dut.axi_narrow
+            yield narrow.aw.ready.eq(1)
+            yield narrow.ar.ready.eq(1)
+            yield wide.aw.valid.eq(1)
+            yield wide.aw.size.eq(3)
+            yield wide.ar.valid.eq(1)
+            yield wide.ar.size.eq(3)
+            yield
+            for _ in range(300):
+                accepted["aw"] += (yield wide.aw.ready)
+                accepted["ar"] += (yield wide.ar.ready)
+                yield
+
+        dut = self._DownConvRawDUT()
+        run_simulation(dut, gen(dut))
+
+        self.assertEqual(accepted, {"aw": 255, "ar": 255})
 
     def test_axi_down_converter_wrap(self):
         # WRAP bursts must wrap inside the wide-side wrap window even after data-width reduction:
