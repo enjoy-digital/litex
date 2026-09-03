@@ -225,6 +225,16 @@ class Zynq7000(CPU):
         assert isinstance(config, dict)
         self.config.update(config)
 
+    def add_mio_config(self, directions, iotype="", slew="", pullup="enabled"):
+        # directions: {mio_pin_number: direction ("in"/"out"/"inout")}.
+        for i, direction in directions.items():
+            self.add_ps7_config({
+                f"PCW_MIO_{i}_PULLUP"    : pullup,
+                f"PCW_MIO_{i}_IOTYPE"    : iotype,
+                f"PCW_MIO_{i}_DIRECTION" : direction,
+                f"PCW_MIO_{i}_SLEW"      : slew,
+            })
+
     def set_ps7(self, name=None, xci=None, preset=None, config=None):
         # Check that PS7 has not already been set.
         if self.ps7_name is not None:
@@ -487,45 +497,79 @@ class Zynq7000(CPU):
         return axi_hpn
 
     """
-    Enable CANx peripheral. Peripheral may be optionally set
+    Enable CANx peripheral (may be via PS7 MIO or PL EMIO). Peripheral may be optionally set
     Attributes
     ==========
     n: int
         CAN id (0, 1)
-    pads:
-        Physicals pads (tx and rx)
+    pads_or_mio_group: Record or str:
+        When pads_or_mio_group is:
+        - a Record, CANn controler is configured to uses EMIO
+        - a str, CANn controler is configured to uses PS7 MIO. str must
+        be the name of the MIO group: "MIO xx .. yy"
     ext_clk: int or None
         When unset/None CAN is clocked by internal clock (IO PLL).
         value must be 0 <= ext_clk < 54.
     ext_clk_freq: float
         when ext_clk is set, external clock frequency (Hz)
+    iotype: str
+        IO type configuration (LVCMOS 3.3V / LVCMOS 1.8V / ...). This parameter is only
+        used in MIO mode.
+    slew: str
+        IO slew rate (slow/fast/...). This parameter is only used in MIO mode.
     """
-    def add_can(self, n, pads, ext_clk=None, ext_clk_freq=None):
+    def add_can(self, n, pads_or_mio_group, ext_clk=None, ext_clk_freq=None, iotype="", slew=""):
         assert n < 2 and not n in self.can_use
-        assert ext_clk is None or (ext_clk < 54 and ext_clk is not None)
-        assert pads is not None
+        assert ext_clk is None or ext_clk < 54
+        assert pads_or_mio_group is not None
 
         # Mark as used
         self.can_use.append(n)
 
+        # When CAN is used via PS7 MIO pads_or_mio_group is a string
+        # otherwise a resource.
+        io_type = {True: pads_or_mio_group, False: "EMIO"}[isinstance(pads_or_mio_group, str)]
+
+        # MIO IOs must be "MIO xx .. yy"
+        assert not (io_type != "EMIO" and re.match(r"MIO \d\d .. \d\d", io_type) is None)
+
         # PS7 configuration.
         self.add_ps7_config({
             f"PCW_CAN{n}_PERIPHERAL_ENABLE": 1,
-            f"PCW_CAN{n}_CAN{n}_IO":         "EMIO",
-            f"PCW_CAN{n}_GRP_CLK_ENABLE":    {True: 0, False: 1}[ext_clk == None],
+            f"PCW_CAN{n}_CAN{n}_IO":         io_type,
+            f"PCW_CAN{n}_GRP_CLK_ENABLE":    {True: 0, False: 1}[ext_clk is None],
         })
 
-        if ext_clk:
+        if ext_clk is not None:
             self.add_ps7_config({
                 f"PCW_CAN{n}_GRP_CLK_IO"         : f"MIO {ext_clk}",
-                f"PCW_CAN{n}_PERIPHERAL_FREQMHZ" : int(clk_freq / 1e6),
+                f"PCW_CAN{n}_PERIPHERAL_FREQMHZ" : int(ext_clk_freq / 1e6),
             })
 
-        # PS7 connections.
-        self.cpu_params.update({
-            f"i_CAN{n}_PHY_RX": pads.rx,
-            f"o_CAN{n}_PHY_TX": pads.tx,
-        })
+        # Inject CANn configuration to use it via csv/json
+        LiteXContext.top.add_constant(f"CONFIG_PS7_CAN{n}_ENABLE", 1)
+        LiteXContext.top.add_constant(f"CONFIG_PS7_CAN{n}_IO",     io_type)
+
+        # configures IOs associated to this interface
+        if io_type != "EMIO":
+            can_rx, can_tx = map(int, pads_or_mio_group.split()[1::2])
+            self.add_mio_config(
+                {can_rx: "in", can_tx: "out"},
+                iotype = iotype,
+                slew   = slew,
+                pullup = "disabled",
+            )
+
+        if ext_clk is not None:
+            self.add_mio_config({ext_clk: "inout"}, iotype=iotype, slew=slew)
+
+        # CANn interface is only exposed when controler is set to EMIO.
+        if io_type == "EMIO":
+            # PS7 connections.
+            self.cpu_params.update({
+                f"i_CAN{n}_PHY_RX": pads_or_mio_group.rx,
+                f"o_CAN{n}_PHY_TX": pads_or_mio_group.tx,
+            })
 
     """
     Connect and Enables UARTn controler (may be via PS7 MIO or PL EMIO).
@@ -538,8 +582,13 @@ class Zynq7000(CPU):
         - a Record, UARTn controler is configured to uses EMIO
         - a str, UARTn controler is configured to uses PS7 MIO. str must
         be the name of the MIO group: "MIO xx .. yy"
+    iotype: str
+        IO type configuration (LVCMOS 3.3V / LVCMOS 1.8V / ...). This parameter is only
+        used in MIO mode.
+    slew: str
+        IO slew rate (slow/fast/...). This parameter is only used in MIO mode.
     """
-    def add_uart(self, n, pads_or_mio_group):
+    def add_uart(self, n, pads_or_mio_group, iotype="", slew=""):
         assert n < 2 and not n in self.uart_use
         assert pads_or_mio_group is not None
 
@@ -563,6 +612,11 @@ class Zynq7000(CPU):
         # Inject UARTn configuration to use it via csv/json
         LiteXContext.top.add_constant(f"CONFIG_PS7_UART{n}_ENABLE", 1)
         LiteXContext.top.add_constant(f"CONFIG_PS7_UART{n}_IO",     io_type)
+
+        # configures IOs associated to this interface
+        if io_type != "EMIO":
+            uart_rx, uart_tx = map(int, pads_or_mio_group.split()[1::2])
+            self.add_mio_config({uart_rx: "in", uart_tx: "out"}, iotype=iotype, slew=slew)
 
         # UARTn interface is only exposed when controler is set to EMIO.
         if io_type == "EMIO":
@@ -589,8 +643,13 @@ class Zynq7000(CPU):
         write protect signal (MIO mode only)
     power_control: str
         power control signal must always be a MIO x string
+    iotype: str
+        IO type configuration (LVCMOS 3.3V / LVCMOS 1.8V / ...). This parameter is only
+        used in MIO mode.
+    slew: str
+        IO slew rate (slow/fast/...). This parameter is only used in MIO mode.
     """
-    def add_sdio(self, n, pads_or_mio_group, card_detect=None, write_protect=None, power_control=None):
+    def add_sdio(self, n, pads_or_mio_group, card_detect=None, write_protect=None, power_control=None, iotype="", slew=""):
         assert n < 2 and not n in self.sdio_use
         assert pads_or_mio_group is not None
 
@@ -622,6 +681,16 @@ class Zynq7000(CPU):
             f"PCW_SD{n}_SD{n}_IO"          : io_type,
         })
 
+        # configures IOs associated to this interface
+        if io_type != "EMIO":
+            first, last = map(int, pads_or_mio_group.split()[1::2])
+            # all pins must be configured as inout.
+            self.add_mio_config(
+                {i: "inout" for i in range(first, last + 1)},
+                iotype = iotype,
+                slew   = slew,
+            )
+
         # When SDx is configured in MIO mode CD/WP may be enabled/disabled
         # in EMIO mode these signals are always enabled and not configurables.
         if io_type != "EMIO":
@@ -633,6 +702,8 @@ class Zynq7000(CPU):
                 })
                 if cd_type == "EMIO":
                     self.cpu_params[f"i_SDIO{n}_CDN"] = card_detect
+                else:
+                    self.add_mio_config({int(cd_type.split()[1]): "in"}, iotype=iotype, slew=slew)
 
             if write_protect is not None:
                 wp_type = {True: write_protect, False: "EMIO"}[isinstance(write_protect, str)]
@@ -642,6 +713,8 @@ class Zynq7000(CPU):
                 })
                 if wp_type == "EMIO":
                     self.cpu_params[f"i_SDIO{n}_WP"] = write_protect
+                else:
+                    self.add_mio_config({int(wp_type.split()[1]): "in"}, iotype=iotype, slew=slew)
 
         # For both MIO and EMIO PW may be enabled/disabled but it is
         # always connected to an MIO pin (PS).
@@ -650,6 +723,8 @@ class Zynq7000(CPU):
                 f"PCW_SD{n}_GRP_POW_ENABLE" : 1,
                 f"PCW_SD{n}_GRP_POW_IO"     : power_control,
             })
+
+            self.add_mio_config({int(power_control.split()[1]): "out"}, iotype=iotype, slew=slew)
 
         # Inject SDn configuration to use it via csv/json
         LiteXContext.top.add_constant(f"CONFIG_PS7_SD{n}_ENABLE", 1)
@@ -714,8 +789,13 @@ class Zynq7000(CPU):
         - a Record, SPIn controler is configured to uses EMIO
         - a str, SPIn controler is configured to uses PS7 MIO. str must
         be the name of the MIO group: "MIO xx .. yy"
+    iotype: str
+        IO type configuration (LVCMOS 3.3V / LVCMOS 1.8V / ...). This parameter is only
+        used in MIO mode.
+    slew: str
+        IO slew rate (slow/fast/...). This parameter is only used in MIO mode.
     """
-    def add_spi(self, n, pads_or_mio_group, ss1_en=False, ss2_en=False):
+    def add_spi(self, n, pads_or_mio_group, ss1_en=False, ss2_en=False, iotype="", slew=""):
         assert n < 2 and not n in self.spi_use
         assert pads_or_mio_group is not None
 
@@ -745,6 +825,18 @@ class Zynq7000(CPU):
         # Inject SPIn configuration to use it via csv/json
         LiteXContext.top.add_constant(f"CONFIG_PS7_SPI{n}_ENABLE", 1)
         LiteXContext.top.add_constant(f"CONFIG_PS7_SPI{n}_IO",     io_type)
+
+        # configures IOs associated to this interface
+        if io_type != "EMIO":
+            pins_name   = ['sclk', 'miso', 'ss0', 'ss1', 'ss2', 'mosi']
+            first, last = map(int, pads_or_mio_group.split()[1::2])
+            pin_map     = zip(list(range(first, last + 1)), pins_name)
+            directions  = {
+                p_i: ("out" if p_n in ("ss1", "ss2") else "inout")
+                for p_i, p_n in pin_map
+                if not ((p_n == "ss1" and not ss1_en) or (p_n == "ss2" and not ss2_en))
+            }
+            self.add_mio_config(directions, iotype=iotype, slew=slew)
 
         # SPIn interface is only exposed when controler is set to EMIO.
         if io_type == "EMIO":
@@ -817,8 +909,14 @@ class Zynq7000(CPU):
         When pads is a Record, I2Cn controler is configured to uses EMIO
         When pads is a str, I2Cn controler is configured to uses PS7 MIO. str must
         be "MIO xx .. yy"
+    iotype: str
+        IO type configuration (LVCMOS 3.3V / LVCMOS 1.8V / ...). This parameter is only
+        used in MIO mode.
+    slew: str
+        IO slew rate (slow/fast/...). This parameter is only used in MIO mode.
+
     """
-    def add_i2c(self, n, pads_or_mio_group):
+    def add_i2c(self, n, pads_or_mio_group, iotype="", slew=""):
         assert n < 2 and not n in self.i2c_use
         assert pads_or_mio_group is not None
 
@@ -841,6 +939,15 @@ class Zynq7000(CPU):
         # Inject I2Cn configuration to use it via csv/json
         LiteXContext.top.add_constant(f"CONFIG_PS7_I2C{n}_ENABLE", 1)
         LiteXContext.top.add_constant(f"CONFIG_PS7_I2C{n}_IO",     io_type)
+
+        # configures IOs associated to this interface
+        if io_type != "EMIO":
+            first, last = map(int, pads_or_mio_group.split()[1::2])
+            self.add_mio_config(
+                {i: "inout" for i in range(first, last + 1)},
+                iotype = iotype,
+                slew   = slew,
+            )
 
         # I2Cn interface is only exposed when controler is set to EMIO.
         if io_type == "EMIO":
@@ -1004,6 +1111,16 @@ class Zynq7000(CPU):
                 f"PCW_ENET{n}_GRP_MDIO_ENABLE" : 1,
                 f"PCW_ENET{n}_GRP_MDIO_IO"     : mdio_io_type,
             })
+
+        # configures IOs associated to this interface
+        if eth_io_type != "EMIO":
+            # first 6 pads are output (TXCK, TX[0:4], TXCTL)
+            # last 6 pads are input (RXCK, RX[0:4], RXCTL)
+            first, last = map(int, eth_pads_or_mio_group.split()[1::2])
+
+            directions = {i: "out" for i in range(first, first + 6)}
+            directions.update({i: "in" for i in range(last - 5, last + 1)})
+            self.add_mio_config(directions, iotype="LVCMOS 1.8V", slew="fast")
 
         # Inject GEMn configuration to use it via csv/json
         LiteXContext.top.add_constant(f"CONFIG_PS7_GEM{n}_ENABLE",      1)
