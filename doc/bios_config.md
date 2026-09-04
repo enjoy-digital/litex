@@ -45,6 +45,15 @@ Some BIOS options are build flags rather than generated SoC constants:
 
 When using `Builder`, this can be selected with `bios_console_no_ansi=True`.
 
+## Flash Boot Bounds
+
+`FLASH_BOOT_MAX_SIZE` limits the accepted image payload length (by default,
+`MAIN_RAM_SIZE`, or 16 MiB without main RAM). When `SPIFLASH_BASE` and
+`SPIFLASH_SIZE` are present, the BIOS also checks that the eight-byte header
+and payload fit in that flash mapping before reading the payload for CRC.
+Targets using a different mapping can set `FLASH_BOOT_REGION_BASE` and
+`FLASH_BOOT_REGION_SIZE` to describe it. Both values must be supplied together.
+
 ## Generated SoC Metadata
 
 LiteX generates several `CONFIG_` values from the SoC, CPU, bus and CSR

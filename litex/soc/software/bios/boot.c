@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <system.h>
 #include <string.h>
@@ -80,7 +81,7 @@ enum {
 	ACK_OK
 };
 
-#if defined(MAIN_RAM_BASE) || defined(MAIN_RAM_BASE_VA) || defined(SRAM_BASE) || defined(SRAM_BASE_VA)
+#if defined(MAIN_RAM_BASE) || defined(MAIN_RAM_BASE_VA) || defined(SRAM_BASE) || defined(SRAM_BASE_VA) || defined(SPIFLASH_BASE) || defined(FLASH_BOOT_REGION_BASE)
 static int boot_region_max_size(unsigned long addr, unsigned long base, unsigned long size, size_t *max_size)
 {
 	/* Compare offsets instead of region end so that regions ending exactly at
@@ -785,15 +786,43 @@ void netboot(int nb_params, char **params)
 #endif
 #endif
 
-static unsigned int check_image_in_flash(unsigned int base_address)
+/* Targets with another flash mapping can describe its bounds explicitly. */
+#if defined(FLASH_BOOT_REGION_BASE) != defined(FLASH_BOOT_REGION_SIZE)
+#error "FLASH_BOOT_REGION_BASE and FLASH_BOOT_REGION_SIZE must be specified together"
+#endif
+#if !defined(FLASH_BOOT_REGION_BASE) && defined(SPIFLASH_BASE)
+#define FLASH_BOOT_REGION_BASE SPIFLASH_BASE
+#define FLASH_BOOT_REGION_SIZE SPIFLASH_SIZE
+#endif
+
+static unsigned int check_image_in_flash(unsigned long base_address)
 {
 	uint32_t length;
 	uint32_t crc;
 	uint32_t got_crc;
+#ifdef FLASH_BOOT_REGION_BASE
+	size_t available;
+
+	if (!boot_region_max_size(base_address, FLASH_BOOT_REGION_BASE,
+		FLASH_BOOT_REGION_SIZE, &available) || available < 8) {
+		printf("Error: flash image header is outside flash\n");
+		return 0;
+	}
+#endif
 
 	length = MMPTR(base_address);
 	if((length < 32) || (length > FLASH_BOOT_MAX_SIZE)) {
 		printf("Error: invalid image length 0x%08lx\n", (unsigned long)length);
+		return 0;
+	}
+	/* Validate the source before CRC reads any payload bytes. The image
+	   policy limit alone need not fit the remaining flash mapping. */
+	if (base_address > ULONG_MAX - 8 || length - 1 > ULONG_MAX - base_address - 8
+#ifdef FLASH_BOOT_REGION_BASE
+		|| length > available - 8
+#endif
+	) {
+		printf("Error: flash image extends beyond flash or the address space\n");
 		return 0;
 	}
 
@@ -808,7 +837,7 @@ static unsigned int check_image_in_flash(unsigned int base_address)
 }
 
 #if defined(MAIN_RAM_BASE_VA) && defined(FLASH_BOOT_ADDRESS)
-static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned long ram_address)
+static int copy_image_from_flash_to_ram(unsigned long flash_address, unsigned long ram_address)
 {
 	uint32_t length;
 	uint32_t offset;
@@ -824,7 +853,7 @@ static int copy_image_from_flash_to_ram(unsigned int flash_address, unsigned lon
 				(unsigned long)length, (unsigned long)max_size);
 			return 0;
 		}
-		printf("Copying 0x%08x to 0x%08lx (%lu bytes)...\n", flash_address, ram_address, (unsigned long)length);
+		printf("Copying 0x%08lx to 0x%08lx (%lu bytes)...\n", flash_address, ram_address, (unsigned long)length);
 		offset = 0;
 		init_progression_bar(length);
 		while (length > 0) {

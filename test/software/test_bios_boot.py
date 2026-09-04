@@ -677,20 +677,19 @@ def test_bios_flashboot_host_coverage(tmp_path):
         #include <stdint.h>
         #include <stdio.h>
         #include <string.h>
-        #include <sys/mman.h>
-        #include <unistd.h>
 
-        #ifndef MAP_32BIT
-        #define MAP_32BIT 0
-        #endif
-
+        static uint32_t flash_words[0x2000 / 4];
+        static unsigned char ram_bytes[0x1000];
         static unsigned long flash_base;
+        static unsigned long flash_mapped_size = sizeof(flash_words);
         static unsigned long ram_base;
         static const unsigned long ram_size = 0x1000;
         static jmp_buf boot_jmp;
         static unsigned long boot_addr;
 
-        #define FLASH_BOOT_ADDRESS ((unsigned int)flash_base)
+        #define FLASH_BOOT_ADDRESS flash_base
+        #define SPIFLASH_BASE flash_base
+        #define SPIFLASH_SIZE flash_mapped_size
         #define MAIN_RAM_BASE ram_base
         #define MAIN_RAM_BASE_VA ram_base
         #define MAIN_RAM_SIZE ram_size
@@ -721,27 +720,6 @@ def test_bios_flashboot_host_coverage(tmp_path):
             }} \\
         }} while (0)
 
-        static int map_low_memory(void)
-        {{
-            void *flash;
-            void *ram;
-
-            flash = mmap(NULL, 0x02000000, PROT_READ | PROT_WRITE,
-                MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
-            if (flash == MAP_FAILED)
-                return 77;
-            ram = mmap(NULL, ram_size, PROT_READ | PROT_WRITE,
-                MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
-            if (ram == MAP_FAILED)
-                return 77;
-
-            flash_base = (unsigned long)flash;
-            ram_base = (unsigned long)ram;
-            if ((flash_base > 0xffffffffUL) || (ram_base > 0xffffffffUL))
-                return 77;
-            return 0;
-        }}
-
         static void write_image(uint32_t length, int valid_crc)
         {{
             uint32_t crc;
@@ -762,7 +740,7 @@ def test_bios_flashboot_host_coverage(tmp_path):
             write_image(31, 1);
             REQUIRE(check_image_in_flash(FLASH_BOOT_ADDRESS) == 0);
 
-            write_image(16 * 1024 * 1024 + 1, 1);
+            write_image(ram_size + 1, 1);
             REQUIRE(check_image_in_flash(FLASH_BOOT_ADDRESS) == 0);
 
             write_image(64, 0);
@@ -770,6 +748,14 @@ def test_bios_flashboot_host_coverage(tmp_path):
 
             write_image(64, 1);
             REQUIRE(check_image_in_flash(FLASH_BOOT_ADDRESS) == 64);
+
+            flash_mapped_size = 64;
+            REQUIRE(check_image_in_flash(FLASH_BOOT_ADDRESS) == 0);
+            flash_mapped_size = 72;
+            REQUIRE(check_image_in_flash(FLASH_BOOT_ADDRESS) == 64);
+            REQUIRE(check_image_in_flash(flash_base + flash_mapped_size - 4) == 0);
+            REQUIRE(check_image_in_flash(flash_base - 4) == 0);
+            flash_mapped_size = sizeof(flash_words);
             return 0;
         }}
 
@@ -795,11 +781,8 @@ def test_bios_flashboot_host_coverage(tmp_path):
 
         int main(void)
         {{
-            int r;
-
-            r = map_low_memory();
-            if (r != 0)
-                return r;
+            flash_base = (unsigned long)flash_words;
+            ram_base = (unsigned long)ram_bytes;
             if (test_flash_image_validation())
                 return 1;
             if (test_flash_copy_and_boot())
@@ -816,8 +799,6 @@ def test_bios_flashboot_host_coverage(tmp_path):
         "-Wstrict-prototypes",
         "-Wold-style-definition",
         "-Wmissing-prototypes",
-        "-Wno-format",
-        "-Wno-int-to-pointer-cast",
         "-ffunction-sections",
         "-fdata-sections",
         f"-I{include_dir}",
@@ -831,10 +812,7 @@ def test_bios_flashboot_host_coverage(tmp_path):
         str(binary),
     ]
     subprocess.check_call(cmd)
-    result = subprocess.run([str(binary)], check=False)
-    if result.returncode == 77:
-        pytest.skip("host cannot provide low-address mmap for BIOS flashboot test")
-    assert result.returncode == 0
+    subprocess.check_call([str(binary)])
 
 
 @pytest.mark.parametrize("medium,csr", [
