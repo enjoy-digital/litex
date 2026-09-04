@@ -1688,6 +1688,25 @@ int sdram_leveling(void) {
  * controller status reporting.
  */
 int sdram_init(void) {
+	printf("Initializing SDRAM @0x%08lx...\n", MAIN_RAM_BASE);
+
+#ifdef CSR_DDRCTRL_BASE
+	ddrctrl_init_done_write(0);
+	ddrctrl_init_error_write(0);
+#endif // CSR_DDRCTRL_BASE
+
+#ifdef CONFIG_SDRAM_CUSTOM_INIT
+	/* Some memories require board-level power or a device-specific training
+	 * flow that cannot be represented by the generated generic sequence. */
+	if (!sdram_custom_init()) {
+		sdram_software_control_off();
+#ifdef CSR_DDRCTRL_BASE
+		ddrctrl_init_error_write(1);
+		ddrctrl_init_done_write(1);
+#endif // CSR_DDRCTRL_BASE
+		return 0;
+	}
+#else
 	/* Clear user/BIOS overrides so every boot starts from discovered values
 	 * unless a build-time forced value is explicitly present. */
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
@@ -1710,8 +1729,6 @@ int sdram_init(void) {
 	_sdram_write_leveling_cmd_scan  = 0;
 	_sdram_write_leveling_cmd_delay = SDRAM_PHY_CMD_DELAY;
 #endif // SDRAM_PHY_CMD_DELAY
-	printf("Initializing SDRAM @0x%08lx...\n", MAIN_RAM_BASE);
-
 	/* Stop normal controller ownership and put the PHY into a clean state before
 	 * the JEDEC sequence touches the DRAM. */
 	sdram_software_control_on();
@@ -1722,17 +1739,13 @@ int sdram_init(void) {
 	cdelay(1000);
 #endif // CSR_DDRPHY_RST_ADDR
 
-#ifdef CSR_DDRCTRL_BASE
-	ddrctrl_init_done_write(0);
-	ddrctrl_init_error_write(0);
-#endif // CSR_DDRCTRL_BASE
-
 	/* Generated from the configured memory module/timings. After this returns,
 	 * the DRAM can respond to software DFII read/write probes. */
 	init_sequence();
 #if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
 	sdram_leveling();
 #endif // defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
+#endif // CONFIG_SDRAM_CUSTOM_INIT
 
 	/* Release the DFI bus to the hardware controller; subsequent accesses use
 	 * normal LiteX memory paths instead of direct DFII command CSRs. */
