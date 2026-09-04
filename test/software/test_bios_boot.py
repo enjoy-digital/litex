@@ -179,7 +179,7 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             return 0;
         }}
 
-        static unsigned char uart_in[512];
+        static unsigned char uart_in[4096];
         static int uart_in_len;
         static int uart_in_pos;
         static unsigned char uart_out[512];
@@ -538,6 +538,24 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             return 0;
         }}
 
+        static int test_serialboot_stops_after_consecutive_invalid_loads(void)
+        {{
+            static const unsigned char ack[] = SFL_MAGIC_ACK;
+            unsigned char bad_load[4] = {{0x00, 0x00, 0x50, 0x00}};
+
+            reset_serial(ack, SFL_MAGIC_LEN);
+            for (int i = 0; i < MAX_FAILURES + 1; i++)
+                append_frame(SFL_CMD_LOAD, bad_load, sizeof(bad_load));
+            append_frame(SFL_CMD_ABORT, NULL, 0);
+
+            REQUIRE(serialboot() == 1);
+            REQUIRE(uart_in_pos == SFL_MAGIC_LEN + MAX_FAILURES * 8);
+            REQUIRE(uart_out_len == SFL_MAGIC_LEN + MAX_FAILURES);
+            for (int i = SFL_MAGIC_LEN; i < uart_out_len; i++)
+                REQUIRE(uart_out[i] == SFL_ACK_ERROR);
+            return 0;
+        }}
+
         static int test_serialboot_jump_boots_requested_address(void)
         {{
             static const unsigned char ack[] = SFL_MAGIC_ACK;
@@ -586,6 +604,8 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             if (test_serialboot_rejects_out_of_range_load_and_recovers())
                 return 1;
             if (test_serialboot_protocol_errors_recover_with_abort())
+                return 1;
+            if (test_serialboot_stops_after_consecutive_invalid_loads())
                 return 1;
             if (test_serialboot_jump_boots_requested_address())
                 return 1;

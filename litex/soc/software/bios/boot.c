@@ -313,9 +313,6 @@ int serialboot(void)
 					break;
 				}
 
-				/* Reset failures */
-				failures = 0;
-
 				/* Copy payload when it fits in writable memory */
 				load_addr = (char *)(uintptr_t) get_uint32(&frame.payload[0]);
 				load_size = frame.payload_length - 4;
@@ -333,6 +330,8 @@ int serialboot(void)
 					clean_cpu_dcache_range(load_addr, load_size);
 #endif
 
+				/* Only a successful load ends a run of consecutive errors. */
+				failures = 0;
 				/* Acknowledge and continue */
 				uart_write(SFL_ACK_SUCCESS);
 				break;
