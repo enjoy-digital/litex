@@ -14,11 +14,15 @@ python3 -m litex.soc.software.bench.sim --output-dir=/tmp/cpu-burst --bus-bursti
 python3 -m litex.soc.software.bench.sim --output-dir=/tmp/cpu-sdram --with-sdram
 ```
 
-Use a separate output directory per configuration. Each run builds its own
+Use a **new** output directory per run; existing directories are rejected to
+avoid stale binaries or results. Each run builds its own
 firmware and simulator, checks the results, and saves `benchmark.json` with all
 three samples and their medians. `benchmark.log` retains serial output;
 `compile.log` retains simulator compilation output. `--timeout` bounds the
 simulation, not the build. `--jobs` controls the Verilator build parallelism.
+JSON build metadata records the compiler, Verilator, LiteX revision, CPU flags,
+clock frequency, firmware hashes and RTL hashes. The revision alone does not
+describe uncommitted source edits; compare the hashes as well.
 
 The default is VexRiscv `standard`, a shared 32-bit Wishbone bus, 64 KiB ROM,
 32 KiB SRAM and 256 KiB integrated main RAM. `--with-sdram` replaces main RAM
