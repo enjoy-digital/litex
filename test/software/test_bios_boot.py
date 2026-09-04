@@ -355,6 +355,42 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             return 0;
         }}
 
+        static int test_manifest_nested_bootargs(void)
+        {{
+            const char *json[] = {{
+                "{{\\"bootargs\\":{{\\"addr\\":\\"0x1800\\",\\"r1\\":\\"0x11\\","
+                "\\"r2\\":\\"0x22\\",\\"r3\\":\\"0x33\\"}},\\"image.bin\\":\\"0x1000\\"}}",
+                "{{\\"image.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"addr\\":\\"0x1800\\","
+                "\\"r1\\":\\"0x11\\",\\"r2\\":\\"0x22\\",\\"r3\\":\\"0x33\\"}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"r1\\":\\"0x11\\","
+                "\\"r2\\":\\"0x22\\",\\"r3\\":\\"0x33\\"}},\\"last.bin\\":\\"0x1800\\"}}",
+            }};
+            struct load_ctx ctx;
+            const char *empty = "{{\\"bootargs\\":{{}},\\"image.bin\\":\\"0x1000\\"}}";
+
+            for (unsigned int i = 0; i < sizeof(json)/sizeof(*json); i++) {{
+                memset(&ctx, 0, sizeof(ctx));
+                ctx.fail_after = -1;
+                boot_addr = 0;
+                if (!setjmp(boot_jmp))
+                    boot_from_json_buffer(json[i], strlen(json[i]), record_load, &ctx);
+                REQUIRE(ctx.count == (i == 2 ? 2 : 1));
+                REQUIRE(boot_addr == 0x1800);
+                REQUIRE(boot_r1 == 0x11);
+                REQUIRE(boot_r2 == 0x22);
+                REQUIRE(boot_r3 == 0x33);
+            }}
+            memset(&ctx, 0, sizeof(ctx));
+            ctx.fail_after = -1;
+            boot_addr = 0;
+            if (!setjmp(boot_jmp))
+                boot_from_json_buffer(empty, strlen(empty), record_load, &ctx);
+            REQUIRE(ctx.count == 1);
+            REQUIRE(boot_addr == 0x1000);
+            REQUIRE(boot_r1 == 0 && boot_r2 == 0 && boot_r3 == 0);
+            return 0;
+        }}
+
         static int test_manifest_preflight_and_image_bounds(void)
         {{
             const char *invalid[] = {{
@@ -364,6 +400,16 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
                 "[{{\\"first.bin\\":\\"0x1000\\"}}]",
                 "{{\\"first.bin\\":{{\\"addr\\":\\"0x1000\\"}}}}",
                 "{{\\"first.bin\\":\\"0x1000\\",\\"alias.bin\\":\\"0x11000\\"}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"r1\\":\\"-1\\"}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"r1\\":[]}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"r1\\":{{\\"r2\\":\\"0\\"}}}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"extra.bin\\":\\"0x1800\\"}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"r1\\":\\"1\\",\\"r1\\":\\"2\\"}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"r1\\":\\"1\\",\\"bootargs\\":{{\\"r1\\":\\"2\\"}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{}},\\"bootargs\\":{{}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":\\"ignored\\",\\"bootargs\\":{{}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"bootargs\\":{{}}}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{}}}} {{}}",
             }};
             struct load_ctx ctx;
             const char *reverse = "{{\\"second.bin\\":\\"0x11100\\",\\"first.bin\\":\\"0x1000\\"}}";
@@ -664,6 +710,8 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             if (test_boot_load_max_size())
                 return 1;
             if (test_manifest_explicit_boot_address())
+                return 1;
+            if (test_manifest_nested_bootargs())
                 return 1;
             if (test_manifest_preflight_and_image_bounds())
                 return 1;

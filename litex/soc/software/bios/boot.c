@@ -462,6 +462,50 @@ static int boot_json_is_image(const char *json, const jsmntok_t *key)
 		!boot_json_key_is(json, key, "r3");
 }
 
+/* Flatten the optional bootargs object in place, preserving the image order.
+   The remaining passes can then validate both nested and top-level metadata
+   without another token array or special cases in the image loader. */
+static int boot_json_flatten(const char *json, jsmntok_t *t, int count)
+{
+	int bootargs_found = 0;
+
+	if (count < 1 || t[0].type != JSMN_OBJECT)
+		return 0;
+	for (int i = 1; i + 1 < count; i += 2) {
+		if (t[i+1].end >= t[0].end)
+			return 0;
+		if (boot_json_key_is(json, &t[i], "bootargs")) {
+			if (bootargs_found++)
+				return 0;
+			if (t[i].type != JSMN_STRING || t[i].size != 1)
+				return 0;
+			if (t[i+1].type == JSMN_OBJECT) {
+				int next = i + 2 + 2*t[i+1].size;
+
+				if (next > count)
+					return 0;
+				for (int j = i + 2; j < next; j += 2) {
+					if (boot_json_is_image(json, &t[j]) ||
+					    boot_json_key_is(json, &t[j], "bootargs") ||
+					    (t[j+1].type != JSMN_STRING && t[j+1].type != JSMN_PRIMITIVE) ||
+					    t[j+1].end >= t[i+1].end)
+						return 0;
+				}
+				if (next < count && t[next].start < t[i+1].end)
+					return 0;
+				t[0].size += t[i+1].size - 1;
+				memmove(&t[i], &t[i+2], (count - i - 2)*sizeof(*t));
+				count -= 2;
+				i -= 2;
+				continue;
+			}
+		}
+		if (t[i+1].type != JSMN_STRING && t[i+1].type != JSMN_PRIMITIVE)
+			return 0;
+	}
+	return count == 1 + 2*t[0].size ? count : 0;
+}
+
 static void boot_from_json_buffer(const char *json_buffer, int size,
 	boot_json_load_cb load_cb, void *opaque)
 {
@@ -480,8 +524,9 @@ static void boot_from_json_buffer(const char *json_buffer, int size,
 			count, (int)(sizeof(t)/sizeof(*t)));
 		return;
 	}
-	if (count < 1 || t[0].type != JSMN_OBJECT || count != 1 + 2*t[0].size) {
-		printf("Error: boot JSON must be a flat object\n");
+	count = boot_json_flatten(json_buffer, t, count);
+	if (!count) {
+		printf("Error: invalid boot JSON structure\n");
 		return;
 	}
 
@@ -502,7 +547,8 @@ static void boot_from_json_buffer(const char *json_buffer, int size,
 				return;
 			}
 		}
-		/* bootargs is consumed by other tools and can exceed json_value. */
+		/* Preserve legacy ignored scalar bootargs without copying its value.
+		   Object bootargs have already been flattened into metadata entries. */
 		if (boot_json_key_is(json_buffer, &t[i], "bootargs"))
 			continue;
 		if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1]) ||

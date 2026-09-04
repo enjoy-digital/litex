@@ -96,6 +96,28 @@ Custom linker scripts can reserve a buffer and export
 must not overlap BIOS code, data or stack. Zynq linker scripts do not currently
 provide this optional buffer.
 
+## Boot Manifests
+
+Network, SD and SATA boot share the same manifest validation. Image entries
+map filenames to load addresses; optional `bootargs` metadata sets the entry
+point and registers:
+
+```json
+{
+    "image.bin": "0x40000000",
+    "bootargs": {
+        "addr": "0x40000000",
+        "r1": "0x12345678"
+    }
+}
+```
+
+Without `addr`, the BIOS jumps to the last image's load address. Registers
+default to zero. Top-level `addr`, `r1`, `r2` and `r3` remain supported.
+Duplicate keys, invalid addresses and unsupported nesting are rejected
+before loading. Each image is bounded by available RAM and the next image's
+destination, including aliases of the same physical memory.
+
 ## Flash Boot Bounds
 
 `FLASH_BOOT_MAX_SIZE` limits the accepted image payload length (by default,
