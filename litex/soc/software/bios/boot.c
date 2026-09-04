@@ -566,6 +566,19 @@ static void boot_from_json_buffer(const char *json_buffer, int size,
 		} else {
 			if (!boot_load_max_size(value, &max_size))
 				return;
+			for (int j = 1; j < i; j += 2) {
+				unsigned long other;
+
+				if (!boot_json_is_image(json_buffer, &t[j]))
+					continue;
+				json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[j+1]);
+				if (!boot_parse_address(json_value, &other))
+					return;
+				if (boot_physical_address(other) == boot_physical_address(value)) {
+					printf("Error: boot images share load address 0x%08lx\n", value);
+					return;
+				}
+			}
 			image_found = 1;
 			if (!boot_addr_found)
 				boot_addr = value;
@@ -600,10 +613,6 @@ static void boot_from_json_buffer(const char *json_buffer, int size,
 			if (!boot_parse_address(json_value, &other))
 				return;
 			other = boot_physical_address(other);
-			if (other == physical) {
-				printf("Error: boot images share load address 0x%08lx\n", load_addr);
-				return;
-			}
 			if (other > physical && max_size > other - physical)
 				max_size = other - physical;
 		}

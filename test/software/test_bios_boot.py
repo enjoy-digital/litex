@@ -400,6 +400,7 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
                 "[{{\\"first.bin\\":\\"0x1000\\"}}]",
                 "{{\\"first.bin\\":{{\\"addr\\":\\"0x1000\\"}}}}",
                 "{{\\"first.bin\\":\\"0x1000\\",\\"alias.bin\\":\\"0x11000\\"}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"second.bin\\":\\"0x1800\\",\\"alias.bin\\":\\"0x11800\\"}}",
                 "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"r1\\":\\"-1\\"}}}}",
                 "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"r1\\":[]}}}}",
                 "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"r1\\":{{\\"r2\\":\\"0\\"}}}}}}",
