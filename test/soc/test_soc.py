@@ -641,6 +641,46 @@ class TestSoCBusHandler(unittest.TestCase):
 
         self.assertNotIn("too_big", bus.regions)
 
+    def test_auto_allocation_clips_io_windows_to_bus_address_space(self):
+        for address_width in [32, 64]:
+            with self.subTest(address_width=address_width):
+                limit = 2**address_width
+                bus = SoCBusHandler(address_width=address_width)
+                bus.add_region("high_io", SoCIORegion(origin=limit, size=0x10000))
+                with _assert_raises_soc_error(self):
+                    bus.add_slave("unreachable", wishbone.Interface(address_width=address_width),
+                        SoCRegion(size=0x1000, cached=False))
+                self.assertNotIn("unreachable", bus.regions)
+                self.assertNotIn("unreachable", bus.slaves)
+
+                bus = SoCBusHandler(address_width=address_width)
+                bus.add_region("io", SoCIORegion(origin=limit-0x1000, size=0x2000))
+                bus.add_region("last_page", SoCRegion(size=0x1000, cached=False))
+                self.assertEqual(bus.regions["last_page"].origin, limit-0x1000)
+                with _assert_raises_soc_error(self):
+                    bus.add_region("overflow", SoCRegion(size=0x1000, cached=False))
+                self.assertNotIn("overflow", bus.regions)
+
+    def test_auto_allocation_checks_rounded_decode_size_at_bus_limit(self):
+        bus = SoCBusHandler()
+        bus.add_region("io", SoCIORegion(origin=2**32-0x1800, size=0x3000))
+        with _assert_raises_soc_error(self):
+            bus.add_region("rounded", SoCRegion(size=0x1800, cached=False))
+        self.assertNotIn("rounded", bus.regions)
+
+    def test_auto_allocation_preserves_region_attributes(self):
+        bus = SoCBusHandler(timeout=None)
+        bus.add_master("cpu", wishbone.Interface())
+        bus.add_slave("ram", wishbone.Interface(),
+            SoCRegion(size=0x1000, mode="rx", linker=True, decode=False))
+        region = bus.regions["ram"]
+        self.assertEqual(region.mode, "rx")
+        self.assertTrue(region.linker)
+        self.assertTrue(region.cached)
+        self.assertFalse(region.decode)
+        bus.finalize()
+        self.assertIsInstance(bus._interconnect, wishbone.InterconnectPointToPoint)
+
     def test_failed_overlapping_io_region_add_does_not_mutate_io_regions(self):
         bus = SoCBusHandler()
         bus.add_region("io0", SoCIORegion(origin=0x80000000, size=0x10000))

@@ -354,7 +354,8 @@ class SoCBusHandler(LiteXModule):
             # If no Origin specified, allocate Region.
             if region.origin is None:
                 allocated = True
-                region    = self.alloc_region(name, region.size, region.cached, linker=region.linker, mode=region.mode)
+                region    = self.alloc_region(name, region.size, region.cached,
+                    linker=region.linker, mode=region.mode, decode=region.decode)
                 self.regions[name] = region
             # Else add Region.
             else:
@@ -408,7 +409,7 @@ class SoCBusHandler(LiteXModule):
                 colorer(type(region).__name__, color="red")))
             raise SoCError()
 
-    def alloc_region(self, name, size, cached=True, linker=False, mode="rw"):
+    def alloc_region(self, name, size, cached=True, linker=False, mode="rw", decode=True):
         self.logger.info("Allocating {} Region of size {}...".format(
             colorer("Cached" if cached else "IO"),
             colorer("0x{:08x}".format(size))))
@@ -422,15 +423,17 @@ class SoCBusHandler(LiteXModule):
         # Iterate on Search_Regions to find a Candidate.
         size_pow2 = 2**log2_int(size, False)
         for _, search_region in search_regions.items():
-            origin       = search_region.origin
-            search_limit = search_region.origin + search_region.size
+            # CPU IO windows can extend beyond the bus, but decoded slaves cannot.
+            origin       = max(0, search_region.origin)
+            search_limit = min(2**self.address_width, search_region.origin + search_region.size)
             while (origin + size_pow2) <= search_limit:
                 # Align Origin on Size.
                 if (origin%size_pow2):
                     origin += (size_pow2 - origin%size_pow2)
                     continue
                 # Create a Candidate.
-                candidate = SoCRegion(origin=origin, size=size, mode=mode, cached=cached, linker=linker)
+                candidate = SoCRegion(origin=origin, size=size, mode=mode,
+                    cached=cached, linker=linker, decode=decode)
                 overlap   = False
                 if cached and self.io_regions_check and self.check_region_overlap(
                     candidate, self.io_regions, check_linker=True):
