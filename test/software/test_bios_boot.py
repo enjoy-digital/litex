@@ -833,3 +833,117 @@ def test_bios_flashboot_host_coverage(tmp_path):
     if result.returncode == 77:
         pytest.skip("host cannot provide low-address mmap for BIOS flashboot test")
     assert result.returncode == 0
+
+
+@pytest.mark.parametrize("medium,csr", [
+    ("sdcard", "CSR_SDCARD_BASE"),
+    ("sata", "CSR_SATA_SECTOR2MEM_BASE"),
+])
+def test_bios_storage_loads(tmp_path, medium, csr):
+    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    include_dir = tmp_path / "include"
+    source = tmp_path / "storage.c"
+    binary = tmp_path / "storage"
+    _write_bios_stubs(include_dir)
+    _write(source, f"""
+        #include <assert.h>
+        #include <setjmp.h>
+        #include <stdint.h>
+        #include <stdio.h>
+        #include <string.h>
+
+        static unsigned char ram[0x10010];
+        #define {csr} 1
+        #define MAIN_RAM_BASE_VA ((unsigned long)ram)
+        #define MAIN_RAM_SIZE (sizeof(ram) - 16)
+        static jmp_buf jump;
+        static unsigned int file_size, file_offset;
+        static int mount_error, open_error, read_error;
+        static int closes, unmounts, reads, boots;
+
+        #include "{repo}/litex/soc/software/bios/boot.c"
+
+        void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr)
+        {{
+            (void)r1; (void)r2; (void)r3;
+            assert(addr == MAIN_RAM_BASE_VA);
+            boots++;
+            longjmp(jump, 1);
+        }}
+        void bios_print_section(const char *name) {{ (void)name; }}
+        FRESULT f_mount(FATFS *fs, const char *path, int opt)
+        {{
+            (void)path; (void)opt;
+            if (!fs) {{ unmounts++; return FR_OK; }}
+            return mount_error;
+        }}
+        FRESULT f_open(FIL *file, const char *path, int mode)
+        {{
+            (void)path; (void)mode;
+            file->size = file_size;
+            file_offset = 0;
+            return open_error;
+        }}
+        unsigned int f_size(FIL *file) {{ return file->size; }}
+        FRESULT f_read(FIL *file, void *buffer, unsigned int btr, UINT *br)
+        {{
+            (void)file;
+            reads++;
+            if (read_error) return read_error;
+            *br = file_size - file_offset;
+            if (*br > btr) *br = btr;
+            memset(buffer, 0x5a, *br);
+            file_offset += *br;
+            return FR_OK;
+        }}
+        FRESULT f_close(FIL *file) {{ (void)file; closes++; return FR_OK; }}
+
+        static void reset(unsigned int size)
+        {{
+            file_size = size;
+            mount_error = open_error = read_error = 0;
+            closes = unmounts = reads = boots = 0;
+            memset(ram, 0xa5, sizeof(ram));
+        }}
+
+        int main(void)
+        {{
+            reset(0);
+            if (!setjmp(jump)) {medium}boot_from_bin("empty.bin");
+            assert(boots == 0 && reads == 0 && closes == 1 && unmounts == 1);
+            assert(ram[0] == 0xa5);
+
+            reset(MAIN_RAM_SIZE + 1);
+            if (!setjmp(jump)) {medium}boot_from_bin("oversized.bin");
+            assert(boots == 0 && reads == 0 && closes == 1 && unmounts == 1);
+
+            reset(MAIN_RAM_SIZE);
+            if (!setjmp(jump)) {medium}boot_from_bin("valid.bin");
+            assert(boots == 1 && closes == 1 && unmounts == 1);
+            for (unsigned int i = 0; i < MAIN_RAM_SIZE; i++) assert(ram[i] == 0x5a);
+            for (unsigned int i = MAIN_RAM_SIZE; i < sizeof(ram); i++) assert(ram[i] == 0xa5);
+
+            reset(32);
+            mount_error = 1;
+            if (!setjmp(jump)) {medium}boot_from_bin("mount-error.bin");
+            assert(boots == 0 && reads == 0 && closes == 0);
+
+            reset(32);
+            open_error = 1;
+            if (!setjmp(jump)) {medium}boot_from_bin("open-error.bin");
+            assert(boots == 0 && reads == 0 && closes == 0 && unmounts == 1);
+
+            reset(32);
+            read_error = 1;
+            if (!setjmp(jump)) {medium}boot_from_bin("read-error.bin");
+            assert(boots == 0 && closes == 1 && unmounts == 1);
+            return 0;
+        }}
+    """)
+    subprocess.check_call([
+        "gcc", "-std=gnu99", "-Wall", "-Wextra",
+        "-ffunction-sections", "-fdata-sections",
+        f"-I{include_dir}", f"-I{repo}/litex/soc/software",
+        str(source), "-Wl,--gc-sections", "-o", str(binary),
+    ])
+    subprocess.check_call([str(binary)])

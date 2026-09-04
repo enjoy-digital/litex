@@ -894,6 +894,12 @@ static int copy_file_from_sdcard_to_ram(const char * filename, unsigned long ram
 	}
 
 	length = f_size(&file);
+	if (length == 0) {
+		printf("Error: %s is empty\n", filename);
+		f_close(&file);
+		f_mount(0, "", 0);
+		return 0;
+	}
 	if (length > max_size) {
 		printf("Error: %s is too large for destination (0x%08lx > 0x%08lx bytes)\n",
 			filename, length, (unsigned long)max_size);
@@ -1052,6 +1058,12 @@ static int copy_file_from_sata_to_ram(const char * filename, unsigned long ram_a
 	}
 
 	length = f_size(&file);
+	if (length == 0) {
+		printf("Error: %s is empty\n", filename);
+		f_close(&file);
+		f_mount(0, "", 0);
+		return 0;
+	}
 	if (length > max_size) {
 		printf("Error: %s is too large for destination (0x%08lx > 0x%08lx bytes)\n",
 			filename, length, (unsigned long)max_size);
