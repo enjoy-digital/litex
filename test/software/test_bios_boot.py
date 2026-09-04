@@ -238,6 +238,7 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
         struct load_ctx {{
             int count;
             int fail_after;
+            size_t image_size;
             struct load_event events[8];
         }};
 
@@ -255,6 +256,8 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             }}
 
             if ((ctx->fail_after >= 0) && (index >= ctx->fail_after))
+                return 0;
+            if (ctx->image_size > max_size)
                 return 0;
             return 1;
         }}
@@ -349,6 +352,50 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             REQUIRE(boot_r2 == 0x22);
             REQUIRE(boot_r3 == 0x33);
             REQUIRE(boot_addr == 0x1800);
+            return 0;
+        }}
+
+        static int test_manifest_preflight_and_image_bounds(void)
+        {{
+            const char *invalid[] = {{
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bad.bin\\":\\"-1\\"}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"addr\\":\\"0x10000000000000000\\"}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"first.bin\\":\\"0x1100\\"}}",
+                "[{{\\"first.bin\\":\\"0x1000\\"}}]",
+                "{{\\"first.bin\\":{{\\"addr\\":\\"0x1000\\"}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"alias.bin\\":\\"0x11000\\"}}",
+            }};
+            struct load_ctx ctx;
+            const char *reverse = "{{\\"second.bin\\":\\"0x11100\\",\\"first.bin\\":\\"0x1000\\"}}";
+            const char *forward = "{{\\"first.bin\\":\\"0x1000\\",\\"second.bin\\":\\"0x11100\\"}}";
+
+            for (unsigned int i = 0; i < sizeof(invalid)/sizeof(*invalid); i++) {{
+                memset(&ctx, 0, sizeof(ctx));
+                ctx.fail_after = -1;
+                boot_addr = 0;
+                if (!setjmp(boot_jmp))
+                    boot_from_json_buffer(invalid[i], strlen(invalid[i]), record_load, &ctx);
+                REQUIRE(ctx.count == 0);
+                REQUIRE(boot_addr == 0);
+            }}
+            memset(&ctx, 0, sizeof(ctx));
+            ctx.fail_after = -1;
+            ctx.image_size = 0x100;
+            if (!setjmp(boot_jmp))
+                boot_from_json_buffer(reverse, strlen(reverse), record_load, &ctx);
+            REQUIRE(ctx.count == 2);
+            REQUIRE(ctx.events[1].max_size == 0x100);
+            REQUIRE(boot_addr == 0x1000);
+
+            memset(&ctx, 0, sizeof(ctx));
+            ctx.fail_after = -1;
+            ctx.image_size = 0x101;
+            boot_addr = 0;
+            if (!setjmp(boot_jmp))
+                boot_from_json_buffer(forward, strlen(forward), record_load, &ctx);
+            REQUIRE(ctx.count == 1);
+            REQUIRE(ctx.events[0].max_size == 0x100);
+            REQUIRE(boot_addr == 0);
             return 0;
         }}
 
@@ -617,6 +664,8 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             if (test_boot_load_max_size())
                 return 1;
             if (test_manifest_explicit_boot_address())
+                return 1;
+            if (test_manifest_preflight_and_image_bounds())
                 return 1;
             if (test_manifest_ignores_long_bootargs())
                 return 1;

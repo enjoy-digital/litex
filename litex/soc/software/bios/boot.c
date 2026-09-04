@@ -447,100 +447,124 @@ static char boot_json_buffer[BOOT_JSON_BUFFER_SIZE];
 typedef int (*boot_json_load_cb)(void *opaque, const char *filename,
 	unsigned long load_addr, size_t max_size);
 
+static int boot_json_key_is(const char *json, const jsmntok_t *key, const char *name)
+{
+	return key->end - key->start == (int)strlen(name) &&
+		!strncmp(json + key->start, name, key->end - key->start);
+}
+
+static int boot_json_is_image(const char *json, const jsmntok_t *key)
+{
+	return !boot_json_key_is(json, key, "bootargs") &&
+		!boot_json_key_is(json, key, "addr") &&
+		!boot_json_key_is(json, key, "r1") &&
+		!boot_json_key_is(json, key, "r2") &&
+		!boot_json_key_is(json, key, "r3");
+}
+
 static void boot_from_json_buffer(const char *json_buffer, int size,
 	boot_json_load_cb load_cb, void *opaque)
 {
-	int i;
-	int count;
-
-	/* json_name must accommodate long filenames (FatFs is built with LFN
-	   support), but keep these scratch buffers off .bss. */
 	char json_name[256];
 	char json_value[64];
-
-	unsigned long boot_r1 = 0;
-	unsigned long boot_r2 = 0;
-	unsigned long boot_r3 = 0;
-	unsigned long boot_addr = 0;
-
-	uint8_t image_found = 0;
-	uint8_t boot_addr_found = 0;
-
-	/* Parse JSON file */
+	unsigned long boot_r1 = 0, boot_r2 = 0, boot_r3 = 0, boot_addr = 0;
+	int image_found = 0, boot_addr_found = 0;
 	static jsmntok_t t[64];
 	jsmn_parser p;
+	int count;
+
 	jsmn_init(&p);
 	count = jsmn_parse(&p, json_buffer, size, t, sizeof(t)/sizeof(*t));
 	if (count < 0) {
-		if (count == JSMN_ERROR_NOMEM)
-			printf("Error: too many entries in boot JSON (max %d tokens)\n",
-				(int)(sizeof(t)/sizeof(*t)));
-		else
-			printf("Error: failed to parse boot JSON (%d)\n", count);
+		printf("Error: failed to parse boot JSON (%d; max %d tokens)\n",
+			count, (int)(sizeof(t)/sizeof(*t)));
 		return;
 	}
-	for (i=0; i<count-1; i++) {
-		/* Elements are JSON strings with 1 children */
-		if ((t[i].type == JSMN_STRING) && (t[i].size == 1)) {
-			/* Get Element's filename. Abort instead of skipping the entry:
-			   booting with one of the listed images missing (e.g. a kernel
-			   without its device tree) would fail in harder-to-debug ways. */
-			if (!json_token_to_string(json_name, sizeof(json_name), json_buffer, &t[i])) {
-				printf("Error: boot JSON filename is too long\n");
-				return;
-			}
-			/* bootargs is consumed by other tools, not by the BIOS. Do not
-			   constrain it to the address scratch buffer's size. */
-			if (strcmp(json_name, "bootargs") == 0)
-				continue;
-			/* Get Element's address */
-			if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1])) {
-				printf("Error: boot JSON value for \"%s\" is too long\n", json_name);
-				return;
-			}
-			/* Get boot addr (optional) */
-			if (strcmp(json_name, "addr") == 0) {
-				if (!boot_parse_address(json_value, &boot_addr))
-					return;
-				boot_addr_found = 1;
-			}
-			/* Get boot r1 (optional) */
-			else if (strcmp(json_name, "r1") == 0) {
-				if (!boot_parse_address(json_value, &boot_r1))
-					return;
-			}
-			/* Get boot r2 (optional) */
-			else if (strcmp(json_name, "r2") == 0) {
-				if (!boot_parse_address(json_value, &boot_r2))
-					return;
-			}
-			/* Get boot r3 (optional) */
-			else if (strcmp(json_name, "r3") == 0) {
-				if (!boot_parse_address(json_value, &boot_r3))
-					return;
-			/* Copy Image to address */
-			} else {
-				unsigned long load_addr;
-				size_t max_size;
-
-				if (!boot_parse_address(json_value, &load_addr))
-					return;
-				if (!boot_load_max_size(load_addr, &max_size))
-					return;
-				if (!load_cb(opaque, json_name, load_addr, max_size))
-					return;
-				image_found = 1;
-				if (boot_addr_found == 0) /* Boot to last Image address if no bootargs.addr specified */
-					boot_addr = load_addr;
-			}
-		}
+	if (count < 1 || t[0].type != JSMN_OBJECT || count != 1 + 2*t[0].size) {
+		printf("Error: boot JSON must be a flat object\n");
+		return;
 	}
 
-	/* Boot */
-	if (image_found)
-		boot(boot_r1, boot_r2, boot_r3, boot_addr);
-	else
+	/* Validate the complete manifest before writing any image. */
+	for (int i = 1; i < count; i += 2) {
+		unsigned long value;
+		size_t max_size;
+
+		if (t[i].type != JSMN_STRING || t[i].size != 1 ||
+		    (t[i+1].type != JSMN_STRING && t[i+1].type != JSMN_PRIMITIVE) ||
+		    !json_token_to_string(json_name, sizeof(json_name), json_buffer, &t[i])) {
+			printf("Error: invalid boot JSON entry\n");
+			return;
+		}
+		for (int j = 1; j < i; j += 2) {
+			if (boot_json_key_is(json_buffer, &t[j], json_name)) {
+				printf("Error: duplicate boot JSON key \"%s\"\n", json_name);
+				return;
+			}
+		}
+		/* bootargs is consumed by other tools and can exceed json_value. */
+		if (boot_json_key_is(json_buffer, &t[i], "bootargs"))
+			continue;
+		if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1]) ||
+		    !boot_parse_address(json_value, &value))
+			return;
+		if (!strcmp(json_name, "addr")) {
+			boot_addr = value;
+			boot_addr_found = 1;
+		} else if (!strcmp(json_name, "r1")) {
+			boot_r1 = value;
+		} else if (!strcmp(json_name, "r2")) {
+			boot_r2 = value;
+		} else if (!strcmp(json_name, "r3")) {
+			boot_r3 = value;
+		} else {
+			if (!boot_load_max_size(value, &max_size))
+				return;
+			image_found = 1;
+			if (!boot_addr_found)
+				boot_addr = value;
+		}
+	}
+	if (!image_found) {
 		printf("Error: no boot image found in boot JSON\n");
+		return;
+	}
+
+	/* Bound every image by the next destination, regardless of file order.
+	   Reusing the parsed tokens avoids an additional SRAM image table. */
+	for (int i = 1; i < count; i += 2) {
+		unsigned long load_addr, physical;
+		size_t max_size;
+
+		if (!boot_json_is_image(json_buffer, &t[i]))
+			continue;
+		json_token_to_string(json_name, sizeof(json_name), json_buffer, &t[i]);
+		json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1]);
+		if (!boot_parse_address(json_value, &load_addr))
+			return;
+		physical = boot_physical_address(load_addr);
+		if (!boot_load_max_size(load_addr, &max_size))
+			return;
+		for (int j = 1; j < count; j += 2) {
+			unsigned long other;
+
+			if (j == i || !boot_json_is_image(json_buffer, &t[j]))
+				continue;
+			json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[j+1]);
+			if (!boot_parse_address(json_value, &other))
+				return;
+			other = boot_physical_address(other);
+			if (other == physical) {
+				printf("Error: boot images share load address 0x%08lx\n", load_addr);
+				return;
+			}
+			if (other > physical && max_size > other - physical)
+				max_size = other - physical;
+		}
+		if (!load_cb(opaque, json_name, load_addr, max_size))
+			return;
+	}
+	boot(boot_r1, boot_r2, boot_r3, boot_addr);
 }
 #endif
 
