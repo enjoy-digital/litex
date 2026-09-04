@@ -337,6 +337,20 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             return 0;
         }}
 
+        static int test_manifest_ignores_long_bootargs(void)
+        {{
+            char json[512];
+            struct load_ctx ctx = {{.count = 0, .fail_after = -1}};
+
+            snprintf(json, sizeof(json),
+                "{{\\"bootargs\\":\\"%0256d\\",\\"image.bin\\":\\"0x1000\\"}}", 0);
+            if (setjmp(boot_jmp) == 0)
+                boot_from_json_buffer(json, strlen(json), record_load, &ctx);
+            REQUIRE(ctx.count == 1);
+            REQUIRE(boot_addr == 0x1000);
+            return 0;
+        }}
+
         static int test_manifest_defaults_to_last_image(void)
         {{
             const char *json =
@@ -588,6 +602,8 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             if (test_boot_load_max_size())
                 return 1;
             if (test_manifest_explicit_boot_address())
+                return 1;
+            if (test_manifest_ignores_long_bootargs())
                 return 1;
             if (test_manifest_defaults_to_last_image())
                 return 1;

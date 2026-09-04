@@ -452,17 +452,17 @@ static void boot_from_json_buffer(const char *json_buffer, int size,
 				printf("Error: boot JSON filename is too long\n");
 				return;
 			}
+			/* bootargs is consumed by other tools, not by the BIOS. Do not
+			   constrain it to the address scratch buffer's size. */
+			if (strcmp(json_name, "bootargs") == 0)
+				continue;
 			/* Get Element's address */
 			if (!json_token_to_string(json_value, sizeof(json_value), json_buffer, &t[i+1])) {
 				printf("Error: boot JSON value for \"%s\" is too long\n", json_name);
 				return;
 			}
-			/* Skip bootargs (optional) */
-			if (strcmp(json_name, "bootargs") == 0) {
-				continue;
-			}
 			/* Get boot addr (optional) */
-			else if (strcmp(json_name, "addr") == 0) {
+			if (strcmp(json_name, "addr") == 0) {
 				if (!boot_parse_address(json_value, &boot_addr))
 					return;
 				boot_addr_found = 1;
