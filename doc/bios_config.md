@@ -45,6 +45,42 @@ Some BIOS options are build flags rather than generated SoC constants:
 
 When using `Builder`, this can be selected with `bios_console_no_ansi=True`.
 
+The make/environment variables `BIOS_ROM_BUDGET` and `BIOS_SRAM_BUDGET` set
+optional byte limits checked after linking. For example,
+`BIOS_ROM_BUDGET=0x10000 BIOS_SRAM_BUDGET=0x1800 litex_sim ...` fails if
+the selected configuration exceeds 64 KiB of ROM or 6 KiB of allocated SRAM.
+SRAM usage includes an explicit boot buffer or stack section, but not an
+implicit stack. Use `--bios-stack-margin` as well to protect stack headroom.
+Choose limits per CPU/feature configuration; no budgets are enabled by default.
+
+## Command Usage
+
+`help <command>` shows a command's description and registered usage.
+Core memory, flash and boot commands reject missing or excess arguments
+before invoking a handler. Lines exceeding `MAX_PARAM` are rejected entirely.
+
+Target commands can opt into the same checks with:
+
+```c
+define_command_args(example, example_handler, "Example command",
+    "example <value> [count]", 1, 2, SYSTEM_CMDS);
+```
+
+Existing `define_command()` registrations remain supported. Checked unsigned
+parsers in `<libbase/parse.h>` accept decimal, `0`-prefixed octal and
+`0x`-prefixed hexadecimal numbers, rejecting signs, whitespace and overflow.
+
+## Transfer Timeouts
+
+TFTP uses a five-second request/inactivity deadline by default, configurable
+with `TFTP_TIMEOUT_US`. SPI SD byte transfers use `SPISDCARD_XFER_TIMEOUT_US`
+(10 ms by default). These are system-clock deadlines rather than polling
+iteration counts.
+
+The shared timeout helper uses uptime when available. Otherwise, it puts
+timer0 in free-running mode; callers must not reprogram timer0 (including via
+`busy_wait`) while a deadline is active. Nested deadlines are supported.
+
 ## SRAM Boot Images
 
 The BIOS reserves its SRAM for runtime data and stack. Serial and manifest

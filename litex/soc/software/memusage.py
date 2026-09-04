@@ -87,7 +87,7 @@ def print_size(name, size, total=None):
         print("{}: {} \t({:.2f}%)".format(name, format_size(size), size/total*100.0))
 
 
-def print_usage(bios, regions, triple, fail_stack_margin=None):
+def print_usage(bios, regions, triple, fail_stack_margin=None, max_rom=None, max_sram=None):
     linker_regions = parse_regions(regions)
     sections       = parse_sections(bios, triple)
     failed         = False
@@ -158,6 +158,11 @@ def print_usage(bios, regions, triple, fail_stack_margin=None):
                 format_size(stack_available),
                 format_size(fail_stack_margin)))
             failed = True
+    for name, used, limit in [("ROM", rom_usage, max_rom), ("SRAM", sram_usage, max_sram)]:
+        if limit is not None and used > limit:
+            print("ERROR: {} usage exceeds budget ({} > {}).".format(
+                name, format_size(used), format_size(limit)))
+            failed = True
     print("")
     return 1 if failed else 0
 
@@ -165,11 +170,16 @@ def main():
     parser = argparse.ArgumentParser(description="Print bios memory usage")
     parser.add_argument("--fail-stack-margin", type=lambda x: int(x, 0), default=None,
         help="Fail when available BIOS stack space is below this byte count.")
+    parser.add_argument("--max-rom", type=lambda x: int(x, 0), default=None,
+        help="Fail when ROM usage exceeds this byte count.")
+    parser.add_argument("--max-sram", type=lambda x: int(x, 0), default=None,
+        help="Fail when allocated SRAM usage exceeds this byte count (excludes implicit stack).")
     parser.add_argument("input", help="input file")
     parser.add_argument("regions", help="regions definitions")
     parser.add_argument("triple", help="toolchain triple")
     args = parser.parse_args()
-    sys.exit(print_usage(args.input, args.regions, args.triple, args.fail_stack_margin))
+    sys.exit(print_usage(args.input, args.regions, args.triple,
+        args.fail_stack_margin, args.max_rom, args.max_sram))
 
 
 if __name__ == "__main__":
