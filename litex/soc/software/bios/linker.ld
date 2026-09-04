@@ -90,6 +90,15 @@ SECTIONS
 		PROVIDE_HIDDEN (__fini_array_end = .);
 	} > rom
 
+	/* Optional image buffer: never include it in data initialization or BSS. */
+	.boot_sram (NOLOAD) :
+	{
+		__bios_boot_sram_start = .;
+		. += DEFINED(__bios_boot_sram_size) ? __bios_boot_sram_size : 0;
+		. = ALIGN(8);
+		__bios_boot_sram_end = .;
+	} > sram
+
 	.data :
 	{
 		. = ALIGN(8);

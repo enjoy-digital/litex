@@ -95,26 +95,64 @@ static int boot_region_max_size(unsigned long addr, unsigned long base, unsigned
 }
 #endif
 
+/* Compare physical addresses so aliases cannot bypass load reservations. */
+static unsigned long boot_physical_address(unsigned long addr)
+{
+#if defined(MAIN_RAM_BASE) && defined(MAIN_RAM_BASE_VA)
+	if (addr >= MAIN_RAM_BASE_VA && addr - MAIN_RAM_BASE_VA < MAIN_RAM_SIZE)
+		return MAIN_RAM_BASE + (addr - MAIN_RAM_BASE_VA);
+#endif
+#if defined(SRAM_BASE) && defined(SRAM_BASE_VA)
+	if (addr >= SRAM_BASE_VA && addr - SRAM_BASE_VA < SRAM_SIZE)
+		return SRAM_BASE + (addr - SRAM_BASE_VA);
+#endif
+	return addr;
+}
+
+#ifdef SRAM_BASE
+#define BIOS_SRAM_BASE SRAM_BASE
+#elif defined(SRAM_BASE_VA)
+#define BIOS_SRAM_BASE SRAM_BASE_VA
+#endif
+
 static int boot_load_max_size(unsigned long addr, size_t *max_size)
 {
-	(void)max_size;
-	/* Limit boot image loads to known writable memory regions. */
+	unsigned long physical = boot_physical_address(addr);
+	int found = 0;
+
+#ifdef BIOS_SRAM_BASE
+	/* SRAM holds the BIOS runtime and its growing stack. Only a buffer
+	   explicitly reserved by the linker is available for image loading.
+	   Custom linker scripts without these symbols reserve all SRAM. */
+	extern char __bios_boot_sram_start[] __attribute__((weak));
+	extern char __bios_boot_sram_end[] __attribute__((weak));
+	unsigned long start = boot_physical_address((unsigned long)__bios_boot_sram_start);
+	unsigned long end = boot_physical_address((unsigned long)__bios_boot_sram_end);
+	size_t available;
+
+	if (boot_region_max_size(physical, BIOS_SRAM_BASE, SRAM_SIZE, &available)) {
+		if (end > start && start >= BIOS_SRAM_BASE &&
+		    start - BIOS_SRAM_BASE < SRAM_SIZE &&
+		    end - start <= SRAM_SIZE - (start - BIOS_SRAM_BASE) &&
+		    boot_region_max_size(physical, start, end - start, max_size))
+			return 1;
+		printf("Error: boot load address 0x%08lx overlaps BIOS SRAM\n", addr);
+		return 0;
+	}
+#endif
 #ifdef MAIN_RAM_BASE
-	if (boot_region_max_size(addr, MAIN_RAM_BASE, MAIN_RAM_SIZE, max_size))
-		return 1;
+	found = boot_region_max_size(physical, MAIN_RAM_BASE, MAIN_RAM_SIZE, max_size);
+#elif defined(MAIN_RAM_BASE_VA)
+	found = boot_region_max_size(physical, MAIN_RAM_BASE_VA, MAIN_RAM_SIZE, max_size);
 #endif
-#ifdef MAIN_RAM_BASE_VA
-	if (boot_region_max_size(addr, MAIN_RAM_BASE_VA, MAIN_RAM_SIZE, max_size))
-		return 1;
+	if (found) {
+#ifdef BIOS_SRAM_BASE
+		/* A target may carve its SRAM reservation out of main RAM. */
+		if (physical < BIOS_SRAM_BASE && *max_size > BIOS_SRAM_BASE - physical)
+			*max_size = BIOS_SRAM_BASE - physical;
 #endif
-#ifdef SRAM_BASE
-	if (boot_region_max_size(addr, SRAM_BASE, SRAM_SIZE, max_size))
 		return 1;
-#endif
-#ifdef SRAM_BASE_VA
-	if (boot_region_max_size(addr, SRAM_BASE_VA, SRAM_SIZE, max_size))
-		return 1;
-#endif
+	}
 
 	printf("Error: boot load address 0x%08lx is outside writable memory\n", addr);
 	return 0;
@@ -717,7 +755,10 @@ static void netboot_from_json(const char * filename, unsigned int ip, unsigned s
 static void netboot_from_bin(const char * filename, unsigned int ip, unsigned short tftp_port)
 {
 	int size;
-	size = copy_file_from_tftp_to_ram(ip, tftp_port, filename, (void *)MAIN_RAM_BASE_VA, MAIN_RAM_SIZE);
+	size_t max_size;
+	if (!boot_load_max_size(MAIN_RAM_BASE_VA, &max_size))
+		return;
+	size = copy_file_from_tftp_to_ram(ip, tftp_port, filename, (void *)MAIN_RAM_BASE_VA, max_size);
 	if (size <= 0)
 		return;
 	boot(0, 0, 0, MAIN_RAM_BASE_VA);
@@ -985,8 +1026,11 @@ static void fatfsboot_from_json(const char *filename)
 static void fatfsboot_from_bin(const char *filename)
 {
 	size_t size;
+	size_t max_size;
 
-	if (fatfs_load_file(filename, (void *)MAIN_RAM_BASE_VA, MAIN_RAM_SIZE,
+	if (!boot_load_max_size(MAIN_RAM_BASE_VA, &max_size))
+		return;
+	if (fatfs_load_file(filename, (void *)MAIN_RAM_BASE_VA, max_size,
 		&size, 1) != BOOT_LOAD_OK)
 		return;
 	boot(0, 0, 0, MAIN_RAM_BASE_VA);

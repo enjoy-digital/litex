@@ -45,6 +45,21 @@ Some BIOS options are build flags rather than generated SoC constants:
 
 When using `Builder`, this can be selected with `bios_console_no_ansi=True`.
 
+## SRAM Boot Images
+
+The BIOS reserves its SRAM for runtime data and stack. Serial and manifest
+loads into that region are rejected by default, including through aliases.
+With the standard BIOS linker script, a fresh build with the make/environment
+variable `BIOS_BOOT_SRAM_SIZE` reserves an image buffer at the beginning of
+SRAM and moves BIOS data after it. For example, `BIOS_BOOT_SRAM_SIZE=0x1000`
+reserves 4 KiB. Leave enough SRAM for BIOS data and stack, and use
+`--bios-stack-margin` to enforce the required remaining stack space.
+
+Custom linker scripts can reserve a buffer and export
+`__bios_boot_sram_start` / `__bios_boot_sram_end` (exclusive end). The buffer
+must not overlap BIOS code, data or stack. Zynq linker scripts do not currently
+provide this optional buffer.
+
 ## Flash Boot Bounds
 
 `FLASH_BOOT_MAX_SIZE` limits the accepted image payload length (by default,

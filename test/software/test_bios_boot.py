@@ -125,8 +125,10 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
         #define CONFIG_CLOCK_FREQUENCY 1000000
         #define CONFIG_BIOS_NO_DELAYS 1
         #define MAIN_RAM_BASE 0x1000
+        #define MAIN_RAM_BASE_VA 0x11000
         #define MAIN_RAM_SIZE 0x1000
         #define SRAM_BASE 0x3000
+        #define SRAM_BASE_VA 0x13000
         #define SRAM_SIZE 0x100
 
         static jmp_buf boot_jmp;
@@ -310,8 +312,19 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             REQUIRE(max_size == 1);
             REQUIRE(boot_load_max_size(MAIN_RAM_BASE + MAIN_RAM_SIZE - 16, &max_size) == 1);
             REQUIRE(max_size == 16);
+#ifdef BIOS_TEST_SRAM_BUFFER
             REQUIRE(boot_load_max_size(SRAM_BASE + 0x20, &max_size) == 1);
-            REQUIRE(max_size == SRAM_SIZE - 0x20);
+            REQUIRE(max_size == 0x60);
+            REQUIRE(boot_load_max_size(SRAM_BASE_VA + 0x20, &max_size) == 1);
+            REQUIRE(max_size == 0x60);
+            REQUIRE(boot_load_max_size(SRAM_BASE + 0x80, &max_size) == 0);
+            REQUIRE(boot_load_max_size(SRAM_BASE_VA + 0x80, &max_size) == 0);
+#else
+            REQUIRE(boot_load_max_size(SRAM_BASE + 0x20, &max_size) == 0);
+            REQUIRE(boot_load_max_size(SRAM_BASE_VA + 0x20, &max_size) == 0);
+#endif
+            REQUIRE(boot_load_max_size(MAIN_RAM_BASE_VA + 0x20, &max_size) == 1);
+            REQUIRE(max_size == MAIN_RAM_SIZE - 0x20);
             REQUIRE(boot_load_max_size(MAIN_RAM_BASE - 1, &max_size) == 0);
             REQUIRE(boot_load_max_size(MAIN_RAM_BASE + MAIN_RAM_SIZE, &max_size) == 0);
             return 0;
@@ -652,6 +665,14 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
         str(binary),
     ]
     subprocess.check_call(cmd)
+    subprocess.check_call([str(binary)])
+
+    # Reserve an explicit SRAM buffer through linker symbols, using its alias.
+    subprocess.check_call(cmd + [
+        "-no-pie", "-DBIOS_TEST_SRAM_BUFFER",
+        "-Wl,--defsym=__bios_boot_sram_start=0x13000",
+        "-Wl,--defsym=__bios_boot_sram_end=0x13080",
+    ])
     subprocess.check_call([str(binary)])
 
 
