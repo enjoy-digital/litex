@@ -2354,6 +2354,19 @@ class LiteXSoC(SoC):
             self.logger.error("SDRAM requires {}.".format(colorer("module", color="red")))
             raise SoCError()
 
+        # An explicit origin overrides the default SoC map, but not a CPU's fixed mapping.
+        if with_soc_interconnect:
+            from litex.soc.cores.cpu import CPUNone
+            cpu = getattr(self, "cpu", None)
+            cpu_origin = getattr(cpu, "mem_map", {}).get("main_ram", None)
+            if (origin is not None and cpu_origin is not None and
+                not isinstance(cpu, CPUNone) and origin != cpu_origin):
+                self.logger.error("SDRAM origin 0x{:x} conflicts with CPU main_ram mapping 0x{:x}.".format(
+                    origin, cpu_origin))
+                raise SoCError()
+            if origin is None:
+                origin = self.mem_map.get("main_ram", None)
+
         # Imports.
         from litedram.common import LiteDRAMNativePort
         from litedram.core import LiteDRAMCore
@@ -2409,7 +2422,7 @@ class LiteXSoC(SoC):
 
         # Add SDRAM region.
         main_ram_region = SoCRegion(
-            origin = self.mem_map.get("main_ram", origin),
+            origin = origin,
             size   = sdram_size,
             mode   = "rwx")
         self.bus.add_region("main_ram", main_ram_region)

@@ -1455,6 +1455,31 @@ class TestSoC(unittest.TestCase):
         with _assert_raises_soc_error(self):
             soc.add_hyperram(pads=_HyperRamPads())
 
+    def test_sdram_origin_uses_explicit_value_before_default_map(self):
+        try:
+            from litedram.modules import IS42S16160
+            from litedram.phy.model import SDRAMPHYModel
+        except ImportError:
+            self.skipTest("LiteDRAM is unavailable")
+
+        for origin, expected in [(None, 0x40000000), (0x60000000, 0x60000000), (0, 0)]:
+            with self.subTest(origin=origin):
+                soc = SoCCore(_FakePlatform(), clk_freq=100e6, cpu_type=None,
+                    integrated_sram_size=0, with_uart=False, with_timer=False, with_ctrl=False)
+                module = IS42S16160(100e6, "1:1")
+                phy = SDRAMPHYModel(module, data_width=16, clk_freq=100e6)
+                soc.add_sdram(phy=phy, module=module, origin=origin,
+                    size=0x100000, l2_cache_size=0)
+                self.assertEqual(soc.bus.regions["main_ram"].origin, expected)
+
+    def test_sdram_origin_rejects_cpu_mapping_conflict_before_core_creation(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=100e6)
+        soc.cpu = SimpleNamespace(mem_map={"main_ram": 0x80000000})
+        with _assert_raises_soc_error(self):
+            soc.add_sdram(phy=object(), module=object(), origin=0x60000000)
+        self.assertFalse(hasattr(soc, "sdram"))
+        self.assertNotIn("main_ram", soc.bus.regions)
+
     def test_add_uart_keeps_soc_level_integration(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
 
