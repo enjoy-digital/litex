@@ -7,6 +7,7 @@ OBJECTS =  \
 	console.o  \
 	format.o   \
 	parse.o    \
+	timeout.o  \
 	system.o   \
 	progress.o \
 	memtest.o  \
