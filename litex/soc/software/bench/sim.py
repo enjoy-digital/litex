@@ -68,6 +68,8 @@ def main():
     parser.add_argument("--no-interconnect-register", action="store_true")
     parser.add_argument("--with-sdram", action="store_true")
     parser.add_argument("--l2-size", default=8192, type=lambda v: int(v, 0))
+    parser.add_argument("--min-l2-data-width", default=128, type=int,
+        choices=[32, 64, 128, 256, 512, 1024])
     parser.add_argument("--jobs", default=4, type=int)
     parser.add_argument("--timeout", default=120, type=int)
     args = parser.parse_args()
@@ -77,7 +79,7 @@ def main():
         cpu_type="vexriscv", cpu_variant=args.cpu_variant, uart_name="sim",
         integrated_rom_size=0x10000, integrated_sram_size=0x8000,
         integrated_main_ram_size=0 if args.with_sdram else 0x40000,
-        with_sdram=args.with_sdram, l2_size=args.l2_size,
+        with_sdram=args.with_sdram, l2_size=args.l2_size, min_l2_data_width=args.min_l2_data_width,
         bus_standard=args.bus_standard, bus_data_width=args.bus_data_width,
         bus_interconnect=args.bus_interconnect, bus_bursting=args.bus_bursting,
         bus_low_latency=args.bus_low_latency)

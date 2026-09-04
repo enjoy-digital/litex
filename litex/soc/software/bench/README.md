@@ -26,6 +26,12 @@ with LiteX Sim's SDR SDRAM model and an 8 KiB L2. Use `--help` for CPU variant,
 bus, decoder-register and L2 configuration options. These are experiments:
 a wider bus or a larger CPU variant is not necessarily faster.
 
+`--min-l2-data-width` changes the minimum L2 refill width in bits without
+changing the CPU bus width. For example, `--with-sdram --min-l2-data-width=256`
+tests 32-byte cache lines with this SDR model. The same option is available in
+`litex_sim`; it defaults to the existing 128-bit width. Larger lines can help
+sequential accesses but fetch unused data on sparse accesses.
+
 ## Measurement contract
 
 - Firmware is compiled at `-O2`, executes from ROM and keeps its stack in SRAM.
