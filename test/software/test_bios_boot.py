@@ -646,6 +646,7 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
         f"-I{repo}/litex/soc/software/bios",
         str(source),
         f"{repo}/litex/soc/software/libbase/crc16.c",
+        f"{repo}/litex/soc/software/libbase/parse.c",
         "-Wl,--gc-sections",
         "-o",
         str(binary),
@@ -807,6 +808,7 @@ def test_bios_flashboot_host_coverage(tmp_path):
         str(source),
         f"{repo}/litex/soc/software/libbase/crc16.c",
         f"{repo}/litex/soc/software/libbase/crc32.c",
+        f"{repo}/litex/soc/software/libbase/parse.c",
         "-Wl,--gc-sections",
         "-o",
         str(binary),
@@ -934,6 +936,7 @@ def test_bios_storage_loads(tmp_path, medium, csr):
         "gcc", "-std=gnu99", "-Wall", "-Wextra",
         "-ffunction-sections", "-fdata-sections",
         f"-I{include_dir}", f"-I{repo}/litex/soc/software",
-        str(source), "-Wl,--gc-sections", "-o", str(binary),
+        str(source), f"{repo}/litex/soc/software/libbase/parse.c",
+        "-Wl,--gc-sections", "-o", str(binary),
     ])
     subprocess.check_call([str(binary)])

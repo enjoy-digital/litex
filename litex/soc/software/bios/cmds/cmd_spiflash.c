@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <libbase/parse.h>
 
 #include <generated/csr.h>
 
@@ -21,9 +23,8 @@
 #if (defined CSR_SPIFLASH_MASTER_CS_ADDR)
 static void flash_write_handler(int nb_params, char **params)
 {
-	char *c;
 	unsigned int addr;
-	unsigned int mem_addr;
+	unsigned long mem_addr;
 	unsigned int count;
 
 	if (nb_params < 2) {
@@ -31,14 +32,12 @@ static void flash_write_handler(int nb_params, char **params)
 		return;
 	}
 
-	addr = strtoul(params[0], &c, 0);
-	if (*c != 0) {
+	if (!parse_uint(params[0], &addr)) {
 		printf("Error: invalid offset\n");
 		return;
 	}
 
-	mem_addr = strtoul(params[1], &c, 0);
-	if (*c != 0) {
+	if (!parse_ulong(params[1], &mem_addr)) {
 		printf("Error: invalid mem_addr\n");
 		return;
 	}
@@ -46,8 +45,7 @@ static void flash_write_handler(int nb_params, char **params)
 	if (nb_params == 2) {
 		count = 1;
 	} else {
-		count = strtoul(params[2], &c, 0);
-		if (*c != 0) {
+		if (!parse_uint(params[2], &count)) {
 			printf("Error: invalid count\n");
 			return;
 		}
@@ -124,23 +122,20 @@ define_command(flash_from_sdcard, flash_from_sdcard_handler, "Write file from SD
 
 static void flash_erase_range_handler(int nb_params, char **params)
 {
-	char *c;
-	uint32_t addr;
-	uint32_t count;
+	unsigned int addr;
+	unsigned int count;
 
 	if (nb_params < 2) {
 		printf("flash_erase_range <offset> <count>\n");
 		return;
 	}
 
-	addr = strtoul(params[0], &c, 0);
-	if (*c != 0) {
+	if (!parse_uint(params[0], &addr)) {
 		printf("Error: invalid offset\n");
 		return;
 	}
 
-	count = strtoul(params[1], &c, 0);
-	if (*c != 0) {
+	if (!parse_uint(params[1], &count)) {
 		printf("Error: invalid count\n");
 		return;
 	}

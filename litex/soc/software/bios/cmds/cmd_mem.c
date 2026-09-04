@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <libbase/parse.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <libbase/memtest.h>
@@ -38,7 +39,7 @@ define_command(mem_list, mem_list_handler, "List available memory regions", MEM_
  */
 static void mem_read_handler(int nb_params, char **params)
 {
-	char *c;
+	unsigned long address;
 	unsigned int *addr;
 	unsigned int length;
 
@@ -46,16 +47,15 @@ static void mem_read_handler(int nb_params, char **params)
 		printf("mem_read <address> [length]\n");
 		return;
 	}
-	addr = (unsigned int *)strtoul(params[0], &c, 0);
-	if (*c != 0) {
+	if (!parse_ulong(params[0], &address)) {
 		printf("Error: invalid address\n");
 		return;
 	}
+	addr = (unsigned int *)address;
 	if (nb_params == 1) {
 		length = 4;
 	} else {
-		length = strtoul(params[1], &c, 0);
-		if(*c != 0) {
+		if (!parse_uint(params[1], &length)) {
 			printf("Error: invalid length\n");
 			return;
 		}
@@ -74,7 +74,7 @@ define_command(mem_read, mem_read_handler, "Read address space", MEM_CMDS);
  */
 static void mem_write_handler(int nb_params, char **params)
 {
-	char *c;
+	unsigned long address;
 	void *addr;
 	unsigned int value;
 	unsigned int count;
@@ -87,15 +87,13 @@ static void mem_write_handler(int nb_params, char **params)
 	}
 
 	size = 4;
-	addr = (void *)strtoul(params[0], &c, 0);
-
-	if (*c != 0) {
+	if (!parse_ulong(params[0], &address)) {
 		printf("Error: invalid address\n");
 		return;
 	}
+	addr = (void *)address;
 
-	value = strtoul(params[1], &c, 0);
-	if(*c != 0) {
+	if (!parse_uint(params[1], &value)) {
 		printf("Error: invalid value\n");
 		return;
 	}
@@ -103,16 +101,14 @@ static void mem_write_handler(int nb_params, char **params)
 	if (nb_params == 2) {
 		count = 1;
 	} else {
-		count = strtoul(params[2], &c, 0);
-		if(*c != 0) {
+		if (!parse_uint(params[2], &count)) {
 			printf("Error: invalid count\n");
 			return;
 		}
 	}
 
 	if (nb_params == 4) {
-		size = strtoul(params[3], &c, 0);
-		if (*c != 0) {
+		if (!parse_uint(params[3], &size)) {
 			printf("Error: invalid size\n");
 			return;
 		}
@@ -151,7 +147,7 @@ define_command(mem_write, mem_write_handler, "Write address space", MEM_CMDS);
  */
 static void mem_copy_handler(int nb_params, char **params)
 {
-	char *c;
+	unsigned long address;
 	unsigned int *dstaddr;
 	unsigned int *srcaddr;
 	unsigned int count;
@@ -162,23 +158,22 @@ static void mem_copy_handler(int nb_params, char **params)
 		return;
 	}
 
-	dstaddr = (unsigned int *)strtoul(params[0], &c, 0);
-	if (*c != 0) {
+	if (!parse_ulong(params[0], &address)) {
 		printf("Error: invalid destination address\n");
 		return;
 	}
+	dstaddr = (unsigned int *)address;
 
-	srcaddr = (unsigned int *)strtoul(params[1], &c, 0);
-	if (*c != 0) {
+	if (!parse_ulong(params[1], &address)) {
 		printf("Error: invalid source address\n");
 		return;
 	}
+	srcaddr = (unsigned int *)address;
 
 	if (nb_params == 2) {
 		count = 1;
 	} else {
-		count = strtoul(params[2], &c, 0);
-		if (*c != 0) {
+		if (!parse_uint(params[2], &count)) {
 			printf("Error: invalid count\n");
 			return;
 		}
@@ -198,7 +193,7 @@ define_command(mem_copy, mem_copy_handler, "Copy address space", MEM_CMDS);
  */
 static void mem_test_handler(int nb_params, char **params)
 {
-	char *c;
+	unsigned long address;
 	unsigned int *addr;
 	/* Default to the same bounded size as the boot-time memtest: testing
 	   "everything" from addr would write over the BIOS data/stack. */
@@ -209,15 +204,14 @@ static void mem_test_handler(int nb_params, char **params)
 		return;
 	}
 
-	addr = (unsigned int *)strtoul(params[0], &c, 0);
-	if (*c != 0) {
+	if (!parse_ulong(params[0], &address)) {
 		printf("Error: invalid address\n");
 		return;
 	}
+	addr = (unsigned int *)address;
 
 	if (nb_params >= 2) {
-		maxsize = strtoul(params[1], &c, 0);
-		if (*c != 0) {
+		if (!parse_ulong(params[1], &maxsize)) {
 			printf("Error: invalid size\n");
 			return;
 		}
@@ -236,7 +230,7 @@ define_command(mem_test, mem_test_handler, "Test memory access", MEM_CMDS);
  */
 static void mem_speed_handler(int nb_params, char **params)
 {
-	char *c;
+	unsigned long address;
 	unsigned int *addr;
 	unsigned long size;
 	bool read_only = false;
@@ -247,32 +241,31 @@ static void mem_speed_handler(int nb_params, char **params)
 		return;
 	}
 
-	addr = (unsigned int *)strtoul(params[0], &c, 0);
-	if (*c != 0) {
+	if (!parse_ulong(params[0], &address)) {
 		printf("Error: invalid address\n");
 		return;
 	}
+	addr = (unsigned int *)address;
 
-	size = strtoul(params[1], &c, 0);
-	if (*c != 0) {
+	if (!parse_ulong(params[1], &size)) {
 		printf("Error: invalid size\n");
 		return;
 	}
 
 	if (nb_params >= 3) {
-		read_only = (bool) strtoul(params[2], &c, 0);
-		if (*c != 0) {
+		if (!parse_ulong(params[2], &address)) {
 			printf("Error: invalid readonly value\n");
 			return;
 		}
+		read_only = (bool)address;
 	}
 
 	if (nb_params >= 4) {
-		random = (bool) strtoul(params[3], &c, 0);
-		if (*c != 0) {
+		if (!parse_ulong(params[3], &address)) {
 			printf("Error: invalid random value\n");
 			return;
 		}
+		random = (bool)address;
 	}
 
 	memspeed(addr, size, read_only, random);
@@ -287,7 +280,7 @@ define_command(mem_speed, mem_speed_handler, "Test memory speed", MEM_CMDS);
  */
 static void mem_cmp_handler(int nb_params, char **params)
 {
-	char *c;
+	unsigned long address;
 	unsigned int *addr1;
 	unsigned int *addr2;
 	unsigned int count;
@@ -298,20 +291,19 @@ static void mem_cmp_handler(int nb_params, char **params)
 		return;
 	}
 
-	addr1 = (unsigned int *)strtoul(params[0], &c, 0);
-	if (*c != 0) {
+	if (!parse_ulong(params[0], &address)) {
 		printf("Error: invalid addr1\n");
 		return;
 	}
+	addr1 = (unsigned int *)address;
 
-	addr2 = (unsigned int *)strtoul(params[1], &c, 0);
-	if (*c != 0) {
+	if (!parse_ulong(params[1], &address)) {
 		printf("Error: invalid addr2\n");
 		return;
 	}
+	addr2 = (unsigned int *)address;
 
-	count = strtoul(params[2], &c, 0);
-	if (*c != 0) {
+	if (!parse_uint(params[2], &count)) {
 		printf("Error: invalid count\n");
 		return;
 	}

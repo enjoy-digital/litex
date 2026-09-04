@@ -29,6 +29,7 @@
 #include <libbase/crc.h>
 #include <libbase/jsmn.h>
 #include <libbase/progress.h>
+#include <libbase/parse.h>
 
 #include <libliteeth/udp.h>
 #include <libliteeth/tftp.h>
@@ -390,10 +391,7 @@ static int json_token_to_string(char *dst, size_t dst_size, const char *json, js
 
 static int boot_parse_address(const char *value, unsigned long *address)
 {
-	char *end;
-
-	*address = strtoul(value, &end, 0);
-	if ((end == value) || (*end != 0)) {
+	if (!parse_ulong(value, address)) {
 		printf("Error: invalid boot address \"%s\"\n", value);
 		return 0;
 	}

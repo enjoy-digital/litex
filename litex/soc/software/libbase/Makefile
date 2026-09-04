@@ -6,6 +6,7 @@ OBJECTS =  \
 	crc32.o    \
 	console.o  \
 	format.o   \
+	parse.o    \
 	system.o   \
 	progress.o \
 	memtest.o  \
