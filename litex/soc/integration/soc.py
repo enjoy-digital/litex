@@ -1680,7 +1680,9 @@ class SoC(LiteXModule):
         csr_bridge_name = f"{name}_bridge"
         self.check_if_exists(csr_bridge_name)
         data_width     = self.csr.data_width
-        bus_data_width = self.bus.data_width if self.bus.standard == "wishbone" else data_width
+        # CSR data can be narrower than its address stride. Keep AXI transfers aligned to
+        # that stride: a data-width converter to 8 bits would write four successive CSRs.
+        bus_data_width = self.bus.data_width if self.bus.standard == "wishbone" else self.csr.alignment
         csr_bridge = csr_bridge_cls(
             bus_bridge_cls(
                 address_width = self.bus.address_width,

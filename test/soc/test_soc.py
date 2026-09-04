@@ -13,9 +13,11 @@ import unittest
 from contextlib import contextmanager
 from types import SimpleNamespace
 
-from migen import ClockDomain, Record, Signal
+from migen import ClockDomain, Record, Signal, passive
 from migen.sim import run_simulation
 
+from litex.gen import LiteXModule
+from litex.soc.interconnect.csr import CSRStorage
 from litex.soc.cores.dma import WishboneDMAReader
 from litex.soc.cores.hyperbus import HyperRAM
 from litex.soc.cores.video import video_data_layout, video_framebuffer_size
@@ -1377,6 +1379,41 @@ class TestSoC(unittest.TestCase):
         self.assertTrue(soc.bus.regions["csr"].decode)
         self.assertIn("csr", soc.bus.slaves)
         self.assertIn("csr", soc.csr.masters)
+
+    def test_csr_accesses_keep_alignment_across_bus_standards(self):
+        for standard in ["wishbone", "axi-lite", "axi"]:
+            for csr_width in [8, 32]:
+                for bus_width in [32, 64]:
+                    with self.subTest(standard=standard, csr_width=csr_width, bus_width=bus_width):
+                        soc = SoC(_FakePlatform(), sys_clk_freq=1e6,
+                            bus_standard=standard, bus_data_width=bus_width,
+                            csr_data_width=csr_width)
+                        soc.mem_map["csr"] = 0x10000
+                        soc.bus.add_region("io", SoCIORegion(origin=0x10000, size=0x10000))
+                        soc.regs = LiteXModule()
+                        regs = []
+                        for i in range(8):
+                            reg = CSRStorage(csr_width, reset=0x10+i, name=f"r{i}")
+                            setattr(soc.regs, f"r{i}", reg)
+                            regs.append(reg)
+                        soc.csr.add("regs", 0)
+                        master = wishbone.Interface()
+                        soc.bus.add_master("probe", master)
+
+                        def generator():
+                            yield from master.write((0x10000 + 4)//4, 0xab)
+                            for i, reg in enumerate(regs):
+                                self.assertEqual((yield reg.storage), 0xab if i == 1 else 0x10+i)
+                                self.assertEqual((yield from master.read((0x10000 + 4*i)//4)),
+                                    0xab if i == 1 else 0x10+i)
+
+                        @passive
+                        def timeout():
+                            for _ in range(1000):
+                                yield
+                            self.fail("CSR transaction timed out")
+
+                        run_simulation(soc, [generator(), timeout()])
 
     def test_finalize_bus_requires_csr_origin(self):
         soc = SoC(_FakePlatform(), sys_clk_freq=1e6)

@@ -314,7 +314,7 @@ class TestAXILite(unittest.TestCase):
     def test_axilite2axi2mem_wishbone_low_latency(self):
         return self.test_axilite2axi2mem(low_latency=True)
 
-    def test_axilite2csr(self):
+    def test_axilite2csr(self, csr_width=32):
         @passive
         def csr_mem_handler(csr, mem):
             while True:
@@ -327,7 +327,7 @@ class TestAXILite(unittest.TestCase):
         class DUT(Module):
             def __init__(self):
                 self.axi_lite = AXILiteInterface(data_width=32)
-                self.csr = csr_bus.Interface(data_width=32)
+                self.csr = csr_bus.Interface(data_width=csr_width)
                 self.submodules.axilite2csr = AXILite2CSR(self.axi_lite, self.csr)
                 self.errors = 0
 
@@ -355,10 +355,20 @@ class TestAXILite(unittest.TestCase):
                 if rdata != wdata:
                     dut.errors += 1
 
+            if csr_width == 8:
+                # The upper bytes are CSR alignment padding, not adjacent registers.
+                for strb in [0, 2, 4, 8, 14]:
+                    yield from dut.axi_lite.write(4, 0xffffffff, strb=strb)
+                    rdata, resp = (yield from dut.axi_lite.read(4))
+                    self.assertEqual(rdata, write_data[1])
+
         dut = DUT()
         mem = [v for v in mem_ref]
         run_simulation(dut, [generator(dut), csr_mem_handler(dut.csr, mem)])
         self.assertEqual(dut.errors, 0)
+
+    def test_axilite2csr_dw8(self):
+        self.test_axilite2csr(csr_width=8)
 
     def test_axilite_sram(self):
         class DUT(Module):
