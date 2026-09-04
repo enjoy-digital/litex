@@ -416,6 +416,53 @@ class TestSoCVideoFrameBuffer(unittest.TestCase):
         self.assertNotIn("video_framebuffer", soc.bus.regions)
 
 class TestSoCResetRequests(unittest.TestCase):
+    def test_watchdog_reset_is_connected_when_crg_is_added_late(self):
+        for crg_cls in [_CRGWithReset, _CRGWithSysReset]:
+            with self.subTest(crg=crg_cls.__name__):
+                soc = SoCCore(_FakePlatform(), clk_freq=1e6, cpu_type=None,
+                    integrated_sram_size=0, with_uart=False, with_timer=False,
+                    with_ctrl=False, with_watchdog=True, watchdog_reset_delay=3)
+                soc.crg = crg_cls()
+                reset = soc._get_crg_reset_signal()
+
+                def generator():
+                    yield from soc.watchdog0._cycles.write(4)
+                    # Expiry in interrupt-only mode must not request a reset.
+                    yield from soc.watchdog0._control.write((1 << 8) | 1)
+                    for _ in range(16):
+                        yield
+                        self.assertEqual((yield reset), 0)
+                    self.assertEqual((yield soc.watchdog0.execute), 1)
+                    # Enable reset mode and wait for the configured reset delay.
+                    yield from soc.watchdog0._control.write((1 << 16) | (1 << 8) | 1)
+                    for _ in range(32):
+                        yield
+                        if (yield reset):
+                            return
+                    self.fail("Watchdog expired without resetting the late-created CRG")
+
+                run_simulation(soc, generator())
+
+    def test_watchdog_explicit_reset_target_is_preserved(self):
+        soc = SoCCore(_FakePlatform(), clk_freq=1e6, cpu_type=None,
+            integrated_sram_size=0, with_uart=False, with_timer=False, with_ctrl=False)
+        soc.crg = _CRGWithReset()
+        explicit_reset = Signal()
+        soc.add_watchdog(crg_rst=explicit_reset, reset_delay=2)
+        self.assertNotIn("watchdog0", soc.soc_reset_requests)
+
+        def generator():
+            yield from soc.watchdog0._cycles.write(2)
+            yield from soc.watchdog0._control.write((1 << 16) | (1 << 8) | 1)
+            for _ in range(32):
+                yield
+                self.assertEqual((yield soc.crg.rst), 0)
+                if (yield explicit_reset):
+                    return
+            self.fail("Explicit watchdog reset target was not asserted")
+
+        run_simulation(soc, generator())
+
     def test_soc_reset_request_registers_source(self):
         soc   = SoC(_FakePlatform(), sys_clk_freq=1e6)
         reset = Signal()

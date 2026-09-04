@@ -1931,14 +1931,17 @@ class SoC(LiteXModule):
     def add_watchdog(self, name="watchdog0", width=32, crg_rst=None, reset_delay=None):
         from litex.soc.cores.watchdog import Watchdog
 
+        # The target can create its CRG after SoCCore.__init__. Generate the watchdog's
+        # reset request now and resolve its default destination during finalization.
+        self.check_if_exists(name)
         if crg_rst is None:
-            crg_rst = getattr(self.crg, "rst", None) if hasattr(self, "crg") else None
+            crg_rst = Signal(name=f"{name}_rst")
+            self.add_soc_reset_request(name, crg_rst)
         if reset_delay is None:
             reset_delay = self.sys_clk_freq
 
         halted = getattr(self.cpu, "o_halted", None) if hasattr(self, "cpu") else None
 
-        self.check_if_exists(name)
         watchdog = Watchdog(width=width, crg_rst=crg_rst, reset_delay=int(reset_delay), halted=halted)
         self.add_module(name=name, module=watchdog)
 
