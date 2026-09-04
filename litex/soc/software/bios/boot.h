@@ -1,6 +1,13 @@
 #ifndef __BOOT_H
 #define __BOOT_H
 
+enum boot_load_result {
+	BOOT_LOAD_OK,
+	BOOT_LOAD_NOT_FOUND,
+	BOOT_LOAD_INVALID,
+	BOOT_LOAD_IO_ERROR,
+};
+
 typedef int (*boot_method_handler)(void);
 
 struct boot_method {

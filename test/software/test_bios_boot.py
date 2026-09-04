@@ -94,6 +94,8 @@ def _write_bios_stubs(include_dir):
         typedef struct { int dummy; } FATFS;
         typedef struct { unsigned int size; } FIL;
         #define FR_OK 0
+        #define FR_NO_FILE 4
+        #define FR_NO_PATH 5
         #define FA_READ 1
         FRESULT f_mount(FATFS *fs, const char *path, int opt);
         FRESULT f_open(FIL *file, const char *path, int mode);
@@ -858,7 +860,7 @@ def test_bios_storage_loads(tmp_path, medium, csr):
         #define MAIN_RAM_SIZE (sizeof(ram) - 16)
         static jmp_buf jump;
         static unsigned int file_size, file_offset;
-        static int mount_error, open_error, read_error;
+        static int mount_error, open_error, read_error, short_read;
         static int closes, unmounts, reads, boots;
 
         #include "{repo}/litex/soc/software/bios/boot.c"
@@ -890,7 +892,7 @@ def test_bios_storage_loads(tmp_path, medium, csr):
             (void)file;
             reads++;
             if (read_error) return read_error;
-            *br = file_size - file_offset;
+            *br = short_read ? 0 : file_size - file_offset;
             if (*br > btr) *br = btr;
             memset(buffer, 0x5a, *br);
             file_offset += *br;
@@ -901,7 +903,7 @@ def test_bios_storage_loads(tmp_path, medium, csr):
         static void reset(unsigned int size)
         {{
             file_size = size;
-            mount_error = open_error = read_error = 0;
+            mount_error = open_error = read_error = short_read = 0;
             closes = unmounts = reads = boots = 0;
             memset(ram, 0xa5, sizeof(ram));
         }}
@@ -909,34 +911,44 @@ def test_bios_storage_loads(tmp_path, medium, csr):
         int main(void)
         {{
             reset(0);
-            if (!setjmp(jump)) {medium}boot_from_bin("empty.bin");
+            if (!setjmp(jump)) fatfsboot_from_bin("empty.bin");
             assert(boots == 0 && reads == 0 && closes == 1 && unmounts == 1);
             assert(ram[0] == 0xa5);
 
             reset(MAIN_RAM_SIZE + 1);
-            if (!setjmp(jump)) {medium}boot_from_bin("oversized.bin");
+            if (!setjmp(jump)) fatfsboot_from_bin("oversized.bin");
             assert(boots == 0 && reads == 0 && closes == 1 && unmounts == 1);
 
             reset(MAIN_RAM_SIZE);
-            if (!setjmp(jump)) {medium}boot_from_bin("valid.bin");
+            if (!setjmp(jump)) fatfsboot_from_bin("valid.bin");
             assert(boots == 1 && closes == 1 && unmounts == 1);
             for (unsigned int i = 0; i < MAIN_RAM_SIZE; i++) assert(ram[i] == 0x5a);
             for (unsigned int i = MAIN_RAM_SIZE; i < sizeof(ram); i++) assert(ram[i] == 0xa5);
 
             reset(32);
             mount_error = 1;
-            if (!setjmp(jump)) {medium}boot_from_bin("mount-error.bin");
-            assert(boots == 0 && reads == 0 && closes == 0);
+            if (!setjmp(jump)) fatfsboot_from_bin("mount-error.bin");
+            assert(boots == 0 && reads == 0 && closes == 0 && unmounts == 1);
 
             reset(32);
             open_error = 1;
-            if (!setjmp(jump)) {medium}boot_from_bin("open-error.bin");
+            if (!setjmp(jump)) fatfsboot_from_bin("open-error.bin");
             assert(boots == 0 && reads == 0 && closes == 0 && unmounts == 1);
 
             reset(32);
             read_error = 1;
-            if (!setjmp(jump)) {medium}boot_from_bin("read-error.bin");
+            if (!setjmp(jump)) fatfsboot_from_bin("read-error.bin");
             assert(boots == 0 && closes == 1 && unmounts == 1);
+            reset(32);
+            short_read = 1;
+            if (!setjmp(jump)) fatfsboot_from_bin("short.bin");
+            assert(boots == 0 && closes == 1 && unmounts == 1);
+
+            size_t loaded;
+            reset(32);
+            open_error = FR_NO_FILE;
+            assert(fatfs_load_file("missing.bin", ram, sizeof(ram), &loaded, 0) == BOOT_LOAD_NOT_FOUND);
+            assert(loaded == 0);
             return 0;
         }}
     """)
