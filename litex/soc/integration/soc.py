@@ -945,15 +945,18 @@ class SoCBusHandler(LiteXModule):
         self.add_slave(name=name, slave=peripheral, region=region)
 
     def get_address_width(self, standard, addressing=None):
+        """Return address-signal bits for an interface spanning this bus's byte address space.
+
+        Use the result as Wishbone ``adr_width`` for word addressing, or as AXI/AXI-Lite
+        ``address_width``. The handler's own ``address_width`` is always measured in bytes.
+        """
         if addressing is None:
             addressing = "word" if standard == "wishbone" else "byte"
 
         address_shift = log2_int(self.data_width//8)
-        source_shift = address_shift if (
-            (self.standard == "wishbone") and (self.addressing == "word")) else 0
         target_shift = address_shift if (
             (standard == "wishbone") and (addressing == "word")) else 0
-        return self.address_width + source_shift - target_shift
+        return self.address_width - target_shift
 
     def do_finalize(self):
         interconnect_p2p_cls = {

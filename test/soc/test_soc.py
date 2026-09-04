@@ -565,14 +565,27 @@ class TestSoCBusHandler(unittest.TestCase):
         )
         axi_bus      = SoCBusHandler(standard="axi",      data_width=64, address_width=32)
 
-        self.assertEqual(wishbone_bus.get_address_width("wishbone"), 32)
-        self.assertEqual(wishbone_bus.get_address_width("axi-lite"), 34)
-        self.assertEqual(wishbone_bus.get_address_width("axi"),      34)
+        self.assertEqual(wishbone_bus.get_address_width("wishbone"), 30)
+        self.assertEqual(wishbone_bus.get_address_width("axi-lite"), 32)
+        self.assertEqual(wishbone_bus.get_address_width("axi"),      32)
         self.assertEqual(wishbone_byte_bus.get_address_width("wishbone"), 30)
         self.assertEqual(wishbone_byte_bus.get_address_width("wishbone", addressing="byte"), 32)
         self.assertEqual(wishbone_byte_bus.get_address_width("axi"), 32)
         self.assertEqual(axi_bus.get_address_width("axi"),           32)
         self.assertEqual(axi_bus.get_address_width("wishbone"),      29)
+
+    def test_dma_address_width_matches_bus_byte_address_space(self):
+        for standard in ["wishbone", "axi-lite", "axi"]:
+            for data_width in SoCBusHandler.supported_data_width:
+                for address_width in SoCBusHandler.supported_address_width:
+                    with self.subTest(standard=standard, data_width=data_width, address_width=address_width):
+                        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6,
+                            bus_standard=standard, bus_data_width=data_width,
+                            bus_address_width=address_width)
+                        port, bus = soc._get_video_framebuffer_dma_port()
+                        self.assertIs(bus, soc.bus)
+                        self.assertEqual(port.address_width, address_width)
+                        self.assertEqual(2**len(port.adr)*(data_width//8), 2**address_width)
 
     def test_regions_are_auto_allocated_after_existing_regions(self):
         bus = SoCBusHandler()
