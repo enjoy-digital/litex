@@ -1518,6 +1518,49 @@ class TestSoC(unittest.TestCase):
         with _assert_raises_soc_error(self):
             soc.init_ram("missing", contents=[0])
 
+    def test_integrated_axi_memories_preserve_master_ids(self):
+        from test.interconnect.test_axi import axi_ar_send, axi_aw_send, axi_w_send
+
+        soc = SoC(_FakePlatform(), sys_clk_freq=1e6, bus_standard="axi")
+        soc.mem_map["csr"] = 0x10000
+        soc.bus.add_region("io", SoCIORegion(origin=0x10000, size=0x10000))
+        master = axi.AXIInterface(id_width=4)
+        soc.bus.add_master("cpu", master)
+        soc.add_ram("ram", origin=0x1000, size=0x1000)
+        soc.add_rom("rom", origin=0x2000, size=0x1000, contents=[0x12345678])
+        self.assertEqual(soc.ram.bus.id_width, 4)
+        self.assertEqual(soc.rom.bus.id_width, 4)
+
+        def generator():
+            yield from axi_aw_send(master, 0x1000, id=0xa)
+            yield from axi_w_send(master, 0xabcdef01, last=True)
+            while not (yield master.b.valid):
+                yield
+            self.assertEqual((yield master.b.id), 0xa)
+            self.assertEqual((yield master.b.resp), axi.RESP_OKAY)
+            yield master.b.ready.eq(1)
+            yield
+            yield master.b.ready.eq(0)
+            for addr, data in [(0x1000, 0xabcdef01), (0x2000, 0x12345678)]:
+                yield from axi_ar_send(master, addr, id=0xd)
+                while not (yield master.r.valid):
+                    yield
+                self.assertEqual((yield master.r.id), 0xd)
+                self.assertEqual((yield master.r.data), data)
+                self.assertEqual((yield master.r.resp), axi.RESP_OKAY)
+                self.assertEqual((yield master.r.last), 1)
+                yield master.r.ready.eq(1)
+                yield
+                yield master.r.ready.eq(0)
+
+        @passive
+        def timeout():
+            for _ in range(300):
+                yield
+            self.fail("AXI memory transaction timed out")
+
+        run_simulation(soc, [generator(), timeout()])
+
     def test_bios_requirements_check_required_csr_and_regions(self):
         soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
 
