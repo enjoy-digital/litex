@@ -20,7 +20,7 @@
  */
 static void help_handler(int nb_params, char **params)
 {
-	struct command_struct * const *cmd;
+	const struct command_struct * const *cmd;
 	int i, not_empty;
 
 	puts("\nLiteX BIOS, available commands:\n");

@@ -178,7 +178,7 @@ __attribute__((__used__)) int main(int i, char **c)
 	char buffer[CMD_LINE_BUFFER_SIZE];
 	char *params[MAX_PARAM];
 	char *command;
-	struct command_struct *cmd;
+	const struct command_struct *cmd;
 	int nb_params;
 #endif
 	int sdr_ok;

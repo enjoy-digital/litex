@@ -154,9 +154,9 @@ int get_param(char *buf, char **cmd, char **params)
 	}
 }
 
-struct command_struct *command_dispatcher(char *command, int nb_params, char **params)
+const struct command_struct *command_dispatcher(char *command, int nb_params, char **params)
 {
-	struct command_struct * const *cmd;
+	const struct command_struct * const *cmd;
 
 	for (cmd = __bios_cmd_start; cmd != __bios_cmd_end; cmd++) {
 		if (!strcmp(command, (*cmd)->name)) {
