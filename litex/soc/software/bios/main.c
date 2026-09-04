@@ -348,7 +348,7 @@ __attribute__((__used__)) int main(int i, char **c)
 		if (buffer[0] != 0) {
 			nb_params = get_param(buffer, &command, params);
 			/* Ignore whitespace-only lines */
-			if (*command != 0) {
+			if (nb_params >= 0 && *command != 0) {
 				cmd = command_dispatcher(command, nb_params, params);
 				if (!cmd)
 					printf("Command not found\n");

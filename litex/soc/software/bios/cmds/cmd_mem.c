@@ -29,7 +29,8 @@ static void mem_list_handler(int nb_params, char **params)
 #endif
 }
 
-define_command(mem_list, mem_list_handler, "List available memory regions", MEM_CMDS);
+define_command_args(mem_list, mem_list_handler, "List available memory regions",
+	"mem_list", 0, 0, MEM_CMDS);
 
 /**
  * Command "mem_read"
@@ -43,10 +44,6 @@ static void mem_read_handler(int nb_params, char **params)
 	unsigned int *addr;
 	unsigned int length;
 
-	if (nb_params < 1) {
-		printf("mem_read <address> [length]\n");
-		return;
-	}
 	if (!parse_ulong(params[0], &address)) {
 		printf("Error: invalid address\n");
 		return;
@@ -64,7 +61,8 @@ static void mem_read_handler(int nb_params, char **params)
 	dump_bytes(addr, length, (unsigned long)addr);
 }
 
-define_command(mem_read, mem_read_handler, "Read address space", MEM_CMDS);
+define_command_args(mem_read, mem_read_handler, "Read address space",
+	"mem_read <address> [length]", 1, 2, MEM_CMDS);
 
 /**
  * Command "mem_write"
@@ -81,10 +79,6 @@ static void mem_write_handler(int nb_params, char **params)
 	unsigned int size;
 	unsigned int i;
 
-	if (nb_params < 2) {
-		printf("mem_write <address> <value> [count] [size]\n");
-		return;
-	}
 
 	size = 4;
 	if (!parse_ulong(params[0], &address)) {
@@ -137,7 +131,8 @@ static void mem_write_handler(int nb_params, char **params)
 	}
 }
 
-define_command(mem_write, mem_write_handler, "Write address space", MEM_CMDS);
+define_command_args(mem_write, mem_write_handler, "Write address space",
+	"mem_write <address> <value> [count] [size]", 2, 4, MEM_CMDS);
 
 /**
  * Command "mem_copy"
@@ -153,10 +148,6 @@ static void mem_copy_handler(int nb_params, char **params)
 	unsigned int count;
 	unsigned int i;
 
-	if (nb_params < 2) {
-		printf("mem_copy <dst> <src> [count (32-bit words)]\n");
-		return;
-	}
 
 	if (!parse_ulong(params[0], &address)) {
 		printf("Error: invalid destination address\n");
@@ -183,7 +174,8 @@ static void mem_copy_handler(int nb_params, char **params)
 		*dstaddr++ = *srcaddr++;
 }
 
-define_command(mem_copy, mem_copy_handler, "Copy address space", MEM_CMDS);
+define_command_args(mem_copy, mem_copy_handler, "Copy address space",
+	"mem_copy <dst> <src> [count (32-bit words)]", 2, 3, MEM_CMDS);
 
 /**
  * Command "mem_test"
@@ -199,10 +191,6 @@ static void mem_test_handler(int nb_params, char **params)
 	   "everything" from addr would write over the BIOS data/stack. */
 	unsigned long maxsize = MEMTEST_DATA_SIZE;
 
-	if (nb_params < 1) {
-		printf("mem_test <addr> [maxsize]\n");
-		return;
-	}
 
 	if (!parse_ulong(params[0], &address)) {
 		printf("Error: invalid address\n");
@@ -220,7 +208,8 @@ static void mem_test_handler(int nb_params, char **params)
 
 	memtest(addr, maxsize);
 }
-define_command(mem_test, mem_test_handler, "Test memory access", MEM_CMDS);
+define_command_args(mem_test, mem_test_handler, "Test memory access",
+	"mem_test <addr> [maxsize]", 1, 2, MEM_CMDS);
 
 /**
  * Command "mem_speed"
@@ -236,10 +225,6 @@ static void mem_speed_handler(int nb_params, char **params)
 	bool read_only = false;
 	bool random = false;
 
-	if (nb_params < 2) {
-		printf("mem_speed <addr> <size> [readonly] [random]\n");
-		return;
-	}
 
 	if (!parse_ulong(params[0], &address)) {
 		printf("Error: invalid address\n");
@@ -270,7 +255,8 @@ static void mem_speed_handler(int nb_params, char **params)
 
 	memspeed(addr, size, read_only, random);
 }
-define_command(mem_speed, mem_speed_handler, "Test memory speed", MEM_CMDS);
+define_command_args(mem_speed, mem_speed_handler, "Test memory speed",
+	"mem_speed <addr> <size> [readonly] [random]", 2, 4, MEM_CMDS);
 
 /**
  * Command "mem_cmp"
@@ -286,10 +272,6 @@ static void mem_cmp_handler(int nb_params, char **params)
 	unsigned int count;
 	unsigned int i;
 	bool same = true;
-	if (nb_params < 3) {
-		printf("mem_cmp <addr1> <addr2> <count (32-bit words)>\n");
-		return;
-	}
 
 	if (!parse_ulong(params[0], &address)) {
 		printf("Error: invalid addr1\n");
@@ -322,4 +304,5 @@ static void mem_cmp_handler(int nb_params, char **params)
 	else
 		printf("mem_cmp finished, different content.\n");
 }
-define_command(mem_cmp, mem_cmp_handler, "Compare memory content", MEM_CMDS);
+define_command_args(mem_cmp, mem_cmp_handler, "Compare memory content",
+	"mem_cmp <addr1> <addr2> <count (32-bit words)>", 3, 3, MEM_CMDS);

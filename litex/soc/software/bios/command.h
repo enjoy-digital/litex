@@ -25,20 +25,26 @@ struct command_struct {
 	const char *name;
 	const char *help;
 	int group;
+	const char *usage;
+	unsigned char min_args;
+	unsigned char max_args;
 };
 
 extern const struct command_struct *const __bios_cmd_start[];
 extern const struct command_struct *const __bios_cmd_end[];
 
 #ifdef BIOS_CONSOLE_DISABLE
-	#define define_command(cmd_name, handler, help_txt, group_id)
+	#define define_command_args(cmd_name, handler, help_txt, usage_txt, min_count, max_count, group_id)
 #else
-	#define define_command(cmd_name, handler, help_txt, group_id) \
+	#define define_command_args(cmd_name, handler, help_txt, usage_txt, min_count, max_count, group_id) \
 		const struct command_struct s_##cmd_name = {					     \
 			.func = (cmd_handler)handler,					     \
 			.name = #cmd_name,						     \
 			.help = help_txt,						     \
 			.group = group_id,						     \
+			.usage = usage_txt, \
+			.min_args = min_count, \
+			.max_args = max_count, \
 		};									     \
 		const struct command_struct *const __bios_cmd_##cmd_name __attribute__((__used__)) \
 		__attribute__((__section__(".bios_cmd"))) = &s_##cmd_name
@@ -46,4 +52,8 @@ extern const struct command_struct *const __bios_cmd_end[];
 	const struct command_struct *command_dispatcher(char *command, int nb_params, char **params);
 
 	#endif
+
+/* Preserve source compatibility for target-specific command registrations. */
+#define define_command(cmd_name, handler, help_txt, group_id) \
+	define_command_args(cmd_name, handler, help_txt, 0, 0, MAX_PARAM, group_id)
 #endif

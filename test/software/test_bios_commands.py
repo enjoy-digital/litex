@@ -107,3 +107,93 @@ int main(void)
         "-Wl,--gc-sections", "-o", str(binary),
     ])
     subprocess.check_call([str(binary)])
+
+
+def test_dispatch_help_and_completion(tmp_path):
+    repo = Path(__file__).resolve().parents[2]
+    generated = tmp_path / "generated"
+    generated.mkdir()
+    for name in ["csr", "soc", "mem"]:
+        (generated / f"{name}.h").write_text("")
+    (tmp_path / "system.h").write_text(r'''
+#pragma once
+#include <stddef.h>
+static inline void flush_cpu_dcache(void) {}
+static inline void flush_l2_cache(void) {}
+static inline void flush_cpu_dcache_range(void *p, size_t n) { (void)p; (void)n; }
+''')
+    linker = tmp_path / "commands.ld"
+    linker.write_text('''
+SECTIONS {
+    .bios_cmd : {
+        __bios_cmd_start = .;
+        KEEP(*(.bios_cmd))
+        __bios_cmd_end = .;
+    }
+} INSERT AFTER .rodata;
+''')
+    source = tmp_path / "dispatch.c"
+    source.write_text(r'''
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#define MEM_REGIONS ""
+#include <bios/helpers.c>
+#include <bios/complete.c>
+#include <bios/readline.c>
+#include <bios/cmds/cmd_mem.c>
+#include <bios/cmds/cmd_bios.c>
+
+int memtest(unsigned int *addr, unsigned long size) { (void)addr; (void)size; return 1; }
+void memspeed(unsigned int *addr, unsigned long size, bool ro, bool random)
+{ (void)addr; (void)size; (void)ro; (void)random; }
+unsigned int crc32(const unsigned char *buffer, unsigned int len)
+{ (void)buffer; (void)len; return 0; }
+int uart_read_nonblock(void) { return 1; }
+
+int main(void)
+{
+    uint32_t memory = 0;
+    char address[32], suffix[32];
+    char *args[] = {address, "0x12345678", "1", "4", "extra"};
+    char *help_args[] = {"mem_write"};
+    char line[] = "cmd 1 2 3 4 5 6 7 8 9";
+    char *command, *params[MAX_PARAM];
+    snprintf(address, sizeof(address), "0x%lx", (unsigned long)&memory);
+    assert(command_dispatcher("mem_write", 5, args));
+    assert(memory == 0);
+    assert(command_dispatcher("mem_write", 1, args));
+    assert(memory == 0);
+    assert(command_dispatcher("mem_write", 4, args));
+    assert(memory == 0x12345678);
+    assert(command_dispatcher("help", 1, help_args));
+    assert(memory == 0x12345678);
+    assert(!command_dispatcher("nonexistent", 0, NULL));
+    assert(get_param(line, &command, params) == -1);
+    complete("mem_wr", suffix, sizeof(suffix));
+    assert(!strcmp(suffix, "ite"));
+    complete("mem_wr", suffix, 2);
+    assert(!strcmp(suffix, "i"));
+    complete("mem_c", suffix, sizeof(suffix));
+    assert(!strcmp(suffix, ""));
+    assert(complete("mem_c", suffix, sizeof(suffix)) == 1);
+    const char *input = "mem_wr\t\n";
+    char line_buffer[CMD_LINE_BUFFER_SIZE];
+    for (int i = strlen(input) - 1; i >= 0; i--) ungetc(input[i], stdin);
+    hist_init();
+    assert(readline(line_buffer, sizeof(line_buffer)) == 9);
+    assert(!strcmp(line_buffer, "mem_write"));
+    return 0;
+}
+''')
+    binary = tmp_path / "dispatch"
+    subprocess.check_call([
+        "gcc", "-std=gnu99", "-Wall", "-Werror", "-ffunction-sections", "-fdata-sections",
+        f"-I{tmp_path}", f"-I{repo}/litex/soc/software", str(source),
+        str(repo / "litex/soc/software/libbase/parse.c"),
+        f"-Wl,-T,{linker}", "-Wl,--gc-sections", "-o", str(binary),
+    ])
+    output = subprocess.check_output([str(binary)], text=True)
+    assert "Usage: mem_write <address> <value> [count] [size]" in output
+    assert "mem_write - Write address space" in output
+    assert "Error: too many parameters" in output
