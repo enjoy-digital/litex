@@ -1,7 +1,7 @@
 include ../include/generated/variables.mak
 include $(SOC_DIRECTORY)/software/common.mak
 
-OBJECTS=udp.o tftp.o mdio.o dhcp.o
+OBJECTS=udp.o tftp.o mdio.o dhcp.o sfp_rollball.o
 
 all: libliteeth.a
 
