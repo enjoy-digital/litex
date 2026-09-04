@@ -46,6 +46,12 @@ int sdram_leveling(void);
 /*-----------------------------------------------------------------------*/
 /* Initialization                                                        */
 /*-----------------------------------------------------------------------*/
+#ifdef CONFIG_SDRAM_CUSTOM_INIT
+/* Implement this when CONFIG_SDRAM_CUSTOM_INIT is defined. Return 1 after
+ * successful memory-specific initialization and calibration, or 0 on error.
+ * The common sdram_init() path retains controller handoff and memory tests. */
+int sdram_custom_init(void);
+#endif
 int sdram_init(void);
 
 /*-----------------------------------------------------------------------*/
