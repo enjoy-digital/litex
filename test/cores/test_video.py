@@ -136,6 +136,90 @@ class TestVideoFrameBufferHelpers(unittest.TestCase):
 
 
 class TestVideoFrameBufferData(unittest.TestCase):
+    def test_final_pixel_is_held_under_backpressure(self):
+        for clock_domain in ["sys", "video"]:
+            with self.subTest(clock_domain=clock_domain):
+                class DUT(Module):
+                    def __init__(self):
+                        bus = wishbone.Interface(data_width=32)
+                        self.submodules.framebuffer = VideoFrameBuffer(
+                            bus, hres=1, vres=1, fifo_depth=16, clock_domain=clock_domain)
+                        self.comb += [bus.ack.eq(bus.cyc & bus.stb), bus.dat_r.eq(0x00332211)]
+                dut = DUT()
+                fb = dut.framebuffer
+
+                def gen():
+                    yield fb.dma._enable.storage.eq(1)
+                    yield fb.vtg_sink.valid.eq(1)
+                    yield fb.vtg_sink.de.eq(1)
+                    yield fb.vtg_sink.last.eq(1)
+                    yield fb.source.ready.eq(0)
+                    # Startup discard must not depend on downstream ready, either.
+                    for frame in range(3):
+                        for _ in range(100):
+                            yield
+                            if (yield fb.source.valid):
+                                break
+                        else:
+                            self.fail("Framebuffer did not produce a pixel.")
+                        for _ in range(8):
+                            self.assertEqual((yield fb.source.valid), 1)
+                            self.assertEqual((yield fb.source.de), 1)
+                            self.assertEqual(((yield fb.source.r), (yield fb.source.g),
+                                              (yield fb.source.b)), (0x11, 0x22, 0x33))
+                            self.assertEqual((yield fb.underflow), 0)
+                            yield
+                        yield fb.source.ready.eq(1)
+                        yield
+                        yield fb.source.ready.eq(0)
+                        yield
+
+                run_simulation(dut, {clock_domain: gen()}, clocks={"sys": 10, "video": 14})
+
+    def test_underflow_only_reports_requested_visible_pixels(self):
+        class DUT(Module):
+            def __init__(self):
+                bus = wishbone.Interface(data_width=32)
+                self.memory_enable = Signal(reset=1)
+                self.submodules.framebuffer = VideoFrameBuffer(bus, hres=1, vres=1, fifo_depth=4)
+                self.comb += bus.ack.eq(bus.cyc & bus.stb & self.memory_enable)
+        dut = DUT()
+        fb = dut.framebuffer
+
+        def gen():
+            yield fb.vtg_sink.valid.eq(1)
+            yield fb.vtg_sink.de.eq(1)
+            yield fb.vtg_sink.last.eq(1)
+            yield fb.source.ready.eq(1)
+            for _ in range(8):
+                yield
+                self.assertEqual((yield fb.underflow), 0)  # Disabled.
+            yield fb.dma._enable.storage.eq(1)
+            for _ in range(40):
+                yield
+            yield dut.memory_enable.eq(0)
+            for _ in range(40):
+                yield
+            self.assertEqual((yield fb.underflow), 1)
+            for control in [fb.vtg_sink.de, fb.vtg_sink.valid, fb.source.ready]:
+                yield control.eq(0)
+                yield
+                self.assertEqual((yield fb.underflow), 0)
+                yield control.eq(1)
+                yield
+                self.assertEqual((yield fb.underflow), 1)
+            yield dut.memory_enable.eq(1)
+            for _ in range(40):
+                yield
+            self.assertEqual((yield fb.underflow), 0)
+            yield dut.memory_enable.eq(0)
+            yield fb.dma._enable.storage.eq(0)
+            for _ in range(10):
+                yield
+            self.assertEqual((yield fb.underflow), 0)
+
+        run_simulation(dut, gen())
+
     @staticmethod
     def _timings(hres):
         return {

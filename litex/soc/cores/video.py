@@ -1111,10 +1111,12 @@ class VideoFrameBuffer(LiteXModule):
             If(vtg_sink.valid & vtg_sink.de,
                 video_pipe_source.connect(source, keep={"valid", "ready"}),
                 If(first,
-                    source.valid.eq(0)
+                    # Discard the initial DMA frame independently of downstream readiness.
+                    source.valid.eq(0),
+                    video_pipe_source.ready.eq(1),
                 ),
                 vtg_sink.ready.eq(source.valid & source.ready),
-                If(video_pipe_source.valid & video_pipe_source.last,
+                If(video_pipe_source.valid & video_pipe_source.ready & video_pipe_source.last,
                     NextValue(first, 0),
                     NextState("SYNC"),
                 )
@@ -1153,8 +1155,11 @@ class VideoFrameBuffer(LiteXModule):
                source.b.eq(Cat(Signal(7, reset=0), video_pipe_source.data[0:1])),
             ]
 
-        # Underflow.
-        self.comb += self.underflow.eq(~source.valid)
+        # Underflow only when an enabled, visible pixel is requested but unavailable. Blanking,
+        # initial synchronization and downstream backpressure are not DMA starvation.
+        self.comb += self.underflow.eq(
+            fsm.ongoing("RUN") & ~fsm.reset & ~first &
+            vtg_sink.valid & vtg_sink.de & source.ready & ~video_pipe_source.valid)
 
 # Video PHYs ---------------------------------------------------------------------------------------
 
