@@ -908,8 +908,10 @@ class Cache(LiteXModule):
 
     This module is a write-back wishbone cache that can be used as a L2 cache. Cachesize (in 32-bit
     words) is the size of the data store and must be a power of 2.
+    With with_bursting, read bursts can acknowledge consecutive lanes of a wider slave word on
+    consecutive cycles. Equal/narrower slave widths retain the normal hit path.
     """
-    def __init__(self, cachesize, master, slave, reverse=True):
+    def __init__(self, cachesize, master, slave, reverse=True, with_bursting=False):
         self.master = master
         self.slave  = slave
 
@@ -948,6 +950,16 @@ class Cache(LiteXModule):
         wordbits                      = log2_int(max(dw_from//dw_to, 1))
         adr_offset, adr_line, adr_tag = split(master.adr, offsetbits, linebits, tagbits)
         word                          = Signal(wordbits) if wordbits else None
+
+        # A wide data-memory word already contains several CPU words. During a
+        # read burst, select the live lane without another synchronous RAM read.
+        # Check the registered RAM index as well as the tag: an address change
+        # must never acknowledge data left over from the previous cache line.
+        bursting = with_bursting and offsetbits != 0
+        read_burst = (master.cti == CTI_BURST_INCREMENTING) | (master.cti == CTI_BURST_CONSTANT)
+        if bursting:
+            adr_line_r = Signal.like(adr_line)
+            self.sync += adr_line_r.eq(adr_line)
 
         # Data Memory.
         # ------------
@@ -1024,6 +1036,13 @@ class Cache(LiteXModule):
         # FSM.
         # ----
         self.fsm = fsm = FSM(reset_state="IDLE")
+        hit_next = [NextState("IDLE")]
+        if bursting:
+            hit_next = [If(~master.we & read_burst,
+                NextState("BURST")
+            ).Else(
+                NextState("IDLE")
+            )]
         fsm.act("IDLE",
             If(master.cyc & master.stb,
                 NextState("TEST_HIT")
@@ -1037,7 +1056,7 @@ class Cache(LiteXModule):
                     tag_di.dirty.eq(1),
                     tag_port.we.eq(1)
                 ),
-                NextState("IDLE")
+                *hit_next,
             ).Else(
                 If(tag_do.dirty,
                     NextState("EVICT")
@@ -1049,6 +1068,21 @@ class Cache(LiteXModule):
                 )
             )
         )
+
+        if bursting:
+            fsm.act("BURST",
+                If(~master.cyc | ~master.stb,
+                    NextState("IDLE")
+                ).Elif(master.we | (adr_line != adr_line_r) | (tag_do.tag != adr_tag),
+                    # Let both synchronous memories catch up before testing the
+                    # next line, or using the normal byte-write/dirty-tag path.
+                    NextState("TEST_HIT")
+                ).Else(
+                    master.ack.eq(1),
+                    chooser(data_port.dat_r, adr_offset, master.dat_r, reverse=reverse),
+                    If(~read_burst, NextState("IDLE"))
+                )
+            )
 
         fsm.act("EVICT",
             slave.stb.eq(1),

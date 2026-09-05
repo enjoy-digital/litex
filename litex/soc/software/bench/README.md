@@ -36,6 +36,12 @@ tests 32-byte cache lines with this SDR model. The same option is available in
 `litex_sim`; it defaults to the existing 128-bit width. Larger lines can help
 sequential accesses but fetch unused data on sparse accesses.
 
+`--l2-bursting` enables an opt-in read-burst fast path inside the existing L2
+cache. Consecutive hits within a wide cache line select the next CPU word
+without an idle cycle; line changes and writes use the normal cache path.
+This is separate from `--bus-bursting`, which enables burst support in integrated
+RAM. Keep results in the external output directory, not in the source tree.
+
 ## Measurement contract
 
 - Firmware is compiled at `-O2`, executes from ROM and keeps its stack in SRAM.
