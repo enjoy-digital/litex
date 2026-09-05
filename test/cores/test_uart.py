@@ -9,7 +9,7 @@ import unittest
 from migen import *
 
 from litex.gen import *
-from litex.soc.interconnect import stream
+from litex.soc.interconnect import csr_bus, stream
 
 from litex.soc.cores.uart import (
     UART,
@@ -44,6 +44,48 @@ class TestUART(unittest.TestCase):
         self.assertFalse(hasattr(dut, "_rx_errors"))
         with self.assertRaisesRegex(ValueError, "PHY"):
             UART(with_error_status=True)
+
+    def test_receive_error_csr_bank_access(self):
+        baseline = UART(_ErrorPHY())
+        baseline_names = [csr.name for csr in baseline.get_csrs()]
+        for data_width in [8, 32]:
+            with self.subTest(data_width=data_width):
+                class DUT(LiteXModule):
+                    def __init__(self):
+                        self.uart = UART(_ErrorPHY(), with_error_status=True)
+                        self.bus = csr_bus.Interface(data_width=data_width)
+                        self.csrs = self.uart.get_csrs()
+                        self.bank = csr_bus.CSRBank(self.csrs, bus=self.bus)
+                dut = DUT()
+                self.assertEqual([csr.name for csr in dut.csrs], baseline_names + ["rx_errors"])
+                address = next(n for n, csr in enumerate(dut.bank.simple_csrs) if csr.name == "rx_errors")
+
+                def read():
+                    yield dut.bus.adr.eq(address)
+                    yield dut.bus.re.eq(1)
+                    yield
+                    yield
+                    result = (yield dut.bus.dat_r)
+                    yield dut.bus.re.eq(0)
+                    return result
+
+                def gen():
+                    yield dut.uart.phy.rx_framing_error.eq(1)
+                    yield dut.uart.phy.rx_overflow.eq(1)
+                    yield
+                    yield dut.uart.phy.rx_framing_error.eq(0)
+                    yield dut.uart.phy.rx_overflow.eq(0)
+                    self.assertEqual((yield from read()), 3)
+                    for mask, expected in [(1, 2), (0, 2), (2, 0)]:
+                        yield dut.bus.adr.eq(address)
+                        yield dut.bus.dat_w.eq(mask)
+                        yield dut.bus.we.eq(1)
+                        yield
+                        yield dut.bus.we.eq(0)
+                        for _ in range(4):
+                            yield
+                        self.assertEqual((yield from read()), expected)
+                run_simulation(dut, gen())
 
     def test_receive_errors_from_serial_phy(self):
         pads = UARTPads()
