@@ -13,9 +13,11 @@ import unittest
 from contextlib import contextmanager
 from types import SimpleNamespace
 
-from migen import ClockDomain, Record, Signal
+from migen import ClockDomain, Record, Signal, passive
 from migen.sim import run_simulation
 
+from litex.gen import LiteXModule
+from litex.soc.interconnect.csr import CSRStorage
 from litex.soc.cores.dma import WishboneDMAReader
 from litex.soc.cores.hyperbus import HyperRAM
 from litex.soc.cores.video import video_data_layout, video_framebuffer_size
@@ -414,6 +416,53 @@ class TestSoCVideoFrameBuffer(unittest.TestCase):
         self.assertNotIn("video_framebuffer", soc.bus.regions)
 
 class TestSoCResetRequests(unittest.TestCase):
+    def test_watchdog_reset_is_connected_when_crg_is_added_late(self):
+        for crg_cls in [_CRGWithReset, _CRGWithSysReset]:
+            with self.subTest(crg=crg_cls.__name__):
+                soc = SoCCore(_FakePlatform(), clk_freq=1e6, cpu_type=None,
+                    integrated_sram_size=0, with_uart=False, with_timer=False,
+                    with_ctrl=False, with_watchdog=True, watchdog_reset_delay=3)
+                soc.crg = crg_cls()
+                reset = soc._get_crg_reset_signal()
+
+                def generator():
+                    yield from soc.watchdog0._cycles.write(4)
+                    # Expiry in interrupt-only mode must not request a reset.
+                    yield from soc.watchdog0._control.write((1 << 8) | 1)
+                    for _ in range(16):
+                        yield
+                        self.assertEqual((yield reset), 0)
+                    self.assertEqual((yield soc.watchdog0.execute), 1)
+                    # Enable reset mode and wait for the configured reset delay.
+                    yield from soc.watchdog0._control.write((1 << 16) | (1 << 8) | 1)
+                    for _ in range(32):
+                        yield
+                        if (yield reset):
+                            return
+                    self.fail("Watchdog expired without resetting the late-created CRG")
+
+                run_simulation(soc, generator())
+
+    def test_watchdog_explicit_reset_target_is_preserved(self):
+        soc = SoCCore(_FakePlatform(), clk_freq=1e6, cpu_type=None,
+            integrated_sram_size=0, with_uart=False, with_timer=False, with_ctrl=False)
+        soc.crg = _CRGWithReset()
+        explicit_reset = Signal()
+        soc.add_watchdog(crg_rst=explicit_reset, reset_delay=2)
+        self.assertNotIn("watchdog0", soc.soc_reset_requests)
+
+        def generator():
+            yield from soc.watchdog0._cycles.write(2)
+            yield from soc.watchdog0._control.write((1 << 16) | (1 << 8) | 1)
+            for _ in range(32):
+                yield
+                self.assertEqual((yield soc.crg.rst), 0)
+                if (yield explicit_reset):
+                    return
+            self.fail("Explicit watchdog reset target was not asserted")
+
+        run_simulation(soc, generator())
+
     def test_soc_reset_request_registers_source(self):
         soc   = SoC(_FakePlatform(), sys_clk_freq=1e6)
         reset = Signal()
@@ -516,14 +565,27 @@ class TestSoCBusHandler(unittest.TestCase):
         )
         axi_bus      = SoCBusHandler(standard="axi",      data_width=64, address_width=32)
 
-        self.assertEqual(wishbone_bus.get_address_width("wishbone"), 32)
-        self.assertEqual(wishbone_bus.get_address_width("axi-lite"), 34)
-        self.assertEqual(wishbone_bus.get_address_width("axi"),      34)
+        self.assertEqual(wishbone_bus.get_address_width("wishbone"), 30)
+        self.assertEqual(wishbone_bus.get_address_width("axi-lite"), 32)
+        self.assertEqual(wishbone_bus.get_address_width("axi"),      32)
         self.assertEqual(wishbone_byte_bus.get_address_width("wishbone"), 30)
         self.assertEqual(wishbone_byte_bus.get_address_width("wishbone", addressing="byte"), 32)
         self.assertEqual(wishbone_byte_bus.get_address_width("axi"), 32)
         self.assertEqual(axi_bus.get_address_width("axi"),           32)
         self.assertEqual(axi_bus.get_address_width("wishbone"),      29)
+
+    def test_dma_address_width_matches_bus_byte_address_space(self):
+        for standard in ["wishbone", "axi-lite", "axi"]:
+            for data_width in SoCBusHandler.supported_data_width:
+                for address_width in SoCBusHandler.supported_address_width:
+                    with self.subTest(standard=standard, data_width=data_width, address_width=address_width):
+                        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6,
+                            bus_standard=standard, bus_data_width=data_width,
+                            bus_address_width=address_width)
+                        port, bus = soc._get_video_framebuffer_dma_port()
+                        self.assertIs(bus, soc.bus)
+                        self.assertEqual(port.address_width, address_width)
+                        self.assertEqual(2**len(port.adr)*(data_width//8), 2**address_width)
 
     def test_regions_are_auto_allocated_after_existing_regions(self):
         bus = SoCBusHandler()
@@ -591,6 +653,46 @@ class TestSoCBusHandler(unittest.TestCase):
             bus.add_region("too_big", SoCRegion(origin=None, size=0x2000, cached=False))
 
         self.assertNotIn("too_big", bus.regions)
+
+    def test_auto_allocation_clips_io_windows_to_bus_address_space(self):
+        for address_width in [32, 64]:
+            with self.subTest(address_width=address_width):
+                limit = 2**address_width
+                bus = SoCBusHandler(address_width=address_width)
+                bus.add_region("high_io", SoCIORegion(origin=limit, size=0x10000))
+                with _assert_raises_soc_error(self):
+                    bus.add_slave("unreachable", wishbone.Interface(address_width=address_width),
+                        SoCRegion(size=0x1000, cached=False))
+                self.assertNotIn("unreachable", bus.regions)
+                self.assertNotIn("unreachable", bus.slaves)
+
+                bus = SoCBusHandler(address_width=address_width)
+                bus.add_region("io", SoCIORegion(origin=limit-0x1000, size=0x2000))
+                bus.add_region("last_page", SoCRegion(size=0x1000, cached=False))
+                self.assertEqual(bus.regions["last_page"].origin, limit-0x1000)
+                with _assert_raises_soc_error(self):
+                    bus.add_region("overflow", SoCRegion(size=0x1000, cached=False))
+                self.assertNotIn("overflow", bus.regions)
+
+    def test_auto_allocation_checks_rounded_decode_size_at_bus_limit(self):
+        bus = SoCBusHandler()
+        bus.add_region("io", SoCIORegion(origin=2**32-0x1800, size=0x3000))
+        with _assert_raises_soc_error(self):
+            bus.add_region("rounded", SoCRegion(size=0x1800, cached=False))
+        self.assertNotIn("rounded", bus.regions)
+
+    def test_auto_allocation_preserves_region_attributes(self):
+        bus = SoCBusHandler(timeout=None)
+        bus.add_master("cpu", wishbone.Interface())
+        bus.add_slave("ram", wishbone.Interface(),
+            SoCRegion(size=0x1000, mode="rx", linker=True, decode=False))
+        region = bus.regions["ram"]
+        self.assertEqual(region.mode, "rx")
+        self.assertTrue(region.linker)
+        self.assertTrue(region.cached)
+        self.assertFalse(region.decode)
+        bus.finalize()
+        self.assertIsInstance(bus._interconnect, wishbone.InterconnectPointToPoint)
 
     def test_failed_overlapping_io_region_add_does_not_mutate_io_regions(self):
         bus = SoCBusHandler()
@@ -1353,6 +1455,31 @@ class TestSoC(unittest.TestCase):
         with _assert_raises_soc_error(self):
             soc.add_hyperram(pads=_HyperRamPads())
 
+    def test_sdram_origin_uses_explicit_value_before_default_map(self):
+        try:
+            from litedram.modules import IS42S16160
+            from litedram.phy.model import SDRAMPHYModel
+        except ImportError:
+            self.skipTest("LiteDRAM is unavailable")
+
+        for origin, expected in [(None, 0x40000000), (0x60000000, 0x60000000), (0, 0)]:
+            with self.subTest(origin=origin):
+                soc = SoCCore(_FakePlatform(), clk_freq=100e6, cpu_type=None,
+                    integrated_sram_size=0, with_uart=False, with_timer=False, with_ctrl=False)
+                module = IS42S16160(100e6, "1:1")
+                phy = SDRAMPHYModel(module, data_width=16, clk_freq=100e6)
+                soc.add_sdram(phy=phy, module=module, origin=origin,
+                    size=0x100000, l2_cache_size=0)
+                self.assertEqual(soc.bus.regions["main_ram"].origin, expected)
+
+    def test_sdram_origin_rejects_cpu_mapping_conflict_before_core_creation(self):
+        soc = LiteXSoC(_FakePlatform(), sys_clk_freq=100e6)
+        soc.cpu = SimpleNamespace(mem_map={"main_ram": 0x80000000})
+        with _assert_raises_soc_error(self):
+            soc.add_sdram(phy=object(), module=object(), origin=0x60000000)
+        self.assertFalse(hasattr(soc, "sdram"))
+        self.assertNotIn("main_ram", soc.bus.regions)
+
     def test_add_uart_keeps_soc_level_integration(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
 
@@ -1377,6 +1504,41 @@ class TestSoC(unittest.TestCase):
         self.assertTrue(soc.bus.regions["csr"].decode)
         self.assertIn("csr", soc.bus.slaves)
         self.assertIn("csr", soc.csr.masters)
+
+    def test_csr_accesses_keep_alignment_across_bus_standards(self):
+        for standard in ["wishbone", "axi-lite", "axi"]:
+            for csr_width in [8, 32]:
+                for bus_width in [32, 64]:
+                    with self.subTest(standard=standard, csr_width=csr_width, bus_width=bus_width):
+                        soc = SoC(_FakePlatform(), sys_clk_freq=1e6,
+                            bus_standard=standard, bus_data_width=bus_width,
+                            csr_data_width=csr_width)
+                        soc.mem_map["csr"] = 0x10000
+                        soc.bus.add_region("io", SoCIORegion(origin=0x10000, size=0x10000))
+                        soc.regs = LiteXModule()
+                        regs = []
+                        for i in range(8):
+                            reg = CSRStorage(csr_width, reset=0x10+i, name=f"r{i}")
+                            setattr(soc.regs, f"r{i}", reg)
+                            regs.append(reg)
+                        soc.csr.add("regs", 0)
+                        master = wishbone.Interface()
+                        soc.bus.add_master("probe", master)
+
+                        def generator():
+                            yield from master.write((0x10000 + 4)//4, 0xab)
+                            for i, reg in enumerate(regs):
+                                self.assertEqual((yield reg.storage), 0xab if i == 1 else 0x10+i)
+                                self.assertEqual((yield from master.read((0x10000 + 4*i)//4)),
+                                    0xab if i == 1 else 0x10+i)
+
+                        @passive
+                        def timeout():
+                            for _ in range(1000):
+                                yield
+                            self.fail("CSR transaction timed out")
+
+                        run_simulation(soc, [generator(), timeout()])
 
     def test_finalize_bus_requires_csr_origin(self):
         soc = SoC(_FakePlatform(), sys_clk_freq=1e6)
@@ -1433,6 +1595,49 @@ class TestSoC(unittest.TestCase):
 
         with _assert_raises_soc_error(self):
             soc.init_ram("missing", contents=[0])
+
+    def test_integrated_axi_memories_preserve_master_ids(self):
+        from test.interconnect.test_axi import axi_ar_send, axi_aw_send, axi_w_send
+
+        soc = SoC(_FakePlatform(), sys_clk_freq=1e6, bus_standard="axi")
+        soc.mem_map["csr"] = 0x10000
+        soc.bus.add_region("io", SoCIORegion(origin=0x10000, size=0x10000))
+        master = axi.AXIInterface(id_width=4)
+        soc.bus.add_master("cpu", master)
+        soc.add_ram("ram", origin=0x1000, size=0x1000)
+        soc.add_rom("rom", origin=0x2000, size=0x1000, contents=[0x12345678])
+        self.assertEqual(soc.ram.bus.id_width, 4)
+        self.assertEqual(soc.rom.bus.id_width, 4)
+
+        def generator():
+            yield from axi_aw_send(master, 0x1000, id=0xa)
+            yield from axi_w_send(master, 0xabcdef01, last=True)
+            while not (yield master.b.valid):
+                yield
+            self.assertEqual((yield master.b.id), 0xa)
+            self.assertEqual((yield master.b.resp), axi.RESP_OKAY)
+            yield master.b.ready.eq(1)
+            yield
+            yield master.b.ready.eq(0)
+            for addr, data in [(0x1000, 0xabcdef01), (0x2000, 0x12345678)]:
+                yield from axi_ar_send(master, addr, id=0xd)
+                while not (yield master.r.valid):
+                    yield
+                self.assertEqual((yield master.r.id), 0xd)
+                self.assertEqual((yield master.r.data), data)
+                self.assertEqual((yield master.r.resp), axi.RESP_OKAY)
+                self.assertEqual((yield master.r.last), 1)
+                yield master.r.ready.eq(1)
+                yield
+                yield master.r.ready.eq(0)
+
+        @passive
+        def timeout():
+            for _ in range(300):
+                yield
+            self.fail("AXI memory transaction timed out")
+
+        run_simulation(soc, [generator(), timeout()])
 
     def test_bios_requirements_check_required_csr_and_regions(self):
         soc = SoC(_FakePlatform(), sys_clk_freq=1e6)

@@ -285,8 +285,11 @@ def test_cpu(cpu, request, tmp_path):
     variant = TESTED_CPU_VARIANTS.get(cpu, "standard")
     assert boot_test(cpu_type=cpu, cpu_variant=variant, output_dir=str(tmp_path))
 
-def test_csr_data_width_8(tmp_path):
-    assert boot_test(args="--csr-data-width=8", output_dir=str(tmp_path))
+@pytest.mark.parametrize("bus_standard", ["wishbone", "axi-lite", "axi"])
+def test_csr_data_width_8(tmp_path, bus_standard):
+    assert boot_test(
+        args=f"--csr-data-width=8 --bus-standard={bus_standard} --soc-csv={tmp_path}/csr.csv",
+        output_dir=str(tmp_path))
 
 @pytest.mark.skipif(
     os.environ.get("LITEX_QEMU_COSIM_TEST") != "1",
