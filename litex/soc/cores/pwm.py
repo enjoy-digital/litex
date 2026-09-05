@@ -65,8 +65,8 @@ class PWM(LiteXModule):
 
         n = 0 if clock_domain == "sys" else 2
         self.specials += [
-            MultiReg(self._enable.storage, self.enable, n=n),
-            MultiReg(self._width.storage,  self.width,  n=n),
+            MultiReg(self._enable.storage, self.enable, odomain=clock_domain, n=n),
+            MultiReg(self._width.storage,  self.width,  odomain=clock_domain, n=n),
         ]
 
     def add_period_csr(self, clock_domain):
@@ -75,7 +75,7 @@ class PWM(LiteXModule):
             reset = self.period.reset)
 
         n = 0 if clock_domain == "sys" else 2
-        self.specials += MultiReg(self._period.storage, self.period, n=n)
+        self.specials += MultiReg(self._period.storage, self.period, odomain=clock_domain, n=n)
 
     def add_csr(self, clock_domain):
         self.add_enable_width_csr(clock_domain)

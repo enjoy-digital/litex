@@ -7,6 +7,7 @@
 import unittest
 
 from migen import *
+from migen.genlib.cdc import MultiReg
 
 from litex.soc.cores.pwm import PWM
 
@@ -23,6 +24,44 @@ def sample_pwm(dut, cycles):
 
 
 class TestPWM(unittest.TestCase):
+    def test_csr_synchronizer_destination(self):
+        for clock_domain in ["sys", "pwm"]:
+            with self.subTest(clock_domain=clock_domain):
+                dut = PWM(clock_domain=clock_domain)
+                regs = [s for s in dut.get_fragment().specials if isinstance(s, MultiReg)]
+                self.assertEqual(len(regs), 3)
+                self.assertTrue(all(s.odomain == clock_domain for s in regs))
+                self.assertTrue(all(s.n == (0 if clock_domain == "sys" else 2) for s in regs))
+
+    def test_csr_updates_in_pwm_domain(self):
+        dut = PWM(clock_domain="pwm")
+
+        def write_csrs():
+            # Before the first PWM edge, many sys edges must not update PWM controls.
+            yield dut._width.storage.eq(3)
+            yield dut._period.storage.eq(8)
+            yield dut._enable.storage.eq(1)
+            for _ in range(8):
+                yield
+                self.assertEqual((yield dut.enable), 0)
+                self.assertEqual((yield dut.width), 0)
+                self.assertEqual((yield dut.period), 0)
+
+        def check_pwm():
+            for _ in range(5):
+                yield
+            self.assertEqual((yield dut.enable), 1)
+            self.assertEqual((yield dut.width), 3)
+            self.assertEqual((yield dut.period), 8)
+            high = 0
+            for _ in range(32):
+                high += (yield dut.pwm)
+                yield
+            self.assertEqual(high, 12)
+
+        run_simulation(dut, {"sys": write_csrs(), "pwm": check_pwm()},
+                       clocks={"sys": 10, "pwm": (200, 100)})
+
     def test_disabled_stays_low(self):
         dut = PWM(with_csr=False)
         def gen():
