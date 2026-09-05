@@ -136,6 +136,10 @@ class RS232PHYRX(LiteXModule):
                 NextValue(count, count + 1),
                 # Shift RX data.
                 NextValue(data, Cat(data[1:], rx)),
+                # Reject a false start at its midpoint instead of receiving a phantom byte.
+                If((count == 0) & (rx != RS232_START),
+                    NextState("IDLE"),
+                ),
                 # When 10-bit have been received...
                 If(count == (10 - 1),
                     # Produce data (but only when RX Stop bit is seen).

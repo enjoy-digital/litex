@@ -15,6 +15,7 @@ from litex.soc.cores.uart import (
     UARTCrossover,
     UARTPads,
     RS232PHY,
+    RS232PHYRX,
     get_uart_core,
     get_uart_supported_names,
 )
@@ -29,6 +30,40 @@ class _LoopbackDUT(LiteXModule):
 
 
 class TestUART(unittest.TestCase):
+    def test_rx_rejects_short_start_glitches(self):
+        for glitch_length in [1, 2, 4]:
+            with self.subTest(glitch_length=glitch_length):
+                pads = UARTPads()
+                dut = RS232PHYRX(pads, tuning_word=2**32//16)
+                received = []
+
+                @passive
+                def monitor():
+                    while True:
+                        if (yield dut.source.valid):
+                            received.append((yield dut.source.data))
+                        yield
+
+                def drive(level, cycles):
+                    yield pads.rx.eq(level)
+                    for _ in range(cycles):
+                        yield
+
+                def gen():
+                    yield dut.source.ready.eq(1)
+                    yield from drive(1, 20)
+                    yield from drive(0, glitch_length)
+                    yield from drive(1, 24)
+                    # A real frame soon after the glitch must not be missed.
+                    value = 0xa5
+                    yield from drive(0, 16)
+                    for bit in range(8):
+                        yield from drive((value >> bit) & 1, 16)
+                    yield from drive(1, 48)
+                    self.assertEqual(received, [value])
+
+                run_simulation(dut, [gen(), monitor()])
+
     def test_supported_uart_names_include_soc_modes(self):
         self.assertIn("crossover",          get_uart_supported_names())
         self.assertIn("crossover+uartbone", get_uart_supported_names())
