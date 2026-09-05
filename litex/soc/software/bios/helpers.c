@@ -139,8 +139,8 @@ int get_param(char *buf, char **cmd, char **params)
 			return nb_param;
 
 		if (nb_param >= MAX_PARAM) {
-			printf("Warning: too many parameters (max %d), excess ignored\n", MAX_PARAM);
-			return nb_param;
+			printf("Error: too many parameters (max %d)\n", MAX_PARAM);
+			return -1;
 		}
 
 		params[nb_param++] = buf;
@@ -154,12 +154,16 @@ int get_param(char *buf, char **cmd, char **params)
 	}
 }
 
-struct command_struct *command_dispatcher(char *command, int nb_params, char **params)
+const struct command_struct *command_dispatcher(char *command, int nb_params, char **params)
 {
-	struct command_struct * const *cmd;
+	const struct command_struct * const *cmd;
 
 	for (cmd = __bios_cmd_start; cmd != __bios_cmd_end; cmd++) {
 		if (!strcmp(command, (*cmd)->name)) {
+			if (nb_params < (*cmd)->min_args || nb_params > (*cmd)->max_args) {
+				printf("Usage: %s\n", (*cmd)->usage ? (*cmd)->usage : (*cmd)->name);
+				return *cmd;
+			}
 			(*cmd)->func(nb_params, params);
 			return (*cmd);
 		}

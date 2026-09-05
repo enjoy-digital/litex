@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <system.h>
 
 #include <libbase/crc.h>
@@ -20,8 +21,21 @@
  */
 static void help_handler(int nb_params, char **params)
 {
-	struct command_struct * const *cmd;
+	const struct command_struct * const *cmd;
 	int i, not_empty;
+
+	if (nb_params == 1) {
+		for (cmd = __bios_cmd_start; cmd != __bios_cmd_end; cmd++) {
+			if (strcmp(params[0], (*cmd)->name))
+				continue;
+			printf("%s - %s\n", (*cmd)->name, (*cmd)->help ? (*cmd)->help : "-");
+			if ((*cmd)->usage)
+				printf("Usage: %s\n", (*cmd)->usage);
+			return;
+		}
+		printf("Command not found: %s\n", params[0]);
+		return;
+	}
 
 	puts("\nLiteX BIOS, available commands:\n");
 
@@ -38,7 +52,7 @@ static void help_handler(int nb_params, char **params)
 	}
 }
 
-define_command(help, help_handler, "Print this help", SYSTEM_CMDS);
+define_command_args(help, help_handler, "Print this help", "help [command]", 0, 1, SYSTEM_CMDS);
 
 /**
  * Command "ident"

@@ -63,6 +63,17 @@ ifneq ($(BIOS_STACK_MARGIN),)
 MEMUSAGE_ARGS += --fail-stack-margin $(BIOS_STACK_MARGIN)
 endif
 
+ifneq ($(BIOS_ROM_BUDGET),)
+MEMUSAGE_ARGS += --max-rom $(BIOS_ROM_BUDGET)
+endif
+ifneq ($(BIOS_SRAM_BUDGET),)
+MEMUSAGE_ARGS += --max-sram $(BIOS_SRAM_BUDGET)
+endif
+
+ifneq ($(BIOS_BOOT_SRAM_SIZE),)
+LDFLAGS += -Wl,--defsym=__bios_boot_sram_size=$(BIOS_BOOT_SRAM_SIZE)
+endif
+
 all: bios.bin
 	$(PYTHON) -m litex.soc.software.memusage $(MEMUSAGE_ARGS) bios.elf $(CURDIR)/../include/generated/regions.ld $(TRIPLE)
 

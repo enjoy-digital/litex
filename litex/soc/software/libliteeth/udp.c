@@ -16,6 +16,7 @@
 #include <system.h>
 
 #include <libbase/crc.h>
+#include <libbase/timeout.h>
 
 #include <libliteeth/inet.h>
 #include <libliteeth/udp.h>
@@ -156,10 +157,15 @@ static uint32_t txslot;
 static uint32_t txlen;
 static ethernet_buffer *txbuffer;
 
-static void send_packet(void)
+static int send_packet(void)
 {
+	struct timeout timeout;
 	/* wait buffer to be available */
-	while(!(ethmac_sram_reader_ready_read()));
+	timeout_start(&timeout, 100000);
+	while (!ethmac_sram_reader_ready_read()) {
+		if (timeout_expired(&timeout))
+			return 0;
+	}
 
 	/* fill txbuffer */
 #ifndef HW_PREAMBLE_CRC
@@ -188,6 +194,7 @@ static void send_packet(void)
 	/* update txslot / txbuffer */
 	txslot = (txslot+1)%ETHMAC_TX_SLOTS;
 	txbuffer = (ethernet_buffer *)(ETHMAC_BASE + ETHMAC_SLOT_SIZE * (ETHMAC_RX_SLOTS + txslot));
+	return 1;
 }
 
 static uint8_t my_mac[6];
@@ -281,7 +288,7 @@ int udp_arp_resolve(uint32_t ip)
 	struct arp_frame *arp;
 	int i;
 	int tries;
-	int timeout;
+	struct timeout timeout;
 
 	if(cached_ip == ip) {
 		for(i=0;i<6;i++)
@@ -317,17 +324,21 @@ int udp_arp_resolve(uint32_t ip)
 		for(i=0;i<6;i++)
 			arp->target_mac[i] = 0;
 
-		send_packet();
+		if (!send_packet()) {
+			arp_pending = 0;
+			return 0;
+		}
 
 		/* Do we get a reply ? */
-		for(timeout=0;timeout<100000;timeout++) {
+		timeout_start(&timeout, 1000000);
+		do {
 			udp_service();
 			for(i=0;i<6;i++)
 				if(cached_mac[i]) {
 					arp_pending = 0;
 					return 1;
 				}
-		}
+		} while (!timeout_expired(&timeout));
 	}
 
 	arp_pending = 0;
@@ -421,9 +432,7 @@ int udp_send(uint16_t src_port, uint16_t dst_port, uint32_t length)
 		sizeof(struct udp_header)+length, 1);
 	txbuffer->frame.contents.udp.udp.checksum = htons(r);
 
-	send_packet();
-
-	return 1;
+	return send_packet();
 }
 
 static unsigned ping_seq_number = 0;
@@ -481,7 +490,8 @@ int send_ping(uint32_t ip, unsigned short payload_length)
 	tx_icmp->icmp.checksum = htons(r);
 
 	txlen = payload_length + sizeof(struct ethernet_header) + sizeof(struct icmp_frame);
-	send_packet();
+	if (!send_packet())
+		return -1;
 
 	ping_ts_send = 1;
 #ifdef CSR_TIMER0_UPTIME_CYCLES_ADDR

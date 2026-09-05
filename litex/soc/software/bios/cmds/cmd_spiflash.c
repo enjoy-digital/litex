@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <libbase/parse.h>
 
 #include <generated/csr.h>
 
@@ -21,24 +23,17 @@
 #if (defined CSR_SPIFLASH_MASTER_CS_ADDR)
 static void flash_write_handler(int nb_params, char **params)
 {
-	char *c;
 	unsigned int addr;
-	unsigned int mem_addr;
+	unsigned long mem_addr;
 	unsigned int count;
 
-	if (nb_params < 2) {
-		printf("flash_write <offset> <mem_addr> [count]\n");
-		return;
-	}
 
-	addr = strtoul(params[0], &c, 0);
-	if (*c != 0) {
+	if (!parse_uint(params[0], &addr)) {
 		printf("Error: invalid offset\n");
 		return;
 	}
 
-	mem_addr = strtoul(params[1], &c, 0);
-	if (*c != 0) {
+	if (!parse_ulong(params[1], &mem_addr)) {
 		printf("Error: invalid mem_addr\n");
 		return;
 	}
@@ -46,8 +41,7 @@ static void flash_write_handler(int nb_params, char **params)
 	if (nb_params == 2) {
 		count = 1;
 	} else {
-		count = strtoul(params[2], &c, 0);
-		if (*c != 0) {
+		if (!parse_uint(params[2], &count)) {
 			printf("Error: invalid count\n");
 			return;
 		}
@@ -57,7 +51,8 @@ static void flash_write_handler(int nb_params, char **params)
 		printf("Error: flash write failed (is the region erased? see flash_erase_range)\n");
 }
 
-define_command(flash_write, flash_write_handler, "Write to flash", SPIFLASH_CMDS);
+define_command_args(flash_write, flash_write_handler, "Write to flash",
+	"flash_write <offset> <mem_addr> [count]", 2, 3, SPIFLASH_CMDS);
 
 static void flash_from_sdcard_handler(int nb_params, char **params)
 {
@@ -69,10 +64,6 @@ static void flash_from_sdcard_handler(int nb_params, char **params)
 	unsigned long length;
 	uint8_t buf[512];
 
-	if (nb_params < 1) {
-		printf("flash_from_sdcard <filename>\n");
-		return;
-	}
 
 	char* filename = params[0];
 
@@ -120,27 +111,21 @@ static void flash_from_sdcard_handler(int nb_params, char **params)
 	f_close(&file);
 	f_mount(0, "", 0);
 }
-define_command(flash_from_sdcard, flash_from_sdcard_handler, "Write file from SD card to flash", SPIFLASH_CMDS);
+define_command_args(flash_from_sdcard, flash_from_sdcard_handler, "Write file from SD card to flash",
+	"flash_from_sdcard <filename>", 1, 1, SPIFLASH_CMDS);
 
 static void flash_erase_range_handler(int nb_params, char **params)
 {
-	char *c;
-	uint32_t addr;
-	uint32_t count;
+	unsigned int addr;
+	unsigned int count;
 
-	if (nb_params < 2) {
-		printf("flash_erase_range <offset> <count>\n");
-		return;
-	}
 
-	addr = strtoul(params[0], &c, 0);
-	if (*c != 0) {
+	if (!parse_uint(params[0], &addr)) {
 		printf("Error: invalid offset\n");
 		return;
 	}
 
-	count = strtoul(params[1], &c, 0);
-	if (*c != 0) {
+	if (!parse_uint(params[1], &count)) {
 		printf("Error: invalid count\n");
 		return;
 	}
@@ -148,5 +133,6 @@ static void flash_erase_range_handler(int nb_params, char **params)
 	spiflash_erase_range(addr, count);
 }
 
-define_command(flash_erase_range, flash_erase_range_handler, "Erase flash range", SPIFLASH_CMDS);
+define_command_args(flash_erase_range, flash_erase_range_handler, "Erase flash range",
+	"flash_erase_range <offset> <count>", 2, 2, SPIFLASH_CMDS);
 #endif

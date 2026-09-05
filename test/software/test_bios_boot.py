@@ -94,6 +94,8 @@ def _write_bios_stubs(include_dir):
         typedef struct { int dummy; } FATFS;
         typedef struct { unsigned int size; } FIL;
         #define FR_OK 0
+        #define FR_NO_FILE 4
+        #define FR_NO_PATH 5
         #define FA_READ 1
         FRESULT f_mount(FATFS *fs, const char *path, int opt);
         FRESULT f_open(FIL *file, const char *path, int mode);
@@ -123,8 +125,10 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
         #define CONFIG_CLOCK_FREQUENCY 1000000
         #define CONFIG_BIOS_NO_DELAYS 1
         #define MAIN_RAM_BASE 0x1000
+        #define MAIN_RAM_BASE_VA 0x11000
         #define MAIN_RAM_SIZE 0x1000
         #define SRAM_BASE 0x3000
+        #define SRAM_BASE_VA 0x13000
         #define SRAM_SIZE 0x100
 
         static jmp_buf boot_jmp;
@@ -179,7 +183,7 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             return 0;
         }}
 
-        static unsigned char uart_in[512];
+        static unsigned char uart_in[4096];
         static int uart_in_len;
         static int uart_in_pos;
         static unsigned char uart_out[512];
@@ -234,6 +238,7 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
         struct load_ctx {{
             int count;
             int fail_after;
+            size_t image_size;
             struct load_event events[8];
         }};
 
@@ -251,6 +256,8 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             }}
 
             if ((ctx->fail_after >= 0) && (index >= ctx->fail_after))
+                return 0;
+            if (ctx->image_size > max_size)
                 return 0;
             return 1;
         }}
@@ -308,8 +315,19 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             REQUIRE(max_size == 1);
             REQUIRE(boot_load_max_size(MAIN_RAM_BASE + MAIN_RAM_SIZE - 16, &max_size) == 1);
             REQUIRE(max_size == 16);
+#ifdef BIOS_TEST_SRAM_BUFFER
             REQUIRE(boot_load_max_size(SRAM_BASE + 0x20, &max_size) == 1);
-            REQUIRE(max_size == SRAM_SIZE - 0x20);
+            REQUIRE(max_size == 0x60);
+            REQUIRE(boot_load_max_size(SRAM_BASE_VA + 0x20, &max_size) == 1);
+            REQUIRE(max_size == 0x60);
+            REQUIRE(boot_load_max_size(SRAM_BASE + 0x80, &max_size) == 0);
+            REQUIRE(boot_load_max_size(SRAM_BASE_VA + 0x80, &max_size) == 0);
+#else
+            REQUIRE(boot_load_max_size(SRAM_BASE + 0x20, &max_size) == 0);
+            REQUIRE(boot_load_max_size(SRAM_BASE_VA + 0x20, &max_size) == 0);
+#endif
+            REQUIRE(boot_load_max_size(MAIN_RAM_BASE_VA + 0x20, &max_size) == 1);
+            REQUIRE(max_size == MAIN_RAM_SIZE - 0x20);
             REQUIRE(boot_load_max_size(MAIN_RAM_BASE - 1, &max_size) == 0);
             REQUIRE(boot_load_max_size(MAIN_RAM_BASE + MAIN_RAM_SIZE, &max_size) == 0);
             return 0;
@@ -334,6 +352,111 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             REQUIRE(boot_r2 == 0x22);
             REQUIRE(boot_r3 == 0x33);
             REQUIRE(boot_addr == 0x1800);
+            return 0;
+        }}
+
+        static int test_manifest_nested_bootargs(void)
+        {{
+            const char *json[] = {{
+                "{{\\"bootargs\\":{{\\"addr\\":\\"0x1800\\",\\"r1\\":\\"0x11\\","
+                "\\"r2\\":\\"0x22\\",\\"r3\\":\\"0x33\\"}},\\"image.bin\\":\\"0x1000\\"}}",
+                "{{\\"image.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"addr\\":\\"0x1800\\","
+                "\\"r1\\":\\"0x11\\",\\"r2\\":\\"0x22\\",\\"r3\\":\\"0x33\\"}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"r1\\":\\"0x11\\","
+                "\\"r2\\":\\"0x22\\",\\"r3\\":\\"0x33\\"}},\\"last.bin\\":\\"0x1800\\"}}",
+            }};
+            struct load_ctx ctx;
+            const char *empty = "{{\\"bootargs\\":{{}},\\"image.bin\\":\\"0x1000\\"}}";
+
+            for (unsigned int i = 0; i < sizeof(json)/sizeof(*json); i++) {{
+                memset(&ctx, 0, sizeof(ctx));
+                ctx.fail_after = -1;
+                boot_addr = 0;
+                if (!setjmp(boot_jmp))
+                    boot_from_json_buffer(json[i], strlen(json[i]), record_load, &ctx);
+                REQUIRE(ctx.count == (i == 2 ? 2 : 1));
+                REQUIRE(boot_addr == 0x1800);
+                REQUIRE(boot_r1 == 0x11);
+                REQUIRE(boot_r2 == 0x22);
+                REQUIRE(boot_r3 == 0x33);
+            }}
+            memset(&ctx, 0, sizeof(ctx));
+            ctx.fail_after = -1;
+            boot_addr = 0;
+            if (!setjmp(boot_jmp))
+                boot_from_json_buffer(empty, strlen(empty), record_load, &ctx);
+            REQUIRE(ctx.count == 1);
+            REQUIRE(boot_addr == 0x1000);
+            REQUIRE(boot_r1 == 0 && boot_r2 == 0 && boot_r3 == 0);
+            return 0;
+        }}
+
+        static int test_manifest_preflight_and_image_bounds(void)
+        {{
+            const char *invalid[] = {{
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bad.bin\\":\\"-1\\"}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"addr\\":\\"0x10000000000000000\\"}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"first.bin\\":\\"0x1100\\"}}",
+                "[{{\\"first.bin\\":\\"0x1000\\"}}]",
+                "{{\\"first.bin\\":{{\\"addr\\":\\"0x1000\\"}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"alias.bin\\":\\"0x11000\\"}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"second.bin\\":\\"0x1800\\",\\"alias.bin\\":\\"0x11800\\"}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"r1\\":\\"-1\\"}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"r1\\":[]}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"r1\\":{{\\"r2\\":\\"0\\"}}}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"extra.bin\\":\\"0x1800\\"}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"r1\\":\\"1\\",\\"r1\\":\\"2\\"}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"r1\\":\\"1\\",\\"bootargs\\":{{\\"r1\\":\\"2\\"}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{}},\\"bootargs\\":{{}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":\\"ignored\\",\\"bootargs\\":{{}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{\\"bootargs\\":{{}}}}}}",
+                "{{\\"first.bin\\":\\"0x1000\\",\\"bootargs\\":{{}}}} {{}}",
+            }};
+            struct load_ctx ctx;
+            const char *reverse = "{{\\"second.bin\\":\\"0x11100\\",\\"first.bin\\":\\"0x1000\\"}}";
+            const char *forward = "{{\\"first.bin\\":\\"0x1000\\",\\"second.bin\\":\\"0x11100\\"}}";
+
+            for (unsigned int i = 0; i < sizeof(invalid)/sizeof(*invalid); i++) {{
+                memset(&ctx, 0, sizeof(ctx));
+                ctx.fail_after = -1;
+                boot_addr = 0;
+                if (!setjmp(boot_jmp))
+                    boot_from_json_buffer(invalid[i], strlen(invalid[i]), record_load, &ctx);
+                REQUIRE(ctx.count == 0);
+                REQUIRE(boot_addr == 0);
+            }}
+            memset(&ctx, 0, sizeof(ctx));
+            ctx.fail_after = -1;
+            ctx.image_size = 0x100;
+            if (!setjmp(boot_jmp))
+                boot_from_json_buffer(reverse, strlen(reverse), record_load, &ctx);
+            REQUIRE(ctx.count == 2);
+            REQUIRE(ctx.events[1].max_size == 0x100);
+            REQUIRE(boot_addr == 0x1000);
+
+            memset(&ctx, 0, sizeof(ctx));
+            ctx.fail_after = -1;
+            ctx.image_size = 0x101;
+            boot_addr = 0;
+            if (!setjmp(boot_jmp))
+                boot_from_json_buffer(forward, strlen(forward), record_load, &ctx);
+            REQUIRE(ctx.count == 1);
+            REQUIRE(ctx.events[0].max_size == 0x100);
+            REQUIRE(boot_addr == 0);
+            return 0;
+        }}
+
+        static int test_manifest_ignores_long_bootargs(void)
+        {{
+            char json[512];
+            struct load_ctx ctx = {{.count = 0, .fail_after = -1}};
+
+            snprintf(json, sizeof(json),
+                "{{\\"bootargs\\":\\"%0256d\\",\\"image.bin\\":\\"0x1000\\"}}", 0);
+            if (setjmp(boot_jmp) == 0)
+                boot_from_json_buffer(json, strlen(json), record_load, &ctx);
+            REQUIRE(ctx.count == 1);
+            REQUIRE(boot_addr == 0x1000);
             return 0;
         }}
 
@@ -538,6 +661,24 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             return 0;
         }}
 
+        static int test_serialboot_stops_after_consecutive_invalid_loads(void)
+        {{
+            static const unsigned char ack[] = SFL_MAGIC_ACK;
+            unsigned char bad_load[4] = {{0x00, 0x00, 0x50, 0x00}};
+
+            reset_serial(ack, SFL_MAGIC_LEN);
+            for (int i = 0; i < MAX_FAILURES + 1; i++)
+                append_frame(SFL_CMD_LOAD, bad_load, sizeof(bad_load));
+            append_frame(SFL_CMD_ABORT, NULL, 0);
+
+            REQUIRE(serialboot() == 1);
+            REQUIRE(uart_in_pos == SFL_MAGIC_LEN + MAX_FAILURES * 8);
+            REQUIRE(uart_out_len == SFL_MAGIC_LEN + MAX_FAILURES);
+            for (int i = SFL_MAGIC_LEN; i < uart_out_len; i++)
+                REQUIRE(uart_out[i] == SFL_ACK_ERROR);
+            return 0;
+        }}
+
         static int test_serialboot_jump_boots_requested_address(void)
         {{
             static const unsigned char ack[] = SFL_MAGIC_ACK;
@@ -571,6 +712,12 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
                 return 1;
             if (test_manifest_explicit_boot_address())
                 return 1;
+            if (test_manifest_nested_bootargs())
+                return 1;
+            if (test_manifest_preflight_and_image_bounds())
+                return 1;
+            if (test_manifest_ignores_long_bootargs())
+                return 1;
             if (test_manifest_defaults_to_last_image())
                 return 1;
             if (test_manifest_explicit_addr_ordering_and_boundaries())
@@ -586,6 +733,8 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             if (test_serialboot_rejects_out_of_range_load_and_recovers())
                 return 1;
             if (test_serialboot_protocol_errors_recover_with_abort())
+                return 1;
+            if (test_serialboot_stops_after_consecutive_invalid_loads())
                 return 1;
             if (test_serialboot_jump_boots_requested_address())
                 return 1;
@@ -608,11 +757,20 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
         f"-I{repo}/litex/soc/software/bios",
         str(source),
         f"{repo}/litex/soc/software/libbase/crc16.c",
+        f"{repo}/litex/soc/software/libbase/parse.c",
         "-Wl,--gc-sections",
         "-o",
         str(binary),
     ]
     subprocess.check_call(cmd)
+    subprocess.check_call([str(binary)])
+
+    # Reserve an explicit SRAM buffer through linker symbols, using its alias.
+    subprocess.check_call(cmd + [
+        "-no-pie", "-DBIOS_TEST_SRAM_BUFFER",
+        "-Wl,--defsym=__bios_boot_sram_start=0x13000",
+        "-Wl,--defsym=__bios_boot_sram_end=0x13080",
+    ])
     subprocess.check_call([str(binary)])
 
 
@@ -639,20 +797,19 @@ def test_bios_flashboot_host_coverage(tmp_path):
         #include <stdint.h>
         #include <stdio.h>
         #include <string.h>
-        #include <sys/mman.h>
-        #include <unistd.h>
 
-        #ifndef MAP_32BIT
-        #define MAP_32BIT 0
-        #endif
-
+        static uint32_t flash_words[0x2000 / 4];
+        static unsigned char ram_bytes[0x1000];
         static unsigned long flash_base;
+        static unsigned long flash_mapped_size = sizeof(flash_words);
         static unsigned long ram_base;
         static const unsigned long ram_size = 0x1000;
         static jmp_buf boot_jmp;
         static unsigned long boot_addr;
 
-        #define FLASH_BOOT_ADDRESS ((unsigned int)flash_base)
+        #define FLASH_BOOT_ADDRESS flash_base
+        #define SPIFLASH_BASE flash_base
+        #define SPIFLASH_SIZE flash_mapped_size
         #define MAIN_RAM_BASE ram_base
         #define MAIN_RAM_BASE_VA ram_base
         #define MAIN_RAM_SIZE ram_size
@@ -683,27 +840,6 @@ def test_bios_flashboot_host_coverage(tmp_path):
             }} \\
         }} while (0)
 
-        static int map_low_memory(void)
-        {{
-            void *flash;
-            void *ram;
-
-            flash = mmap(NULL, 0x02000000, PROT_READ | PROT_WRITE,
-                MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
-            if (flash == MAP_FAILED)
-                return 77;
-            ram = mmap(NULL, ram_size, PROT_READ | PROT_WRITE,
-                MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
-            if (ram == MAP_FAILED)
-                return 77;
-
-            flash_base = (unsigned long)flash;
-            ram_base = (unsigned long)ram;
-            if ((flash_base > 0xffffffffUL) || (ram_base > 0xffffffffUL))
-                return 77;
-            return 0;
-        }}
-
         static void write_image(uint32_t length, int valid_crc)
         {{
             uint32_t crc;
@@ -724,7 +860,7 @@ def test_bios_flashboot_host_coverage(tmp_path):
             write_image(31, 1);
             REQUIRE(check_image_in_flash(FLASH_BOOT_ADDRESS) == 0);
 
-            write_image(16 * 1024 * 1024 + 1, 1);
+            write_image(ram_size + 1, 1);
             REQUIRE(check_image_in_flash(FLASH_BOOT_ADDRESS) == 0);
 
             write_image(64, 0);
@@ -732,6 +868,14 @@ def test_bios_flashboot_host_coverage(tmp_path):
 
             write_image(64, 1);
             REQUIRE(check_image_in_flash(FLASH_BOOT_ADDRESS) == 64);
+
+            flash_mapped_size = 64;
+            REQUIRE(check_image_in_flash(FLASH_BOOT_ADDRESS) == 0);
+            flash_mapped_size = 72;
+            REQUIRE(check_image_in_flash(FLASH_BOOT_ADDRESS) == 64);
+            REQUIRE(check_image_in_flash(flash_base + flash_mapped_size - 4) == 0);
+            REQUIRE(check_image_in_flash(flash_base - 4) == 0);
+            flash_mapped_size = sizeof(flash_words);
             return 0;
         }}
 
@@ -757,11 +901,8 @@ def test_bios_flashboot_host_coverage(tmp_path):
 
         int main(void)
         {{
-            int r;
-
-            r = map_low_memory();
-            if (r != 0)
-                return r;
+            flash_base = (unsigned long)flash_words;
+            ram_base = (unsigned long)ram_bytes;
             if (test_flash_image_validation())
                 return 1;
             if (test_flash_copy_and_boot())
@@ -778,8 +919,6 @@ def test_bios_flashboot_host_coverage(tmp_path):
         "-Wstrict-prototypes",
         "-Wold-style-definition",
         "-Wmissing-prototypes",
-        "-Wno-format",
-        "-Wno-int-to-pointer-cast",
         "-ffunction-sections",
         "-fdata-sections",
         f"-I{include_dir}",
@@ -788,12 +927,135 @@ def test_bios_flashboot_host_coverage(tmp_path):
         str(source),
         f"{repo}/litex/soc/software/libbase/crc16.c",
         f"{repo}/litex/soc/software/libbase/crc32.c",
+        f"{repo}/litex/soc/software/libbase/parse.c",
         "-Wl,--gc-sections",
         "-o",
         str(binary),
     ]
     subprocess.check_call(cmd)
-    result = subprocess.run([str(binary)], check=False)
-    if result.returncode == 77:
-        pytest.skip("host cannot provide low-address mmap for BIOS flashboot test")
-    assert result.returncode == 0
+    subprocess.check_call([str(binary)])
+
+
+@pytest.mark.parametrize("medium,csr", [
+    ("sdcard", "CSR_SDCARD_BASE"),
+    ("sata", "CSR_SATA_SECTOR2MEM_BASE"),
+])
+def test_bios_storage_loads(tmp_path, medium, csr):
+    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    include_dir = tmp_path / "include"
+    source = tmp_path / "storage.c"
+    binary = tmp_path / "storage"
+    _write_bios_stubs(include_dir)
+    _write(source, f"""
+        #include <assert.h>
+        #include <setjmp.h>
+        #include <stdint.h>
+        #include <stdio.h>
+        #include <string.h>
+
+        static unsigned char ram[0x10010];
+        #define {csr} 1
+        #define MAIN_RAM_BASE_VA ((unsigned long)ram)
+        #define MAIN_RAM_SIZE (sizeof(ram) - 16)
+        static jmp_buf jump;
+        static unsigned int file_size, file_offset;
+        static int mount_error, open_error, read_error, short_read;
+        static int closes, unmounts, reads, boots;
+
+        #include "{repo}/litex/soc/software/bios/boot.c"
+
+        void boot_helper(unsigned long r1, unsigned long r2, unsigned long r3, unsigned long addr)
+        {{
+            (void)r1; (void)r2; (void)r3;
+            assert(addr == MAIN_RAM_BASE_VA);
+            boots++;
+            longjmp(jump, 1);
+        }}
+        void bios_print_section(const char *name) {{ (void)name; }}
+        FRESULT f_mount(FATFS *fs, const char *path, int opt)
+        {{
+            (void)path; (void)opt;
+            if (!fs) {{ unmounts++; return FR_OK; }}
+            return mount_error;
+        }}
+        FRESULT f_open(FIL *file, const char *path, int mode)
+        {{
+            (void)path; (void)mode;
+            file->size = file_size;
+            file_offset = 0;
+            return open_error;
+        }}
+        unsigned int f_size(FIL *file) {{ return file->size; }}
+        FRESULT f_read(FIL *file, void *buffer, unsigned int btr, UINT *br)
+        {{
+            (void)file;
+            reads++;
+            if (read_error) return read_error;
+            *br = short_read ? 0 : file_size - file_offset;
+            if (*br > btr) *br = btr;
+            memset(buffer, 0x5a, *br);
+            file_offset += *br;
+            return FR_OK;
+        }}
+        FRESULT f_close(FIL *file) {{ (void)file; closes++; return FR_OK; }}
+
+        static void reset(unsigned int size)
+        {{
+            file_size = size;
+            mount_error = open_error = read_error = short_read = 0;
+            closes = unmounts = reads = boots = 0;
+            memset(ram, 0xa5, sizeof(ram));
+        }}
+
+        int main(void)
+        {{
+            reset(0);
+            if (!setjmp(jump)) fatfsboot_from_bin("empty.bin");
+            assert(boots == 0 && reads == 0 && closes == 1 && unmounts == 1);
+            assert(ram[0] == 0xa5);
+
+            reset(MAIN_RAM_SIZE + 1);
+            if (!setjmp(jump)) fatfsboot_from_bin("oversized.bin");
+            assert(boots == 0 && reads == 0 && closes == 1 && unmounts == 1);
+
+            reset(MAIN_RAM_SIZE);
+            if (!setjmp(jump)) fatfsboot_from_bin("valid.bin");
+            assert(boots == 1 && closes == 1 && unmounts == 1);
+            for (unsigned int i = 0; i < MAIN_RAM_SIZE; i++) assert(ram[i] == 0x5a);
+            for (unsigned int i = MAIN_RAM_SIZE; i < sizeof(ram); i++) assert(ram[i] == 0xa5);
+
+            reset(32);
+            mount_error = 1;
+            if (!setjmp(jump)) fatfsboot_from_bin("mount-error.bin");
+            assert(boots == 0 && reads == 0 && closes == 0 && unmounts == 1);
+
+            reset(32);
+            open_error = 1;
+            if (!setjmp(jump)) fatfsboot_from_bin("open-error.bin");
+            assert(boots == 0 && reads == 0 && closes == 0 && unmounts == 1);
+
+            reset(32);
+            read_error = 1;
+            if (!setjmp(jump)) fatfsboot_from_bin("read-error.bin");
+            assert(boots == 0 && closes == 1 && unmounts == 1);
+            reset(32);
+            short_read = 1;
+            if (!setjmp(jump)) fatfsboot_from_bin("short.bin");
+            assert(boots == 0 && closes == 1 && unmounts == 1);
+
+            size_t loaded;
+            reset(32);
+            open_error = FR_NO_FILE;
+            assert(fatfs_load_file("missing.bin", ram, sizeof(ram), &loaded, 0) == BOOT_LOAD_NOT_FOUND);
+            assert(loaded == 0);
+            return 0;
+        }}
+    """)
+    subprocess.check_call([
+        "gcc", "-std=gnu99", "-Wall", "-Wextra",
+        "-ffunction-sections", "-fdata-sections",
+        f"-I{include_dir}", f"-I{repo}/litex/soc/software",
+        str(source), f"{repo}/litex/soc/software/libbase/parse.c",
+        "-Wl,--gc-sections", "-o", str(binary),
+    ])
+    subprocess.check_call([str(binary)])

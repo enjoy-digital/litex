@@ -24,6 +24,7 @@ int readline(char *s, int size)
 	static char skip = 0;
 	char c[2];
 	int ptr;
+	int escape = 0;
 
 	if (size <= 0)
 		return -1;
@@ -38,9 +39,27 @@ int readline(char *s, int size)
 		}
 
 		c[0] = getchar();
+		if (c[0] == 0x03) {
+			s[0] = 0;
+			skip = 0;
+			return -1;
+		}
 		if (c[0] == skip)
 			continue;
 		skip = 0;
+		/* Ignore complete CSI/SS3 key sequences, including their printable
+		   suffixes. Consume incrementally so a lone ESC cannot block input. */
+		if (c[0] == 0x1b) {
+			escape = 1;
+			continue;
+		}
+		if (escape && c[0] != '\r' && c[0] != '\n') {
+			if (escape == 1)
+				escape = (c[0] == '[' || c[0] == 'O') ? 2 : 0;
+			else if (c[0] >= 0x40 && c[0] <= 0x7e)
+				escape = 0;
+			continue;
+		}
 		switch(c[0]) {
 		case 0x7f:
 		case 0x08:
