@@ -977,6 +977,22 @@ class Cache(LiteXModule):
             adr_offset_r = Signal(offsetbits, reset_less=True)
             self.sync += adr_offset_r.eq(adr_offset)
 
+        read_offset = adr_offset_r
+        if bursting:
+            # Share the cache-data lane mux between normal and burst hits.
+            # Switching a small lane index costs less than duplicating the
+            # wide-word mux and then selecting between two complete CPU words.
+            read_offset = Signal(offsetbits)
+            self.comb += read_offset.eq(adr_offset_r)
+
+        read_data = data_port.dat_r
+        if with_refill_bypass and dw_to >= dw_from:
+            # Both sources use the same lane selection. Selecting the source
+            # before the lane mux avoids two independent wide-word selectors.
+            read_from_refill = Signal()
+            read_data = Signal.like(data_port.dat_r)
+            self.comb += read_data.eq(Mux(read_from_refill, slave.dat_r, data_port.dat_r))
+
         self.comb += [
             data_port.adr.eq(adr_line),
             If(write_from_slave,
@@ -990,7 +1006,7 @@ class Cache(LiteXModule):
             ),
             chooser(data_port.dat_r, word, slave.dat_w),
             slave.sel.eq(2**(dw_to//8)-1),
-            chooser(data_port.dat_r, adr_offset_r, master.dat_r, reverse=reverse)
+            chooser(read_data, read_offset, master.dat_r, reverse=reverse)
         ]
 
 
@@ -1053,7 +1069,7 @@ class Cache(LiteXModule):
             # Writes still need TEST_HIT to apply byte enables and mark dirty.
             refill_next = [If(master.cyc & master.stb & ~master.we,
                 master.ack.eq(1),
-                chooser(slave.dat_r, adr_offset, master.dat_r, reverse=reverse),
+                read_from_refill.eq(1),
                 *hit_next,
             ).Else(
                 NextState("TEST_HIT")
@@ -1086,6 +1102,9 @@ class Cache(LiteXModule):
 
         if bursting:
             fsm.act("BURST",
+                # Read data is only consumed with ACK, so lane selection need
+                # not depend on the tag/address/enable checks below.
+                read_offset.eq(adr_offset),
                 If(~master.cyc | ~master.stb,
                     NextState("IDLE")
                 ).Elif(master.we | (adr_line != adr_line_r) | (tag_do.tag != adr_tag),
@@ -1094,7 +1113,6 @@ class Cache(LiteXModule):
                     NextState("TEST_HIT")
                 ).Else(
                     master.ack.eq(1),
-                    chooser(data_port.dat_r, adr_offset, master.dat_r, reverse=reverse),
                     If(~read_burst, NextState("IDLE"))
                 )
             )
