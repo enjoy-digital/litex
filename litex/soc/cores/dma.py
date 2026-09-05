@@ -125,10 +125,17 @@ class WishboneDMAReader(LiteXModule):
             self.add_csr()
 
     def add_ctrl(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
+        """Add a byte-addressed transfer controller.
+
+        Base and length must be aligned to bus words and remain stable while enabled. Empty
+        transfers complete without bus activity, including in loop mode. Misaligned transfers
+        complete with ``error`` asserted; disable the controller before starting a new transfer.
+        """
         self.base   = Signal(64, reset=default_base)
         self.length = Signal(32, reset=default_length)
         self.enable = Signal(reset=default_enable)
         self.done   = Signal()
+        self.error  = Signal()
         self.loop   = Signal(reset=default_loop)
         self.offset = Signal(32)
 
@@ -140,6 +147,7 @@ class WishboneDMAReader(LiteXModule):
         length  = Signal(self.bus.adr_width)
         self.comb += base.eq(self.base[shift:])
         self.comb += length.eq(self.length[shift:])
+        unaligned = (self.base[:shift] != 0) | (self.length[:shift] != 0) if shift else 0
 
         self.comb += self.offset.eq(offset)
 
@@ -147,7 +155,13 @@ class WishboneDMAReader(LiteXModule):
         self.comb += fsm.reset.eq(~self.enable)
         fsm.act("IDLE",
             NextValue(offset, 0),
-            NextState("RUN"),
+            If(self.length == 0,
+                NextState("DONE"),
+            ).Elif(unaligned,
+                NextState("ERROR"),
+            ).Else(
+                NextState("RUN"),
+            ),
         )
         fsm.act("RUN",
             self.sink.valid.eq(1),
@@ -165,6 +179,7 @@ class WishboneDMAReader(LiteXModule):
             )
         )
         fsm.act("DONE", self.done.eq(1))
+        fsm.act("ERROR", self.done.eq(1), self.error.eq(1))
 
     def add_csr(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
         if not hasattr(self, "base"):
@@ -175,6 +190,7 @@ class WishboneDMAReader(LiteXModule):
         self._done   = CSRStatus(1,                         description="DMA Reader transfer done.")
         self._loop   = CSRStorage(reset=default_loop,       description="DMA Reader loop enable.")
         self._offset = CSRStatus(32,                        description="DMA Reader current transfer offset.")
+        self._error  = CSRStatus(1, description="DMA Reader rejected a non-word-aligned base or length. Cleared when disabled.")
 
         # # #
 
@@ -187,6 +203,7 @@ class WishboneDMAReader(LiteXModule):
             # Status.
             self._done.status.eq(self.done),
             self._offset.status.eq(self.offset),
+            self._error.status.eq(self.error),
         ]
 
 # WishboneDMAWriter --------------------------------------------------------------------------------
@@ -246,6 +263,10 @@ class WishboneDMAWriter(LiteXModule):
             self.add_csr()
 
     def add_ctrl(self, default_base=0, default_length=0, default_enable=0, default_loop=0, ready_on_idle=1):
+        """Add a controller with the same alignment/completion rules as the DMA reader.
+
+        ``ready_on_idle`` retains the optional discard behavior while the controller is idle.
+        """
         self._sink = self.sink
         self.sink  = stream.Endpoint([("data", self.bus.data_width)])
 
@@ -253,6 +274,7 @@ class WishboneDMAWriter(LiteXModule):
         self.length = Signal(32, reset=default_length)
         self.enable = Signal(reset=default_enable)
         self.done   = Signal()
+        self.error  = Signal()
         self.loop   = Signal(reset=default_loop)
         self.offset = Signal(32)
 
@@ -264,6 +286,7 @@ class WishboneDMAWriter(LiteXModule):
         length  = Signal(self.bus.adr_width)
         self.comb += base.eq(self.base[shift:])
         self.comb += length.eq(self.length[shift:])
+        unaligned = (self.base[:shift] != 0) | (self.length[:shift] != 0) if shift else 0
 
         self.comb += self.offset.eq(offset)
 
@@ -272,7 +295,13 @@ class WishboneDMAWriter(LiteXModule):
         fsm.act("IDLE",
             self.sink.ready.eq(ready_on_idle),
             NextValue(offset, 0),
-            NextState("RUN"),
+            If(self.length == 0,
+                NextState("DONE"),
+            ).Elif(unaligned,
+                NextState("ERROR"),
+            ).Else(
+                NextState("RUN"),
+            ),
         )
         fsm.act("RUN",
             self._sink.valid.eq(self.sink.valid),
@@ -292,6 +321,7 @@ class WishboneDMAWriter(LiteXModule):
             )
         )
         fsm.act("DONE", self.done.eq(1))
+        fsm.act("ERROR", self.done.eq(1), self.error.eq(1))
 
     def add_csr(self, default_base=0, default_length=0, default_enable=0, default_loop=0):
         if not hasattr(self, "base"):
@@ -302,6 +332,7 @@ class WishboneDMAWriter(LiteXModule):
         self._done   = CSRStatus(1,                         description="DMA Writer transfer done.")
         self._loop   = CSRStorage(reset=default_loop,       description="DMA Writer loop enable.")
         self._offset = CSRStatus(32,                        description="DMA Writer current transfer offset.")
+        self._error  = CSRStatus(1, description="DMA Writer rejected a non-word-aligned base or length. Cleared when disabled.")
 
         # # #
 
@@ -314,4 +345,5 @@ class WishboneDMAWriter(LiteXModule):
             # Status.
             self._done.status.eq(self.done),
             self._offset.status.eq(self.offset),
+            self._error.status.eq(self.error),
         ]
