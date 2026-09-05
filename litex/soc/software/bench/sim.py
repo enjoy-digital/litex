@@ -134,6 +134,7 @@ def main():
     parser.add_argument("--with-sdram", action="store_true")
     parser.add_argument("--l2-size", default=8192, type=cache_size)
     parser.add_argument("--l2-bursting", action="store_true")
+    parser.add_argument("--l2-refill-bypass", action="store_true")
     parser.add_argument("--min-l2-data-width", default=128, type=int,
         choices=[32, 64, 128, 256, 512, 1024])
     parser.add_argument("--jobs", default=4, type=positive_int)
@@ -151,6 +152,7 @@ def main():
         integrated_main_ram_size=0 if args.with_sdram else 0x40000,
         with_sdram=args.with_sdram, l2_size=args.l2_size, min_l2_data_width=args.min_l2_data_width,
         l2_bursting=args.l2_bursting,
+        l2_refill_bypass=args.l2_refill_bypass,
         bus_standard=args.bus_standard, bus_data_width=args.bus_data_width,
         bus_interconnect=args.bus_interconnect, bus_bursting=args.bus_bursting,
         bus_low_latency=args.bus_low_latency)

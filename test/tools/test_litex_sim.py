@@ -16,6 +16,8 @@ def test_l2_refill_width_argument():
     assert parser.parse_args(["--min-l2-data-width=256"]).min_l2_data_width == 256
     assert not parser.parse_args([]).l2_bursting
     assert parser.parse_args(["--l2-bursting"]).l2_bursting
+    assert not parser.parse_args([]).l2_refill_bypass
+    assert parser.parse_args(["--l2-refill-bypass"]).l2_refill_bypass
 
 
 @pytest.mark.parametrize("enabled", [False, True])

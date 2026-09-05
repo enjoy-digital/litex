@@ -910,8 +910,11 @@ class Cache(LiteXModule):
     words) is the size of the data store and must be a power of 2.
     With with_bursting, read bursts can acknowledge consecutive lanes of a wider slave word on
     consecutive cycles. Equal/narrower slave widths retain the normal hit path.
+    With with_refill_bypass, read misses can acknowledge directly from an equal/wider slave's
+    refill response; this adds a combinational path from slave data/ack to the master.
     """
-    def __init__(self, cachesize, master, slave, reverse=True, with_bursting=False):
+    def __init__(self, cachesize, master, slave, reverse=True,
+        with_bursting=False, with_refill_bypass=False):
         self.master = master
         self.slave  = slave
 
@@ -1043,6 +1046,18 @@ class Cache(LiteXModule):
             ).Else(
                 NextState("IDLE")
             )]
+        refill_next = [NextState("TEST_HIT")]
+        if with_refill_bypass and dw_to >= dw_from:
+            # The whole cache line arrives in this beat. Return the requested
+            # lane while filling RAM, avoiding the subsequent TEST_HIT cycle.
+            # Writes still need TEST_HIT to apply byte enables and mark dirty.
+            refill_next = [If(master.cyc & master.stb & ~master.we,
+                master.ack.eq(1),
+                chooser(slave.dat_r, adr_offset, master.dat_r, reverse=reverse),
+                *hit_next,
+            ).Else(
+                NextState("TEST_HIT")
+            )]
         fsm.act("IDLE",
             If(master.cyc & master.stb,
                 NextState("TEST_HIT")
@@ -1106,7 +1121,7 @@ class Cache(LiteXModule):
                 write_from_slave.eq(1),
                 word_inc.eq(1),
                 If(word_is_last(word),
-                    NextState("TEST_HIT"),
+                    *refill_next,
                 ).Else(
                     NextState("REFILL")
                 )

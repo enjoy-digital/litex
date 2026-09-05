@@ -42,6 +42,13 @@ without an idle cycle; line changes and writes use the normal cache path.
 This is separate from `--bus-bursting`, which enables burst support in integrated
 RAM. Keep results in the external output directory, not in the source tree.
 
+`--l2-refill-bypass` forwards the requested read lane directly from an
+equal/wider refill response while updating cache RAM. It avoids the extra
+hit-test cycle on read misses; write allocation still follows the normal path.
+It can be combined with `--l2-bursting`. Both options leave cache capacity
+unchanged and are disabled by default. Refill bypass lengthens the combinational
+return path, so a cycle improvement in simulation also needs FPGA timing checks.
+
 ## Measurement contract
 
 - Firmware is compiled at `-O2`, executes from ROM and keeps its stack in SRAM.

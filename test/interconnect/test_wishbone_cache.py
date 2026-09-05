@@ -20,10 +20,12 @@ def initial_word(address):
 
 
 class CacheDUT(LiteXModule):
-    def __init__(self, width=128, reverse=False, bursting=False, latency=1, full_we=False):
+    def __init__(self, width=128, reverse=False, bursting=False, latency=1, full_we=False,
+        refill_bypass=False):
         self.master = master = wishbone.Interface(data_width=32, address_width=16)
         self.slave = slave = wishbone.Interface(data_width=width, address_width=16)
-        cache = wishbone.Cache(64, master, slave, reverse=reverse, with_bursting=bursting)
+        cache = wishbone.Cache(64, master, slave, reverse=reverse,
+            with_bursting=bursting, with_refill_bypass=refill_bypass)
         self.cache = FullMemoryWE()(cache) if full_we else cache
         ratio = width//32
         init = [sum(initial_word(index*ratio + lane) << (32*(ratio-1-lane if reverse else lane))
@@ -132,8 +134,9 @@ def test_burst_boundaries_wraps_and_stalls(reverse, latency, bte):
 
 @pytest.mark.parametrize("reverse", [False, True])
 @pytest.mark.parametrize("full_we", [False, True])
-def test_burst_read_write_transition_and_dirty_eviction(reverse, full_we):
-    dut = CacheDUT(reverse=reverse, bursting=True, full_we=full_we)
+@pytest.mark.parametrize("refill_bypass", [False, True])
+def test_burst_read_write_transition_and_dirty_eviction(reverse, full_we, refill_bypass):
+    dut = CacheDUT(reverse=reverse, bursting=True, full_we=full_we, refill_bypass=refill_bypass)
     expected = (initial_word(129) & 0xffff00ff) | 0x0000aa00
     beats = [
         (128, None, 15, wishbone.CTI_BURST_INCREMENTING),
@@ -169,8 +172,9 @@ def test_cycle_end_terminates_live_burst():
 
 
 @pytest.mark.parametrize("reverse", [False, True])
-def test_random_cache_traffic(reverse):
-    dut = CacheDUT(reverse=reverse, bursting=True, latency=3)
+@pytest.mark.parametrize("refill_bypass", [False, True])
+def test_random_cache_traffic(reverse, refill_bypass):
+    dut = CacheDUT(reverse=reverse, bursting=True, latency=3, refill_bypass=refill_bypass)
     rng = random.Random(42)
     expected = {address: initial_word(address) for address in range(128, 320)}
 
@@ -198,3 +202,62 @@ def test_random_cache_traffic(reverse):
             assert values == [expected_value]
 
     run_simulation(dut, generator())
+
+
+@pytest.mark.parametrize("width", [32, 64, 128, 256])
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("latency", [1, 4])
+@pytest.mark.parametrize("bursting", [False, True])
+def test_refill_bypass_saves_one_cycle(width, reverse, latency, bursting):
+    measurements = []
+    for enabled in [False, True]:
+        dut = CacheDUT(width, reverse, bursting, latency, full_we=True, refill_bypass=enabled)
+        reads, writes = [], []
+
+        def generator():
+            for lane in range(width//32):
+                # Leave one tag between targets so a dirty victim from an
+                # earlier iteration is not part of a later expected clean line.
+                address = 128 + 128*lane + lane
+                # Force a dirty victim in the same index before this read miss.
+                _, gaps = yield from transfer(dut.master,
+                    [(address ^ 64, 0xaabbccdd, 5, wishbone.CTI_BURST_NONE)])
+                writes.append(gaps[0])
+                line = address & ~(width//32 - 1)
+                addresses = [line + ((lane + i) % (width//32)) for i in range(width//32)]
+                values, gaps = yield from transfer(dut.master, read_beats(addresses))
+                assert values == [initial_word(address) for address in addresses]
+                reads.append(gaps[0])
+                # A following same-line beat sees the newly filled RAM contents.
+                assert gaps[1:] == [1 if bursting else 2]*(len(addresses)-1)
+
+        run_simulation(dut, generator())
+        measurements.append((reads, writes))
+    assert measurements[1][0] == [cycles-1 for cycles in measurements[0][0]]
+    assert measurements[1][1] == measurements[0][1]
+
+
+@pytest.mark.parametrize("width", [32, 64, 128])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_wide_master_refill_and_narrow_slave_fallback(width, reverse):
+    first_reads = []
+    for enabled in [False, True]:
+        dut = LiteXModule()
+        dut.master = wishbone.Interface(data_width=64, address_width=16)
+        dut.slave = wishbone.Interface(data_width=width, address_width=16)
+        dut.cache = wishbone.Cache(64, dut.master, dut.slave, reverse=reverse,
+            with_bursting=True, with_refill_bypass=enabled)
+        dut.memory = wishbone.SRAM(8192, bus=dut.slave)
+
+        def generator():
+            values, gaps = yield from transfer(dut.master, read_beats([128]))
+            assert values == [0]
+            first_reads.append(gaps[0])
+            yield from transfer(dut.master, [(128, 0x1122334455667788, 255, wishbone.CTI_BURST_NONE)])
+            yield from transfer(dut.master, [(128, 0xaabbccddeeff0011, 0x18, wishbone.CTI_BURST_NONE)])
+            yield from transfer(dut.master, read_beats([192]))
+            values, _ = yield from transfer(dut.master, read_beats([128]))
+            assert values == [0x112233ddee667788]
+
+        run_simulation(dut, generator())
+    assert first_reads[1] == first_reads[0] - int(width >= 64)
