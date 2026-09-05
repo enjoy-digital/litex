@@ -277,13 +277,8 @@ class ECCDecoder(SECDED, LiteXModule):
         # Extract data / status.
         self.extract_data(codeword_c, o)
         self.comb += [
-            If(syndrome != 0,
-                # Double error detected.
-                If(~parity,
-                    ded.eq(1)
-                # Single error corrected.
-                ).Else(
-                    sec.eq(1)
-                )
-            )
+            # An overall-parity-bit error has odd parity and a zero syndrome. It still counts
+            # as a single-bit error even though no payload bit needs to be corrected.
+            sec.eq(self.enable & parity),
+            ded.eq(self.enable & (syndrome != 0) & ~parity),
         ]
