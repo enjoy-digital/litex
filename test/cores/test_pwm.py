@@ -9,7 +9,7 @@ import unittest
 from migen import *
 from migen.genlib.cdc import MultiReg
 
-from litex.soc.cores.pwm import PWM
+from litex.soc.cores.pwm import PWM, MultiChannelPWM
 
 
 def sample_pwm(dut, cycles):
@@ -185,6 +185,35 @@ class TestPWM(unittest.TestCase):
                 self.assertEqual((yield dut.counter), 0)
                 self.assertEqual((yield dut.pwm), 1)  # enable & (0 < 4)
         run_simulation(dut, gen())
+
+
+class TestMultiChannelPWM(unittest.TestCase):
+    def test_independent_enables(self):
+        for clock_domain in ["sys", "pwm"]:
+            with self.subTest(clock_domain=clock_domain):
+                pads = Signal(3)
+                dut = MultiChannelPWM(pads, clock_domain=clock_domain)
+                channels = [dut.channel0, dut.channel1, dut.channel2]
+
+                def gen():
+                    yield dut.channel0._period.storage.eq(8)
+                    for channel, width in zip(channels, [1, 2, 3]):
+                        yield channel._width.storage.eq(width)
+                    # Disable channel 0 while keeping other channels active, then re-enable it.
+                    for mask in [1, 2, 4, 3, 6, 7, 0, 2, 1]:
+                        for n, channel in enumerate(channels):
+                            yield channel._enable.storage.eq((mask >> n) & 1)
+                        for _ in range(8):
+                            yield
+                        high = [0, 0, 0]
+                        for _ in range(32):
+                            for n in range(3):
+                                high[n] += (yield pads[n])
+                            yield
+                        self.assertEqual(high, [4*(n + 1) if mask & (1 << n) else 0
+                                                for n in range(3)])
+
+                run_simulation(dut, {clock_domain: gen()}, clocks={"sys": 10, "pwm": 14})
 
 
 if __name__ == "__main__":

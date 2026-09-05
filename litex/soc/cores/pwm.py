@@ -24,7 +24,8 @@ class PWM(LiteXModule):
     def __init__(self, pwm=None, clock_domain="sys", counter=None, with_csr=True,
         default_enable = 0,
         default_width  = 0,
-        default_period = 0):
+        default_period = 0,
+        counter_enable = None):
         if pwm is None:
             self.pwm = pwm = Signal()
         self.reset  = Signal()
@@ -38,10 +39,13 @@ class PWM(LiteXModule):
 
         # PWM Counter/Period logic.
         if counter is None:
+            # A shared timebase can run while this channel's output is disabled.
+            if counter_enable is None:
+                counter_enable = self.enable
             self.counter = counter = Signal(32, reset_less=True)
             sync += [
                 counter.eq(0),
-                If(self.enable & ~self.reset,
+                If(counter_enable & ~self.reset,
                     If(counter < (self.period - 1),
                         counter.eq(counter + 1)
                     )
@@ -87,6 +91,9 @@ class MultiChannelPWM(LiteXModule):
     """Multi-Channel Pulse Width Modulation
 
     PWM module with Multi-Channel support.
+
+    Channel 0 supplies the shared period. The timebase runs while any channel is enabled;
+    disabling an individual channel only disables its output.
     """
     def __init__(self, pads, clock_domain="sys",
         default_enable = 0,
@@ -98,6 +105,8 @@ class MultiChannelPWM(LiteXModule):
         nchannels = len(pads)
 
         counter = Signal(32, reset_less=True)
+        counter_enable = Signal()
+        enables = []
         for n in range(nchannels):
             pwm = PWM(
                 pwm            = pads[n],
@@ -107,6 +116,7 @@ class MultiChannelPWM(LiteXModule):
                 default_enable = default_enable,
                 default_width  = default_width,
                 default_period = default_period,
+                counter_enable = counter_enable,
             )
 
             if n == 0:
@@ -114,3 +124,5 @@ class MultiChannelPWM(LiteXModule):
                 pwm.add_period_csr(clock_domain)
             pwm.add_enable_width_csr(clock_domain)
             self.add_module(name=f"channel{n}", module=pwm)
+            enables.append(pwm.enable)
+        self.comb += counter_enable.eq(Reduce("OR", enables))
