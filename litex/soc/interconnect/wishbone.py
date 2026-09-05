@@ -908,8 +908,13 @@ class Cache(LiteXModule):
 
     This module is a write-back wishbone cache that can be used as a L2 cache. Cachesize (in 32-bit
     words) is the size of the data store and must be a power of 2.
+    With with_bursting, read bursts can acknowledge consecutive lanes of a wider slave word on
+    consecutive cycles. Equal/narrower slave widths retain the normal hit path.
+    With with_refill_bypass, read misses can acknowledge directly from an equal/wider slave's
+    refill response; this adds a combinational path from slave data/ack to the master.
     """
-    def __init__(self, cachesize, master, slave, reverse=True):
+    def __init__(self, cachesize, master, slave, reverse=True,
+        with_bursting=False, with_refill_bypass=False):
         self.master = master
         self.slave  = slave
 
@@ -949,6 +954,16 @@ class Cache(LiteXModule):
         adr_offset, adr_line, adr_tag = split(master.adr, offsetbits, linebits, tagbits)
         word                          = Signal(wordbits) if wordbits else None
 
+        # A wide data-memory word already contains several CPU words. During a
+        # read burst, select the live lane without another synchronous RAM read.
+        # Check the registered RAM index as well as the tag: an address change
+        # must never acknowledge data left over from the previous cache line.
+        bursting = with_bursting and offsetbits != 0
+        read_burst = (master.cti == CTI_BURST_INCREMENTING) | (master.cti == CTI_BURST_CONSTANT)
+        if bursting:
+            adr_line_r = Signal.like(adr_line)
+            self.sync += adr_line_r.eq(adr_line)
+
         # Data Memory.
         # ------------
         data_mem  = Memory(dw_to*2**wordbits, 2**linebits)
@@ -961,6 +976,22 @@ class Cache(LiteXModule):
         else:
             adr_offset_r = Signal(offsetbits, reset_less=True)
             self.sync += adr_offset_r.eq(adr_offset)
+
+        read_offset = adr_offset_r
+        if bursting:
+            # Share the cache-data lane mux between normal and burst hits.
+            # Switching a small lane index costs less than duplicating the
+            # wide-word mux and then selecting between two complete CPU words.
+            read_offset = Signal(offsetbits)
+            self.comb += read_offset.eq(adr_offset_r)
+
+        read_data = data_port.dat_r
+        if with_refill_bypass and dw_to >= dw_from:
+            # Both sources use the same lane selection. Selecting the source
+            # before the lane mux avoids two independent wide-word selectors.
+            read_from_refill = Signal()
+            read_data = Signal.like(data_port.dat_r)
+            self.comb += read_data.eq(Mux(read_from_refill, slave.dat_r, data_port.dat_r))
 
         self.comb += [
             data_port.adr.eq(adr_line),
@@ -975,7 +1006,7 @@ class Cache(LiteXModule):
             ),
             chooser(data_port.dat_r, word, slave.dat_w),
             slave.sel.eq(2**(dw_to//8)-1),
-            chooser(data_port.dat_r, adr_offset_r, master.dat_r, reverse=reverse)
+            chooser(read_data, read_offset, master.dat_r, reverse=reverse)
         ]
 
 
@@ -1024,6 +1055,25 @@ class Cache(LiteXModule):
         # FSM.
         # ----
         self.fsm = fsm = FSM(reset_state="IDLE")
+        hit_next = [NextState("IDLE")]
+        if bursting:
+            hit_next = [If(~master.we & read_burst,
+                NextState("BURST")
+            ).Else(
+                NextState("IDLE")
+            )]
+        refill_next = [NextState("TEST_HIT")]
+        if with_refill_bypass and dw_to >= dw_from:
+            # The whole cache line arrives in this beat. Return the requested
+            # lane while filling RAM, avoiding the subsequent TEST_HIT cycle.
+            # Writes still need TEST_HIT to apply byte enables and mark dirty.
+            refill_next = [If(master.cyc & master.stb & ~master.we,
+                master.ack.eq(1),
+                read_from_refill.eq(1),
+                *hit_next,
+            ).Else(
+                NextState("TEST_HIT")
+            )]
         fsm.act("IDLE",
             If(master.cyc & master.stb,
                 NextState("TEST_HIT")
@@ -1037,7 +1087,7 @@ class Cache(LiteXModule):
                     tag_di.dirty.eq(1),
                     tag_port.we.eq(1)
                 ),
-                NextState("IDLE")
+                *hit_next,
             ).Else(
                 If(tag_do.dirty,
                     NextState("EVICT")
@@ -1049,6 +1099,23 @@ class Cache(LiteXModule):
                 )
             )
         )
+
+        if bursting:
+            fsm.act("BURST",
+                # Read data is only consumed with ACK, so lane selection need
+                # not depend on the tag/address/enable checks below.
+                read_offset.eq(adr_offset),
+                If(~master.cyc | ~master.stb,
+                    NextState("IDLE")
+                ).Elif(master.we | (adr_line != adr_line_r) | (tag_do.tag != adr_tag),
+                    # Let both synchronous memories catch up before testing the
+                    # next line, or using the normal byte-write/dirty-tag path.
+                    NextState("TEST_HIT")
+                ).Else(
+                    master.ack.eq(1),
+                    If(~read_burst, NextState("IDLE"))
+                )
+            )
 
         fsm.act("EVICT",
             slave.stb.eq(1),
@@ -1072,7 +1139,7 @@ class Cache(LiteXModule):
                 write_from_slave.eq(1),
                 word_inc.eq(1),
                 If(word_is_last(word),
-                    NextState("TEST_HIT"),
+                    *refill_next,
                 ).Else(
                     NextState("REFILL")
                 )

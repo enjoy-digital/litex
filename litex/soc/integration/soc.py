@@ -2329,6 +2329,8 @@ class LiteXSoC(SoC):
         l2_cache_min_data_width = 128,
         l2_cache_reverse        = False,
         l2_cache_full_memory_we = True,
+        l2_cache_bursting       = False,
+        l2_cache_refill_bypass  = False,
         **kwargs):
 
         # Checks.
@@ -2503,10 +2505,12 @@ class LiteXSoC(SoC):
                 l2_cache_size = 2**int(math.log2(l2_cache_size))                  # Round to nearest power of 2
                 l2_cache_data_width = max(port.data_width, l2_cache_min_data_width)
                 l2_cache = wishbone.Cache(
-                    cachesize = l2_cache_size//4,
-                    master    = wb_sdram,
-                    slave     = wishbone.Interface(data_width=l2_cache_data_width, address_width=32, addressing="word"),
-                    reverse   = l2_cache_reverse)
+                    cachesize          = l2_cache_size//4,
+                    master             = wb_sdram,
+                    slave              = wishbone.Interface(data_width=l2_cache_data_width, address_width=32, addressing="word"),
+                    reverse            = l2_cache_reverse,
+                    with_bursting      = l2_cache_bursting,
+                    with_refill_bypass = l2_cache_refill_bypass)
                 if l2_cache_full_memory_we:
                     l2_cache = FullMemoryWE()(l2_cache)
                 self.l2_cache = l2_cache
