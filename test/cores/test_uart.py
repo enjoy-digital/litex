@@ -9,6 +9,7 @@ import unittest
 from migen import *
 
 from litex.gen import *
+from litex.soc.interconnect import stream
 
 from litex.soc.cores.uart import (
     UART,
@@ -29,7 +30,114 @@ class _LoopbackDUT(LiteXModule):
         self.comb += self.pads.rx.eq(self.pads.tx)
 
 
+class _ErrorPHY(LiteXModule):
+    def __init__(self):
+        self.sink = stream.Endpoint([("data", 8)])
+        self.source = stream.Endpoint([("data", 8)])
+        self.rx_framing_error = Signal()
+        self.rx_overflow = Signal()
+
+
 class TestUART(unittest.TestCase):
+    def test_receive_error_status_is_optional(self):
+        dut = UART(RS232PHY(UARTPads(), 1_000_000))
+        self.assertFalse(hasattr(dut, "_rx_errors"))
+        with self.assertRaisesRegex(ValueError, "PHY"):
+            UART(with_error_status=True)
+
+    def test_receive_errors_from_serial_phy(self):
+        pads = UARTPads()
+        dut = UART(RS232PHY(pads, clk_freq=1_000_000, baudrate=62_500),
+                   rx_fifo_depth=1, with_error_status=True)
+
+        def drive(level, cycles):
+            yield pads.rx.eq(level)
+            for _ in range(cycles):
+                yield
+
+        def send(value, stop=1):
+            yield from drive(0, 16)
+            for bit in range(8):
+                yield from drive((value >> bit) & 1, 16)
+            yield from drive(stop, 16)
+            yield from drive(1, 32)
+
+        def gen():
+            yield from drive(1, 32)
+            yield from send(0x12)
+            self.assertEqual((yield dut._rx_errors.fields.overflow), 0)
+            # Do not drain the RX FIFO: subsequent valid frames must report actual loss.
+            for value in [0x34, 0x56, 0x78]:
+                yield from send(value)
+            self.assertEqual((yield dut._rx_errors.fields.overflow), 1)
+            self.assertEqual((yield dut._rx_errors.fields.framing), 0)
+            yield from send(0xa5, stop=0)
+            self.assertEqual((yield dut._rx_errors.fields.framing), 1)
+            yield dut._rx_errors.wr_data.eq(1)
+            yield dut._rx_errors.wr_stb.eq(1)
+            yield
+            yield dut._rx_errors.wr_stb.eq(0)
+            yield
+            self.assertEqual((yield dut._rx_errors.fields.framing), 0)
+            self.assertEqual((yield dut._rx_errors.fields.overflow), 1)
+
+        run_simulation(dut, gen())
+
+    def test_receive_error_latching_and_cdc(self):
+        for phy_cd, period in [("sys", 10), ("phy", 7), ("phy", 29)]:
+            with self.subTest(phy_cd=phy_cd, period=period):
+                phy = _ErrorPHY()
+                dut = UART(phy, phy_cd=phy_cd, with_error_status=True)
+                fired = Signal()
+                cleared = Signal()
+
+                def errors():
+                    yield phy.rx_framing_error.eq(1)
+                    yield
+                    yield phy.rx_framing_error.eq(0)
+                    yield phy.rx_overflow.eq(1)
+                    yield
+                    yield phy.rx_overflow.eq(0)
+                    yield fired.eq(1)
+                    while not (yield cleared):
+                        yield
+
+                def check():
+                    while not (yield fired):
+                        yield
+                    for _ in range(20):
+                        yield
+                    self.assertEqual((yield dut._rx_errors.fields.framing), 1)
+                    self.assertEqual((yield dut._rx_errors.fields.overflow), 1)
+                    for mask, expected in [(0, (1, 1)), (1, (0, 1)), (2, (0, 0))]:
+                        yield dut._rx_errors.wr_data.eq(mask)
+                        yield dut._rx_errors.wr_stb.eq(1)
+                        yield
+                        yield dut._rx_errors.wr_stb.eq(0)
+                        for _ in range(30):
+                            yield
+                        self.assertEqual(((yield dut._rx_errors.fields.framing),
+                                          (yield dut._rx_errors.fields.overflow)), expected)
+                    yield cleared.eq(1)
+
+                generators = {"sys": [check()]}
+                generators.setdefault(phy_cd, []).append(errors())
+                run_simulation(dut, generators, clocks={"sys": 10, "phy": period})
+
+    def test_new_receive_error_wins_over_clear(self):
+        dut = UART(_ErrorPHY(), with_error_status=True)
+        # Inject the event at the PHY/UART boundary to hit the exact clear cycle.
+        def gen():
+            yield dut.phy.rx_framing_error.eq(1)
+            yield dut._rx_errors.wr_data.eq(1)
+            yield dut._rx_errors.wr_stb.eq(1)
+            yield
+            yield dut._rx_errors.wr_stb.eq(0)
+            yield dut.phy.rx_framing_error.eq(0)
+            yield
+            self.assertEqual((yield dut._rx_errors.fields.framing), 1)
+        run_simulation(dut, gen())
+
     def test_rx_rejects_short_start_glitches(self):
         for glitch_length in [1, 2, 4]:
             with self.subTest(glitch_length=glitch_length):
