@@ -24,6 +24,37 @@ def sample_pwm(dut, cycles):
 
 
 class TestPWM(unittest.TestCase):
+    def test_configurable_counter_width(self):
+        for bits in [1, 8, 16, 32]:
+            with self.subTest(bits=bits):
+                period = min(2**bits - 1, 15)
+                width = max(1, period//3)
+                dut = PWM(counter_width=bits, default_enable=1,
+                          default_period=period, default_width=width)
+                self.assertEqual(len(dut.counter), bits)
+                self.assertEqual(dut._width.size, bits)
+                self.assertEqual(dut._period.size, bits)
+                def gen():
+                    for _ in range(5):
+                        yield
+                    high = 0
+                    for _ in range(4*period):
+                        high += (yield dut.pwm)
+                        yield
+                    self.assertEqual(high, 4*width)
+                run_simulation(dut, gen())
+
+    def test_counter_configuration_validation(self):
+        for bits in [0, -1, 33, 1.5, True]:
+            with self.subTest(bits=bits):
+                with self.assertRaisesRegex(ValueError, "counter_width"):
+                    PWM(counter_width=bits)
+                with self.assertRaisesRegex(ValueError, "counter_width"):
+                    MultiChannelPWM(Signal(2), counter_width=bits)
+        for defaults in [{"default_width": 256}, {"default_period": 256}, {"default_width": -1}]:
+            with self.assertRaisesRegex(ValueError, "fit"):
+                PWM(counter_width=8, **defaults)
+
     def test_csr_synchronizer_destination(self):
         for clock_domain in ["sys", "pwm"]:
             with self.subTest(clock_domain=clock_domain):
@@ -188,6 +219,14 @@ class TestPWM(unittest.TestCase):
 
 
 class TestMultiChannelPWM(unittest.TestCase):
+    def test_narrow_shared_counter(self):
+        dut = MultiChannelPWM(Signal(2), counter_width=8)
+        self.assertEqual(len(dut.channel0.counter), 8)
+        self.assertEqual(dut.channel0._period.size, 8)
+        for channel in [dut.channel0, dut.channel1]:
+            self.assertEqual(len(channel.width), 8)
+            self.assertEqual(channel._width.size, 8)
+
     def test_independent_enables(self):
         for clock_domain in ["sys", "pwm"]:
             with self.subTest(clock_domain=clock_domain):
