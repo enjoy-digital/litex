@@ -7,7 +7,6 @@
 import math
 
 from migen import *
-from migen.genlib.cdc import MultiReg
 
 from litex.gen import *
 
@@ -39,9 +38,21 @@ class SPIMaster(LiteXModule):
         SPI Flash page programming or when hardware CS lines are insufficient. It allows software to keep
         CS asserted across multiple transfers. Each transfer still has to be started explicitly through the
         ``start``/``length`` control path; manual CS mode does not clock data by itself.
+
+    Transfers require 1..data_width bits and a clock divider of at least 2. Invalid starts leave
+    the core idle, set ``error`` and pulse ``irq``. The next valid start clears ``error``. Data,
+    length, divider, loopback and automatic CS selection are sampled at start; manual CS remains
+    live so software can control its lifetime independently.
     """
     pads_layout = [("clk", 1), ("cs_n", 1), ("mosi", 1), ("miso", 1)]
     def __init__(self, pads, data_width, sys_clk_freq, spi_clk_freq, with_csr=True, mode="raw"):
+        if not isinstance(data_width, int) or isinstance(data_width, bool) or not 1 <= data_width <= 255:
+            raise ValueError("SPI master data_width must be an integer from 1 to 255.")
+        if not all(math.isfinite(f) and f > 0 for f in [sys_clk_freq, spi_clk_freq]):
+            raise ValueError("SPI master clock frequencies must be finite and positive.")
+        default_divider = math.ceil(sys_clk_freq/spi_clk_freq)
+        if not 2 <= default_divider <= 65535:
+            raise ValueError("SPI master clock divider must be from 2 to 65535.")
         if mode not in ["raw", "aligned"]:
             raise ValueError("Unsupported SPI master mode: {}.".format(mode))
         self.mode = mode
@@ -57,13 +68,14 @@ class SPIMaster(LiteXModule):
         self.start       = Signal()
         self.length      = Signal(8)
         self.done        = Signal()
+        self.error       = Signal()
         self.irq         = Signal()
         self.mosi        = Signal(data_width)
         self.miso        = Signal(data_width)
         self.cs          = Signal(len(pads.cs_n), reset=1)
         self.cs_mode     = Signal()
         self.loopback    = Signal()
-        self.clk_divider = Signal(16, reset=math.ceil(sys_clk_freq/spi_clk_freq))
+        self.clk_divider = Signal(16, reset=default_divider)
 
         if with_csr:
             self.add_csr()
@@ -72,16 +84,26 @@ class SPIMaster(LiteXModule):
 
         clk_enable  = Signal()
         xfer_enable = Signal()
-        count       = Signal(max=data_width)
+        count       = Signal(max=max(data_width, 2))
         mosi_latch  = Signal()
         miso_latch  = Signal()
+        length      = Signal(8)
+        divider     = Signal(16, reset=default_divider)
+        loopback    = Signal()
+        cs_latched  = Signal.like(self.cs)
+        self.sync += If(mosi_latch,
+            length.eq(self.length),
+            divider.eq(self.clk_divider),
+            loopback.eq(self.loopback),
+            cs_latched.eq(self.cs),
+        )
 
         # Clock generation -------------------------------------------------------------------------
         clk_divider = Signal(16)
         clk_rise    = Signal()
         clk_fall    = Signal()
-        self.comb += clk_rise.eq(clk_divider == (self.clk_divider[1:] - 1))
-        self.comb += clk_fall.eq(clk_divider == (self.clk_divider     - 1))
+        self.comb += clk_rise.eq(clk_divider == (divider[1:] - 1))
+        self.comb += clk_fall.eq(clk_divider == (divider     - 1))
         self.sync += [
             clk_divider.eq(clk_divider + 1),
             If(clk_rise,
@@ -89,7 +111,12 @@ class SPIMaster(LiteXModule):
             ).Elif(clk_fall,
                 clk_divider.eq(0),
                 pads.clk.eq(0),
-            )
+            ),
+            # Start the newly sampled divider from a known phase.
+            If(mosi_latch,
+                clk_divider.eq(0),
+                pads.clk.eq(0),
+            ),
         ]
 
         # Control FSM ------------------------------------------------------------------------------
@@ -97,9 +124,15 @@ class SPIMaster(LiteXModule):
         fsm.act("IDLE",
             self.done.eq(1),
             If(self.start,
-                self.done.eq(0),
-                mosi_latch.eq(1),
-                NextState("START")
+                If((self.length == 0) | (self.length > data_width) | (self.clk_divider < 2),
+                    NextValue(self.error, 1),
+                    self.irq.eq(1),
+                ).Else(
+                    NextValue(self.error, 0),
+                    self.done.eq(0),
+                    mosi_latch.eq(1),
+                    NextState("START"),
+                ),
             )
         )
         fsm.act("START",
@@ -114,7 +147,7 @@ class SPIMaster(LiteXModule):
             xfer_enable.eq(1),
             If(clk_fall,
                 NextValue(count, count + 1),
-                If(count == (self.length - 1),
+                If(count == (length - 1),
                     NextState("STOP")
                 )
             )
@@ -132,14 +165,14 @@ class SPIMaster(LiteXModule):
         if hasattr(pads, "cs_n"):
             for i in range(len(pads.cs_n)):
                 # CS set when enabled and (Xfer enabled or Manual CS mode selected).
-                cs = (self.cs[i] & (xfer_enable | (self.cs_mode == 1)))
+                cs = Mux(self.cs_mode, self.cs[i], cs_latched[i] & xfer_enable)
                 # CS Output/Invert.
                 self.sync += pads.cs_n[i].eq(~cs)
 
         # Master Out Slave In (MOSI) generation (generated on spi_clk falling edge) ----------------
         mosi_data  = Signal(data_width)
         mosi_array = Array(mosi_data[i] for i in range(data_width))
-        mosi_sel   = Signal(max=data_width)
+        mosi_sel   = Signal(max=max(data_width, 2))
         self.sync += [
             If(mosi_latch,
                 mosi_data.eq(self.mosi),
@@ -151,11 +184,10 @@ class SPIMaster(LiteXModule):
         ]
 
         # Master In Slave Out (MISO) capture (captured on spi_clk rising edge) --------------------
-        miso      = Signal()
         miso_data = Signal(data_width)
         self.sync += [
             If(clk_rise,
-                If(self.loopback,
+                If(loopback,
                     miso_data.eq(Cat(pads.mosi, miso_data))
                 ).Else(
                     miso_data.eq(Cat(pads.miso, miso_data))
@@ -170,7 +202,7 @@ class SPIMaster(LiteXModule):
             CSRField("start",  size=1, offset=0, pulse=True,
                 description="SPI Xfer Start (Write ``1`` to start one Xfer)."),
             CSRField("length", size=8, offset=8,
-                description="SPI Xfer Length (in bits). Required for each Xfer, including in manual CS mode.")
+                description=f"SPI Xfer Length (1..{self.data_width} bits). Required for each Xfer, including in manual CS mode.")
         ])
         self._status = CSRStatus(description="SPI Status.", fields=[
             CSRField("done", size=1, offset=0, description="SPI Xfer Done (when read as ``1``)."),
@@ -178,11 +210,14 @@ class SPIMaster(LiteXModule):
                 ("``0b0``", "Raw    : MOSI transfers aligned on core's data-width."),
                 ("``0b1``", "Aligned: MOSI transfers aligned on transfers' length."),
             ]),
+            CSRField("error", size=1, offset=2,
+                description="Invalid length or divider rejected. Cleared by the next valid start."),
         ])
         self.comb += [
             self.start.eq(self._control.fields.start),
             self.length.eq(self._control.fields.length),
             self._status.fields.done.eq(self.done),
+            self._status.fields.error.eq(self.error),
             self._status.fields.mode.eq({"raw": 0b0, "aligned": 0b1}[self.mode]),
         ]
 
@@ -227,5 +262,5 @@ class SPIMaster(LiteXModule):
             self.comb += self.loopback.eq(self._loopback.fields.mode)
 
     def add_clk_divider(self):
-        self._clk_divider = CSRStorage(16, description="SPI Clk Divider.", reset=self.clk_divider.reset)
+        self._clk_divider = CSRStorage(16, description="SPI Clk Divider (2..65535), sampled at transfer start.", reset=self.clk_divider.reset)
         self.comb += self.clk_divider.eq(self._clk_divider.storage)
