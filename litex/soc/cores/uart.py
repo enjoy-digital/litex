@@ -11,7 +11,7 @@ from math import log2
 
 from migen import *
 from migen.genlib.record import Record
-from migen.genlib.cdc import MultiReg
+from migen.genlib.cdc import MultiReg, PulseSynchronizer
 
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
@@ -102,6 +102,8 @@ class RS232PHYTX(LiteXModule):
 class RS232PHYRX(LiteXModule):
     def __init__(self, pads, tuning_word):
         self.source = source = stream.Endpoint([("data", 8)])
+        self.framing_error = Signal()
+        self.overflow      = Signal()
 
         # # #
 
@@ -136,11 +138,18 @@ class RS232PHYRX(LiteXModule):
                 NextValue(count, count + 1),
                 # Shift RX data.
                 NextValue(data, Cat(data[1:], rx)),
+                # Reject a false start at its midpoint instead of receiving a phantom byte.
+                If((count == 0) & (rx != RS232_START),
+                    NextState("IDLE"),
+                ),
                 # When 10-bit have been received...
                 If(count == (10 - 1),
                     # Produce data (but only when RX Stop bit is seen).
                     source.valid.eq(rx == RS232_STOP),
                     source.data.eq(data),
+                    self.framing_error.eq(rx != RS232_STOP),
+                    # A serial receiver cannot backpressure the remote transmitter.
+                    self.overflow.eq((rx == RS232_STOP) & ~source.ready),
                     NextState("IDLE")
                 )
             )
@@ -161,6 +170,8 @@ class RS232PHY(LiteXModule):
         self.tx = RS232PHYTX(pads, tuning_word)
         self.rx = RS232PHYRX(pads, tuning_word)
         self.sink, self.source = self.tx.sink, self.rx.source
+        self.rx_framing_error = self.rx.framing_error
+        self.rx_overflow      = self.rx.overflow
 
 
 class RS232PHYMultiplexer(LiteXModule):
@@ -234,7 +245,8 @@ class UART(LiteXModule, UARTInterface):
             tx_fifo_depth = 16,
             rx_fifo_depth = 16,
             rx_fifo_rx_we = False,
-            phy_cd        = "sys"):
+            phy_cd        = "sys",
+            with_error_status = False):
         self._rxtx    = CSR(8, name="rxtx") # RX/TX Data.
         self._txfull  = CSRStatus(description="TX FIFO Full.", name="txfull")
         self._rxempty = CSRStatus(description="RX FIFO Empty.", name="rxempty")
@@ -295,6 +307,41 @@ class UART(LiteXModule, UARTInterface):
             # IRQ (When FIFO becomes non-empty).
             self.ev.rx.trigger.eq(rx_fifo.source.valid)
         ]
+
+        if with_error_status:
+            self.add_rx_error_status(phy_cd)
+
+    def add_rx_error_status(self, phy_cd="sys"):
+        """Add optional sticky, write-one-to-clear receive error flags.
+
+        Requires PHY error pulses: generic stream backpressure does not imply data loss. Latch
+        errors in the PHY domain so short pulses cannot disappear in the crossing to sys. Clear
+        requests cross back to the PHY; software must allow synchronization latency on readback.
+        A new error wins over a simultaneous clear in the PHY domain.
+        """
+        phy = getattr(self, "phy", None)
+        if not all(hasattr(phy, name) for name in ["rx_framing_error", "rx_overflow"]):
+            raise ValueError("UART receive error status requires a PHY with receive error signals.")
+        self._rx_errors = CSRStatus(name="rx_errors", read_only=False, fields=[
+            CSRField("framing", size=1, description="Invalid stop bit received. Write 1 to clear."),
+            CSRField("overflow", size=1, description="Received byte dropped because the RX FIFO was full. Write 1 to clear."),
+        ], description="Sticky receive errors. New errors take priority over clearing.")
+        sync = getattr(self.sync, phy_cd)
+        for n, name in enumerate(["framing", "overflow"]):
+            event = getattr(phy, {"framing": "rx_framing_error", "overflow": "rx_overflow"}[name])
+            clear = self._rx_errors.wr_stb & self._rx_errors.wr_data[n]
+            sticky = Signal()
+            status = getattr(self._rx_errors.fields, name)
+            if phy_cd != "sys":
+                clear_cdc = PulseSynchronizer("sys", phy_cd)
+                self.add_module(name=f"rx_error_clear{n}", module=clear_cdc)
+                self.comb += clear_cdc.i.eq(clear)
+                clear = clear_cdc.o
+                self.specials += MultiReg(sticky, status)
+            else:
+                self.comb += status.eq(sticky)
+            sync += If(clear, sticky.eq(0))
+            sync += If(event, sticky.eq(1))
 
     def add_auto_tx_flush(self, sys_clk_freq, timeout=1e-2, interval=2):
         # Add automatic TX flush when ready is not active for a long time (timeout), this can prevent

@@ -437,5 +437,62 @@ class TestDMAWriter(unittest.TestCase):
         self.assertEqual([v for _, v in captures], payload)
 
 
+class TestDMAControl(unittest.TestCase):
+    def test_empty_and_misaligned_transfers(self):
+        for kind in [WishboneDMAReader, WishboneDMAWriter]:
+            for data_width in [8, 16, 32, 64]:
+                word_bytes = data_width//8
+                cases = [(0, 0, False), (word_bytes, 0, False)]
+                for offset in range(1, word_bytes):
+                    cases += [(offset, word_bytes, True), (0, offset, True),
+                              (0, word_bytes + offset, True)]
+                for base, length, error in cases:
+                    for loop in [0, 1]:
+                        with self.subTest(kind=kind.__name__, width=data_width,
+                                          base=base, length=length, loop=loop):
+                            bus = wishbone.Interface(data_width=data_width)
+                            dut = kind(bus, with_csr=True)
+
+                            def gen():
+                                yield dut._base.storage.eq(base)
+                                yield dut._length.storage.eq(length)
+                                yield dut._loop.storage.eq(loop)
+                                yield dut._enable.storage.eq(1)
+                                yield bus.ack.eq(1)
+                                if kind is WishboneDMAReader:
+                                    yield dut.source.ready.eq(1)
+                                else:
+                                    yield dut.sink.valid.eq(1)
+                                for cycle in range(16):
+                                    yield
+                                    self.assertEqual((yield bus.cyc), 0)
+                                    self.assertEqual((yield bus.stb), 0)
+                                    if cycle >= 3:
+                                        self.assertEqual((yield dut._done.status), 1)
+                                        self.assertEqual((yield dut._error.status), error)
+                                yield dut._enable.storage.eq(0)
+                                for _ in range(3):
+                                    yield
+                                self.assertEqual((yield dut.done), 0)
+                                self.assertEqual((yield dut.error), 0)
+
+                                # Re-arm with a valid, one-word transfer after completion/error.
+                                yield dut._base.storage.eq(word_bytes)
+                                yield dut._length.storage.eq(word_bytes)
+                                yield dut._loop.storage.eq(0)
+                                yield dut._enable.storage.eq(1)
+                                beats = 0
+                                for _ in range(16):
+                                    yield
+                                    if (yield bus.cyc) and (yield bus.stb):
+                                        self.assertEqual((yield bus.adr), 1)
+                                        beats += 1
+                                self.assertEqual(beats, 1)
+                                self.assertEqual((yield dut.done), 1)
+                                self.assertEqual((yield dut.error), 0)
+
+                            run_simulation(dut, gen())
+
+
 if __name__ == "__main__":
     unittest.main()

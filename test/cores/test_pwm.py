@@ -7,8 +7,9 @@
 import unittest
 
 from migen import *
+from migen.genlib.cdc import MultiReg
 
-from litex.soc.cores.pwm import PWM
+from litex.soc.cores.pwm import PWM, MultiChannelPWM
 
 
 def sample_pwm(dut, cycles):
@@ -23,6 +24,75 @@ def sample_pwm(dut, cycles):
 
 
 class TestPWM(unittest.TestCase):
+    def test_configurable_counter_width(self):
+        for bits in [1, 8, 16, 32]:
+            with self.subTest(bits=bits):
+                period = min(2**bits - 1, 15)
+                width = max(1, period//3)
+                dut = PWM(counter_width=bits, default_enable=1,
+                          default_period=period, default_width=width)
+                self.assertEqual(len(dut.counter), bits)
+                self.assertEqual(dut._width.size, bits)
+                self.assertEqual(dut._period.size, bits)
+                def gen():
+                    for _ in range(5):
+                        yield
+                    high = 0
+                    for _ in range(4*period):
+                        high += (yield dut.pwm)
+                        yield
+                    self.assertEqual(high, 4*width)
+                run_simulation(dut, gen())
+
+    def test_counter_configuration_validation(self):
+        for bits in [0, -1, 33, 1.5, True]:
+            with self.subTest(bits=bits):
+                with self.assertRaisesRegex(ValueError, "counter_width"):
+                    PWM(counter_width=bits)
+                with self.assertRaisesRegex(ValueError, "counter_width"):
+                    MultiChannelPWM(Signal(2), counter_width=bits)
+        for defaults in [{"default_width": 256}, {"default_period": 256}, {"default_width": -1}]:
+            with self.assertRaisesRegex(ValueError, "fit"):
+                PWM(counter_width=8, **defaults)
+
+    def test_csr_synchronizer_destination(self):
+        for clock_domain in ["sys", "pwm"]:
+            with self.subTest(clock_domain=clock_domain):
+                dut = PWM(clock_domain=clock_domain)
+                regs = [s for s in dut.get_fragment().specials if isinstance(s, MultiReg)]
+                self.assertEqual(len(regs), 3)
+                self.assertTrue(all(s.odomain == clock_domain for s in regs))
+                self.assertTrue(all(s.n == (0 if clock_domain == "sys" else 2) for s in regs))
+
+    def test_csr_updates_in_pwm_domain(self):
+        dut = PWM(clock_domain="pwm")
+
+        def write_csrs():
+            # Before the first PWM edge, many sys edges must not update PWM controls.
+            yield dut._width.storage.eq(3)
+            yield dut._period.storage.eq(8)
+            yield dut._enable.storage.eq(1)
+            for _ in range(8):
+                yield
+                self.assertEqual((yield dut.enable), 0)
+                self.assertEqual((yield dut.width), 0)
+                self.assertEqual((yield dut.period), 0)
+
+        def check_pwm():
+            for _ in range(5):
+                yield
+            self.assertEqual((yield dut.enable), 1)
+            self.assertEqual((yield dut.width), 3)
+            self.assertEqual((yield dut.period), 8)
+            high = 0
+            for _ in range(32):
+                high += (yield dut.pwm)
+                yield
+            self.assertEqual(high, 12)
+
+        run_simulation(dut, {"sys": write_csrs(), "pwm": check_pwm()},
+                       clocks={"sys": 10, "pwm": (200, 100)})
+
     def test_disabled_stays_low(self):
         dut = PWM(with_csr=False)
         def gen():
@@ -146,6 +216,43 @@ class TestPWM(unittest.TestCase):
                 self.assertEqual((yield dut.counter), 0)
                 self.assertEqual((yield dut.pwm), 1)  # enable & (0 < 4)
         run_simulation(dut, gen())
+
+
+class TestMultiChannelPWM(unittest.TestCase):
+    def test_narrow_shared_counter(self):
+        dut = MultiChannelPWM(Signal(2), counter_width=8)
+        self.assertEqual(len(dut.channel0.counter), 8)
+        self.assertEqual(dut.channel0._period.size, 8)
+        for channel in [dut.channel0, dut.channel1]:
+            self.assertEqual(len(channel.width), 8)
+            self.assertEqual(channel._width.size, 8)
+
+    def test_independent_enables(self):
+        for clock_domain in ["sys", "pwm"]:
+            with self.subTest(clock_domain=clock_domain):
+                pads = Signal(3)
+                dut = MultiChannelPWM(pads, clock_domain=clock_domain)
+                channels = [dut.channel0, dut.channel1, dut.channel2]
+
+                def gen():
+                    yield dut.channel0._period.storage.eq(8)
+                    for channel, width in zip(channels, [1, 2, 3]):
+                        yield channel._width.storage.eq(width)
+                    # Disable channel 0 while keeping other channels active, then re-enable it.
+                    for mask in [1, 2, 4, 3, 6, 7, 0, 2, 1]:
+                        for n, channel in enumerate(channels):
+                            yield channel._enable.storage.eq((mask >> n) & 1)
+                        for _ in range(8):
+                            yield
+                        high = [0, 0, 0]
+                        for _ in range(32):
+                            for n in range(3):
+                                high[n] += (yield pads[n])
+                            yield
+                        self.assertEqual(high, [4*(n + 1) if mask & (1 << n) else 0
+                                                for n in range(3)])
+
+                run_simulation(dut, {clock_domain: gen()}, clocks={"sys": 10, "pwm": 14})
 
 
 if __name__ == "__main__":

@@ -6,16 +6,55 @@
 
 import unittest
 import random
+from itertools import combinations
 
 from migen import *
 
-from litedram.common import *
-from litedram.frontend.ecc import *
-
-from litex.gen.sim import *
+from litex.soc.cores.ecc import (
+    ECCEncoder, ECCDecoder, compute_m_n, compute_syndrome_positions,
+    compute_data_positions, compute_cover_positions,
+)
 
 
 class TestECC(unittest.TestCase):
+    def test_all_single_bits_and_small_double_bit_pairs(self):
+        for k in [1, 4, 8, 15, 32, 64]:
+            with self.subTest(k=k):
+                class DUT(Module):
+                    def __init__(self):
+                        self.submodules.encoder = ECCEncoder(k)
+                        self.submodules.decoder = ECCDecoder(k)
+                        self.flip = Signal(len(self.encoder.o))
+                        self.comb += self.decoder.i.eq(self.encoder.o ^ self.flip)
+                dut = DUT()
+                width = len(dut.flip)
+                flips = [(0, 0)] + [(1 << bit, 1) for bit in range(width)]
+                if k <= 8:
+                    flips += [((1 << a) | (1 << b), 2) for a, b in combinations(range(width), 2)]
+
+                def gen():
+                    for value in [0, (1 << k) - 1, ((1 << k) - 1)//3]:
+                        yield dut.encoder.i.eq(value)
+                        for flip, nerrors in flips:
+                            yield dut.decoder.enable.eq(1)
+                            yield dut.flip.eq(flip)
+                            yield
+                            if nerrors <= 1:
+                                self.assertEqual((yield dut.decoder.o), value)
+                            self.assertEqual((yield dut.decoder.sec), nerrors == 1)
+                            self.assertEqual((yield dut.decoder.ded), nerrors == 2)
+
+                            # Disabling ECC preserves the raw payload and suppresses both flags.
+                            yield dut.decoder.enable.eq(0)
+                            yield
+                            word = (yield dut.encoder.o) ^ flip
+                            raw = sum(((word >> position) & 1) << bit
+                                      for bit, position in enumerate(compute_data_positions(width - 1)))
+                            self.assertEqual((yield dut.decoder.o), raw)
+                            self.assertEqual((yield dut.decoder.sec), 0)
+                            self.assertEqual((yield dut.decoder.ded), 0)
+                run_simulation(dut, gen())
+
     def test_m_n(self):
         m, n = compute_m_n(15)
         self.assertEqual(m, 5)
@@ -61,17 +100,13 @@ class TestECC(unittest.TestCase):
             prng = random.Random(42)
             yield dut.decoder.enable.eq(1)
             for i in range(nvalues):
-                data = prng.randrange(2**k-1)
+                data = prng.randrange(2**k)
                 yield dut.encoder.i.eq(data)
-                # FIXME: error when fliping parity bit
                 if nerrors == 1:
-                    flip_bit1 = (prng.randrange(len(dut.flip)-2) + 1)
+                    flip_bit1 = prng.randrange(len(dut.flip))
                     yield dut.flip.eq(1<<flip_bit1)
                 elif nerrors == 2:
-                    flip_bit1 = (prng.randrange(len(dut.flip)-2) + 1)
-                    flip_bit2 = flip_bit1
-                    while flip_bit2 == flip_bit1:
-                        flip_bit2 = (prng.randrange(len(dut.flip)-2) + 1)
+                    flip_bit1, flip_bit2 = prng.sample(range(len(dut.flip)), 2)
                     yield dut.flip.eq((1<<flip_bit1) | (1<<flip_bit2))
                 yield
                 # if less than 2 errors, check data
