@@ -55,7 +55,7 @@
 #define AQ_CFG_SERDES_MODE    0x0007
 #define AQ_CFG_RATE_ADAPT     0x0180   /* bits [8:7]: 0=none 1=USXGMII 2=pause */
 #define AQ_SERDES_XFI         0        /* 10GBASE-R */
-#define AQ_SERDES_SGMII       3
+#define AQ_SERDES_SGMII       3        /* 1000BASE-X */
 #define AQ_SERDES_OCSGMII     4        /* "overclocked SGMII" = 2500BASE-X */
 #define AQ_SERDES_XFI5G       6        /* 5GBASE-R */
 #define AQ_AN_MMD             7
@@ -83,6 +83,21 @@
 #define ADV_5G    0x0100
 #define ADV_2_5G  0x0080
 #define ADV_1G    0x0000
+
+/* Aquantia NBASE-T advertisements. Default will likely be all three advertised. */
+#define AQ_AN_VEND_PROV        0xc400
+#define AQ_PROV_1000BASET      0x8000
+#define AQ_PROV_5000BASET      0x0800
+#define AQ_PROV_2500BASET      0x0400
+#define AQ_PROV_RATE_MASK      (AQ_PROV_1000BASET | AQ_PROV_5000BASET | AQ_PROV_2500BASET)
+
+/* Resolved copper rate, MMD 7 reg 0xC800 bits [3:1]. */
+#define AQ_AN_VEND_STATUS      0xc800
+#define AQ_VEND_STATUS_RATE(v) (((v) >> 1) & 7)
+#define AQ_RATE_1G             2
+#define AQ_RATE_10G            3
+#define AQ_RATE_2_5G           4
+#define AQ_RATE_5G             5
 
 void busy_wait(unsigned int ms);
 
@@ -355,6 +370,30 @@ static int mode_advertisement(int mode)
 	}
 }
 
+/* Aquantia vendor advertisement bits for a single rate. */
+static int aq_mode_prov(int mode)
+{
+	switch (mode) {
+	case SFP_HOST_10GBASER:  return 0;
+	case SFP_HOST_5GBASER:   return AQ_PROV_5000BASET;
+	case SFP_HOST_2500BASEX: return AQ_PROV_2500BASET;
+	case SFP_HOST_1000BASEX: return AQ_PROV_1000BASET;
+	default:                 return -1;
+	}
+}
+
+/* The copper rate a given host mode requires. The host side follows the copper side. */
+static int mode_copper_rate(int mode)
+{
+	switch (mode) {
+	case SFP_HOST_10GBASER:  return AQ_RATE_10G;
+	case SFP_HOST_5GBASER:   return AQ_RATE_5G;
+	case SFP_HOST_2500BASEX: return AQ_RATE_2_5G;
+	case SFP_HOST_1000BASEX: return AQ_RATE_1G;
+	default:                 return -1;
+	}
+}
+
 /* Marvell ---------------------------------------------------------------------------------------- */
 
 /* Locate the port-control register for this PHY. */
@@ -465,7 +504,7 @@ static bool aq_wait_firmware(const struct sfp_cage *cage)
 static bool aq_set_host_mode(const struct sfp_cage *cage, int mode)
 {
 	uint16_t cfg_reg, serdes, target;
-	int v, i, adv;
+	int v, i, adv, prov;
 	bool copper_up;
 
 	if (!aq_mode_regs(mode, &cfg_reg, &serdes))
@@ -488,6 +527,15 @@ static bool aq_set_host_mode(const struct sfp_cage *cage, int mode)
 	if (v != target && !sfp_mdio_write(cage, AQ_VEND1_MMD, cfg_reg, target))
 		return false;
 	sfp_mdio_write(cage, AQ_AN_MMD, AQ_AN_10GBT_CTRL, adv);
+
+	/* The vendor advertisement is the one autonegotiation actually honours. */
+	prov = aq_mode_prov(mode);
+	v = sfp_mdio_read(cage, AQ_AN_MMD, AQ_AN_VEND_PROV);
+	if (v < 0 || prov < 0)
+		return false;
+	if (!sfp_mdio_write(cage, AQ_AN_MMD, AQ_AN_VEND_PROV,
+			    (v & ~AQ_PROV_RATE_MASK) | prov))
+		return false;
 
 	if (!sfp_mdio_write(cage, AQ_AN_MMD, AQ_AN_CTRL, AQ_AN_CTRL_RESTART))
 		return false;
@@ -522,6 +570,9 @@ static bool aq_host_mode_ok(const struct sfp_cage *cage, int mode)
 		return false;
 	v = sfp_mdio_read(cage, AQ_VEND1_MMD, cfg_reg);
 	if (v < 0 || (v & (AQ_CFG_SERDES_MODE | AQ_CFG_RATE_ADAPT)) != serdes)
+		return false;
+	v = sfp_mdio_read(cage, AQ_AN_MMD, AQ_AN_VEND_STATUS);
+	if (v < 0 || AQ_VEND_STATUS_RATE(v) != mode_copper_rate(mode))
 		return false;
 	/* The register alone is not enough: on a warm reboot it can read back correct while the
 	 * host interface never switched. Require the interface to actually be up. */
