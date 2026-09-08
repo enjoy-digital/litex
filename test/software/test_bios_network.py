@@ -14,11 +14,25 @@ def _write(path, contents=""):
     path.write_text(textwrap.dedent(contents))
 
 
+def _write_timeout_stub(include_dir):
+    _write(include_dir / "libbase" / "timeout.h", """
+        #ifndef __TIMEOUT_H
+        #define __TIMEOUT_H
+        struct timeout { unsigned int left; };
+        static inline void timeout_start(struct timeout *t, unsigned int us)
+        { (void)us; t->left = 4; }
+        static inline int timeout_expired(struct timeout *t)
+        { if (t->left) t->left--; return !t->left; }
+        #endif
+    """)
+
+
 def test_liteeth_tftp_receive_bounds_host_coverage(tmp_path):
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     include_dir = tmp_path / "include"
     source = tmp_path / "tftp_harness.c"
     binary = tmp_path / "tftp_harness"
+    _write_timeout_stub(include_dir)
 
     _write(include_dir / "generated" / "soc.h")
     _write(include_dir / "libbase" / "progress.h", """
@@ -308,6 +322,15 @@ def test_liteeth_tftp_receive_bounds_host_coverage(tmp_path):
                 return 1;
             if (test_error_packet_finishes_with_failure())
                 return 1;
+            uint8_t dst[8];
+            reset_rx(dst, sizeof(dst));
+            REQUIRE(tftp_get(0, 69, "missing.bin", dst, sizeof(dst)) == -1);
+            REQUIRE(current_callback == NULL);
+            REQUIRE(send_count == 5);
+            reset_rx(dst, sizeof(dst));
+            REQUIRE(tftp_put(0, 69, "missing.bin", dst, sizeof(dst)) == -1);
+            REQUIRE(current_callback == NULL);
+            REQUIRE(send_count == 5);
             return 0;
         }}
     """)
@@ -335,6 +358,7 @@ def test_liteeth_arp_cache_update_host_coverage(tmp_path):
     include_dir = tmp_path / "include"
     source = tmp_path / "arp_harness.c"
     binary = tmp_path / "arp_harness"
+    _write_timeout_stub(include_dir)
 
     _write(include_dir / "generated" / "csr.h", """
         #define CSR_ETHMAC_BASE 1
@@ -365,6 +389,8 @@ def test_liteeth_arp_cache_update_host_coverage(tmp_path):
         #include <string.h>
 
         static uint8_t ethmac_memory[2048*4];
+        static int tx_ready = 1;
+        static int tx_starts;
 
         void flush_cpu_dcache(void) {{}}
         uint32_t crc32(const unsigned char *buffer, unsigned int len)
@@ -373,10 +399,10 @@ def test_liteeth_arp_cache_update_host_coverage(tmp_path):
             (void)len;
             return 0;
         }}
-        uint32_t ethmac_sram_reader_ready_read(void) {{ return 1; }}
+        uint32_t ethmac_sram_reader_ready_read(void) {{ return tx_ready; }}
         void ethmac_sram_reader_slot_write(uint32_t value) {{ (void)value; }}
         void ethmac_sram_reader_length_write(uint32_t value) {{ (void)value; }}
-        void ethmac_sram_reader_start_write(uint32_t value) {{ (void)value; }}
+        void ethmac_sram_reader_start_write(uint32_t value) {{ (void)value; tx_starts++; }}
         void ethmac_sram_reader_ev_pending_write(uint32_t value) {{ (void)value; }}
         uint32_t ethmac_sram_writer_ev_pending_read(void) {{ return 0; }}
         void ethmac_sram_writer_ev_pending_write(uint32_t value) {{ (void)value; }}
@@ -442,6 +468,14 @@ def test_liteeth_arp_cache_update_host_coverage(tmp_path):
             make_arp_reply(server_ip, mac_b);
             process_arp();
             REQUIRE(memcmp(cached_mac, mac_a, sizeof(mac_a)) == 0);
+            tx_ready = 0;
+            REQUIRE(udp_send(1000, 2000, 0) == 0);
+            REQUIRE(tx_starts == 0);
+            REQUIRE(udp_arp_resolve(server_ip + 1) == 0);
+            REQUIRE(tx_starts == 0 && arp_pending == 0);
+            tx_ready = 1;
+            REQUIRE(udp_arp_resolve(server_ip + 2) == 0);
+            REQUIRE(tx_starts == 8 && arp_pending == 0);
             return 0;
         }}
     """)

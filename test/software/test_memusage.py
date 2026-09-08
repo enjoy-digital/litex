@@ -6,6 +6,8 @@
 
 import textwrap
 
+import pytest
+
 from litex.soc.software import memusage
 
 
@@ -148,3 +150,24 @@ def test_memusage_fails_on_requested_explicit_stack_size(tmp_path, capsys, monke
     assert result == 1
     assert "  .stack: 1.00KiB" in output
     assert "ERROR: SRAM .stack is below required minimum (1.00KiB < 2.00KiB)." in output
+
+
+@pytest.mark.parametrize("max_rom,max_sram,failed", [
+    (0x1100, 0x400, False),
+    (0x10ff, 0x400, True),
+    (0x1100, 0x3ff, True),
+    (None, None, False),
+])
+def test_memory_budgets_include_reserved_boot_buffer(tmp_path, monkeypatch, max_rom, max_sram, failed):
+    regions = tmp_path / "regions.ld"
+    write_regions(regions)
+    sections = [
+        section(".text",      0x00000000, 0x1000, "AX"),
+        section(".boot_sram", 0x10000000, 0x0200, "WA", "NOBITS"),
+        section(".data",      0x10000200, 0x0100, "WA"),
+        section(".bss",       0x10000300, 0x0100, "WA", "NOBITS"),
+    ]
+    monkeypatch.setattr(memusage, "parse_sections", lambda bios, triple: sections)
+    result = memusage.print_usage("bios.elf", str(regions), "riscv64-unknown-elf",
+        max_rom=max_rom, max_sram=max_sram)
+    assert result == int(failed)

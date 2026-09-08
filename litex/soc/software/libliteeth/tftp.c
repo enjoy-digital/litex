@@ -14,12 +14,17 @@
 #include <string.h>
 
 #include <libbase/progress.h>
+#include <libbase/timeout.h>
 
 #include <libliteeth/udp.h>
 #include <libliteeth/tftp.h>
 
 /* Local TFTP client port (arbitrary) */
 #define PORT_IN		7642
+
+#ifndef TFTP_TIMEOUT_US
+#define TFTP_TIMEOUT_US 5000000
+#endif
 
 enum {
 	TFTP_RRQ	= 1,	/* Read request */
@@ -223,7 +228,7 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 {
 	int len;
 	int tries;
-	int i;
+	struct timeout timeout;
 	int length_before;
 
 	if(!udp_arp_resolve(ip)) {
@@ -251,10 +256,11 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 		packet_data = udp_get_tx_buffer();
 		len = format_request(packet_data, TFTP_RRQ, filename);
 		udp_send(PORT_IN, server_port, len);
-		for(i=0;i<2000000;i++) {
+		timeout_start(&timeout, TFTP_TIMEOUT_US);
+		do {
 			udp_service();
 			if((total_length > 0) || transfer_finished) break;
-		}
+		} while (!timeout_expired(&timeout));
 		if((total_length > 0) || transfer_finished) break;
 		tries--;
 		if(tries == 0) {
@@ -263,12 +269,12 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 		}
 	}
 
-	i = 12000000;
+	timeout_start(&timeout, TFTP_TIMEOUT_US);
 	length_before = total_length;
 	init_progression_bar(0);
 	while(!transfer_finished) {
 		if(length_before != total_length) {
-			i = 12000000;
+			timeout_start(&timeout, TFTP_TIMEOUT_US);
 			length_before = total_length;
 			/* TFTP does not know the file size up front: print one '#' per
 			   downloaded MB, plus a spinner for intra-MB activity. */
@@ -276,7 +282,7 @@ int tftp_get(uint32_t ip, uint16_t server_port, const char *filename,
 			if ((total_length & (0x8000 - 1)) == 0)
 				show_progress(-1);
 		}
-		if(i-- == 0) {
+		if(timeout_expired(&timeout)) {
 			udp_set_callback(NULL);
 			return -1;
 		}
@@ -293,7 +299,7 @@ int tftp_put(uint32_t ip, uint16_t server_port, const char *filename,
 {
 	int len, send;
 	int tries;
-	int i;
+	struct timeout timeout;
 	int block = 0, sent = 0;
 
 	if(!udp_arp_resolve(ip))
@@ -318,14 +324,15 @@ int tftp_put(uint32_t ip, uint16_t server_port, const char *filename,
 		packet_data = udp_get_tx_buffer();
 		len = format_request(packet_data, TFTP_WRQ, filename);
 		udp_send(PORT_IN, server_port, len);
-		for(i=0;i<2000000;i++) {
-			last_ack = -1;
+		last_ack = -1;
+		timeout_start(&timeout, TFTP_TIMEOUT_US);
+		do {
 			udp_service();
 			if(last_ack == block)
 				goto send_data;
 			if(transfer_finished)
 				goto fail;
-		}
+		} while (!timeout_expired(&timeout));
 		tries--;
 		if(tries == 0)
 			goto fail;
@@ -344,14 +351,15 @@ send_data:
 			packet_data = udp_get_tx_buffer();
 			len = format_data(packet_data, block, buffer, send);
 			udp_send(PORT_IN, data_port, len);
-			for(i=0;i<12000000;i++) {
+			timeout_start(&timeout, TFTP_TIMEOUT_US);
+			do {
 				udp_service();
 				if(transfer_finished)
 					goto fail;
 				/* Block numbers wrap modulo 2^16 on transfers > 64MB. */
 				if(last_ack == (uint16_t)block)
 					goto next;
-			}
+			} while (!timeout_expired(&timeout));
 			if (!--tries)
 				goto fail;
 		}

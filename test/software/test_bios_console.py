@@ -212,3 +212,49 @@ def test_bios_readline_host_coverage(tmp_path):
     no_ansi_binary = tmp_path / "bios_readline_harness_no_ansi"
     subprocess.check_call(cmd + ["-DBIOS_CONSOLE_NO_ANSI", str(source), "-o", str(no_ansi_binary)])
     subprocess.check_call([str(no_ansi_binary)])
+
+
+def test_lite_console_controls_and_bounds(tmp_path):
+    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    include_dir = tmp_path / "include"
+    _write(include_dir / "generated" / "csr.h")
+    source = tmp_path / "lite.c"
+    _write(source, f"""
+        #include <assert.h>
+        #include <stdio.h>
+        #include <string.h>
+        #include "{repo}/litex/soc/software/bios/readline_simple.c"
+        int uart_read_nonblock(void) {{ return 1; }}
+
+        static int read_input(const char *input, char *buffer, int size)
+        {{
+            for (int i = strlen(input) - 1; i >= 0; i--) ungetc(input[i], stdin);
+            return readline(buffer, size);
+        }}
+        int main(void)
+        {{
+            char buffer[8];
+            assert(read_input("danger\\003", buffer, sizeof(buffer)) == -1);
+            assert(buffer[0] == 0);
+            read_input("abc\\bD\\n", buffer, sizeof(buffer));
+            assert(!strcmp(buffer, "abD"));
+            read_input("ab\\033[Dc\\033[3~d\\033OA\\n", buffer, sizeof(buffer));
+            assert(!strcmp(buffer, "abcd"));
+            read_input("abc\\033\\n", buffer, sizeof(buffer));
+            assert(!strcmp(buffer, "abc"));
+            read_input("1234567890\\n", buffer, sizeof(buffer));
+            assert(!strcmp(buffer, "1234567"));
+            read_input("one\\r\\ntwo\\n", buffer, sizeof(buffer));
+            assert(!strcmp(buffer, "one"));
+            readline(buffer, sizeof(buffer));
+            assert(!strcmp(buffer, "two"));
+            return 0;
+        }}
+    """)
+    binary = tmp_path / "lite"
+    subprocess.check_call([
+        "gcc", "-std=gnu99", "-Wall", "-Wextra", "-Werror",
+        f"-I{include_dir}", f"-I{repo}/litex/soc/software",
+        str(source), "-o", str(binary),
+    ])
+    subprocess.check_call([str(binary)], timeout=10)

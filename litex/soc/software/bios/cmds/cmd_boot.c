@@ -24,10 +24,6 @@ static void boot_handler(int nb_params, char **params)
 	unsigned long r2;
 	unsigned long r3;
 
-	if (nb_params < 1) {
-		printf("boot <address> [r1] [r2] [r3]\n");
-		return;
-	}
 	addr = strtoul(params[0], &c, 0);
 	if (*c != 0) {
 		printf("Error: invalid address\n");
@@ -59,7 +55,8 @@ static void boot_handler(int nb_params, char **params)
 	}
 	boot(r1, r2, r3, addr);
 }
-define_command(boot, boot_handler, "Boot from Memory",  BOOT_CMDS);
+define_command_args(boot, boot_handler, "Boot from Memory",
+	"boot <address> [r1] [r2] [r3]", 1, 4, BOOT_CMDS);
 
 /**
  * Command "reboot"
@@ -73,7 +70,8 @@ static void reboot_handler(int nb_params, char **params)
 	ctrl_reset_write(1);
 }
 
-define_command(reboot, reboot_handler, "Reboot",  BOOT_CMDS);
+define_command_args(reboot, reboot_handler, "Reboot",
+	"reboot", 0, 0, BOOT_CMDS);
 #endif
 
 /**
@@ -83,7 +81,8 @@ define_command(reboot, reboot_handler, "Reboot",  BOOT_CMDS);
  *
  */
 #ifdef FLASH_BOOT_ADDRESS
-define_command(flashboot, flashboot, "Boot from Flash", BOOT_CMDS);
+define_command_args(flashboot, flashboot, "Boot from Flash",
+	"flashboot", 0, 0, BOOT_CMDS);
 #endif
 
 /**
@@ -93,7 +92,8 @@ define_command(flashboot, flashboot, "Boot from Flash", BOOT_CMDS);
  *
  */
 #ifdef ROM_BOOT_ADDRESS
-define_command(romboot, romboot, "Boot from ROM", BOOT_CMDS);
+define_command_args(romboot, romboot, "Boot from ROM",
+	"romboot", 0, 0, BOOT_CMDS);
 #endif
 
 /**
@@ -103,7 +103,8 @@ define_command(romboot, romboot, "Boot from ROM", BOOT_CMDS);
  *
  */
 #ifdef CSR_UART_BASE
-define_command(serialboot, serialboot, "Boot from Serial (SFL)", BOOT_CMDS);
+define_command_args(serialboot, serialboot, "Boot from Serial (SFL)",
+	"serialboot", 0, 0, BOOT_CMDS);
 #endif
 
 /**
@@ -113,7 +114,8 @@ define_command(serialboot, serialboot, "Boot from Serial (SFL)", BOOT_CMDS);
  *
  */
 #ifdef CSR_ETHMAC_BASE
-define_command(netboot, netboot, "Boot via Ethernet (TFTP)", BOOT_CMDS);
+define_command_args(netboot, netboot, "Boot via Ethernet (TFTP)",
+	"netboot [manifest]", 0, 1, BOOT_CMDS);
 #endif
 
 /**
@@ -123,7 +125,8 @@ define_command(netboot, netboot, "Boot via Ethernet (TFTP)", BOOT_CMDS);
  *
  */
 #if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCARD_BASE)
-define_command(sdcardboot, sdcardboot, "Boot from SDCard", BOOT_CMDS);
+define_command_args(sdcardboot, sdcardboot, "Boot from SDCard",
+	"sdcardboot [manifest]", 0, 1, BOOT_CMDS);
 #endif
 
 /**
@@ -133,5 +136,6 @@ define_command(sdcardboot, sdcardboot, "Boot from SDCard", BOOT_CMDS);
  *
  */
 #if defined(CSR_SATA_SECTOR2MEM_BASE)
-define_command(sataboot, sataboot, "Boot from SATA", BOOT_CMDS);
+define_command_args(sataboot, sataboot, "Boot from SATA",
+	"sataboot [manifest]", 0, 1, BOOT_CMDS);
 #endif

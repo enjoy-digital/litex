@@ -23,7 +23,7 @@ static int command_match(const char *instr, const char *name)
 
 static int command_complete_suffix(char *instr, char *outstr, int outlen)
 {
-	struct command_struct * const *cmd;
+	const struct command_struct * const *cmd;
 	const char *name;
 	int pos = strlen(instr);
 	int outpos = 0;
@@ -56,7 +56,7 @@ static int command_complete_suffix(char *instr, char *outstr, int outlen)
 
 static void command_matches_print_by_column(char *instr)
 {
-	struct command_struct * const *cmd;
+	const struct command_struct * const *cmd;
 	int len = 0, num, i = 0;
 
 	for (cmd = __bios_cmd_start; cmd != __bios_cmd_end; cmd++) {
