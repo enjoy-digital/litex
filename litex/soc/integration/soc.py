@@ -354,7 +354,8 @@ class SoCBusHandler(LiteXModule):
             # If no Origin specified, allocate Region.
             if region.origin is None:
                 allocated = True
-                region    = self.alloc_region(name, region.size, region.cached, linker=region.linker, mode=region.mode)
+                region    = self.alloc_region(name, region.size, region.cached,
+                    linker=region.linker, mode=region.mode, decode=region.decode)
                 self.regions[name] = region
             # Else add Region.
             else:
@@ -408,7 +409,7 @@ class SoCBusHandler(LiteXModule):
                 colorer(type(region).__name__, color="red")))
             raise SoCError()
 
-    def alloc_region(self, name, size, cached=True, linker=False, mode="rw"):
+    def alloc_region(self, name, size, cached=True, linker=False, mode="rw", decode=True):
         self.logger.info("Allocating {} Region of size {}...".format(
             colorer("Cached" if cached else "IO"),
             colorer("0x{:08x}".format(size))))
@@ -422,15 +423,17 @@ class SoCBusHandler(LiteXModule):
         # Iterate on Search_Regions to find a Candidate.
         size_pow2 = 2**log2_int(size, False)
         for _, search_region in search_regions.items():
-            origin       = search_region.origin
-            search_limit = search_region.origin + search_region.size
+            # CPU IO windows can extend beyond the bus, but decoded slaves cannot.
+            origin       = max(0, search_region.origin)
+            search_limit = min(2**self.address_width, search_region.origin + search_region.size)
             while (origin + size_pow2) <= search_limit:
                 # Align Origin on Size.
                 if (origin%size_pow2):
                     origin += (size_pow2 - origin%size_pow2)
                     continue
                 # Create a Candidate.
-                candidate = SoCRegion(origin=origin, size=size, mode=mode, cached=cached, linker=linker)
+                candidate = SoCRegion(origin=origin, size=size, mode=mode,
+                    cached=cached, linker=linker, decode=decode)
                 overlap   = False
                 if cached and self.io_regions_check and self.check_region_overlap(
                     candidate, self.io_regions, check_linker=True):
@@ -942,15 +945,18 @@ class SoCBusHandler(LiteXModule):
         self.add_slave(name=name, slave=peripheral, region=region)
 
     def get_address_width(self, standard, addressing=None):
+        """Return address-signal bits for an interface spanning this bus's byte address space.
+
+        Use the result as Wishbone ``adr_width`` for word addressing, or as AXI/AXI-Lite
+        ``address_width``. The handler's own ``address_width`` is always measured in bytes.
+        """
         if addressing is None:
             addressing = "word" if standard == "wishbone" else "byte"
 
         address_shift = log2_int(self.data_width//8)
-        source_shift = address_shift if (
-            (self.standard == "wishbone") and (self.addressing == "word")) else 0
         target_shift = address_shift if (
             (standard == "wishbone") and (addressing == "word")) else 0
-        return self.address_width + source_shift - target_shift
+        return self.address_width - target_shift
 
     def do_finalize(self):
         interconnect_p2p_cls = {
@@ -1525,10 +1531,14 @@ class SoC(LiteXModule):
             "axi-lite": axi.AXILiteInterface,
             "axi"     : axi.AXIInterface,
         }[self.bus.standard]
+        interface_kwargs = {}
+        if self.bus.standard == "axi":
+            interface_kwargs["id_width"] = self.bus.get_axi_id_width()
         ram_bus = interface_cls(
             data_width    = self.bus.data_width,
             address_width = self.bus.address_width,
-            bursting      = self.bus.bursting
+            bursting      = self.bus.bursting,
+            **interface_kwargs,
         )
         self.check_if_exists(name)
         ram = ram_cls(size, bus=ram_bus, init=contents, read_only=("w" not in mode), name=name)
@@ -1680,7 +1690,9 @@ class SoC(LiteXModule):
         csr_bridge_name = f"{name}_bridge"
         self.check_if_exists(csr_bridge_name)
         data_width     = self.csr.data_width
-        bus_data_width = self.bus.data_width if self.bus.standard == "wishbone" else data_width
+        # CSR data can be narrower than its address stride. Keep AXI transfers aligned to
+        # that stride: a data-width converter to 8 bits would write four successive CSRs.
+        bus_data_width = self.bus.data_width if self.bus.standard == "wishbone" else self.csr.alignment
         csr_bridge = csr_bridge_cls(
             bus_bridge_cls(
                 address_width = self.bus.address_width,
@@ -1929,14 +1941,17 @@ class SoC(LiteXModule):
     def add_watchdog(self, name="watchdog0", width=32, crg_rst=None, reset_delay=None):
         from litex.soc.cores.watchdog import Watchdog
 
+        # The target can create its CRG after SoCCore.__init__. Generate the watchdog's
+        # reset request now and resolve its default destination during finalization.
+        self.check_if_exists(name)
         if crg_rst is None:
-            crg_rst = getattr(self.crg, "rst", None) if hasattr(self, "crg") else None
+            crg_rst = Signal(name=f"{name}_rst")
+            self.add_soc_reset_request(name, crg_rst)
         if reset_delay is None:
             reset_delay = self.sys_clk_freq
 
         halted = getattr(self.cpu, "o_halted", None) if hasattr(self, "cpu") else None
 
-        self.check_if_exists(name)
         watchdog = Watchdog(width=width, crg_rst=crg_rst, reset_delay=int(reset_delay), halted=halted)
         self.add_module(name=name, module=watchdog)
 
@@ -2339,6 +2354,19 @@ class LiteXSoC(SoC):
             self.logger.error("SDRAM requires {}.".format(colorer("module", color="red")))
             raise SoCError()
 
+        # An explicit origin overrides the default SoC map, but not a CPU's fixed mapping.
+        if with_soc_interconnect:
+            from litex.soc.cores.cpu import CPUNone
+            cpu = getattr(self, "cpu", None)
+            cpu_origin = getattr(cpu, "mem_map", {}).get("main_ram", None)
+            if (origin is not None and cpu_origin is not None and
+                not isinstance(cpu, CPUNone) and origin != cpu_origin):
+                self.logger.error("SDRAM origin 0x{:x} conflicts with CPU main_ram mapping 0x{:x}.".format(
+                    origin, cpu_origin))
+                raise SoCError()
+            if origin is None:
+                origin = self.mem_map.get("main_ram", None)
+
         # Imports.
         from litedram.common import LiteDRAMNativePort
         from litedram.core import LiteDRAMCore
@@ -2394,7 +2422,7 @@ class LiteXSoC(SoC):
 
         # Add SDRAM region.
         main_ram_region = SoCRegion(
-            origin = self.mem_map.get("main_ram", origin),
+            origin = origin,
             size   = sdram_size,
             mode   = "rwx")
         self.bus.add_region("main_ram", main_ram_region)
