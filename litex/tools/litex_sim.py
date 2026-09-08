@@ -180,7 +180,14 @@ class SimSoC(SoCCore):
         sim_debug              = False,
         trace_reset_on         = False,
         with_jtag              = False,
+        min_l2_data_width      = 128,
+        l2_bursting            = False,
+        l2_refill_bypass       = False,
         **kwargs):
+
+        if (not isinstance(min_l2_data_width, int) or min_l2_data_width < 32 or
+            min_l2_data_width & (min_l2_data_width - 1)):
+            raise ValueError("min_l2_data_width must be a power of two of at least 32 bits.")
 
         # Platform ---------------------------------------------------------------------------------
         platform = Platform()
@@ -226,7 +233,9 @@ class SimSoC(SoCCore):
                 phy                     = self.sdrphy,
                 module                  = sdram_module,
                 l2_cache_size           = kwargs.get("l2_size", 8192),
-                l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
+                l2_cache_min_data_width = min_l2_data_width,
+                l2_cache_bursting       = l2_bursting,
+                l2_cache_refill_bypass  = l2_refill_bypass,
                 l2_cache_reverse        = False,
                 with_bist               = with_sdram_bist
             )
@@ -446,6 +455,9 @@ def sim_args(parser):
     parser.add_argument("--sdram-init",           default=None,            help="SDRAM init file (.bin or .json).")
     parser.add_argument("--sdram-from-spd-dump",  default=None,            help="Generate SDRAM module based on data from SPD EEPROM dump.")
     parser.add_argument("--sdram-verbosity",      default=0,               help="Set SDRAM checker verbosity.")
+    parser.add_argument("--min-l2-data-width",    default=128, type=int,   help="Minimum SDRAM L2 refill width in bits (power of two, at least 32).")
+    parser.add_argument("--l2-bursting",          action="store_true",     help="Enable the same-line SDRAM L2 read-burst fast path.")
+    parser.add_argument("--l2-refill-bypass",     action="store_true",     help="Acknowledge SDRAM L2 read misses directly from refill data.")
 
     # Ethernet /Etherbone.
     parser.add_argument("--with-ethernet",      action="store_true",                                         help="Enable Ethernet support.")
@@ -570,6 +582,9 @@ def main():
         soc_kwargs["sdram_module"]     = args.sdram_module
         soc_kwargs["sdram_data_width"] = int(args.sdram_data_width)
         soc_kwargs["sdram_verbosity"]  = int(args.sdram_verbosity)
+        soc_kwargs["min_l2_data_width"] = args.min_l2_data_width
+        soc_kwargs["l2_bursting"] = args.l2_bursting
+        soc_kwargs["l2_refill_bypass"] = args.l2_refill_bypass
         if args.sdram_from_spd_dump:
             soc_kwargs["sdram_spd_data"] = parse_spd_hexdump(args.sdram_from_spd_dump)
         if args.sdram_init is not None:
