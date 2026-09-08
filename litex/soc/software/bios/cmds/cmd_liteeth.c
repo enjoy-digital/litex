@@ -8,7 +8,7 @@
 
 #include <libliteeth/mdio.h>
 #include <libliteeth/udp.h>
-#include <libliteeth/sfp_rollball.h>
+#include <libliteeth/sfp.h>
 
 #include "../command.h"
 #include "../helpers.h"
@@ -230,94 +230,121 @@ define_command(ping, eth_ping_handler, "Ping the given IP address", LITEETH_CMDS
 #endif
 
 /**
- * Command "sfp_mactype"
+ * Command "sfp"
  *
- * Show or set a RollBall SFP module's host-interface mode (Marvell MACTYPE).
+ * Show each configured SFP+ cage, or set one to a host-side interface.
  *
  */
-#if defined(CONFIG_HAS_I2C) && defined(CONFIG_SFP_ROLLBALL_I2C)
-static void sfp_mactype_handler(int nb_params, char **params)
+#if defined(CONFIG_HAS_I2C) && (defined(CONFIG_SFP_0_I2C) || defined(CONFIG_SFP_ROLLBALL_I2C))
+
+static const struct sfp_cage *sfp_cage_arg(const char *s)
 {
 	char *c;
-	int cur, want;
-	uint32_t id;
-
-	if (!sfp_rollball_open())
-		return;
-	if (!sfp_rollball_present() || !sfp_rollball_unlock()) {
-		printf("No RollBall module at 0x%02x\n", SFP_ROLLBALL_I2C_ADDR);
-		return;
+	unsigned long n = strtoul(s, &c, 0);
+	if (*c != 0 || n >= sfp_cage_count) {
+		printf("Cage must be 0..%u\n", sfp_cage_count ? sfp_cage_count - 1 : 0);
+		return NULL;
 	}
-	id  = sfp_rollball_phy_id();
-	cur = sfp_rollball_get_mactype();
-	printf("PHY ID 0x%08lx, MACTYPE %d\n", (unsigned long)id, cur);
-	if (nb_params < 1)
-		return;
-	want = strtoul(params[0], &c, 0);
-	if (*c != 0 || want < 0 || want > 7) {
-		printf("Incorrect MACTYPE (0-7)\n");
-		return;
-	}
-	printf("Setting MACTYPE %d... ", want);
-	printf(sfp_rollball_set_mactype(want) ? "done\n" : "failed\n");
+	return &sfp_cages[n];
 }
-define_command(sfp_mactype, sfp_mactype_handler, "Show/set RollBall SFP MACTYPE", LITEETH_CMDS);
+
+static void sfp_handler(int nb_params, char **params)
+{
+	const struct sfp_cage *cage;
+	unsigned int c;
+	uint32_t id;
+	int family, mode;
+
+	if (nb_params < 1) {
+		for (c = 0; c < sfp_cage_count; c++) {
+			cage = &sfp_cages[c];
+			printf("%u: %-12s want %-9s ", c, cage->i2c_dev, cage->host_mode);
+			if (sfp_probe(cage, &id, &family))
+				printf("PHY 0x%08lx (%s)\n", (unsigned long)id,
+				       sfp_family_name(family));
+			else
+				printf("no module\n");
+		}
+		printf("usage: sfp <cage> <mode>   modes: 10GBASER 5GBASER 2500BASEX 1000BASEX\n");
+		return;
+	}
+	cage = sfp_cage_arg(params[0]);
+	if (cage == NULL)
+		return;
+	if (nb_params < 2) {
+		printf("Specify a host mode\n");
+		return;
+	}
+	mode = sfp_host_mode_from_name(params[1]);
+	if (mode < 0) {
+		printf("Unknown mode %s\n", params[1]);
+		return;
+	}
+	printf("Setting %s to %s... ", cage->i2c_dev, sfp_host_mode_name(mode));
+	printf(sfp_set_host_mode(cage, mode) ? "done\n" : "failed\n");
+}
+define_command(sfp, sfp_handler, "Show/set SFP+ cage host interface", LITEETH_CMDS);
 
 /**
  * Command "sfp_mdio_read"
  *
- * Read a Clause 45 register through a RollBall SFP module.
+ * Read a Clause 45 register through an SFP+ module.
  *
  */
 static void sfp_mdio_read_handler(int nb_params, char **params)
 {
+	const struct sfp_cage *cage;
 	char *c;
-	int mmd, reg, v;
+	unsigned int mmd, reg;
+	int v;
 
-	if (nb_params < 2) {
-		printf("sfp_mdio_read <mmd> <reg>");
+	if (nb_params < 3) {
+		printf("sfp_mdio_read <cage> <mmd> <reg>");
 		return;
 	}
-	mmd = strtoul(params[0], &c, 0);
-	if (*c != 0) { printf("Incorrect mmd"); return; }
-	reg = strtoul(params[1], &c, 0);
-	if (*c != 0) { printf("Incorrect reg"); return; }
-	if (!sfp_rollball_open())
+	cage = sfp_cage_arg(params[0]);
+	if (cage == NULL)
 		return;
-	if (!sfp_rollball_unlock()) { printf("No RollBall module\n"); return; }
-	v = sfp_rollball_mdio_read(mmd, reg);
+	mmd = strtoul(params[1], &c, 0);
+	if (*c != 0) { printf("Incorrect mmd\n"); return; }
+	reg = strtoul(params[2], &c, 0);
+	if (*c != 0) { printf("Incorrect reg\n"); return; }
+	if (!sfp_probe(cage, NULL, NULL)) { printf("No module\n"); return; }
+	v = sfp_mdio_read(cage, mmd, reg);
 	if (v < 0)
 		printf("Read failed\n");
 	else
 		printf("%d.0x%04x = 0x%04x\n", mmd, reg, v);
 }
-define_command(sfp_mdio_read, sfp_mdio_read_handler, "Read Clause 45 register via RollBall SFP", LITEETH_CMDS);
+define_command(sfp_mdio_read, sfp_mdio_read_handler, "Read Clause 45 register via SFP+", LITEETH_CMDS);
 
 /**
  * Command "sfp_mdio_write"
  *
- * Write a Clause 45 register through a RollBall SFP module.
+ * Write a Clause 45 register through an SFP+ module.
  *
  */
 static void sfp_mdio_write_handler(int nb_params, char **params)
 {
+	const struct sfp_cage *cage;
 	char *c;
-	int mmd, reg, val;
+	unsigned int mmd, reg, val;
 
-	if (nb_params < 3) {
-		printf("sfp_mdio_write <mmd> <reg> <value>");
+	if (nb_params < 4) {
+		printf("sfp_mdio_write <cage> <mmd> <reg> <value>");
 		return;
 	}
-	mmd = strtoul(params[0], &c, 0);
-	if (*c != 0) { printf("Incorrect mmd"); return; }
-	reg = strtoul(params[1], &c, 0);
-	if (*c != 0) { printf("Incorrect reg"); return; }
-	val = strtoul(params[2], &c, 0);
-	if (*c != 0) { printf("Incorrect value"); return; }
-	if (!sfp_rollball_open())
+	cage = sfp_cage_arg(params[0]);
+	if (cage == NULL)
 		return;
-	if (!sfp_rollball_unlock()) { printf("No RollBall module\n"); return; }
-	printf(sfp_rollball_mdio_write(mmd, reg, val) ? "OK\n" : "Write failed\n");
+	mmd = strtoul(params[1], &c, 0);
+	if (*c != 0) { printf("Incorrect mmd\n"); return; }
+	reg = strtoul(params[2], &c, 0);
+	if (*c != 0) { printf("Incorrect reg\n"); return; }
+	val = strtoul(params[3], &c, 0);
+	if (*c != 0) { printf("Incorrect value\n"); return; }
+	if (!sfp_probe(cage, NULL, NULL)) { printf("No module\n"); return; }
+	printf(sfp_mdio_write(cage, mmd, reg, val) ? "OK\n" : "Write failed\n");
 }
-define_command(sfp_mdio_write, sfp_mdio_write_handler, "Write Clause 45 register via RollBall SFP", LITEETH_CMDS);
+define_command(sfp_mdio_write, sfp_mdio_write_handler, "Write Clause 45 register via SFP+", LITEETH_CMDS);
 #endif
