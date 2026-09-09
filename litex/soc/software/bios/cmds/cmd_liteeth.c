@@ -265,7 +265,7 @@ static void sfp_handler(int nb_params, char **params)
 			else
 				printf("no module\n");
 		}
-		printf("usage: sfp <cage> <mode>   modes: 10GBASER 5GBASER 2500BASEX 1000BASEX\n");
+		printf("usage: sfp <cage> <mode>   modes: 10GBASER 5GBASER 5000BASEX 2500BASEX 1000BASEX\n");
 		return;
 	}
 	cage = sfp_cage_arg(params[0]);

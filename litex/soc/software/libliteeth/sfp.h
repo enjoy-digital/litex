@@ -40,6 +40,7 @@
  *      AUTO (default)
  *      10GBASER
  *      5GBASER
+ *      5000BASEX
  *      2500BASEX
  *      1000BASEX
  *
@@ -57,11 +58,13 @@
 #define SFP_HOST_5GBASER    2
 #define SFP_HOST_2500BASEX  3
 #define SFP_HOST_1000BASEX  4
+#define SFP_HOST_5000BASEX  5
 
 /* Supported PHY families */
 #define SFP_PHY_UNKNOWN  0
 #define SFP_PHY_MARVELL  1   /* 88X3310, 88E2110 and relatives */
 #define SFP_PHY_AQUANTIA 2   /* AQR113C and relatives */
+#define SFP_PHY_BROADCOM 3   /* BCM84891L and relatives */
 
 /* One SFP+ cage, built from the SFP_<n>_* configuration above. Boards do not write C. */
 struct sfp_cage {

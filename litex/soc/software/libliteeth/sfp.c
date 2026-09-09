@@ -47,6 +47,32 @@
  * gives the matching host rate instead. */
 #define AQ_ID_MASK            0xfffffff0
 #define AQ_ID_AQR113C         0x31c31c10
+
+/* Broadcom ------------------------------------------------------------------------------------
+ * The BCM84891L selects its host (XFI) encoding through an MDIO command handler rather than a
+ * plain register: write any parameters to the DATA registers, the command code to CMD, then poll
+ * STATUS. Copper rate uses the standard NBASE-T advertisement bits, but unlike other PHYs the
+ * other bits of that register are live (master/slave, port type), so it is read-modify-written. */
+#define BCM_ID_MASK           0xfffffff0
+#define BCM_ID_84891L         0x35905080
+
+#define BCM_VEND1_MMD         30
+#define BCM_CMD               0x4005
+#define BCM_STATUS            0x4037
+#define BCM_DATA1             0x4038
+#define BCM_DATA2             0x4039
+#define BCM_STATUS_PASS       0x0004   /* CMD_COMPLETE_PASS / CMD_OPEN_FOR_CMDS */
+#define BCM_STATUS_BUSY       0x0002   /* CMD_IN_PROGRESS */
+#define BCM_CMD_GET_XFI_MODE  0x8016
+#define BCM_CMD_SET_XFI_MODE  0x8017
+/* DATA1 is the encoding used when copper links at 2.5G, DATA2 when it links at 5G. */
+#define BCM_XFI_IDLE_STUFF    0      /* stay 10GBASE-R and pad with idles */
+#define BCM_XFI_BASEX         1      /* 2500BASE-X / 5000BASE-X (8b/10b) */
+#define BCM_XFI_BASER         2      /* 2500BASE-R / 5000BASE-R (64b/66b) */
+#define BCM_ADV_MASK          (ADV_10G | ADV_5G | ADV_2_5G)
+#define BCM_AN_AUX_STATUS     0xfff9  /* bit15 = autonegotiation complete */
+#define BCM_AN_AUX_COMPLETE   0x8000
+#define BCM_CMD_POLL_TRIES    30     /* datasheet: up to 2s while the line side is training */
 #define AQ_VEND1_MMD          30
 #define AQ_VEND1_CFG_1G       0x031c
 #define AQ_VEND1_CFG_2_5G     0x031d
@@ -177,6 +203,7 @@ static const struct { int mode; const char *name; } sfp_mode_names[] = {
 	{ SFP_HOST_5GBASER,   "5GBASER"   },
 	{ SFP_HOST_2500BASEX, "2500BASEX" },
 	{ SFP_HOST_1000BASEX, "1000BASEX" },
+	{ SFP_HOST_5000BASEX, "5000BASEX" },
 };
 
 int sfp_host_mode_from_name(const char *name)
@@ -202,6 +229,7 @@ const char *sfp_family_name(int family)
 	switch (family) {
 	case SFP_PHY_MARVELL:  return "Marvell";
 	case SFP_PHY_AQUANTIA: return "Aquantia";
+	case SFP_PHY_BROADCOM: return "Broadcom";
 	default:               return "unknown";
 	}
 }
@@ -338,6 +366,8 @@ static int sfp_family(uint32_t id)
 		return SFP_PHY_AQUANTIA;
 	if ((id & MV_ID_MASK) == MV_ID_88X3310 || (id & MV_ID_MASK) == MV_ID_88E2110)
 		return SFP_PHY_MARVELL;
+	if ((id & BCM_ID_MASK) == BCM_ID_84891L)
+		return SFP_PHY_BROADCOM;
 	return SFP_PHY_UNKNOWN;
 }
 
@@ -366,6 +396,7 @@ static int mode_advertisement(int mode)
 	case SFP_HOST_5GBASER:   return ADV_5G;
 	case SFP_HOST_2500BASEX: return ADV_2_5G;
 	case SFP_HOST_1000BASEX: return ADV_1G;
+	case SFP_HOST_5000BASEX: return ADV_5G;   /* 5G copper, 8b/10b on the host */
 	default:                 return -1;
 	}
 }
@@ -418,6 +449,8 @@ static bool mv_set_host_mode(const struct sfp_cage *cage, uint32_t id, int mode)
 
 	if (!mv_port_ctrl(id, &mmd, &reg))
 		return false;
+	if (mode == SFP_HOST_5000BASEX)
+		return false;   /* 8b/10b at 6.25Gbaud is Broadcom-only. */
 	/* MACTYPE 4 follows the copper rate, which covers every sub-10G host mode; 6 pins the
 	 * host at 10GBASE-R regardless of copper. */
 	mactype = (mode == SFP_HOST_10GBASER) ? MV_MACTYPE_10G_MATCH : MV_MACTYPE_FOLLOW;
@@ -457,7 +490,7 @@ static bool mv_host_mode_ok(const struct sfp_cage *cage, uint32_t id, int mode)
 {
 	uint8_t mmd; uint16_t reg; int cur, want;
 
-	if (!mv_port_ctrl(id, &mmd, &reg))
+	if (!mv_port_ctrl(id, &mmd, &reg) || mode == SFP_HOST_5000BASEX)
 		return false;
 	cur = sfp_mdio_read(cage, mmd, reg);
 	if (cur < 0)
@@ -580,6 +613,108 @@ static bool aq_host_mode_ok(const struct sfp_cage *cage, int mode)
 	return v >= 0 && !!(v & AQ_IF_STATUS_LINK);
 }
 
+/* Broadcom ---------------------------------------------------------------------------------- */
+
+/* XFI encoding to program for each copper rate. DATA1 applies when copper links at 2.5G, DATA2
+ * when it links at 5G; only the one matching the requested mode's copper rate has any effect,
+ * but the command carries both, so the other is set to a sensible default rather than left
+ * stale. 1000BASE-X (SGMII at 1.25Gbaud) and 10GBASE-R are implied by the copper rate and do
+ * not need XFI selection. For 10GBASE-R the idle-stuffing setting keeps the host at 10G even
+ * if copper negotiates a lower rate. */
+static bool bcm_xfi_modes(int mode, uint16_t *data1, uint16_t *data2)
+{
+	switch (mode) {
+	case SFP_HOST_10GBASER:  *data1 = BCM_XFI_IDLE_STUFF; *data2 = BCM_XFI_IDLE_STUFF; return true;
+	case SFP_HOST_5GBASER:   *data1 = BCM_XFI_BASEX;      *data2 = BCM_XFI_BASER;      return true;
+	case SFP_HOST_5000BASEX: *data1 = BCM_XFI_BASEX;      *data2 = BCM_XFI_BASEX;      return true;
+	case SFP_HOST_2500BASEX: *data1 = BCM_XFI_BASEX;      *data2 = BCM_XFI_BASEX;      return true;
+	case SFP_HOST_1000BASEX: *data1 = BCM_XFI_BASEX;      *data2 = BCM_XFI_BASEX;      return true;
+	default:                 return false;
+	}
+}
+
+static bool bcm_command(const struct sfp_cage *cage, uint16_t command)
+{
+	int i, v;
+
+	if (!sfp_mdio_write(cage, BCM_VEND1_MMD, BCM_CMD, command))
+		return false;
+	for (i = 0; i < BCM_CMD_POLL_TRIES; i++) {
+		v = sfp_mdio_read(cage, BCM_VEND1_MMD, BCM_STATUS);
+		if (v == BCM_STATUS_PASS)
+			return true;
+		busy_wait(100);
+	}
+	return false;
+}
+
+static bool bcm_get_xfi_modes(const struct sfp_cage *cage, int *data1, int *data2)
+{
+	if (!bcm_command(cage, BCM_CMD_GET_XFI_MODE))
+		return false;
+	*data1 = sfp_mdio_read(cage, BCM_VEND1_MMD, BCM_DATA1);
+	*data2 = sfp_mdio_read(cage, BCM_VEND1_MMD, BCM_DATA2);
+	return *data1 >= 0 && *data2 >= 0;
+}
+
+static bool bcm_set_host_mode(const struct sfp_cage *cage, int mode)
+{
+	uint16_t data1, data2;
+	int adv, cur, i, got1, got2;
+
+	if (!bcm_xfi_modes(mode, &data1, &data2))
+		return false;
+	adv = mode_advertisement(mode);
+	if (adv < 0)
+		return false;
+
+	/* Host encoding first: must be set before the line side autonegotiates. */
+	if (!sfp_mdio_write(cage, BCM_VEND1_MMD, BCM_DATA1, data1) ||
+	    !sfp_mdio_write(cage, BCM_VEND1_MMD, BCM_DATA2, data2) ||
+	    !bcm_command(cage, BCM_CMD_SET_XFI_MODE))
+		return false;
+
+	/* Copper rate. Only touch NBASE-T ability bits. */
+	cur = sfp_mdio_read(cage, AQ_AN_MMD, AQ_AN_10GBT_CTRL);
+	if (cur < 0)
+		return false;
+	if (!sfp_mdio_write(cage, AQ_AN_MMD, AQ_AN_10GBT_CTRL, (cur & ~BCM_ADV_MASK) | adv))
+		return false;
+	if (!sfp_mdio_write(cage, AQ_AN_MMD, AQ_AN_CTRL, AQ_AN_CTRL_RESTART))
+		return false;
+
+	/* Wait for line side to finish negotiating new rate. */
+	for (i = 0; i < AQ_IF_WAIT_MS / 250; i++) {
+		busy_wait(250);
+		if (sfp_mdio_read(cage, AQ_AN_MMD, BCM_AN_AUX_STATUS) & BCM_AN_AUX_COMPLETE) {
+			if (bcm_get_xfi_modes(cage, &got1, &got2))
+				return got1 == data1 && got2 == data2;
+			return false;
+		}
+	}
+	return false;
+}
+
+/* NOTE: this only confirms what was provisioned and that autonegotiation finished, not the rate
+ * it settled on. */
+static bool bcm_host_mode_ok(const struct sfp_cage *cage, int mode)
+{
+	uint16_t data1, data2;
+	int adv, cur, d1, d2;
+
+	if (!bcm_xfi_modes(mode, &data1, &data2))
+		return false;
+	adv = mode_advertisement(mode);
+	cur = sfp_mdio_read(cage, AQ_AN_MMD, AQ_AN_10GBT_CTRL);
+	if (adv < 0 || cur < 0 || (cur & BCM_ADV_MASK) != adv)
+		return false;
+	if (!(sfp_mdio_read(cage, AQ_AN_MMD, BCM_AN_AUX_STATUS) & BCM_AN_AUX_COMPLETE))
+		return false;
+	if (!bcm_get_xfi_modes(cage, &d1, &d2))
+		return false;
+	return d1 == data1 && d2 == data2;
+}
+
 /* Host mode ------------------------------------------------------------------------------------- */
 
 bool sfp_set_host_mode(const struct sfp_cage *cage, int mode)
@@ -594,6 +729,7 @@ bool sfp_set_host_mode(const struct sfp_cage *cage, int mode)
 	switch (family) {
 	case SFP_PHY_MARVELL:  return mv_set_host_mode(cage, id, mode);
 	case SFP_PHY_AQUANTIA: return aq_set_host_mode(cage, mode);
+	case SFP_PHY_BROADCOM: return bcm_set_host_mode(cage, mode);
 	default:               return false;
 	}
 }
@@ -610,6 +746,7 @@ static bool sfp_host_mode_ok(const struct sfp_cage *cage, int mode)
 	switch (family) {
 	case SFP_PHY_MARVELL:  return mv_host_mode_ok(cage, id, mode);
 	case SFP_PHY_AQUANTIA: return aq_host_mode_ok(cage, mode);
+	case SFP_PHY_BROADCOM: return bcm_host_mode_ok(cage, mode);
 	default:               return false;
 	}
 }
