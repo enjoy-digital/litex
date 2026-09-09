@@ -72,7 +72,7 @@ def _gowin_tcl_path(path, use_windows_paths=False):
 
 def _is_differential_iostandard(iostandard):
     name = iostandard.name.upper()
-    return name.endswith("D") or "LVDS" in name
+    return name.endswith(("D", "D_I", "D_II")) or "LVDS" in name
 
 def _use_differential_constraint(other):
     iostandards = [c for c in other if isinstance(c, IOStandard)]
