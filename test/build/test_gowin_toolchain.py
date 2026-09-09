@@ -12,7 +12,7 @@ from unittest import mock
 from migen import ClockDomain
 
 from litex.gen import LiteXModule
-from litex.build.generic_platform import Pins
+from litex.build.generic_platform import IOStandard, Pins
 from litex.build.gowin import gowin
 from litex.build.gowin.platform import GowinPlatform
 from litex.soc.cores.clock.gowin_gw1n import GW1NPLL
@@ -43,6 +43,25 @@ class _ApiculaSoC(LiteXModule):
 
 
 class TestGowinToolchain(unittest.TestCase):
+    def test_cst_pairs_sstl_differential_pins_with_class_suffix(self):
+        for standard in ("SSTL15D", "SSTL15D_I", "SSTL18D_II", "LVCMOS15"):
+            with self.subTest(standard=standard), tempfile.TemporaryDirectory() as build_dir:
+                constraints = [
+                    ("dqs_p", ["Y3", "V9"], [IOStandard(standard)], ("ddram", 0, "dqs_p")),
+                    ("dqs_n", ["AA3", "V8"], [IOStandard(standard)], ("ddram", 0, "dqs_n")),
+                ]
+                name = os.path.join(build_dir, "top")
+                gowin._build_cst(constraints, [], [], name)
+                with open(name + ".cst") as f:
+                    cst = f.read()
+                if standard == "LVCMOS15":
+                    self.assertIn('IO_LOC "dqs_p[0]" Y3;', cst)
+                    self.assertIn('IO_LOC "dqs_n[0]" AA3;', cst)
+                else:
+                    self.assertIn('IO_LOC "dqs_p[0]" Y3,AA3;', cst)
+                    self.assertIn('IO_LOC "dqs_p[1]" V9,V8;', cst)
+                    self.assertNotIn('IO_LOC "dqs_n', cst)
+
     def test_apicula_uses_generated_system_clock_target(self):
         platform = _ApiculaPlatform()
         soc      = _ApiculaSoC(platform, sys_clk_freq=48e6)
