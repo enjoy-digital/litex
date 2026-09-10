@@ -558,6 +558,64 @@ class TestClock(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r"No PLL config found.*ClkIn=50.00MHz.*ClkOut0=10000.00MHz"):
             pll.compute_config()
 
+    def test_gw5a_pll_device_limits_and_primitives(self):
+        # Gowin UG306, DS1103, DS981 and DS1239.
+        test_cases = [
+            ("GW5A-25",    "PLLA", 700e6, 1400e6, 87.5e6),
+            ("GW5A-60",    "PLLA", 700e6, 1400e6, 87.5e6),
+            ("GW5A-138",   "PLL",  650e6, 1300e6, 81.25e6),
+            ("GW5AST-138", "PLL",  650e6, 1300e6, 81.25e6),
+            ("GW5AT-15",   "PLLA", 700e6, 1400e6, 87.5e6),
+            ("GW5AT-60",   "PLLA", 700e6, 1400e6, 87.5e6),
+            ("GW5AT-75",   "PLL",  650e6, 1300e6, 81.25e6),
+            ("GW5AT-138",  "PLL",  650e6, 1300e6, 81.25e6),
+        ]
+        for devicename, primitive, vco_min, vco_max, pfd_max in test_cases:
+            # Exercise the lower VCO boundary and input division above the PFD limit.
+            for clkin_freq, clkout_freq in [(25e6, vco_min/128), (100e6, 100e6)]:
+                with self.subTest(device=devicename, clkin=clkin_freq, clkout=clkout_freq):
+                    pll = GW5APLL(devicename, devicename)
+                    pll.register_clkin(Signal(), clkin_freq)
+                    pll.create_clkout(ClockDomain("clkout"), clkout_freq, margin=0)
+                    config = pll.compute_config()
+                    self.assertEqual(pll.vco_freq_range, (vco_min, vco_max))
+                    self.assertEqual(pll.pfd_freq_range, (19e6, pfd_max))
+                    self.assertGreaterEqual(config["vco"], vco_min)
+                    self.assertLessEqual(config["vco"], vco_max)
+                    self.assertGreaterEqual(clkin_freq/config["idiv"], 19e6)
+                    self.assertLessEqual(clkin_freq/config["idiv"], pfd_max)
+                    self.assertEqual(config["vco"]/config["odiv0"], clkout_freq)
+                    fragment = pll.get_fragment()
+                    self.assertIn(primitive, [s.of for s in fragment.specials if isinstance(s, Instance)])
+
+    def test_gw5a_pll_devicename_revisions(self):
+        test_cases = [
+            ("GW5A-25A",    "GW5A-LV25MG121NC1/I0",   "PLLA"),
+            ("GW5AT-60B",   "GW5AT-LV60PG484AC1/I0",  "PLLA"),
+            ("GW5AT-60ES",  "GW5AT-LV60PG484AC1/I0",  "PLLA"),
+            ("GW5AST-138B", "GW5AST-LV138FPG676AES",  "PLL"),
+            ("GW5AST-138C", "GW5AST-LV138PG484AC1/I0", "PLL"),
+        ]
+        for devicename, device, primitive in test_cases:
+            with self.subTest(devicename=devicename):
+                pll = GW5APLL(devicename, device)
+                self.assertEqual(pll.primitive, primitive)
+
+    def test_gw5a_pll_rejects_unsupported_device_names(self):
+        for devicename in ("GW5A", "GW5A-250", "GW5AT-600", "GW5A-75", "GW5AST-60", "GW2A-18"):
+            with self.subTest(devicename=devicename):
+                with self.assertRaisesRegex(ValueError, "Unsupported device"):
+                    GW5APLL(devicename, devicename)
+
+    def test_gw5a_pll_rejects_sub_minimum_pfd(self):
+        for devicename in ("GW5AT-60B", "GW5AST-138C"):
+            with self.subTest(devicename=devicename):
+                pll = GW5APLL(devicename, devicename)
+                pll.register_clkin(Signal(), 18.75e6)
+                pll.create_clkout(ClockDomain("clkout"), 100e6)
+                with self.assertRaisesRegex(ValueError, "No PLL config found"):
+                    pll.compute_config()
+
     def test_gw1n_pll_rejects_multiple_nonzero_phases(self):
         pll = GW1NPLL("GW1N-9", "GW1N-9C")
         pll.register_clkin(Signal(), 50e6)
