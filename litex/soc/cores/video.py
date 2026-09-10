@@ -1445,8 +1445,47 @@ class VideoS7HDMIPHY(LiteXModule):
             self.specials += Instance("OBUFDS", i_I=pad_o, o_O=pad_p, o_OB=pad_n)
 
 
+class VideoGTHDMILane(LiteXModule):
+    """TMDS encoder and 20-bit gearbox for a transceiver HDMI data lane.
+
+    The TX clock must run at half the pixel clock frequency, from the same reference.
+    The source is consumed continuously; video cannot be backpressured.
+    """
+    def __init__(self, clock_domain, tx_clock_domain):
+        self.d      = Signal(8)
+        self.c      = Signal(2)
+        self.de     = Signal()
+        self.source = source = stream.Endpoint([("data", 20)])
+
+        # # #
+
+        # TMDS Encoding.
+        self.encoder = encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
+        self.comb += [
+            encoder.d.eq(self.d),
+            encoder.c.eq(self.c),
+            encoder.de.eq(self.de),
+        ]
+
+        # 10:20 (transceivers have a minimum 20-bit datapath).
+        self.converter = converter = ClockDomainsRenamer(clock_domain)(stream.Converter(10, 20))
+        self.comb += [
+            converter.sink.valid.eq(1),
+            converter.sink.data.eq(encoder.out),
+        ]
+
+        # Clock Domain Crossing (pixel clock --> TX word clock).
+        self.cdc = cdc = stream.ClockDomainCrossing(
+            [("data", 20)], cd_from=clock_domain, cd_to=tx_clock_domain)
+        self.comb += [
+            converter.source.connect(cdc.sink),
+            cdc.source.connect(source),
+        ]
+
+
 class VideoS7GTPHDMIPHY(LiteXModule):
-    def __init__(self, pads, sys_clk_freq, clock_domain="sys", clk_freq=148.5e6, refclk=None):
+    def __init__(self, pads, sys_clk_freq, clock_domain="sys", clk_freq=148.5e6, refclk=None,
+        refclk_freq=None, tx_polarity=1):
         assert sys_clk_freq >= clk_freq
         self.sink = sink = stream.Endpoint(video_data_layout)
 
@@ -1476,28 +1515,19 @@ class VideoS7GTPHDMIPHY(LiteXModule):
                 o_O   = refclk_se
             )
             refclk = refclk_se
-        self.pll = pll = GTPQuadPLL(refclk, clk_freq, 1.485e9)
+        self.pll = pll = GTPQuadPLL(refclk, refclk_freq or clk_freq, 10*clk_freq)
 
         # Encode/Serialize Datas.
         for color, channel in _dvi_c2d.items():
-            # TMDS Encoding.
-            encoder = ClockDomainsRenamer(clock_domain)(TMDSEncoder())
-            self.submodules += encoder
-            self.comb += encoder.d.eq(getattr(sink, color))
-            self.comb += encoder.c.eq(Cat(sink.hsync, sink.vsync) if channel == 0 else 0)
-            self.comb += encoder.de.eq(sink.de)
-
-            # 10:20 (SerDes has a minimal 20:1 Serialization ratio).
-            converter = ClockDomainsRenamer(clock_domain)(stream.Converter(10, 20))
-            self.submodules += converter
-            self.comb += converter.sink.valid.eq(1)
-            self.comb += converter.sink.data.eq(encoder.out)
-
-            # Clock Domain Crossing (video_clk --> gtp_tx)
-            cdc = stream.ClockDomainCrossing([("data", 20)], cd_from=clock_domain, cd_to=f"gtp{color}_tx")
-            self.submodules += cdc
-            self.comb += converter.source.connect(cdc.sink)
-            self.comb += cdc.source.ready.eq(1) # No backpressure.
+            # TMDS Encoding / Gearbox / Clock Domain Crossing.
+            lane = VideoGTHDMILane(clock_domain, f"gtp{color}_tx")
+            self.submodules += lane
+            self.comb += [
+                lane.d.eq(getattr(sink, color)),
+                lane.c.eq(Cat(sink.hsync, sink.vsync) if channel == 0 else 0),
+                lane.de.eq(sink.de),
+                lane.source.ready.eq(1),
+            ]
 
             # 20:1 Serialization + Differential Signaling.
             class GTPPads:
@@ -1508,11 +1538,86 @@ class VideoS7GTPHDMIPHY(LiteXModule):
             # FIXME: Find a way to avoid RX pads.
             rx_pads = GTPPads(p=getattr(pads, f"rx{channel}_p"),    n=getattr(pads, f"rx{channel}_n"))
             gtp = GTP(pll, tx_pads, rx_pads=rx_pads, sys_clk_freq=sys_clk_freq,
-                tx_polarity      = 1, # FIXME: Specific to Decklink Mini 4K, make it configurable.
+                qpll_reset       = (channel == 0),
+                tx_polarity      = tx_polarity,
                 tx_buffer_enable = True,
                 rx_buffer_enable = True,
                 clock_aligner    = False
             )
             setattr(self.submodules, f"gtp{color}", gtp)
             self.comb += gtp.tx_produce_pattern.eq(1)
-            self.comb += gtp.tx_pattern.eq(cdc.source.data)
+            self.comb += gtp.tx_pattern.eq(lane.source.data)
+
+
+class VideoUSPGTHHDMIPHY(LiteXModule):
+    """DVI-compatible video over four UltraScale+ GTH transmitters.
+
+    The three data lanes and the clock lane must occupy one GTH quad. A dedicated
+    GTH reference clock is required: refclk is the O output of an IBUFDS_GTE4.
+    The pixel clock must derive from the same reference. The board supplies the
+    external AC-coupled TMDS to HDMI level shifter.
+    """
+    def __init__(self, pads, sys_clk_freq, refclk, refclk_freq,
+        clock_domain="sys", clk_freq=74.25e6, tx_polarity=0):
+        self.sink  = sink = stream.Endpoint(video_data_layout)
+        self.ready = Signal()
+
+        # # #
+
+        from liteiclink.serdes.gth4_ultrascale import GTH4QuadPLL, GTH4
+
+        # Always ack Sink, no backpressure.
+        self.comb += sink.ready.eq(1)
+
+        # GTH Quad PLL.
+        self.pll = pll = GTH4QuadPLL(refclk, refclk_freq, 10*clk_freq)
+
+        # Four serializers, with one PLL reset owner and a shared TX word clock.
+        gths = []
+        for name, channel in [("clk", None), *list(_dvi_c2d.items())]:
+            tx_pads = Record([("p", 1), ("n", 1)])
+            tx_pads.p = getattr(pads, "clk_p" if channel is None else f"data{channel}_p")
+            tx_pads.n = getattr(pads, "clk_n" if channel is None else f"data{channel}_n")
+            rx_pads = Record([("p", 1), ("n", 1)])
+            rx_pads.p = Constant(0)
+            rx_pads.n = Constant(0)
+            gth = GTH4(pll, tx_pads, rx_pads, sys_clk_freq,
+                tx_clk           = gths[0].cd_tx.clk if gths else None,
+                rx_clk           = ClockSignal("sys"),
+                tx_buffer_enable = True,
+                rx_buffer_enable = True,
+                clock_aligner    = False,
+                tx_polarity      = tx_polarity,
+                pll_master       = (channel is None),
+            )
+            setattr(self, f"gth{name}", gth)
+            gths.append(gth)
+            self.comb += gth.rx_enable.eq(0)
+
+            # Feed the TX datapath directly: tx_pattern is a control-domain signal in LiteICLink.
+            # These words already cross into the shared TX clock domain through the lane FIFOs.
+            data = Signal(20)
+            gth.gth_params.update(
+                i_RXPD    = 0b11,
+                i_TXDATA  = Cat(data[0:8], data[10:18]),
+                i_TXCTRL0 = Cat(data[8], data[18]),
+                i_TXCTRL1 = Cat(data[9], data[19]),
+            )
+
+            # Clock: two periods per 20-bit word, five high and five low bits per pixel.
+            if channel is None:
+                self.comb += data.eq(0b00000111110000011111)
+
+            # Data: use the same gearbox and CDC as the 7-Series GTP PHY.
+            else:
+                lane = VideoGTHDMILane(clock_domain, "gthclk_tx")
+                self.submodules += lane
+                self.comb += [
+                    lane.d.eq(getattr(sink, name)),
+                    lane.c.eq(Cat(sink.hsync, sink.vsync) if channel == 0 else 0),
+                    lane.de.eq(sink.de),
+                    lane.source.ready.eq(1),
+                    data.eq(lane.source.data),
+                ]
+
+        self.comb += self.ready.eq(Cat(*[gth.tx_ready for gth in gths]) == 0b1111)
