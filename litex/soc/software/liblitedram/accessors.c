@@ -21,6 +21,13 @@ void read_rst_dq_delay(int module) {
 	/* Reset delay */
 	read_dq_delay[module] = 0;
 	ddrphy_rdly_dq_rst_write(1);
+#ifdef CSR_DDRPHY_RDLY_DQ_DIR_ADDR
+	/* GW5 resets to the DLL value. Move to zero before scanning all taps. */
+	ddrphy_rdly_dq_dir_write(1);
+	for (int i = 0; i < SDRAM_PHY_DELAYS - 1; i++)
+		ddrphy_rdly_dq_inc_write(1);
+	ddrphy_rdly_dq_dir_write(0);
+#endif
 }
 
 #endif // defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
