@@ -49,3 +49,7 @@ class GowinPlatform(GenericPlatform):
 
     def add_false_path_constraint(self, from_, to):
         pass
+
+    def add_generated_clock_constraint(self, clk, source, divide_by=1, multiply_by=1, name=None):
+        self.toolchain.add_generated_clock_constraint(clk, source,
+            divide_by=divide_by, multiply_by=multiply_by, name=name)
