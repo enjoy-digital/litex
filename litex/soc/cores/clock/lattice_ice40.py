@@ -17,13 +17,14 @@ from litex.soc.cores.clock.common import *
 # - add support for GENCLK_HALF to be able to generate clock down to 8MHz.
 
 class iCE40PLL(LiteXModule):
-    nclkouts_max = 1
-    divr_range = (0,  16)
-    divf_range = (0, 128)
-    divq_range = (0,   7)
+    nclkouts_max    = 1
+    divr_range      = (0,  16)
+    divf_range      = (0, 128)
+    divq_range      = (0,   8)
     clki_freq_range = ( 10e6,  133e6)
     clko_freq_range = ( 16e6,  275e6)
     vco_freq_range  = (533e6, 1066e6)
+    pfd_freq_range  = ( 10e6,  133e6)
 
     def __init__(self, primitive="SB_PLL40_CORE", name=None):
         if primitive not in ["SB_PLL40_CORE", "SB_PLL40_PAD"]:
@@ -63,35 +64,36 @@ class iCE40PLL(LiteXModule):
         check_clkouts(self.nclkouts)
         best_config = None
         best_score  = None
+        clkout = self.clkouts[0]
+        pfd_freq_min, pfd_freq_max = self.pfd_freq_range
+        vco_freq_min, vco_freq_max = self.vco_freq_range
+        clko_freq_min, clko_freq_max = self.clko_freq_range
         for divr in range(*self.divr_range):
+            pfd_freq = self.clkin_freq/(divr + 1)
+            if not (pfd_freq_min <= pfd_freq <= pfd_freq_max):
+                continue
             for divf in range(*self.divf_range):
-                all_valid = True
-                errors    = []
-                config    = {}
-                vco_freq = self.clkin_freq/(divr + 1)*(divf +  1)
-                (vco_freq_min, vco_freq_max) = self.vco_freq_range
-                if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
-                    for n, clkout in sorted(self.clkouts.items()):
-                        best_clkout = clkout_best_divider(
-                            clkout.freq,
-                            clkout.margin,
-                            range(*self.divq_range),
-                            lambda divq: vco_freq/(2**divq)
-                        )
-                        if best_clkout is None:
-                            all_valid = False
-                            break
-                        error, clk_freq, divq = best_clkout
-                        errors.append(error)
-                        config["clkout_freq"] = clk_freq
-                        config["divq"]        = divq
-                else:
-                    all_valid = False
-                if all_valid:
-                    config["vco"] = vco_freq
-                    config["divr"] = divr
-                    config["divf"] = divf
-                    best_config, best_score = update_best_config(best_config, best_score, config, errors, vco_freq)
+                vco_freq = pfd_freq*(divf + 1)
+                if not (vco_freq_min <= vco_freq <= vco_freq_max):
+                    continue
+                # The requested margin must not relax the hardware output limits.
+                best_clkout = clkout_best_divider(
+                    clkout.freq,
+                    clkout.margin,
+                    (q for q in range(*self.divq_range) if clko_freq_min <= vco_freq/(2**q) <= clko_freq_max),
+                    lambda q: vco_freq/(2**q)
+                )
+                if best_clkout is None:
+                    continue
+                error, clk_freq, divq = best_clkout
+                config = {
+                    "clkout_freq": clk_freq,
+                    "vco":         vco_freq,
+                    "divr":        divr,
+                    "divf":        divf,
+                    "divq":        divq,
+                }
+                best_config, best_score = update_best_config(best_config, best_score, config, [error], vco_freq)
         if best_config is not None:
             compute_config_log(self.logger, best_config)
             return best_config
@@ -99,9 +101,8 @@ class iCE40PLL(LiteXModule):
 
     def do_finalize(self):
         config = self.compute_config()
-        clkfb = Signal()
+        pfd_freq = self.clkin_freq/(config["divr"] + 1)
         for f, v in [(17e6, 1), (26e6, 2), (44e6, 3), (66e6, 4), (101e6, 5), (133e6, 6)]:
-            pfd_freq = self.clkin_freq/(config["divr"] + 1)
             if pfd_freq <= f:
                 filter_range = v
                 break
