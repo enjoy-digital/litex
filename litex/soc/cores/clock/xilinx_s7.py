@@ -26,6 +26,12 @@ class S7PLL(XilinxClocking):
         XilinxClocking.__init__(self)
         self.name = name
         self.divclk_divide_range = (1, 56+1)
+        # DS181/DS183, PLL specifications: limits after DIVCLK_DIVIDE.
+        self.pfd_freq_range = {
+            -1: (19e6, 450e6),
+            -2: (19e6, 500e6),
+            -3: (19e6, 550e6),
+        }[speedgrade]
         self.vco_freq_range = {
             -1: (800e6, 1600e6),
             -2: (800e6, 1866e6),
@@ -75,6 +81,12 @@ class S7MMCM(XilinxClocking):
             -3: (10e6, 1066e6),
         }[speedgrade]
 
+        # DS181/DS183, MMCM specifications: limits after DIVCLK_DIVIDE.
+        self.pfd_freq_range = {
+            -1: (10e6, 450e6),
+            -2: (10e6, 500e6),
+            -3: (10e6, 550e6),
+        }[speedgrade]
         self.vco_freq_range = {
             -1: (600e6, 1200e6),
             -2: (600e6, 1440e6),

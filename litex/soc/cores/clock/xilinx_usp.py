@@ -79,6 +79,12 @@ class USPMMCM(XilinxClocking):
             -2: (10e6,  933e6),
             -3: (10e6, 1066e6),
         }[speedgrade]
+        # DS922, MMCM specifications: limits after DIVCLK_DIVIDE.
+        self.pfd_freq_range = {
+            -1: (10e6, 450e6),
+            -2: (10e6, 500e6),
+            -3: (10e6, 550e6),
+        }[speedgrade]
         self.vco_freq_range = {
             -1: (800e6, 1600e6),
             -2: (800e6, 1600e6),

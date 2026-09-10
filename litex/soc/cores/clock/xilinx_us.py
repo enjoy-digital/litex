@@ -1,7 +1,7 @@
 #
 # This file is part of LiteX.
 #
-# Copyright (c) 2018-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2018-2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from litex.gen import *
@@ -76,6 +76,12 @@ class USMMCM(XilinxClocking):
             -1: (10e6,  800e6),
             -2: (10e6,  933e6),
             -3: (10e6, 1066e6),
+        }[speedgrade]
+        # DS892, MMCM specifications: limits after DIVCLK_DIVIDE.
+        self.pfd_freq_range = {
+            -1: (10e6, 450e6),
+            -2: (10e6, 500e6),
+            -3: (10e6, 550e6),
         }[speedgrade]
         self.vco_freq_range = {
             -1: (600e6, 1200e6),

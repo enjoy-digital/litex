@@ -17,6 +17,7 @@ from litex.soc.cores.clock.common import *
 # Xilinx / Generic ---------------------------------------------------------------------------------
 
 class XilinxClocking(LiteXModule):
+    pfd_freq_range = None
 
     def __init__(self, vco_margin=0):
         check_margin(vco_margin, "VCO margin")
@@ -82,6 +83,10 @@ class XilinxClocking(LiteXModule):
         best_config = None
         best_score  = None
         for divclk_divide in range(*self.divclk_divide_range):
+            pfd_freq = self.clkin_freq/divclk_divide
+            if self.pfd_freq_range is not None:
+                if not (self.pfd_freq_range[0] <= pfd_freq <= self.pfd_freq_range[1]):
+                    continue
             for clkfbout_mult in reversed(list(clkdiv_range(*self.clkfbout_mult_frange))): # Reverse to use highest VCO frequency.
                 all_valid = True
                 errors    = []
