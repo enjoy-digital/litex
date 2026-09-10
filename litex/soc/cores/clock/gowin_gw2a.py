@@ -15,7 +15,11 @@ class GW2APLL(GW1NPLL):
     # GW2A has the same PLL primitive than GW1N but vco/pfd_freq_range are specific to device.
 
     @staticmethod
-    def get_vco_freq_range(device):
+    def get_primitive(devicename):
+        return "rPLL"
+
+    @staticmethod
+    def get_vco_freq_range(device, devicename=None):
         vco_freq_range = None
         if device.startswith('GW2A-') or device.startswith('GW2AR-'):
             vco_freq_range = (500e6, 1250e6) # datasheet values
@@ -24,7 +28,7 @@ class GW2APLL(GW1NPLL):
         return vco_freq_range
 
     @staticmethod
-    def get_pfd_freq_range(device):
+    def get_pfd_freq_range(device, devicename=None):
         pfd_freq_range = None
         if device.startswith('GW2A-') or device.startswith('GW2AR-'):
             pfd_freq_range = (3e6, 500e6)  # datasheet values

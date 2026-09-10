@@ -4,6 +4,8 @@
 # Copyright (c) 2021-2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import re
+
 from migen import *
 
 from litex.gen import *
@@ -70,43 +72,106 @@ class GW1NPLL(LiteXModule):
         self.clkouts    = {}
         self.config     = {}
         self.params     = {}
-        self.vco_freq_range = self.get_vco_freq_range(device)
-        self.pfd_freq_range = self.get_pfd_freq_range(device)
+        self.primitive      = self.get_primitive(devicename)
+        self.vco_freq_range = self.get_vco_freq_range(device, devicename)
+        self.pfd_freq_range = self.get_pfd_freq_range(device, devicename)
 
     @staticmethod
-    def get_vco_freq_range(device):
-        vco_freq_range = None
-        if device.startswith('GW1NS'):
-            if 'C7/I6' in device or 'C6/I5' in device:
-                vco_freq_range = (600e6, 1200e6)  # datasheet says (400, 1200) but compiler enforces (600, 1200)
-            elif 'C5/I4' in device:
-                vco_freq_range = (320e6, 960e6)  # datasheet values, not tested
-        elif device.startswith('GW1N-1S'):
-            vco_freq_range = (400e6, 1200e6)
-        elif device.startswith('GW1N-') or device.startswith('GW1NR-'):
-            vco_freq_range = (400e6, 900e6)
-        if vco_freq_range is None:
-            raise ValueError(f"Unsupported device {device}.")
-        return vco_freq_range
+    def get_device_model(devicename):
+        # A/B/C/D are die revisions; retain functional suffixes such as 1S and 1P5.
+        return re.sub(r"[ABCD]$", "", devicename)
 
     @staticmethod
-    def get_pfd_freq_range(device):
-        pfd_freq_range = None
-        if device.startswith('GW1NS'):
-            if 'C7/I6' in device or 'C6/I5' in device:
-                pfd_freq_range = (3e6, 400e6)
-            elif 'C5/I4' in device:
-                pfd_freq_range = (3e6, 320e6)
-        elif device.startswith('GW1N-1S'):
-            pfd_freq_range = (3e6, 400e6)  # not verified: not found in the datasheet
-        elif device.startswith('GW1N-') or device.startswith('GW1NR-'):
-            pfd_freq_range = (3e6, 400e6)  # not verified: not found in the datasheet
-        if pfd_freq_range is None:
-            raise ValueError(f"Unsupported device {device}.")
-        return pfd_freq_range
+    def get_speed_grade(device):
+        match = re.search(r"C([0-9]+)(?:/I([0-9]+))?$|I([0-9]+)$", device)
+        if match is None:
+            return None
+        if match.group(1) is not None:
+            grade = int(match.group(1))
+            if match.group(2) is not None and int(match.group(2)) != grade - 1:
+                raise ValueError(f"Unsupported speed grade in {device}.")
+            return grade
+        return int(match.group(3)) + 1
+
+    @classmethod
+    def get_primitive(cls, devicename):
+        # Gowin UG286, Tables 5-1 and 5-10; rPLL/PLLVR IP device lists.
+        model = cls.get_device_model(devicename)
+        if model in ("GW1NS-4", "GW1NSR-4", "GW1NSER-4"):
+            return "PLLVR"
+        if model in (
+            "GW1N-1", "GW1N-1S", "GW1N-4", "GW1N-9",
+            "GW1NR-1", "GW1NR-4", "GW1NR-9", "GW1NRF-4",
+            "GW1NS-2", "GW1NSR-2", "GW1NSE-2", "GW1NZ-1",
+            "GW1A-1", "GW1AN-1",
+        ):
+            return "rPLL"
+        raise ValueError(f"Unsupported rPLL/PLLVR device {devicename}.")
+
+    @classmethod
+    def get_freq_ranges(cls, device, devicename=None):
+        if devicename is None:
+            # Retain support for frequency queries using a full part number.
+            match = re.match(r"(GW1[A-Z]*)-(?:LV|UV|EV|ZV)?([0-9]+(?:P5|S)?)", device)
+            if match is None:
+                raise ValueError(f"Unsupported device {device}.")
+            devicename = "-".join(match.groups())
+        model = cls.get_device_model(devicename)
+        primitive = cls.get_primitive(devicename)
+        grade = cls.get_speed_grade(device)
+
+        # Values are (VCO minimum, VCO maximum, PFD maximum), in MHz.
+        # DS100, DS117, DS821, DS861, DS871, DS881, DS891, DS1501 and DS186.
+        if model in ("GW1N-1", "GW1NR-1"):
+            ranges = {5: (320, 720, 320), 6: (400, 900, 400), 7: (400, 900, 400)}
+        elif model == "GW1N-4":
+            ranges = {5: (320, 800, 320), 6: (400, 1000, 400), 7: (400, 1000, 400)}
+        elif model == "GW1NR-4":
+            ranges = {6: (400, 1000, 400), 7: (400, 1000, 400)}
+        elif model == "GW1NRF-4":
+            ranges = {5: (320, 800, 320), 6: (400, 1000, 400)}
+        elif model in ("GW1N-9", "GW1NR-9"):
+            ranges = {6: (400, 1200, 400), 7: (400, 1200, 400)}
+        elif model in ("GW1A-1", "GW1AN-1"):
+            ranges = {6: (400, 900, 400)}
+        elif model == "GW1N-1S":
+            # Legacy GW1N-1S limits from DS100-2.9.4.
+            ranges = {5: (320, 960, 320), 6: (400, 1200, 400), 7: (400, 1200, 400)}
+        elif model == "GW1NZ-1":
+            # DS841: the low-voltage ZV parts have different PLL limits.
+            if "-ZV" in device:
+                ranges = {3: (100, 200, 100), 4: (150, 300, 150), 5: (200, 400, 200)}
+            elif "-LV" in device:
+                ranges = {5: (320, 640, 320), 6: (400, 800, 400)}
+            else:
+                raise ValueError(f"GW1NZ PLL limits require an LV or ZV part number: {device}.")
+        else:
+            ranges = {5: (320, 960, 320), 6: (400, 1200, 400), 7: (400, 1200, 400)}
+            if primitive == "PLLVR":
+                # Keep the 600MHz lower bound enforced by the Gowin toolchain.
+                ranges.update({6: (600, 1200, 400), 7: (600, 1200, 400)})
+
+        if grade is None:
+            # Without a speed grade, use the intersection of documented ranges.
+            vco_min = max(r[0] for r in ranges.values())
+            vco_max = min(r[1] for r in ranges.values())
+            pfd_max = min(r[2] for r in ranges.values())
+        elif grade in ranges:
+            vco_min, vco_max, pfd_max = ranges[grade]
+        else:
+            raise ValueError(f"Unsupported speed grade for {devicename}: {device}.")
+        return (vco_min*1e6, vco_max*1e6), (3e6, pfd_max*1e6)
+
+    @classmethod
+    def get_vco_freq_range(cls, device, devicename=None):
+        return cls.get_freq_ranges(device, devicename)[0]
+
+    @classmethod
+    def get_pfd_freq_range(cls, device, devicename=None):
+        return cls.get_freq_ranges(device, devicename)[1]
 
     def register_clkin(self, clkin, freq):
-        check_freq_positive(freq, "Input clock frequency")
+        check_freq_range(freq, self.pfd_freq_range, "Input clock frequency")
         self.clkin = connect_clkin(self, clkin)
         self.clkin_freq = freq
         register_clkin_log(self.logger, clkin, freq)
@@ -263,20 +328,17 @@ class GW1NPLL(LiteXModule):
         )
 
         # Dynamic CLKOUTP delay control. UG286 table 5-9
-        if self.device.startswith("GW1N-1"):
+        if self.get_device_model(self.devicename) in ("GW1N-1", "GW1N-1S"):
             self.params.update(i_FDLY=Constant(0, 4))
         else:
             self.params.update(i_FDLY=Constant(0xf, 4))
 
-        if self.device.startswith('GW1NS'):
-            primitive_name = 'PLLVR'
+        if self.primitive == "PLLVR":
             self.params.update(i_VREN=1)
-        else:
-            primitive_name = 'rPLL'
         for clk_name in ["CLKOUT", "CLKOUTP", "CLKOUTD", "CLKOUTD3"]:
             self.params[f"o_{clk_name}"] = config.get(clk_name, Open()) # Clock output.
             if clk_name in ["CLKOUTD", "CLKOUTD3"]: # Recopy CLKOUTx to CLKOUTDx
                 self.params[f"p_{clk_name}_SRC"] = config.get(f"{clk_name}_SRC", "CLKOUT")
 
         self.params.update(o_LOCK=self.locked) # PLL lock status.
-        self.specials += Instance(primitive_name, name=self.name or "", **self.params)
+        self.specials += Instance(self.primitive, name=self.name or "", **self.params)
