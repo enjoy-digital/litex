@@ -5,6 +5,8 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import re
+
 from migen import *
 
 from litex.gen import *
@@ -32,30 +34,38 @@ class GW5APLL(LiteXModule):
         self.clkouts    = {}
         self.config     = {}
         self.params     = {}
-        self.vco_freq_range = self.get_vco_freq_range(device)
-        self.pfd_freq_range = self.get_pfd_freq_range(device)
+        self.primitive      = self.get_primitive(devicename)
+        self.vco_freq_range = self.get_vco_freq_range(devicename)
+        self.pfd_freq_range = self.get_pfd_freq_range(devicename)
 
     @staticmethod
-    def get_vco_freq_range(device):
-        vco_freq_range = None
-        if device.startswith('GW5A-'):
-            vco_freq_range = (800e6, 1600e6) # As restricted by Gowin toolchain 1.9.9b3
-        elif device.startswith('GW5A-') or device.startswith('GW5AT-') or device.startswith('GW5AST-'):
-            vco_freq_range = (800e6, 2000e6) # datasheet values
-        if vco_freq_range is None:
-            raise ValueError(f"Unsupported device {device}.")
-        return vco_freq_range
+    def get_primitive(devicename):
+        # Gowin UG306: the PLL type depends on density, not the GW5 variant.
+        # Extract the density, ignoring die revisions (A, B, C, ES, ...).
+        match = re.search(r"-(\d+)[A-Z]*$", devicename)
+        if match is not None:
+            size = int(match.group(1))
+            if size in (15, 25, 60):
+                return "PLLA"
+            elif size in (75, 138):
+                return "PLL"
+        raise ValueError(f"Unsupported device {devicename}.")
 
-    @staticmethod
-    def get_pfd_freq_range(device):
-        pfd_freq_range = None
-        if device.startswith('GW5A-'):
-            pfd_freq_range = (19e6, 400e6) # As restricted by Gowin toolchain 1.9.9b3
-        elif device.startswith('GW5AT-') or device.startswith('GW5AST-'):
-            pfd_freq_range = (10e6, 400e6) # datasheet values
-        if pfd_freq_range is None:
-            raise ValueError(f"Unsupported device {device}.")
-        return pfd_freq_range
+    @classmethod
+    def get_vco_freq_range(cls, devicename):
+        # Gowin UG306, section 2.3: 15K/25K/60K use PLLA, 75K/138K use PLL.
+        return {
+            "PLLA": (700e6, 1400e6),
+            "PLL":  (650e6, 1300e6),
+        }[cls.get_primitive(devicename)]
+
+    @classmethod
+    def get_pfd_freq_range(cls, devicename):
+        # PLL Switching Characteristics in the Gowin device datasheets.
+        return {
+            "PLLA": (19e6, 87.5e6),
+            "PLL":  (19e6, 81.25e6),
+        }[cls.get_primitive(devicename)]
 
     def register_clkin(self, clkin, freq):
         check_freq_positive(freq, "Input clock frequency")
@@ -234,16 +244,14 @@ class GW5APLL(LiteXModule):
             o_CLKFBOUT = Open()
         )
 
-        if self.device.startswith('GW5A-') or self.device.startswith("GW5AT-"): # GW5A(T), uses PLLA
-            primitive_name = 'PLLA'
+        if self.primitive == "PLLA":
             self.params.update(
                 i_MDCLK  = 0,
                 i_MDOPC  = Constant(0, 2),
                 i_MDAINC = 0,
                 i_MDWDI  = Constant(0, 8),
             )
-        else: # GW5A{,S}T, uses PLL
-            primitive_name = 'PLL'
+        else:
             self.params.update(
                 p_DYN_IDIV_SEL     = "FALSE", # Disable dynamic IDIV.
                 p_DYN_FBDIV_SEL    = "FALSE", # Disable dynamic FBDIV.
@@ -299,4 +307,4 @@ class GW5APLL(LiteXModule):
             self.params["p_CLKOUT%d_PE_COARSE" % i] = config["pe%d" % i]
             self.params["p_CLKOUT%d_PE_FINE" % i] = config["pe%d_fine" % i]
 
-        self.specials += Instance(primitive_name, name=self.name or "", **self.params)
+        self.specials += Instance(self.primitive, name=self.name or "", **self.params)
