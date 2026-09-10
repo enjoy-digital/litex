@@ -59,11 +59,8 @@ class ECP5PLL(LiteXModule):
     def compute_config(self):
         check_clkin_registered(hasattr(self, "clkin"))
         check_clkouts(self.nclkouts)
-        best_config            = None
-        best_score             = None
-        best_feedback_clkout   = None
-        active_clkouts         = {n: clkout for n, clkout in self.clkouts.items() if clkout.freq > 0}
-        feedback_only_clkouts  = [n for n, clkout in self.clkouts.items() if clkout.freq == 0]
+        best_config = None
+        best_score  = None
         # Iterate on CLKI dividers...
         for clki_div in range(*self.clki_div_range):
             # Check if in PFD range.
@@ -84,15 +81,13 @@ class ECP5PLL(LiteXModule):
                         config["clkfb"]  = None
                         clkout_configs   = {}
                         feedback_configs = {}
-                        for n, clkout in sorted(active_clkouts.items()):
-                            for d in range(*self.clko_div_range):
-                                clk_freq = vco_freq/d
-                                error    = clkout_freq_error(clk_freq, clkout.freq)
-                                # Check if output can be used as feedback, if so save it.
-                                # (We cannot use clocks with dynamic phase adjustment enabled)
-                                if error <= clkout.margin and (d == clkofb_div) and (not (clkout.uses_dpa and self.dpa_en)):
-                                    if n not in feedback_configs or error < feedback_configs[n][0]:
-                                        feedback_configs[n] = (error, clk_freq, d, clkout.phase)
+                        for n, clkout in sorted(self.clkouts.items()):
+                            # Only the current feedback divider can serve as feedback.
+                            # Outputs using dynamic phase adjustment cannot be reused.
+                            clk_freq = vco_freq/clkofb_div
+                            error    = clkout_freq_error(clk_freq, clkout.freq)
+                            if error <= clkout.margin and not (clkout.uses_dpa and self.dpa_en):
+                                feedback_configs[n] = (error, clk_freq, clkofb_div, clkout.phase)
                             best_clkout = clkout_best_divider(
                                 clkout.freq,
                                 clkout.margin,
@@ -109,7 +104,7 @@ class ECP5PLL(LiteXModule):
                                 if n in feedback_configs and d == feedback_configs[n][2]:
                                     config["clkfb"] = n
 
-                            if config["clkfb"] is None and self.nclkouts == self.nclkouts_max and not feedback_only_clkouts:
+                            if config["clkfb"] is None and self.nclkouts == self.nclkouts_max:
                                 best_feedback_score  = None
                                 best_feedback_clkout = None
                                 for n, feedback_config in feedback_configs.items():
@@ -137,26 +132,15 @@ class ECP5PLL(LiteXModule):
                     else:
                         all_valid = False
                     if all_valid:
-                        # If no output suitable for feedback, create a new output for it.
+                        # Reserve a spare output for feedback when no requested output is suitable.
                         if config["clkfb"] is None:
-                            # We need at least a free output...
-                            if feedback_only_clkouts:
-                                feedback_clkout = feedback_only_clkouts[0]
-                            else:
-                                feedback_clkout = self.nclkouts
+                            feedback_clkout = self.nclkouts
                             config["clkfb"] = feedback_clkout
-                            config[f"clko{feedback_clkout}_div"] = int((vco_freq*clki_div)/(self.clkin_freq*clkfb_div))
-                        else:
-                            feedback_clkout = None
+                            config[f"clko{feedback_clkout}_div"] = clkofb_div
                         config["vco"]       = vco_freq
                         config["clkfb_div"] = clkfb_div
-                        best_config, new_score = update_best_config(best_config, best_score, dict(config), errors, vco_freq)
-                        if new_score != best_score:
-                            best_score           = new_score
-                            best_feedback_clkout = feedback_clkout
+                        best_config, best_score = update_best_config(best_config, best_score, config, errors, vco_freq)
         if best_config is not None:
-            if best_feedback_clkout is not None and best_feedback_clkout not in self.clkouts:
-                self.clkouts[best_feedback_clkout] = ClkOutDPA(Signal(), 0, 0, 0, 0)
             compute_config_log(self.logger, best_config)
             return best_config
         raise pll_config_error(self.clkin_freq, self.clkouts)
@@ -199,7 +183,10 @@ class ECP5PLL(LiteXModule):
             p_CLKI_DIV      = config["clki_div"]
         )
         self.comb += self.locked.eq(locked & ~self.reset)
-        for n, clkout in sorted(self.clkouts.items()):
+        clkouts = dict(self.clkouts)
+        if config["clkfb"] not in clkouts:
+            clkouts[config["clkfb"]] = ClkOutDPA(Signal(), 0, 0, 0, False)
+        for n, clkout in sorted(clkouts.items()):
             div    = config[f"clko{n}_div"]
             phase  = round(clkout.phase*div/45)
             self.params[f"p_CLKO{n_to_l[n]}_ENABLE"] = "ENABLED"
