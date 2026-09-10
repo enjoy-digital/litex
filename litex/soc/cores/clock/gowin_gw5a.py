@@ -42,10 +42,18 @@ class GW5APLL(LiteXModule):
     def get_primitive(devicename):
         # Ignore the die revision suffix (A, B, C, ES, ...).
         device = re.sub(r"[A-Z]+$", "", devicename)
-        # Gowin UG306, Tables 5-1 and 5-11.
-        if device in ("GW5A-25", "GW5A-60", "GW5AT-15", "GW5AT-60"):
+        # Gowin UG306, Tables 5-1 and 5-11; DS1231, section 2.1 for 15K SiP variants.
+        if device in (
+            "GW5A-25",   "GW5A-60",
+            "GW5AR-25",  "GW5AS-25",
+            "GW5AT-15",  "GW5AT-60",
+            "GW5ART-15", "GW5ANT-15", "GW5ANRT-15",
+        ):
             return "PLLA"
-        elif device in ("GW5A-138", "GW5AT-75", "GW5AT-138", "GW5AST-138"):
+        elif device in (
+            "GW5A-138", "GW5AS-138",
+            "GW5AT-75", "GW5AT-138", "GW5AST-138",
+        ):
             return "PLL"
         raise ValueError(f"Unsupported device {devicename}.")
 
@@ -59,7 +67,7 @@ class GW5APLL(LiteXModule):
 
     @classmethod
     def get_pfd_freq_range(cls, devicename):
-        # PLL Switching Characteristics in Gowin DS1103, DS981 and DS1239.
+        # PLL Switching Characteristics in the Gowin device datasheets.
         return {
             "PLLA": (19e6, 87.5e6),
             "PLL":  (19e6, 81.25e6),

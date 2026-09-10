@@ -559,7 +559,7 @@ class TestClock(unittest.TestCase):
             pll.compute_config()
 
     def test_gw5a_pll_device_limits_and_primitives(self):
-        # Gowin UG306, DS1103, DS981 and DS1239.
+        # Gowin Arora V clock guide, device datasheets and PLL_ADV device list.
         test_cases = [
             ("GW5A-25",    "PLLA", 700e6, 1400e6, 87.5e6),
             ("GW5A-60",    "PLLA", 700e6, 1400e6, 87.5e6),
@@ -569,6 +569,12 @@ class TestClock(unittest.TestCase):
             ("GW5AT-60",   "PLLA", 700e6, 1400e6, 87.5e6),
             ("GW5AT-75",   "PLL",  650e6, 1300e6, 81.25e6),
             ("GW5AT-138",  "PLL",  650e6, 1300e6, 81.25e6),
+            ("GW5AS-25",   "PLLA", 700e6, 1400e6, 87.5e6),
+            ("GW5AS-138",  "PLL",  650e6, 1300e6, 81.25e6),
+            ("GW5AR-25",   "PLLA", 700e6, 1400e6, 87.5e6),
+            ("GW5ART-15",  "PLLA", 700e6, 1400e6, 87.5e6),
+            ("GW5ANT-15",  "PLLA", 700e6, 1400e6, 87.5e6),
+            ("GW5ANRT-15", "PLLA", 700e6, 1400e6, 87.5e6),
         ]
         for devicename, primitive, vco_min, vco_max, pfd_max in test_cases:
             # Exercise the lower VCO boundary and input division above the PFD limit.
@@ -602,7 +608,10 @@ class TestClock(unittest.TestCase):
                 self.assertEqual(pll.primitive, primitive)
 
     def test_gw5a_pll_rejects_unsupported_device_names(self):
-        for devicename in ("GW5A", "GW5A-250", "GW5AT-600", "GW5A-75", "GW5AST-60", "GW2A-18"):
+        for devicename in (
+            "GW5A", "GW5A-250", "GW5AT-600", "GW5A-75", "GW5AST-60",
+            "GW5AS-60", "GW5AR-138", "GW2A-18",
+        ):
             with self.subTest(devicename=devicename):
                 with self.assertRaisesRegex(ValueError, "Unsupported device"):
                     GW5APLL(devicename, devicename)
