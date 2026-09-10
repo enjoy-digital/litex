@@ -37,25 +37,19 @@ class GW5APLL(LiteXModule):
 
     @staticmethod
     def get_vco_freq_range(device):
-        vco_freq_range = None
-        if device.startswith('GW5A-'):
-            vco_freq_range = (800e6, 1600e6) # As restricted by Gowin toolchain 1.9.9b3
-        elif device.startswith('GW5A-') or device.startswith('GW5AT-') or device.startswith('GW5AST-'):
-            vco_freq_range = (800e6, 2000e6) # datasheet values
-        if vco_freq_range is None:
-            raise ValueError(f"Unsupported device {device}.")
-        return vco_freq_range
+        if device.startswith("GW5A-"):
+            return (800e6, 1600e6) # As restricted by Gowin toolchain 1.9.9b3.
+        elif device.startswith(("GW5AT-", "GW5AST-")):
+            return (800e6, 2000e6) # Datasheet values.
+        raise ValueError(f"Unsupported device {device}.")
 
     @staticmethod
     def get_pfd_freq_range(device):
-        pfd_freq_range = None
-        if device.startswith('GW5A-'):
-            pfd_freq_range = (19e6, 400e6) # As restricted by Gowin toolchain 1.9.9b3
-        elif device.startswith('GW5AT-') or device.startswith('GW5AST-'):
-            pfd_freq_range = (10e6, 400e6) # datasheet values
-        if pfd_freq_range is None:
-            raise ValueError(f"Unsupported device {device}.")
-        return pfd_freq_range
+        if device.startswith("GW5A-"):
+            return (19e6, 400e6) # As restricted by Gowin toolchain 1.9.9b3.
+        elif device.startswith(("GW5AT-", "GW5AST-")):
+            return (10e6, 400e6) # Datasheet values.
+        raise ValueError(f"Unsupported device {device}.")
 
     def register_clkin(self, clkin, freq):
         check_freq_positive(freq, "Input clock frequency")
@@ -234,16 +228,16 @@ class GW5APLL(LiteXModule):
             o_CLKFBOUT = Open()
         )
 
-        if self.device.startswith('GW5A-') or self.device.startswith("GW5AT-"): # GW5A(T), uses PLLA
-            primitive_name = 'PLLA'
+        if self.device.startswith(("GW5A-", "GW5AT-")): # GW5A/GW5AT use PLLA.
+            primitive_name = "PLLA"
             self.params.update(
                 i_MDCLK  = 0,
                 i_MDOPC  = Constant(0, 2),
                 i_MDAINC = 0,
                 i_MDWDI  = Constant(0, 8),
             )
-        else: # GW5A{,S}T, uses PLL
-            primitive_name = 'PLL'
+        else: # GW5AST uses PLL.
+            primitive_name = "PLL"
             self.params.update(
                 p_DYN_IDIV_SEL     = "FALSE", # Disable dynamic IDIV.
                 p_DYN_FBDIV_SEL    = "FALSE", # Disable dynamic FBDIV.
