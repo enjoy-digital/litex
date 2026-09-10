@@ -51,6 +51,10 @@ void sdram_rst_clock_delay(void) {
 	cdelay(100);
 }
 
+#endif // defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE)
+
+#if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_WRITE_DQ_DQS_TRAINING_CAPABLE)
+
 int write_dq_delay[SDRAM_PHY_MODULES];
 void write_inc_dq_delay(int module) {
 	/* Increment DQ delay */
@@ -71,10 +75,20 @@ void write_rst_dq_delay(int module) {
 #else
 	/* Reset DQ delay */
 	ddrphy_wdly_dq_rst_write(1);
+#ifdef CSR_DDRPHY_WDLY_DQ_DIR_ADDR
+	ddrphy_wdly_dq_dir_write(1);
+	for (int i = 0; i < SDRAM_PHY_DELAYS - 1; i++)
+		ddrphy_wdly_dq_inc_write(1);
+	ddrphy_wdly_dq_dir_write(0);
+#endif
 	cdelay(100);
 #endif //defined(SDRAM_PHY_USDDRPHY) || defined(SDRAM_PHY_USPDDRPHY)
 	write_dq_delay[module] = 0;
 }
+
+#endif // defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_WRITE_DQ_DQS_TRAINING_CAPABLE)
+
+#if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE)
 
 void write_inc_dqs_delay(int module) {
 	/* Increment DQS delay */

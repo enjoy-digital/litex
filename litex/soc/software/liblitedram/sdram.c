@@ -579,7 +579,7 @@ static int run_test_pattern(int module, int dq_line) {
 /* Locate the largest passing delay window for the current bitslip and program
  * the delay to its center. Two consecutive passing taps are required before a
  * window is trusted, since single-edge taps can be unstable. */
-static void sdram_leveling_center_module(
+static int sdram_leveling_center_module(
 	int module, int show_short, int show_long, action_callback rst_delay,
 	action_callback inc_delay, int dq_line) {
 
@@ -681,6 +681,7 @@ static void sdram_leveling_center_module(
 			retries--;
 		}
 	}
+	return delay_min >= 0 && errors == 0;
 }
 
 /*-----------------------------------------------------------------------*/
@@ -1561,7 +1562,7 @@ static void sdram_write_latency_calibration(void) {
 
 /* Write DQ-DQS training needs reads to be usable while it moves write delays, so
  * first choose and center the best read bitslip for the current lane. */
-static void sdram_read_leveling_best_bitslip(int module, int dq_line) {
+static int sdram_read_leveling_best_bitslip(int module, int dq_line) {
 	unsigned int score;
 	int bitslip;
 	int best_bitslip = 0;
@@ -1587,7 +1588,7 @@ static void sdram_read_leveling_best_bitslip(int module, int dq_line) {
 	sdram_leveling_action(module, dq_line, read_rst_dq_bitslip);
 	for (bitslip=0; bitslip<best_bitslip; bitslip++)
 		sdram_leveling_action(module, dq_line, read_inc_dq_bitslip);
-	sdram_leveling_center_module(module, 0, 0,
+	return sdram_leveling_center_module(module, 0, 0,
 		read_rst_dq_delay, read_inc_dq_delay, dq_line);
 }
 
@@ -1597,8 +1598,19 @@ static void sdram_write_dq_dqs_training(void) {
 
 	for(module=0; module<SDRAM_PHY_MODULES; module++) {
 		for (dq_line = 0; dq_line < DQ_COUNT; dq_line++) {
-			/* Find best bitslip */
-			sdram_read_leveling_best_bitslip(module, dq_line);
+			/* Find usable reads. If writes are initially outside their valid
+			 * window, move write data before trying read leveling again. */
+			if (!sdram_read_leveling_best_bitslip(module, dq_line)) {
+				int write_step = SDRAM_PHY_DELAYS >= 32 ? SDRAM_PHY_DELAYS/32 : 1;
+				sdram_leveling_action(module, dq_line, write_rst_dq_delay);
+				for (int delay = 0; delay < SDRAM_PHY_DELAYS; delay++) {
+					if ((delay % write_step) == 0 &&
+						sdram_read_leveling_best_bitslip(module, dq_line))
+						break;
+					if (delay < SDRAM_PHY_DELAYS - 1)
+						sdram_leveling_action(module, dq_line, write_inc_dq_delay);
+				}
+			}
 			/* Center DQ-DQS window */
 			sdram_leveling_center_module(module, 1, 1,
 				write_rst_dq_delay, write_inc_dq_delay, dq_line);
