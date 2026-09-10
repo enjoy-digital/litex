@@ -291,7 +291,19 @@ class AlteraJTAG(LiteXModule):
 # Xilinx JTAG --------------------------------------------------------------------------------------
 
 class XilinxJTAG(LiteXModule):
-    def __init__(self, primitive, chain=1):
+    def __init__(self, primitive, chain=1, platform=None):
+        if not isinstance(chain, int) or not 1 <= chain <= 4:
+            raise ValueError("Xilinx JTAG chain must be an integer from 1 to 4.")
+        # Share chain allocation with other users of this platform (CPU debug, JTAGBone, UART).
+        if platform is not None:
+            if not hasattr(platform, "_xilinx_jtag_chains"):
+                platform._xilinx_jtag_chains = set()
+            if chain in platform._xilinx_jtag_chains:
+                raise ValueError(f"Xilinx JTAG chain {chain} is already in use.")
+            platform._xilinx_jtag_chains.add(chain)
+
+        self.chain   = chain
+        self.sel     = Signal()
         self.reset   = Signal()
         self.capture = Signal()
         self.shift   = Signal()
@@ -307,6 +319,7 @@ class XilinxJTAG(LiteXModule):
         self.specials += Instance(primitive,
             p_JTAG_CHAIN = chain,
 
+            o_SEL     = self.sel,
             o_RESET   = self.reset,
             o_CAPTURE = self.capture,
             o_SHIFT   = self.shift,
@@ -528,7 +541,7 @@ class JTAGPHY(LiteXModule):
         if jtag is None:
             # Xilinx.
             if XilinxJTAG.get_primitive(device) is not None:
-                jtag = XilinxJTAG(primitive=XilinxJTAG.get_primitive(device), chain=chain)
+                jtag = XilinxJTAG(primitive=XilinxJTAG.get_primitive(device), chain=chain, platform=platform)
                 jtag_tdi_delay = XilinxJTAG.get_tdi_delay(device)
             # Lattice.
             elif device[:5] == "LFE5U":
@@ -550,6 +563,14 @@ class JTAGPHY(LiteXModule):
                 print(device)
                 raise NotImplementedError
             self.jtag = jtag
+
+        # BSCAN state signals are shared across USER chains. Ignore scans of other users,
+        # such as a CPU debug transport, while this stream's chain is not selected.
+        jtag_capture = jtag.capture
+        jtag_shift   = jtag.shift
+        if hasattr(jtag, "sel"):
+            jtag_capture = jtag_capture & jtag.sel
+            jtag_shift   = jtag_shift   & jtag.sel
 
         # JTAG clock domain ------------------------------------------------------------------------
         self.cd_jtag = ClockDomain()
@@ -579,7 +600,7 @@ class JTAGPHY(LiteXModule):
         jtag_tdo = jtag.tdo
         if jtag_tdi_delay:
             jtag_tdi_sr = Signal(data_width + 2 - jtag_tdi_delay)
-            self.sync.jtag += If(jtag.shift, jtag_tdi_sr.eq(Cat(jtag.tdi, jtag_tdi_sr)))
+            self.sync.jtag += If(jtag_shift, jtag_tdi_sr.eq(Cat(jtag.tdi, jtag_tdi_sr)))
             jtag_tdi = jtag_tdi_sr[-1]
 
         # JTAG Xfer FSM ----------------------------------------------------------------------------
@@ -604,11 +625,11 @@ class JTAGPHY(LiteXModule):
         update_ready = Signal()
 
         # Detect shift falling edge (transition from Shift-DR to Exit1-DR)
-        # This is when the valid bit (bit9) is available but jtag.shift is already 0
+        # This is when the valid bit (bit9) is available but jtag_shift is already 0
         shift_d = Signal()
-        self.sync.jtag += shift_d.eq(jtag.shift)
+        self.sync.jtag += shift_d.eq(jtag_shift)
         shift_falling = Signal()
-        self.comb += shift_falling.eq(shift_d & ~jtag.shift)
+        self.comb += shift_falling.eq(shift_d & ~jtag_shift)
 
         fsm = FSM(reset_state="XFER-READY")
         fsm = ClockDomainsRenamer("jtag")(fsm)
@@ -619,11 +640,11 @@ class JTAGPHY(LiteXModule):
         # starts in XFER-READY at the beginning of each DR scan. The 'ready'
         # signal is updated outside the FSM (via sync.jtag), so it survives
         # FSM resets and is correctly output via combinational TDO.
-        self.comb += fsm.reset.eq(jtag.reset | jtag.capture)
+        self.comb += fsm.reset.eq(jtag.reset | jtag_capture)
 
         fsm.act("XFER-READY",
             jtag_tdo.eq(ready),
-            If(jtag.shift,
+            If(jtag_shift,
                 sink.ready.eq(jtag_tdi),
                 NextValue(valid, sink.valid),
                 NextValue(data,  sink.data),
@@ -633,7 +654,7 @@ class JTAGPHY(LiteXModule):
         )
         fsm.act("XFER-DATA",
             jtag_tdo.eq(data[0]),
-            If(jtag.shift,
+            If(jtag_shift,
                 NextValue(count, count + 1),
                 NextValue(data, Cat(data[1:], jtag_tdi)),
                 If(count == (data_width - 1),
@@ -643,7 +664,7 @@ class JTAGPHY(LiteXModule):
         )
         fsm.act("XFER-VALID",
             jtag_tdo.eq(valid),
-            If(jtag.shift,
+            If(jtag_shift,
                 NextValue(rx_valid_in, jtag_tdi),
                 NextState("XFER-PADDING")
             )
@@ -651,9 +672,9 @@ class JTAGPHY(LiteXModule):
         fsm.act("XFER-PADDING",
             # Padding cycle: finalize the current word and return to XFER-READY.
             # rx_valid_in was registered in XFER-VALID; data holds the 8 RX bits.
-            # Handle both concatenated scans (jtag.shift stays high) and individual
+            # Handle both concatenated scans (jtag_shift stays high) and individual
             # scans (shift_falling fires when TAP exits Shift-DR).
-            If(jtag.shift,
+            If(jtag_shift,
                 update_rx.eq(1),
                 update_ready.eq(1),
                 NextState("XFER-READY")
