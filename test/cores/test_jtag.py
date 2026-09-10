@@ -40,10 +40,12 @@ class MockJTAG(Module):
     vendor-specific hardware.  Pass an instance to JTAGPHY(jtag=...) to
     bypass device detection.
     """
-    def __init__(self):
+    def __init__(self, with_sel=False):
         self.tck     = Signal()
         self.tdi     = Signal()
         self.tdo     = Signal()
+        if with_sel:
+            self.sel = Signal(reset=1)
         self.shift   = Signal()
         self.capture = Signal()
         self.reset   = Signal()
@@ -65,11 +67,11 @@ class JTAGPHYTestDUT(Module):
     ClockSignal, so get_fragment() filters them out (the simulator drives
     clock domains directly via its TimeManager).
     """
-    def __init__(self, data_width=8):
+    def __init__(self, data_width=8, with_sel=False):
         # Provide jtag clock domain with reset (for AsyncResetSynchronizer).
         self.clock_domains.cd_jtag = ClockDomain("jtag")
 
-        self.submodules.jtag_tap = jtag_tap = MockJTAG()
+        self.submodules.jtag_tap = jtag_tap = MockJTAG(with_sel=with_sel)
         self.submodules.phy = phy = JTAGPHY(
             jtag         = jtag_tap,
             data_width   = data_width,
@@ -229,6 +231,33 @@ class TestJTAGPHY(unittest.TestCase):
         self._run(dut, gen)
         self.assertEqual(result["valid"], 1)
         self.assertEqual(result["data"],  0x42)
+
+    def test_scans_of_another_user_chain_do_not_reach_the_stream(self):
+        dut = JTAGPHYTestDUT(data_width=self.DATA_WIDTH, with_sel=True)
+        result = {}
+
+        def gen():
+            # BSCAN CAPTURE/SHIFT/TDI are shared by all USER chains. CPU debug on another
+            # chain must not inject data into JTAGBone/JTAG UART while this PHY is deselected.
+            yield dut.jtag_tap.sel.eq(0)
+            for _ in range(5):
+                yield
+            yield from self._scan(dut, host_data=0xAA, host_valid=1)
+            for _ in range(5):
+                yield
+            result["unselected_valid"] = (yield dut.source.valid)
+
+            yield dut.jtag_tap.sel.eq(1)
+            yield from self._scan(dut, host_data=0x42, host_valid=1)
+            for _ in range(5):
+                yield
+            result["selected_valid"] = (yield dut.source.valid)
+            result["selected_data"] = (yield dut.source.data)
+
+        self._run(dut, gen)
+        self.assertEqual(result["unselected_valid"], 0)
+        self.assertEqual(result["selected_valid"], 1)
+        self.assertEqual(result["selected_data"], 0x42)
 
     def test_rx_high_byte(self):
         """Host->Target: 0xDE has bit 7 set, verifies full byte width."""
