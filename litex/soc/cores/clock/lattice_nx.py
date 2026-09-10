@@ -7,8 +7,7 @@
 
 from collections import namedtuple
 import logging
-import math
-from math import log, log10, exp, pi
+from math import log10, pi
 from cmath import phase
 
 from migen import *
@@ -122,9 +121,9 @@ class NXPLL(LiteXModule):
     clki_div_range      = ( 1, 128+1)
     clkfb_div_range     = ( 1, 128+1)
     clko_div_range      = ( 1, 128+1)
-    clki_freq_range     = ( 10e6,   500e6)
+    clki_freq_range     = ( 18e6,   500e6)
     clko_freq_range     = ( 6.25e6, 800e6)
-    vco_in_freq_range   = ( 10e6,   500e6)
+    vco_in_freq_range   = ( 18e6,   500e6)
     vco_out_freq_range  = ( 800e6,  1600e6)
     instance_num        = 0
 
@@ -173,11 +172,15 @@ class NXPLL(LiteXModule):
         best_config = None
         best_score  = None
         for clki_div in range(*self.clki_div_range):
+            pfd_freq = self.clkin_freq/clki_div
+            pfd_freq_min, pfd_freq_max = self.vco_in_freq_range
+            if not (pfd_freq_min <= pfd_freq <= pfd_freq_max):
+                continue
             for clkfb_div in range(*self.clkfb_div_range):
                 all_valid = True
                 errors    = []
                 config    = {"clki_div": clki_div}
-                vco_freq  = self.clkin_freq/clki_div*clkfb_div
+                vco_freq  = pfd_freq*clkfb_div
                 (vco_freq_min, vco_freq_max) = self.vco_out_freq_range
                 if vco_freq >= vco_freq_min and vco_freq <= vco_freq_max:
                     for n, clkout in sorted(self.clkouts.items()):
@@ -235,7 +238,8 @@ class NXPLL(LiteXModule):
             p_PLLPD_N           = "USED",
             p_PLLRESET_ENA      = "ENABLED",
             p_REF_INTEGER_MODE  = "ENABLED", # Ref manual has a discrepency so lets always set this value just in case
-            p_REF_MMD_DIG       = "1", # Divider for the input clock, ie 'M'
+            p_REF_MMD_DIG       = str(config["clki_div"]),
+            p_REF_MMD_PULS_CTL  = "0b0000" if config["clki_div"] <= 2 else "0b0001",
 
             i_PLLRESET          = self.reset,
             i_REFCK             = self.clkin,
@@ -256,7 +260,7 @@ class NXPLL(LiteXModule):
             p_FBK_MMD_DIG       = "1",
         )
 
-        analog_params = self.calculate_analog_parameters(self.clkin_freq, config["clkfb_div"])
+        analog_params = self.calculate_analog_parameters(self.clkin_freq/config["clki_div"], config["clkfb_div"])
         self.params.update(analog_params)
         n_to_l = {0: "P", 1: "S", 2: "S2", 3:"S3", 4:"S4"}
 
@@ -275,10 +279,9 @@ class NXPLL(LiteXModule):
             # on generated clocks that are causing timing problems and Lattice
             # hasn't responded to my support requests on the matter.
             if self.platform and self.create_output_port_clocks:
-                self.platform.add_platform_command("create_clock -period {} -name {} [get_pins {}.PLL_inst/CLKO{}]".format(str(1/clkout.freq*1e9), self.name + "_" + n_to_l[n], self.name, n_to_l[n]))
+                clk_freq = config["clko{}_freq".format(n)]
+                self.platform.add_platform_command("create_clock -period {} -name {} [get_pins {}.PLL_inst/CLKO{}]".format(str(1/clk_freq*1e9), self.name + "_" + n_to_l[n], self.name, n_to_l[n]))
 
-        if self.platform and self.create_output_port_clocks:
-            i = 0
         self.specials += Instance("PLL", name = self.name, **self.params)
 
     # The gist of calculating the analog parameters is to run through all the
@@ -308,7 +311,8 @@ class NXPLL(LiteXModule):
                 continue
 
             closed_loop_3db = self.closed_loop_3db(fbkdiv, params)
-            bw_factor = fref*1e6 / M / closed_loop_3db["f"]
+            # Both the reference and loop bandwidth are expressed in Hz.
+            bw_factor = fref / M / closed_loop_3db["f"]
             if bw_factor < BW_FACTOR:
                 continue
 
@@ -316,6 +320,8 @@ class NXPLL(LiteXModule):
                 best_3db = closed_loop_3db["f"]
                 best_params = params
 
+        if best_params is None:
+            raise ValueError("No PLL analog parameters found.")
         HDL_params = self.numerical_params_to_HDL_params(best_params)
         self.logger.debug("Done calculating analog parameters: %s", HDL_params)
 
