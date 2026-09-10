@@ -5,19 +5,25 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
+import itertools
 
-from migen import *
+from migen import Module, Record, passive, run_simulation
 
 from litex.soc.cores.ram.apmemory import APMemory, APMemoryPHY
 
 
+# Pads ---------------------------------------------------------------------------------------------
+
 def make_pads():
     return Record([
-        ("clk", 1), ("cs_n", 1),
+        ("clk",  1),
+        ("cs_n", 1),
         ("dq",  [("o", 16), ("oe", 2), ("i", 16)]),
         ("dqs", [("o", 2),  ("oe", 1), ("i", 2)]),
     ])
 
+
+# Model --------------------------------------------------------------------------------------------
 
 class APMemoryModel:
     """Pin-level OB9 model: CA decoding, mode registers, DDR data, DQS and byte masks.
@@ -36,8 +42,14 @@ class APMemoryModel:
         self.accept_x16 = True
         self.memory     = {}
         self.commands   = []
-        self.mr         = {0: 0x08, 1: 0x0d, 2: 0x1f if size == 32*1024*1024 else 0x1e,
-                           3: 0, 4: 0x40, 8: 0x05}
+        self.mr         = {
+            0: 0x08,
+            1: 0x0d,
+            2: 0x1f if size == 32*1024*1024 else 0x1e,
+            3: 0,
+            4: 0x40,
+            8: 0x05,
+        }
 
     @passive
     def run(self):
@@ -127,6 +139,8 @@ class APMemoryModel:
             yield
 
 
+# Wishbone Helpers ---------------------------------------------------------------------------------
+
 def access(bus, address, value=None, sel=0xf, error=False, hold_cyc=False):
     yield bus.adr.eq(address//4)
     yield bus.dat_w.eq(value or 0)
@@ -149,6 +163,8 @@ def access(bus, address, value=None, sel=0xf, error=False, hold_cyc=False):
     return result
 
 
+# Tests --------------------------------------------------------------------------------------------
+
 class TestAPMemory(unittest.TestCase):
     def wait_ready(self, cores):
         for _ in range(20000):
@@ -161,10 +177,10 @@ class TestAPMemory(unittest.TestCase):
         self.fail("PSRAM initialization did not complete")
 
     def test_four_devices(self):
-        dut = Module()
-        sizes = [32*1024*1024]*3 + [64*1024*1024]
-        pads = [make_pads() for _ in sizes]
-        cores = [APMemory(p, 100e6, size=s) for p, s in zip(pads, sizes)]
+        dut    = Module()
+        sizes  = [32*1024*1024]*3 + [64*1024*1024]
+        pads   = [make_pads() for _ in sizes]
+        cores  = [APMemory(p, 100e6, size=s) for p, s in zip(pads, sizes)]
         models = [APMemoryModel(p, s, latency=5 + i) for i, (p, s) in enumerate(zip(pads, sizes))]
         dut.submodules += cores
 
@@ -179,15 +195,20 @@ class TestAPMemory(unittest.TestCase):
                 for n, offset in enumerate(offsets):
                     yield from access(core.bus, offset, 0x12345678 ^ (i << 24) ^ n, hold_cyc=True)
                 for n, offset in enumerate(offsets):
-                    self.assertEqual((yield from access(core.bus, offset, hold_cyc=True)),
-                        0x12345678 ^ (i << 24) ^ n)
+                    self.assertEqual(
+                        (yield from access(core.bus, offset, hold_cyc=True)),
+                        0x12345678 ^ (i << 24) ^ n,
+                    )
                 # CA10 must not alias columns or steal the highest row address bit.
                 self.assertIn((0xa0, ((size//2)//2048) << 11, 16), model.commands)
                 for mask in range(16):
                     old = yield from access(core.bus, 0)
                     new = 0xfedcba98 ^ mask
                     yield from access(core.bus, 0, new, sel=mask)
-                    expected = sum(((new if mask & (1 << b) else old) & (0xff << (8*b))) for b in range(4))
+                    expected = sum(
+                        ((new if mask & (1 << b) else old) & (0xff << (8*b)))
+                        for b in range(4)
+                    )
                     self.assertEqual((yield from access(core.bus, 0)), expected)
 
             # Four requests in flight at once, with different data at the same local address.
@@ -236,9 +257,9 @@ class TestAPMemory(unittest.TestCase):
         run_simulation(dut, [bench()] + [m.run() for m in models])
 
     def test_initialization_errors(self):
-        dut = Module()
-        pads = [make_pads() for _ in range(3)]
-        cores = [APMemory(p, 100e6) for p in pads]
+        dut    = Module()
+        pads   = [make_pads() for _ in range(3)]
+        cores  = [APMemory(p, 100e6) for p in pads]
         models = [APMemoryModel(p, 32*1024*1024) for p in pads]
         models[0].respond = False
         models[1].accept_x16 = False
@@ -259,13 +280,16 @@ class TestAPMemory(unittest.TestCase):
         # Test the PHY separately with 2ns resolution, response delays crossing sys edges,
         # lane skew, and late DQ. Both clock limits must support the full variable-latency range.
         for sys_freq in [50e6, 100e6]:
-            for skew, delay in [(s, d) for s in [-8, 8] for d in [2, 6, 10, 14, 18]]:
+            for skew, delay in itertools.product([-8, 8], [2, 6, 10, 14, 18]):
                 with self.subTest(sys_freq=sys_freq, dq_skew=skew, delay=delay):
-                    pads = make_pads()
-                    phy = APMemoryPHY(pads, sys_freq)
-                    model = APMemoryModel(pads, 32*1024*1024, tick=2,
-                        delays=(delay + 8, delay + 18), dq_skew=skew)
-                    model.mr[8] = 0x40
+                    pads  = make_pads()
+                    phy   = APMemoryPHY(pads, sys_freq)
+                    model = APMemoryModel(pads, 32*1024*1024,
+                        tick    = 2,
+                        delays  = (delay + 8, delay + 18),
+                        dq_skew = skew,
+                    )
+                    model.mr[8]  = 0x40
                     model.memory = {0: 0x12, 1: 0x34, 2: 0x56, 3: 0x78}
 
                     def bench():
@@ -286,7 +310,8 @@ class TestAPMemory(unittest.TestCase):
                             yield
 
                     run_simulation(phy, {"sys": bench(), "model": model.run()},
-                        clocks={"sys": int(1e9/sys_freq), "model": 2})
+                        clocks={"sys": int(1e9/sys_freq), "model": 2},
+                    )
 
     def test_parameters(self):
         for freq in [0, 49e6, 101e6]:
