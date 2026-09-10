@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from migen import ClockDomain
+from migen import ClockDomain, Instance
 
 from litex.gen import LiteXModule
 from litex.build.generic_platform import IOStandard, Pins
@@ -61,6 +61,34 @@ class TestGowinToolchain(unittest.TestCase):
                     self.assertIn('IO_LOC "dqs_p[0]" Y3,AA3;', cst)
                     self.assertIn('IO_LOC "dqs_p[1]" V9,V8;', cst)
                     self.assertNotIn('IO_LOC "dqs_n', cst)
+
+    def test_generated_clock_chain(self):
+        platform = GowinPlatform("GW5AT-LV60PG484AC1/I0",
+            io=[("clk50", 0, Pins("A1"))], devicename="GW5AT-60B")
+        dut = LiteXModule()
+        dut.cd_sys = ClockDomain("sys")
+        dut.cd_fast = ClockDomain("fast")
+        clk50 = platform.request("clk50")
+        dut.specials += Instance("PLLA", i_CLKIN=clk50, o_CLKOUT0=dut.cd_fast.clk)
+        dut.specials += Instance("CLKDIV", p_DIV_MODE="4",
+            i_HCLKIN=dut.cd_fast.clk, i_RESETN=1, i_CALIB=0, o_CLKOUT=dut.cd_sys.clk)
+        platform.add_period_constraint(clk50, 20)
+        platform.add_generated_clock_constraint(dut.cd_fast.clk, clk50,
+            multiply_by=20, divide_by=3, name="ddr_clk")
+        platform.add_generated_clock_constraint(dut.cd_sys.clk, dut.cd_fast.clk, divide_by=4)
+
+        with tempfile.TemporaryDirectory() as build_dir:
+            platform.build(dut, build_dir=build_dir, build_name="top", run=False)
+            with open(os.path.join(build_dir, "top.sdc")) as f:
+                sdc = f.read().splitlines()
+
+        self.assertEqual(sdc, [
+            "create_clock -name clk50 -period 20.0 [get_ports {clk50}]",
+            "create_generated_clock -name ddr_clk -source [get_ports {clk50}] "
+            "-divide_by 3 -multiply_by 20 [get_nets {fast_clk}]",
+            "create_generated_clock -name sys_clk -source [get_nets {fast_clk}] "
+            "-divide_by 4 -multiply_by 1 [get_nets {sys_clk}]",
+        ])
 
     def test_apicula_uses_generated_system_clock_target(self):
         platform = _ApiculaPlatform()

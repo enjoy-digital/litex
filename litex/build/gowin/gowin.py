@@ -144,6 +144,7 @@ class GowinToolchain(GenericToolchain):
         self.options = {}
         self.additional_cst_commands = []
         self.additional_tcl_commands = []
+        self.generated_clocks = []
 
     def finalize(self):
         if self.platform.verilog_include_paths:
@@ -204,21 +205,29 @@ class GowinToolchain(GenericToolchain):
 
     def build_timing_constraints(self, vns):
         sdc = []
+        def clock_object(clk):
+            name = vns.get_name(clk)
+            kind = "ports" if any(sig == name for sig, _, _, _ in self.named_sc) else "nets"
+            return f"[get_{kind} {{{name}}}]"
+
         for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
-            clk_sig = self._vns.get_name(clk)
             if name is None:
-                name = clk_sig
-            # Constrain IO clocks with get_ports and internal clocks (ex: PLL outputs) with get_nets.
-            is_port = False
-            for sig, pins, others, resname in self.named_sc:
-                if sig == clk_sig:
-                    is_port = True
-            if is_port:
-                sdc.append(f"create_clock -name {name} -period {str(period)} [get_ports {{{clk_sig}}}]")
-            else:
-                sdc.append(f"create_clock -name {name} -period {str(period)} [get_nets {{{clk_sig}}}]")
+                name = vns.get_name(clk)
+            sdc.append(f"create_clock -name {name} -period {period} {clock_object(clk)}")
+        for clk, source, divide_by, multiply_by, name in self.generated_clocks:
+            name = vns.get_name(clk) if name is None else name
+            sdc.append(f"create_generated_clock -name {name} -source {clock_object(source)} "
+                f"-divide_by {divide_by} -multiply_by {multiply_by} {clock_object(clk)}")
         tools.write_to_file(f"{self._build_name}.sdc", "\n".join(sdc))
         return (f"{self._build_name}.sdc", "SDC")
+
+    def add_generated_clock_constraint(self, clk, source, divide_by=1, multiply_by=1, name=None):
+        # Add parent clocks before their derived clocks.
+        if any(not isinstance(factor, int) or factor < 1 for factor in (divide_by, multiply_by)):
+            raise ValueError("Generated clock factors must be positive integers.")
+        clk.attr.add("keep")
+        source.attr.add("keep")
+        self.generated_clocks.append((clk, source, divide_by, multiply_by, name))
 
     # Project (tcl) --------------------------------------------------------------------------------
 
