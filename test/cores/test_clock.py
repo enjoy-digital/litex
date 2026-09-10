@@ -607,10 +607,17 @@ class TestClock(unittest.TestCase):
                 pll = GW5APLL(devicename, device)
                 self.assertEqual(pll.primitive, primitive)
 
+    def test_gw5a_pll_density_selection(self):
+        # Variant names must not require another entry in the PLL core.
+        for variant in ("A", "AS", "AST", "RN"):
+            for size, primitive in ((15, "PLLA"), (25, "PLLA"), (60, "PLLA"), (75, "PLL"), (138, "PLL")):
+                with self.subTest(variant=variant, size=size):
+                    self.assertEqual(GW5APLL.get_primitive(f"GW5{variant}-{size}C"), primitive)
+
     def test_gw5a_pll_rejects_unsupported_device_names(self):
         for devicename in (
-            "GW5A", "GW5A-250", "GW5AT-600", "GW5A-75", "GW5AST-60",
-            "GW5AS-60", "GW5AR-138", "GW2A-18",
+            "GW5A", "GW5A-", "GW5A-250", "GW5AT-600", "GW2A-18",
+            "GW5A-60B1", "GW5A-25/60",
         ):
             with self.subTest(devicename=devicename):
                 with self.assertRaisesRegex(ValueError, "Unsupported device"):

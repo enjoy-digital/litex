@@ -40,21 +40,15 @@ class GW5APLL(LiteXModule):
 
     @staticmethod
     def get_primitive(devicename):
-        # Ignore the die revision suffix (A, B, C, ES, ...).
-        device = re.sub(r"[A-Z]+$", "", devicename)
-        # Gowin UG306, Tables 5-1 and 5-11; DS1231, section 2.1 for 15K SiP variants.
-        if device in (
-            "GW5A-25",   "GW5A-60",
-            "GW5AR-25",  "GW5AS-25",
-            "GW5AT-15",  "GW5AT-60",
-            "GW5ART-15", "GW5ANT-15", "GW5ANRT-15",
-        ):
-            return "PLLA"
-        elif device in (
-            "GW5A-138", "GW5AS-138",
-            "GW5AT-75", "GW5AT-138", "GW5AST-138",
-        ):
-            return "PLL"
+        # Gowin UG306: the PLL type depends on density, not the GW5 variant.
+        # Extract the density, ignoring die revisions (A, B, C, ES, ...).
+        match = re.search(r"-(\d+)[A-Z]*$", devicename)
+        if match is not None:
+            size = int(match.group(1))
+            if size in (15, 25, 60):
+                return "PLLA"
+            elif size in (75, 138):
+                return "PLL"
         raise ValueError(f"Unsupported device {devicename}.")
 
     @classmethod
