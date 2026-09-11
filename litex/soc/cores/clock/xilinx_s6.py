@@ -22,6 +22,12 @@ class S6PLL(XilinxClocking):
         XilinxClocking.__init__(self)
         self.name = name
         self.divclk_divide_range = (1, 52 + 1)
+        # DS162, Table 52: limits after DIVCLK_DIVIDE.
+        self.pfd_freq_range = {
+            -1: (19e6, 300e6),
+            -2: (19e6, 400e6),
+            -3: (19e6, 500e6),
+        }[speedgrade]
         self.vco_freq_range      = {
             -1: (400e6, 1000e6),
             -2: (400e6, 1000e6),
