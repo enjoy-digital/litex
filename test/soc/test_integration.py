@@ -151,7 +151,9 @@ def test_serialboot_abort_recovers_and_loads(tmp_path):
             p.expect(f"Found port {port}", timeout=1200)
             sock = _connect_tcp_uart(port)
 
-            _recv_until(sock, litex_prompt, timeout=20)
+            # BIOS startup includes memory tests and the automatic serial-boot
+            # timeout, which can take longer on busy simulation workers.
+            _recv_until(sock, litex_prompt, timeout=120)
             sock.sendall(b"serialboot\n")
             _recv_until(sock, sfl_magic_req, timeout=10)
 
@@ -178,9 +180,10 @@ def test_serialboot_abort_recovers_and_loads(tmp_path):
             jump.payload = (0x40000000).to_bytes(4, "big")
             sock.sendall(jump.encode())
             _recv_until(sock, sfl_ack_success, timeout=10)
-        except (OSError, subprocess.CalledProcessError, pexpect.EOF, pexpect.TIMEOUT, TimeoutError):
+        except (OSError, subprocess.CalledProcessError, pexpect.EOF, pexpect.TIMEOUT, TimeoutError) as e:
             is_success = False
             print("*** Serialboot abort recovery failure: {}".format(" ".join(cmd)))
+            print(e)
             log_file.seek(0)
             print(log_file.read())
         finally:
