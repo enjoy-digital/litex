@@ -18,6 +18,7 @@ import threading
 import argparse
 import json
 import socket
+import select
 from collections import deque
 
 # Console ------------------------------------------------------------------------------------------
@@ -140,59 +141,88 @@ class JTAGUART:
         self.config = config
         self.port   = port
         self.chain  = chain
+        self.alive = False
+        self.stop_event = threading.Event()
+        self.error = None
+        self.file = self.name = self.tcp = None
+        self.threads = []
 
-    def open(self):
+    def open(self, timeout=5):
+        if self.alive:
+            return
+        if timeout <= 0:
+            raise ValueError("JTAG startup timeout must be positive")
+        self.close()
+        self.stop_event.clear()
+        self.error = None
         self.file, self.name = pty.openpty()
         self.alive = True
         self.jtag2tcp_thread = threading.Thread(target=self.jtag2tcp, daemon=True)
-        self.jtag2tcp_thread.start()
         self.pty2tcp_thread  = threading.Thread(target=self.pty2tcp, daemon=True)
         self.tcp2pty_thread  = threading.Thread(target=self.tcp2pty, daemon=True)
-        self.tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        connected = False
-        for _ in range(0, 50):
-            try:
-                self.tcp.connect(("localhost", self.port))
-                connected = True
-                break
-            except ConnectionRefusedError:
-                time.sleep(0.1)
-        if not connected:
-            raise ConnectionError(f"Failed to connect to OpenOCD jtagstream on port {self.port}")
-        self.pty2tcp_thread.start()
-        self.tcp2pty_thread.start()
+        self.threads = [self.jtag2tcp_thread, self.pty2tcp_thread, self.tcp2pty_thread]
+        try:
+            self.jtag2tcp_thread.start()
+            deadline = time.monotonic() + timeout
+            while self.tcp is None:
+                if self.error is not None:
+                    raise ConnectionError("OpenOCD startup failed") from self.error
+                if time.monotonic() >= deadline:
+                    raise ConnectionError(f"Failed to connect to OpenOCD jtagstream on port {self.port}")
+                try:
+                    self.tcp = socket.create_connection(("localhost", self.port), timeout=0.1)
+                except (ConnectionRefusedError, TimeoutError):
+                    self.stop_event.wait(0.1)
+            self.tcp.settimeout(None)
+            self.pty2tcp_thread.start()
+            self.tcp2pty_thread.start()
+        except BaseException:
+            self.close()
+            raise
 
     def close(self):
         self.alive = False
+        self.stop_event.set()
         # Close TCP socket to unblock recv/send
         try:
             self.tcp.shutdown(socket.SHUT_RDWR)
-        except OSError:
+        except (AttributeError, OSError):
             pass
         try:
             self.tcp.close()
-        except OSError:
+        except (AttributeError, OSError):
             pass
-        # Close PTY to unblock os.read
-        try:
-            os.close(self.file)
-        except OSError:
-            pass
-        self.jtag2tcp_thread.join(timeout=0.5)
-        self.pty2tcp_thread.join(timeout=0.5)
-        self.tcp2pty_thread.join(timeout=0.5)
+        for thread in self.threads:
+            if thread.ident is not None and thread is not threading.current_thread():
+                thread.join(timeout=3)
+        if any(thread.is_alive() for thread in self.threads):
+            raise RuntimeError("JTAG workers did not stop; refusing to reuse their resources")
+        # Both ends of openpty are owned here. Close after the workers stop,
+        # so descriptor reuse cannot send a worker into an unrelated file.
+        for fd in (self.file, self.name):
+            if fd is not None:
+                os.close(fd)
+        self.file = self.name = self.tcp = None
+        self.threads = []
 
     def jtag2tcp(self):
-        prog = OpenOCD(self.config)
-        prog.stream(self.port, self.chain)
+        try:
+            prog = OpenOCD(self.config)
+            prog.stream(self.port, self.chain, stop_event=self.stop_event)
+        except Exception as error:
+            self.error = error
+        finally:
+            self.alive = False
 
     def pty2tcp(self):
         try:
             while self.alive:
+                if not select.select([self.file], [], [], 0.1)[0]:
+                    continue
                 r = os.read(self.file, 1)
                 if not r:
                     break
-                self.tcp.send(r)
+                self.tcp.sendall(r)
         except (ConnectionResetError, BrokenPipeError, OSError):
             pass
         finally:

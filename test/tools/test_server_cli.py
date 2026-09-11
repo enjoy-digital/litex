@@ -25,6 +25,8 @@ class TestServerCLI(unittest.TestCase):
                     litex_server.main()
                     self.assertEqual(uart.call_args.kwargs["port"], expected)
                     self.assertEqual(server.call_args.args[2], 1235)
+                    server.return_value.close.assert_called_once()
+                    uart.return_value.close.assert_called_once()
 
 
 if __name__ == "__main__":

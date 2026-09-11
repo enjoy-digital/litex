@@ -7,6 +7,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import subprocess
 import tempfile
 
 from litex.build.generic_programmer import GenericProgrammer
@@ -127,7 +128,7 @@ class OpenOCD(GenericProgrammer):
         else:
             return ""
 
-    def stream(self, port=20000, chain=1):
+    def stream(self, port=20000, chain=1, stop_event=None):
         """
         Create a TCP server to stream data to/from the internal JTAG TAP of the FPGA
 
@@ -275,11 +276,31 @@ proc jtagstream_serve {tap port} {
                 f.write(cfg)
             script = "; ".join([
                 "init",
+                # init can continue after an invalid scan chain. Require a
+                # successful TAP check before exposing a JTAG byte stream.
+                "jtag arp_init",
                 #"poll off", # FIXME: not supported for ECP5
                 "irscan {} {:d}".format(tap_name, ir),
                 "jtagstream_serve {} {:d}".format(tap_name, port),
                 "exit",
             ])
-            self.call([get_openocd_cmd(), "-f", config, "-f", cfg_file, "-c", script])
+            command = [get_openocd_cmd(), "-f", config, "-f", cfg_file, "-c", script]
+            if stop_event is None:
+                self.call(command)
+            else:
+                process = subprocess.Popen(command)
+                try:
+                    while process.poll() is None and not stop_event.wait(0.1):
+                        pass
+                    if not stop_event.is_set() and process.returncode:
+                        raise OSError(f"OpenOCD exited with status {process.returncode}")
+                finally:
+                    if process.poll() is None:
+                        process.terminate()
+                        try:
+                            process.wait(timeout=1)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                    process.wait(timeout=1)
         finally:
             os.remove(cfg_file)
