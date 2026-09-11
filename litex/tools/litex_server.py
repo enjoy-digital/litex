@@ -201,6 +201,7 @@ def main():
     parser.add_argument("--jtag",            action="store_true",             help="Select JTAG interface.")
     parser.add_argument("--jtag-config",     default="openocd_xc7_ft232.cfg", help="OpenOCD JTAG configuration file.")
     parser.add_argument("--jtag-chain",      default=1,                       help="JTAG chain.")
+    parser.add_argument("--jtag-port",       default=20000, type=int,         help="OpenOCD JTAG stream port.")
 
     # UDP arguments
     parser.add_argument("--udp",             action="store_true",    help="Select UDP interface.")
@@ -248,7 +249,7 @@ def main():
     elif args.jtag:
         from litex.tools.litex_term import JTAGUART
         from litex.tools.remote.comm_uart import CommUART
-        jtag_uart = JTAGUART(config=args.jtag_config, chain=int(args.jtag_chain))
+        jtag_uart = JTAGUART(config=args.jtag_config, port=args.jtag_port, chain=int(args.jtag_chain))
         jtag_uart.open()
         print("[CommUART] port: JTAG / ", end="")
         comm = CommUART(os.ttyname(jtag_uart.name), debug=args.debug, addr_width=int(args.addr_width))
