@@ -18,9 +18,9 @@
  * Currently supported PHY families:
  *      Marvell Alaska M: e.g. 88X3310, 88E2110
  *      Aquantia AQR113C
+ *      Broadcom BCM84891L
  *
  * Not yet supported, but may be in the future:
- *      Broadcom BCM8489x
  *      Marvell CUX3610
  *
  * Everything set here is volatile: a module power cycle restores the factory default, so the
@@ -35,6 +35,7 @@
  *   self.add_config("SFP_1_HOST_MODE",   "2500BASEX")
  *   self.add_config("SFP_1_MUX_ADDR",    0x74)         # optional: PCA954x in front of the cage
  *   self.add_config("SFP_1_MUX_CHANNEL", 4)            # optional: its channel
+ *   self.add_config("SFP_1_MUX_TYPE",    "PCA9544")    # optional: mux part, default "PCA9548"
  *
  * Available host modes:
  *      AUTO (default)
@@ -71,6 +72,7 @@ struct sfp_cage {
 	const char *i2c_dev;     /* libbase I2C device name */
 	uint8_t     mux_addr;    /* PCA954x address, 0 for none */
 	uint8_t     mux_channel; /* its channel */
+	const char *mux_type;    /* PCA9548 (default) or PCA9544 */
 	const char *host_mode;   /* wanted mode, by name */
 };
 

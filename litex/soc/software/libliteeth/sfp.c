@@ -140,6 +140,9 @@ static bool sfp_host_mode_ok(const struct sfp_cage *cage, int mode);
 #  define CONFIG_SFP_0_MUX_ADDR 0
 #  define CONFIG_SFP_0_MUX_CHANNEL 0
 # endif
+# ifndef CONFIG_SFP_0_MUX_TYPE
+#  define CONFIG_SFP_0_MUX_TYPE "PCA9548"
+# endif
 # ifndef CONFIG_SFP_0_HOST_MODE
 #  define CONFIG_SFP_0_HOST_MODE "AUTO"
 # endif
@@ -148,6 +151,9 @@ static bool sfp_host_mode_ok(const struct sfp_cage *cage, int mode);
 # if !defined(CONFIG_SFP_1_MUX_ADDR)
 #  define CONFIG_SFP_1_MUX_ADDR 0
 #  define CONFIG_SFP_1_MUX_CHANNEL 0
+# endif
+# ifndef CONFIG_SFP_1_MUX_TYPE
+#  define CONFIG_SFP_1_MUX_TYPE "PCA9548"
 # endif
 # ifndef CONFIG_SFP_1_HOST_MODE
 #  define CONFIG_SFP_1_HOST_MODE "AUTO"
@@ -158,6 +164,9 @@ static bool sfp_host_mode_ok(const struct sfp_cage *cage, int mode);
 #  define CONFIG_SFP_2_MUX_ADDR 0
 #  define CONFIG_SFP_2_MUX_CHANNEL 0
 # endif
+# ifndef CONFIG_SFP_2_MUX_TYPE
+#  define CONFIG_SFP_2_MUX_TYPE "PCA9548"
+# endif
 # ifndef CONFIG_SFP_2_HOST_MODE
 #  define CONFIG_SFP_2_HOST_MODE "AUTO"
 # endif
@@ -166,6 +175,9 @@ static bool sfp_host_mode_ok(const struct sfp_cage *cage, int mode);
 # if !defined(CONFIG_SFP_3_MUX_ADDR)
 #  define CONFIG_SFP_3_MUX_ADDR 0
 #  define CONFIG_SFP_3_MUX_CHANNEL 0
+# endif
+# ifndef CONFIG_SFP_3_MUX_TYPE
+#  define CONFIG_SFP_3_MUX_TYPE "PCA9548"
 # endif
 # ifndef CONFIG_SFP_3_HOST_MODE
 #  define CONFIG_SFP_3_HOST_MODE "AUTO"
@@ -176,6 +188,7 @@ static bool sfp_host_mode_ok(const struct sfp_cage *cage, int mode);
 	.i2c_dev     = CONFIG_SFP_##n##_I2C,         \
 	.mux_addr    = CONFIG_SFP_##n##_MUX_ADDR,    \
 	.mux_channel = CONFIG_SFP_##n##_MUX_CHANNEL, \
+	.mux_type    = CONFIG_SFP_##n##_MUX_TYPE,    \
 	.host_mode   = CONFIG_SFP_##n##_HOST_MODE,   \
 }
 
@@ -262,9 +275,11 @@ static bool sfp_cage_open(const struct sfp_cage *cage)
 	}
 	set_i2c_active_dev(i);
 	if (cage->mux_addr) {
-		/* PCA954x: a single control byte selects the channel. */
-		uint8_t mask = 1 << (cage->mux_channel & 7);
-		if (!i2c_write(cage->mux_addr, mask, NULL, 0, 1)) {
+		/* PCA9548 takes one enable bit per channel
+         * PCA9544 an enable bit (bit 2) plus the channel number in bits 1:0. */
+		uint8_t ctrl = (strcmp(cage->mux_type, "PCA9544") == 0) ?
+			(uint8_t)(0x04 | (cage->mux_channel & 3)) : (uint8_t)(1 << (cage->mux_channel & 7));
+		if (!i2c_write(cage->mux_addr, ctrl, NULL, 0, 1)) {
 			printf("SFP: I2C mux 0x%02x did not answer\n", cage->mux_addr);
 			return false;
 		}
