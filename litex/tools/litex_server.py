@@ -13,6 +13,7 @@ import argparse
 import os
 import sys
 import socket
+import signal
 import threading
 
 from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord, EtherboneWrites
@@ -184,7 +185,7 @@ class RemoteServer(EtherboneIPC):
 
 # Run ----------------------------------------------------------------------------------------------
 
-def main():
+def _main():
     parser = argparse.ArgumentParser(description="LiteX Server utility", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # Common arguments
     parser.add_argument("--bind-ip",         default="localhost",    help="Host bind address.")
@@ -235,6 +236,7 @@ def main():
         parser.error("select only one interface (got: {}).".format(
             ", ".join("--" + name for name in selected_interfaces)))
 
+    jtag_uart = None
     # UART mode
     if args.uart:
         from litex.tools.remote.comm_uart import CommUART
@@ -252,7 +254,11 @@ def main():
         jtag_uart = JTAGUART(config=args.jtag_config, port=args.jtag_port, chain=int(args.jtag_chain))
         jtag_uart.open()
         print("[CommUART] port: JTAG / ", end="")
-        comm = CommUART(os.ttyname(jtag_uart.name), debug=args.debug, addr_width=int(args.addr_width))
+        try:
+            comm = CommUART(os.ttyname(jtag_uart.name), debug=args.debug, addr_width=int(args.addr_width))
+        except BaseException:
+            jtag_uart.close()
+            raise
 
     # UDP mode
     elif args.udp:
@@ -305,14 +311,33 @@ def main():
         print("[CommDevMem] base: 0x{:08x} / size: 0x{:08x} / ".format(devmem_base, devmem_size), end="")
         comm = CommDevMem(base=devmem_base, size=devmem_size, debug=args.debug)
 
-    server = RemoteServer(comm, args.bind_ip, int(args.bind_port), addr_width=int(args.addr_width))
-    server.open()
-    server.start(4)
+    server = None
     try:
+        server = RemoteServer(comm, args.bind_ip, int(args.bind_port), addr_width=int(args.addr_width))
+        server.open()
+        server.start(4)
         import time
         while True: time.sleep(100)
     except KeyboardInterrupt:
         pass
+    finally:
+        try:
+            if server is not None:
+                server.close()
+        finally:
+            if jtag_uart is not None:
+                jtag_uart.close()
+
+
+def main():
+    def terminate(signum, frame):
+        raise KeyboardInterrupt
+
+    previous = signal.signal(signal.SIGTERM, terminate)
+    try:
+        _main()
+    finally:
+        signal.signal(signal.SIGTERM, previous)
 
 if __name__ == "__main__":
     main()
