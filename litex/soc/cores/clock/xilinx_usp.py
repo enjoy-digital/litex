@@ -8,7 +8,6 @@ from litex.gen import *
 
 from litex.soc.cores.clock.common import *
 from litex.soc.cores.clock.xilinx_common import *
-from typing import Dict, Any
 
 # Xilinx / Ultrascale Plus PLL ---------------------------------------------------------------------
 
@@ -72,6 +71,9 @@ class USPMMCM(XilinxClocking):
         XilinxClocking.__init__(self)
         self.name = name
         self.divclk_divide_range = (1, 106+1)
+        # UG572: fractional feedback and CLKOUT0 dividers use 1/8 steps.
+        self.clkfbout_mult_frange = (2, 128+1/8, 1/8)
+        self.clkout0_divide_range = (2, 128+1/8, 1/8)
         self.clkin_freq_range = {
             -1: (10e6,  800e6),
             -2: (10e6,  933e6),
@@ -111,75 +113,6 @@ class USPMMCM(XilinxClocking):
             self.params["p_CLKOUT{}_PHASE".format(n)] = config["clkout{}_phase".format(n)]
             self.params["o_CLKOUT{}".format(n)]       = clkout.clk
         self.specials += Instance("MMCME4_ADV", name=self.name or "", **self.params)
-
-    def compute_config(self) -> Dict[str, Any]:
-        """
-        Computes the MMCM configuration based on input parameters.
-
-        Returns:
-            Dict[str, Any]: A dictionary containing MMCM configuration parameters.
-
-        Raises:
-            ValueError: If no valid MMCM configuration is found.
-        """
-        vco_min_margin = self.vco_freq_range[0] * (1 + self.vco_margin)
-        vco_max_margin = self.vco_freq_range[1] * (1 - self.vco_margin)
-        # ref: https://docs.amd.com/r/en-US/ug572-ultrascale-clocking/MMCM-Attributes
-        # CLKFBOUT_MULT_F: 2.0 to 128.0 with step 0.125
-        clkfbout_mult_f_values = [x / 8 for x in range(16, 1025)]
-
-        best_config = None
-        best_score  = None
-
-        for divclk_divide in range(*self.divclk_divide_range):
-            for clkfbout_mult in reversed(clkfbout_mult_f_values):
-                vco_freq = self.clkin_freq * clkfbout_mult / divclk_divide
-                if not (vco_min_margin <= vco_freq <= vco_max_margin):
-                    continue # vco_freq out of range
-
-                config: Dict[str, Any] = {
-                    "divclk_divide": divclk_divide,
-                    "clkfbout_mult": clkfbout_mult,
-                    "vco": vco_freq
-                }
-                errors = []
-                all_valid = True
-                for n, clkout in sorted(self.clkouts.items()):
-                    div_ranges = [self.clkout_divide_range]
-                    # Add specific range dividers if they exist
-                    specific_div_range = getattr(self, f"clkout{n}_divide_range", None)
-                    if specific_div_range:
-                        div_ranges.append(specific_div_range)
-
-                    # For clkout0, CLKOUT[0]_DIVIDE_F also has range 2.0 to 128.0 with step 0.125
-                    if n == 0:
-                        div_ranges = [(2, 128 + 1/8, 1/8)]
-
-                    best_clkout = clkout_best_divider(
-                        clkout.freq,
-                        clkout.margin,
-                        clkdiv_candidates(div_ranges, ideal=vco_freq/clkout.freq),
-                        lambda d: vco_freq/d
-                    )
-
-                    if best_clkout is None:
-                        all_valid = False
-                        break # Exit early if any clock output is invalid
-
-                    error, clk_freq, d = best_clkout
-                    errors.append(error)
-                    config[f"clkout{n}_freq"] = clk_freq
-                    config[f"clkout{n}_divide"] = d
-                    config[f"clkout{n}_phase"] = clkout.phase
-
-                if all_valid:
-                    best_config, best_score = update_best_config(best_config, best_score, config, errors, vco_freq)
-
-        if best_config is not None:
-            compute_config_log(self.logger, best_config)
-            return best_config
-
-        raise ValueError("No MMCM config found")
 
 # Xilinx / Ultrascale Plus IDELAY CTRL -------------------------------------------------------------
 
