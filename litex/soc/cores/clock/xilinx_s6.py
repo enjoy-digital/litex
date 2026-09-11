@@ -64,26 +64,62 @@ class S6PLL(XilinxClocking):
 class S6DCM(XilinxClocking):
     """ single output with f_out = f_in * {2 .. 256} / {1 .. 256} """
     nclkouts_max = 1
-    clkfbout_mult_frange = (2, 256 + 1)
-    clkout_divide_range  = (1, 256 + 1)
 
     def __init__(self, speedgrade=-1, name=None):
         self.logger = logging.getLogger("S6DCM")
         self.logger.info("Creating S6DCM, {}.".format(colorer("speedgrade {}".format(speedgrade))))
         XilinxClocking.__init__(self)
         self.name = name
-        self.divclk_divide_range = (1, 2) # FIXME
+        self.clkfbout_mult_frange = (2, 256+1)
+        self.clkout_divide_range  = (1, 256+1)
         self.clkin_freq_range = {
             -1: (0.5e6, 200e6),
             -2: (0.5e6, 333e6),
             -3: (0.5e6, 375e6),
         }[speedgrade]
 
-        self.vco_freq_range = {
-            -1: (5e6, 1e16),
-            -2: (5e6, 1e16),
-            -3: (5e6, 1e16),
+        # DS162, Table 57: DCM_CLKGEN CLKFX output frequency limits.
+        self.clkout_freq_range = {
+            -1: (5e6, 200e6),
+            -2: (5e6, 333e6),
+            -3: (5e6, 375e6),
         }[speedgrade]
+
+    def create_clkout(self, cd, freq, phase=0, buf="bufg", margin=1e-2, with_reset=True, reset_buf=None, ce=None):
+        check_freq_range(freq, self.clkout_freq_range, "Output clock frequency")
+        if phase != 0:
+            raise ValueError("S6DCM does not support output phase shifts.")
+        XilinxClocking.create_clkout(self, cd, freq, phase, buf, margin, with_reset, reset_buf, ce)
+
+    def compute_config(self):
+        check_clkin_registered(hasattr(self, "clkin"))
+        check_clkouts(self.nclkouts)
+        clkout = self.clkouts[0]
+        best_config = None
+        best_score  = None
+        for divider in range(*self.clkout_divide_range):
+            # UG382, Table 2-9: required for locking below 52MHz.
+            if self.clkin_freq < 52e6 and divider >= self.clkin_freq/0.5e6:
+                continue
+            for multiplier in range(*self.clkfbout_mult_frange):
+                clkout_freq = self.clkin_freq*multiplier/divider
+                if not (self.clkout_freq_range[0] <= clkout_freq <= self.clkout_freq_range[1]):
+                    continue
+                error = clkout_freq_error(clkout_freq, clkout.freq)
+                if error > clkout.margin:
+                    continue
+                config = {
+                    "clkfbout_mult": multiplier,
+                    "divclk_divide": 1,
+                    "clkout0_freq": clkout_freq,
+                    "clkout0_divide": divider,
+                    "clkout0_phase": clkout.phase,
+                }
+                best_config, best_score = update_best_config(best_config, best_score, config, [error])
+        if best_config is not None:
+            compute_config_log(self.logger, best_config)
+            return best_config
+        raise pll_config_error(self.clkin_freq, self.clkouts)
 
     def do_finalize(self):
         XilinxClocking.do_finalize(self)
@@ -91,7 +127,7 @@ class S6DCM(XilinxClocking):
         clkout = sorted(self.clkouts.items())[0][1]
         self.params.update(
             p_CLKFX_MULTIPLY  = config["clkfbout_mult"],
-            p_CLKFX_DIVIDE    = config["clkout0_divide"] * config["divclk_divide"],
+            p_CLKFX_DIVIDE    = config["clkout0_divide"],
             p_SPREAD_SPECTRUM = "NONE",
             p_CLKIN_PERIOD    = 1e9/self.clkin_freq,
             i_CLKIN           = self.clkin,
