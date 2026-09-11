@@ -80,7 +80,8 @@ class ICAP(LiteXModule):
 
     A warm boot can for example be triggered by writing IPROG CMD (0xf) to CMD register (0b100).
     """
-    def __init__(self, with_csr=True, clk_divider=16, primitive="ICAPE2", simulation=False):
+    def __init__(self, with_csr=True, clk_divider=16, primitive="ICAPE2", simulation=False,
+                 external_clock=None):
         self.write      = Signal()
         self.read       = Signal()
         self.done       = Signal()
@@ -98,9 +99,14 @@ class ICAP(LiteXModule):
 
         # Create slow ICAP Clk.
         self.cd_icap = ClockDomain()
-        icap_clk_counter = Signal(int(math.log2(clk_divider)))
-        self.sync += icap_clk_counter.eq(icap_clk_counter + 1)
-        self.sync += self.cd_icap.clk.eq(icap_clk_counter[-1])
+        if external_clock is None:
+            icap_clk_counter = Signal(int(math.log2(clk_divider)))
+            self.sync += icap_clk_counter.eq(icap_clk_counter + 1)
+            self.sync += self.cd_icap.clk.eq(icap_clk_counter[-1])
+        else:
+            # The caller supplies a slow clock synchronous to sys (for example
+            # another MMCM output) and retains timing checks on CSR crossings.
+            self.comb += self.cd_icap.clk.eq(external_clock)
 
         # Generate ICAP bitstream sequence.
         self._csib  = _csib  = Signal(reset=1)
