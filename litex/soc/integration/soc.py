@@ -2753,13 +2753,15 @@ class LiteXSoC(SoC):
         ethmac_remote_ip        = "192.168.1.100",
         with_igmp               = False,
         igmp_groups             = None,
-        igmp_interval           = 10):
+        igmp_interval           = 10,
+        eth_mtu                 = None):
         if phy is None:
             self.logger.error("Etherbone requires {}.".format(
                 colorer("phy", color="red")))
             raise SoCError()
 
         # Imports
+        from liteeth.common import eth_mtu_default
         from liteeth.core import LiteEthUDPIPCore
         from liteeth.frontend.etherbone import LiteEthEtherbone
         from liteeth.phy.model import LiteEthPHYModel
@@ -2771,6 +2773,8 @@ class LiteXSoC(SoC):
             raise SoCError()
         with_sys_datapath = (data_width == 32)
         self.check_if_exists(f"ethcore_{name}")
+        if not eth_mtu:
+            eth_mtu = eth_mtu_default
         ethcore = LiteEthUDPIPCore(
             phy         = phy,
             mac_address = mac_address,
@@ -2785,6 +2789,7 @@ class LiteXSoC(SoC):
             igmp_interval = igmp_interval,
             interface   = {True :            "hybrid", False: "crossbar"}[with_ethmac],
             endianness  = {True : self.cpu.endianness, False:      "big"}[with_ethmac],
+            eth_mtu     = eth_mtu,
         )
         if not with_sys_datapath:
             # Use PHY's eth_tx/eth_rx clock domains.
