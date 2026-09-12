@@ -174,6 +174,9 @@ class JTAGUART:
                 except (ConnectionRefusedError, TimeoutError):
                     self.stop_event.wait(0.1)
             self.tcp.settimeout(None)
+            # JTAGBone command bytes must reach OpenOCD without waiting for
+            # a delayed TCP ACK before the rest of the command is sent.
+            self.tcp.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             self.pty2tcp_thread.start()
             self.tcp2pty_thread.start()
         except BaseException:
