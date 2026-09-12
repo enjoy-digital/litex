@@ -73,6 +73,7 @@
 #define BCM_AN_AUX_STATUS     0xfff9  /* bit15 = autonegotiation complete */
 #define BCM_AN_AUX_COMPLETE   0x8000
 #define BCM_CMD_POLL_TRIES    30     /* datasheet: up to 2s while the line side is training */
+#define BCM_IF_WAIT_MS        20000  /* delay to wait for copper autoneg, empirical */
 #define AQ_VEND1_MMD          30
 #define AQ_VEND1_CFG_1G       0x031c
 #define AQ_VEND1_CFG_2_5G     0x031d
@@ -699,7 +700,7 @@ static bool bcm_set_host_mode(const struct sfp_cage *cage, int mode)
 		return false;
 
 	/* Wait for line side to finish negotiating new rate. */
-	for (i = 0; i < AQ_IF_WAIT_MS / 250; i++) {
+	for (i = 0; i < BCM_IF_WAIT_MS / 250; i++) {
 		busy_wait(250);
 		if (sfp_mdio_read(cage, AQ_AN_MMD, BCM_AN_AUX_STATUS) & BCM_AN_AUX_COMPLETE) {
 			if (bcm_get_xfi_modes(cage, &got1, &got2))
