@@ -353,6 +353,8 @@ class GowinAE350(CPU):
         soc.add_config("CPU_COUNT", 1)
         soc.add_config("CPU_ISA",   "rv32imafdc")
         soc.add_config("CPU_MMU",   "sv32")
+        # The machine timer inside the macro counts on the AHB clock, which LiteX drives from sys_clk.
+        soc.add_config("CPU_SYSTEM_CLOCK_NODE_REF", "clk_sys")
 
         if self.variant == "linux":
             # These peripherals are internal to the hard CPU, outside the fabric bus.

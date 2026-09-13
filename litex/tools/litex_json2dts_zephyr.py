@@ -132,9 +132,11 @@ def disabled_handler(name, parm, csr):
     return indent('status = "disabled";\n')
 
 def cpu_handler(name, parm, csr):
-    return indent("clock-frequency = <{}>;\n".format(
-        csr['constants']['config_clock_frequency']
-    ))
+    freq = csr['constants']['config_clock_frequency']
+    if 'config_cpu_system_clock_node_ref' in csr['constants']:
+        freq = csr['constants'].get('config_cpu_clk_freq', freq)
+
+    return indent("clock-frequency = <{}>;\n".format(freq))
 
 def ram_handler(name, parm, csr):
     mem_reg = {
@@ -479,6 +481,14 @@ def _first_label(labels, prefix):
     return None
 
 
+def _generate_system_clock(csr):
+    node = csr['constants'].get('config_cpu_system_clock_node_ref')
+    if node is None:
+        return ''
+    return '&{} {{\n'.format(node) + indent('clock-frequency = <{}>;\n'.format(
+        csr['constants']['config_clock_frequency'])) + '};\n'
+
+
 def _generate_chosen(labels):
     dts = ''
 
@@ -591,6 +601,7 @@ def generate_soc_nodes_dts_config(csr, overlay_handlers):
         dts += indent('};\n')
 
     dts += '};\n'
+    dts += _generate_system_clock(csr)
     return dts, _generate_config(csr)
 
 
@@ -625,6 +636,7 @@ def generate_dts_config(csr, overlay_handlers, generate_soc_nodes=False):
         if name not in overlay_handlers.keys():
             print('No overlay handler for:', name, 'at', hex(value))
 
+    dts += _generate_system_clock(csr)
     cnf += _generate_config(csr)
     return dts, cnf
 
