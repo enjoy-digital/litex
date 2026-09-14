@@ -6,6 +6,8 @@
 
 import unittest
 
+from migen import Record
+
 from litex.build.gowin import GowinPlatform
 from litex.soc.integration.soc import SoCCore, SoCRegion, SoCError
 
@@ -45,6 +47,23 @@ class TestGowinAE350(unittest.TestCase):
         for address in [0x0000_0000, 0x8000_0100]:
             with self.subTest(address=address), self.assertRaisesRegex(ValueError, "reset address is fixed"):
                 self.make_soc(cpu_reset_address=address)
+
+    def test_ethernet_buffers_do_not_overlap_csrs(self):
+        from liteeth.phy.model import LiteEthPHYModel
+
+        soc = self.make_soc()
+        pads = Record([
+            ("source_valid", 1), ("source_data", 8),
+            ("sink_valid",   1), ("sink_data",   8),
+        ])
+        soc.ethphy = LiteEthPHYModel(pads)
+        soc.add_ethernet(phy=soc.ethphy)
+        soc.finalize()
+
+        csr = soc.bus.regions["csr"]
+        mac = soc.bus.regions["ethmac"]
+        self.assertGreaterEqual(mac.origin, csr.origin + csr.size)
+        self.assertLessEqual(mac.origin + mac.size, 0xf000_0000)
 
 
 if __name__ == "__main__":
