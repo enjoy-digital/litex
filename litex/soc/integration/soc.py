@@ -2311,16 +2311,29 @@ class LiteXSoC(SoC):
         self.bus.add_master(name=name, master=uartbone.wishbone)
 
     # Add CPU JTAG Debug ---------------------------------------------------------------------------
-    def add_cpu_jtag_debug(self, chain=4, clk_freq=10e6, clock_domain="sys"):
-        """Connect the CPU's JTAG instruction port to a Xilinx USER chain.
+    def add_cpu_jtag_debug(self, chain=4, clk_freq=10e6, clock_domain="sys", transport="user"):
+        """Connect CPU debug through a Xilinx USER chain or a CSR-driven JTAG TAP.
 
-        The CPU must already expose its instruction interface. This connects the transport;
-        it does not enable a CPU debug module or create an external JTAG TAP. ``clk_freq`` is
-        the maximum TCK frequency used for timing analysis, not a generated clock.
+        The CPU supplies its debug module and clock-domain crossing. ``clk_freq`` is the
+        maximum USER-chain TCK frequency used for timing analysis, not a generated clock.
         """
-        from litex.soc.cores.jtag import XilinxJTAG
+        from litex.soc.cores.jtag import JTAGBitbang, XilinxJTAG
 
         self.check_if_exists("cpu_jtag_debug")
+        if transport not in ["user", "csr"]:
+            raise ValueError("CPU JTAG debug transport must be user or csr.")
+        if transport == "csr":
+            connect_jtag = getattr(getattr(self, "cpu", None), "connect_jtag", None)
+            if not callable(connect_jtag):
+                self.logger.error("CSR CPU JTAG debug requires a CPU with connect_jtag(pads).")
+                raise SoCError()
+            self.cpu_jtag_debug = jtag = JTAGBitbang()
+            connect_jtag(jtag)
+            return
+
+        if not math.isfinite(clk_freq) or clk_freq <= 0:
+            raise ValueError("CPU JTAG debug clock frequency must be finite and positive.")
+
         ports = ("clk", "tdi", "tdo", "enable", "capture", "shift", "update", "reset")
         cpu = getattr(self, "cpu", None)
         if not all(hasattr(cpu, f"jtag_{port}") for port in ports):
@@ -2335,9 +2348,6 @@ class LiteXSoC(SoC):
             self.logger.error("CPU JTAG debug does not yet support the delayed BSCAN TDI "
                               f"on {self.platform.device}.")
             raise SoCError()
-        if not math.isfinite(clk_freq) or clk_freq <= 0:
-            raise ValueError("CPU JTAG debug clock frequency must be finite and positive.")
-
         self.cpu_jtag_debug = jtag = XilinxJTAG(primitive, chain=chain, platform=self.platform)
         self.comb += [
             cpu.jtag_clk.eq(jtag.tck),
@@ -3807,6 +3817,7 @@ class SoCCore(LiteXSoC):
         with_cpu_jtag_debug        = False,
         cpu_jtag_debug_chain       = 4,
         cpu_jtag_debug_clk_freq    = 10e6,
+        cpu_jtag_debug_transport   = "user",
 
         # UARTBone.
         with_uartbone              = False,
@@ -3979,8 +3990,9 @@ class SoCCore(LiteXSoC):
         # Add CPU JTAG Debug.
         if with_cpu_jtag_debug:
             self.add_cpu_jtag_debug(
-                chain    = cpu_jtag_debug_chain,
-                clk_freq = cpu_jtag_debug_clk_freq,
+                chain     = cpu_jtag_debug_chain,
+                clk_freq  = cpu_jtag_debug_clk_freq,
+                transport = cpu_jtag_debug_transport,
             )
 
         # Add Timer.
@@ -4086,9 +4098,10 @@ def soc_core_args(parser, cpu_type="vexriscv", cpu_variant=None):
     soc_group.add_argument("--jtagbone-chain",           default=1,          type=auto_int,  help="JTAGBone chain index.")
 
     # CPU JTAG Debug parameters.
-    soc_group.add_argument("--with-cpu-jtag-debug",     action="store_true",                help="Connect the CPU JTAG instruction interface to a Xilinx USER chain.")
-    soc_group.add_argument("--cpu-jtag-debug-chain",    default=4,           type=auto_int, help="CPU debug USER chain index (1-4).")
-    soc_group.add_argument("--cpu-jtag-debug-clk-freq", default=10e6,        type=float,    help="Maximum CPU debug TCK frequency for timing analysis (Hz).")
+    soc_group.add_argument("--with-cpu-jtag-debug",      action="store_true",                          help="Enable CPU JTAG debug access.")
+    soc_group.add_argument("--cpu-jtag-debug-transport", default="user",      choices=["user", "csr"], help="CPU debug transport.")
+    soc_group.add_argument("--cpu-jtag-debug-chain",     default=4,           type=auto_int,           help="CPU debug USER chain index (1-4).")
+    soc_group.add_argument("--cpu-jtag-debug-clk-freq",  default=10e6,        type=float,              help="Maximum CPU debug USER TCK frequency for timing analysis (Hz).")
 
     # Timer parameters.
     soc_group.add_argument("--no-timer",                 action="store_true",                help="Disable timer.")

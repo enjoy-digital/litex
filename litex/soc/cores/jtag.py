@@ -18,6 +18,38 @@ from litex.gen import *
 
 from litex.build.generic_platform import *
 from litex.soc.interconnect import stream
+from litex.soc.interconnect.csr import CSRField, CSRStatus, CSRStorage
+
+# JTAG Bitbang -------------------------------------------------------------------------------------
+
+class JTAGBitbang(LiteXModule):
+    """Drive a JTAG TAP through CSRs, independently of the target CPU."""
+    def __init__(self):
+        self.tck  = Signal()
+        self.tms  = Signal()
+        self.tdi  = Signal()
+        self.tdo  = Signal()
+        self.trst = Signal()
+
+        self._control = CSRStorage(fields=[
+            CSRField("tck",           description="JTAG clock."),
+            CSRField("tms",  reset=1, description="JTAG mode select."),
+            CSRField("tdi",           description="JTAG data input."),
+            CSRField("trst", reset=1, description="JTAG reset (active low)."),
+        ])
+        self._status = CSRStatus(fields=[
+            CSRField("tdo", description="JTAG data output."),
+        ])
+
+        # # #
+
+        self.comb += [
+            self.tck.eq( self._control.fields.tck),
+            self.tms.eq( self._control.fields.tms),
+            self.tdi.eq( self._control.fields.tdi),
+            self.trst.eq(self._control.fields.trst),
+        ]
+        self.specials += MultiReg(self.tdo, self._status.fields.tdo)
 
 # JTAG TAP FSM -------------------------------------------------------------------------------------
 
