@@ -205,6 +205,7 @@ class GowinToolchain(GenericToolchain):
 
     def build_timing_constraints(self, vns):
         sdc = []
+        clock_names = {}
         def clock_object(clk):
             name = vns.get_name(clk)
             kind = "ports" if any(sig == name for sig, _, _, _ in self.named_sc) else "nets"
@@ -213,11 +214,23 @@ class GowinToolchain(GenericToolchain):
         for clk, [period, name] in sorted(self.clocks.items(), key=lambda x: x[0].duid):
             if name is None:
                 name = vns.get_name(clk)
+            clock_names[clk] = name
             sdc.append(f"create_clock -name {name} -period {period} {clock_object(clk)}")
         for clk, source, divide_by, multiply_by, name in self.generated_clocks:
             name = vns.get_name(clk) if name is None else name
+            clock_names[clk] = name
             sdc.append(f"create_generated_clock -name {name} -source {clock_object(source)} "
                 f"-divide_by {divide_by} -multiply_by {multiply_by} {clock_object(clk)}")
+
+        # False paths refer to clock names, including explicitly named generated clocks.
+        def clock_name(clk):
+            if isinstance(clk, str):
+                return clk
+            return clock_names.get(clk, vns.get_name(clk))
+
+        for from_, to in sorted(self.false_paths, key=lambda p: tuple(clock_name(clk) for clk in p)):
+            sdc.append(f"set_false_path -from [get_clocks {{{clock_name(from_)}}}] "
+                f"-to [get_clocks {{{clock_name(to)}}}]")
         tools.write_to_file(f"{self._build_name}.sdc", "\n".join(sdc))
         return (f"{self._build_name}.sdc", "SDC")
 
