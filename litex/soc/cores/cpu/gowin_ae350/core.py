@@ -58,6 +58,7 @@ class GowinAE350(CPU):
             "sram"        : 0x0000_0000,
             "peripherals" : 0xf000_0000,
             "csr"         : 0xe800_0000,
+            "ethmac"      : 0xe801_0000,
         }
 
     # GCC Flags.
