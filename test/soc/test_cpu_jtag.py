@@ -166,3 +166,38 @@ class TestCPUJTAGDebug(unittest.TestCase):
         self.assertTrue(options["with_cpu_jtag_debug"])
         self.assertEqual(options["cpu_jtag_debug_chain"], 2)
         self.assertEqual(options["cpu_jtag_debug_clk_freq"], 5e6)
+
+    def test_ae350_csr_transport(self):
+        soc = self.make_soc(cpu_type="gowin_ae350", with_cpu_jtag_debug=True,
+                            cpu_jtag_debug_transport="csr")
+        jtag = soc.cpu_jtag_debug
+        for port, signal in [("DBG_TCK", jtag.tck), ("TMS_IN", jtag.tms),
+                             ("TDI_IN", jtag.tdi), ("TRST_IN", jtag.trst)]:
+            self.assertIs(soc.cpu.cpu_params["i_" + port], signal)
+        self.assertIs(soc.cpu.cpu_params["o_TDO_OUT"], jtag.tdo)
+        self.assertFalse(hasattr(soc.platform, "_xilinx_jtag_chains"))
+        self.assertNotIn("CONFIG_CPU_JTAG_DEBUG_CHAIN", soc.constants)
+        self.assertNotIn(jtag.tck, soc.platform.toolchain.clocks)
+
+    def test_csr_transport_does_not_require_fpga_jtag_support(self):
+        soc = self.make_soc(device="LFE5U-85F-6BG381C", cpu_type="gowin_ae350")
+        self.assertFalse(soc.platform.jtag_support)
+        soc.add_cpu_jtag_debug(transport="csr")
+
+    def test_csr_transport_requires_cpu_tap_connection(self):
+        soc = self.make_soc()
+        with self.assertLogs("SoC", level="ERROR"), self.assertRaises(SoCError):
+            soc.add_cpu_jtag_debug(transport="csr")
+        self.assertFalse(hasattr(soc, "cpu_jtag_debug"))
+
+    def test_invalid_transport(self):
+        soc = self.make_soc()
+        with self.assertRaises(ValueError):
+            soc.add_cpu_jtag_debug(transport="invalid")
+        self.assertFalse(hasattr(soc, "cpu_jtag_debug"))
+
+    def test_csr_cli_option(self):
+        parser = argparse.ArgumentParser()
+        soc_core_args(parser)
+        args = parser.parse_args(["--with-cpu-jtag-debug", "--cpu-jtag-debug-transport=csr"])
+        self.assertEqual(soc_core_argdict(args)["cpu_jtag_debug_transport"], "csr")

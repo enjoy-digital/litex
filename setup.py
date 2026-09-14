@@ -56,6 +56,7 @@ setup(
             # Terminal/Server/Client.
             "litex_term   = litex.tools.litex_term:main",
             "litex_server = litex.tools.litex_server:main",
+            "litex_jtag   = litex.tools.litex_jtag:main",
             "litex_cli    = litex.tools.litex_client:main",
 
             # SoC Generators.
