@@ -102,6 +102,40 @@ class TestGowinToolchain(unittest.TestCase):
         self.assertIn("--freq 48.0", build_script)
         self.assertNotIn("--freq 27.0", build_script)
 
+    def test_false_paths_use_named_primary_and_generated_clocks(self):
+        platform = GowinPlatform("GW5AT-LV60PG484AC1/I0",
+            io=[("clk50", 0, Pins("A1"))], devicename="GW5AT-60B")
+        dut = LiteXModule()
+        dut.cd_sys = ClockDomain("sys")
+        clk50 = platform.request("clk50")
+        dut.specials += Instance("PLLA", i_CLKIN=clk50, o_CLKOUT0=dut.cd_sys.clk)
+        platform.add_period_constraint(clk50, 20, name="reference")
+        platform.add_generated_clock_constraint(dut.cd_sys.clk, clk50, name="system")
+        platform.add_false_path_constraint(clk50, dut.cd_sys.clk)
+
+        with tempfile.TemporaryDirectory() as build_dir:
+            platform.build(dut, build_dir=build_dir, build_name="top", run=False)
+            with open(os.path.join(build_dir, "top.sdc"), encoding="utf-8") as f:
+                sdc = f.read().splitlines()
+
+        self.assertEqual(sdc[-1],
+            "set_false_path -from [get_clocks {reference}] -to [get_clocks {system}]")
+        self.assertEqual(sum(line.startswith("set_false_path") for line in sdc), 1)
+
+    def test_false_paths_accept_explicit_clock_names(self):
+        toolchain = gowin.GowinToolchain()
+        toolchain.false_paths = {("rx_clk", "sys_clk"), ("sys_clk", "rx_clk")}
+        with tempfile.TemporaryDirectory() as build_dir:
+            toolchain._build_name = os.path.join(build_dir, "top")
+            toolchain.build_timing_constraints(None)
+            with open(os.path.join(build_dir, "top.sdc"), encoding="utf-8") as f:
+                sdc = f.read().splitlines()
+
+        self.assertEqual(sdc, [
+            "set_false_path -from [get_clocks {rx_clk}] -to [get_clocks {sys_clk}]",
+            "set_false_path -from [get_clocks {sys_clk}] -to [get_clocks {rx_clk}]",
+        ])
+
     def test_wsl_prefers_native_gowin(self):
         def which(tool):
             return {
