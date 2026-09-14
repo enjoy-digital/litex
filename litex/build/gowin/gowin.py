@@ -204,8 +204,9 @@ class GowinToolchain(GenericToolchain):
     # Timing Constraints (.sdc ) -------------------------------------------------------------------
 
     def build_timing_constraints(self, vns):
-        sdc = []
+        sdc         = []
         clock_names = {}
+
         def clock_object(clk):
             name = vns.get_name(clk)
             kind = "ports" if any(sig == name for sig, _, _, _ in self.named_sc) else "nets"

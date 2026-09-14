@@ -115,7 +115,7 @@ class TestGowinToolchain(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as build_dir:
             platform.build(dut, build_dir=build_dir, build_name="top", run=False)
-            with open(os.path.join(build_dir, "top.sdc")) as f:
+            with open(os.path.join(build_dir, "top.sdc"), encoding="utf-8") as f:
                 sdc = f.read().splitlines()
 
         self.assertEqual(sdc[-1],
@@ -128,7 +128,7 @@ class TestGowinToolchain(unittest.TestCase):
         with tempfile.TemporaryDirectory() as build_dir:
             toolchain._build_name = os.path.join(build_dir, "top")
             toolchain.build_timing_constraints(None)
-            with open(os.path.join(build_dir, "top.sdc")) as f:
+            with open(os.path.join(build_dir, "top.sdc"), encoding="utf-8") as f:
                 sdc = f.read().splitlines()
 
         self.assertEqual(sdc, [
