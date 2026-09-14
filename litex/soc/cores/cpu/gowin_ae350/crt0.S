@@ -1,4 +1,5 @@
-#define MIE_MEIE 	0x800
+#define MIE_MEIE           0x800
+#define MSTATUS_FS_INITIAL (1 << 13)
 
 	.global _start
 _start:
@@ -8,6 +9,11 @@ reset_vector:
 	la sp, _fstack
 	la t0, trap_vector
 	csrw mtvec, t0
+
+	// enable the FPU used by rv32imafdc code and initialize its rounding mode/flags
+	li t0, MSTATUS_FS_INITIAL
+	csrs mstatus, t0
+	csrwi fcsr, 0
 
 	// initialize .data
 	la t0, _fdata
@@ -37,6 +43,8 @@ reset_vector:
 	call main
 1:	j 1b
 
+	// mtvec requires four-byte alignment, including with compressed instructions.
+	.balign 4
 trap_vector:
 	addi sp, sp, -16*4
 	sw ra,  0*4(sp)

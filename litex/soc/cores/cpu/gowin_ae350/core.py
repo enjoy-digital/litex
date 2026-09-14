@@ -2,17 +2,15 @@
 # This file is part of LiteX.
 #
 # Copyright (c) 2024 Gwenhael Goavec-Merou <gwenhael@enjoy-digital.fr>
-# Copyright (c) 2024 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2024-2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
-
-import os
 
 from migen import *
 
 from litex.gen import *
 
-from litex.soc.interconnect import wishbone, ahb
-from litex.soc.interconnect.csr import *
+from litex.soc.interconnect import ahb, wishbone
+
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
 # Gowin AE350 Constants ----------------------------------------------------------------------------
@@ -29,6 +27,11 @@ APB_CE_WDT   = (1 << 7)
 # Gowin AE350 --------------------------------------------------------------------------------------
 
 class GowinAE350(CPU):
+    """AE350 hard CPU with ROM, RAM and peripheral AHB-Lite ports connected to LiteX.
+
+    The target supplies the dedicated ``cpu`` clock. All fabric buses use ``sys``.
+    Interrupts are not connected; LiteX peripherals use polling.
+    """
     variants             = ["standard"]
     category             = "hardcore"
     family               = "riscv"
@@ -42,51 +45,57 @@ class GowinAE350(CPU):
     nop                  = "nop"
     io_regions           = {
         # Origin, Length.
-        0xe800_0000: 0x6000_0000
+        # Extended AHB slave window (Gowin MUG1029, Table 3-1). The hard CPU is the
+        # master on this port; its internal peripherals and APB extension are not on the LiteX bus.
+        0xe800_0000 : 0x0800_0000,
     }
 
+    # Memory Mapping.
     @property
     def mem_map(self):
         return {
-            "rom"         : 0x80000000,
-            "sram"        : 0x00000000,
-            "peripherals" : 0xf0000000,
-            "csr"         : 0xe8000000,
+            "rom"         : 0x8000_0000,
+            "sram"        : 0x0000_0000,
+            "peripherals" : 0xf000_0000,
+            "csr"         : 0xe800_0000,
         }
 
     # GCC Flags.
     @property
     def gcc_flags(self):
-        flags =  f" -mabi=ilp32 -march=rv32imafdc"
-        flags += f" -D__AE350__"
+        flags  = " -mabi=ilp32 -march=rv32imafdc"
+        flags += " -D__AE350__"
         return flags
 
-    def __init__(self, platform, variant, *args, **kwargs):
+    def __init__(self, platform, variant="standard", *args, **kwargs):
         self.platform     = platform
         self.reset        = Signal()
-        self.ibus         = ibus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
-        self.dbus         = dbus = wishbone.Interface(data_width=64, address_width=32, addressing="word")
-        self.pbus         = pbus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
-        self.periph_buses = [ibus, dbus, pbus] # Peripheral buses (Connected to main SoC's bus).
-        self.memory_buses = []                 # Memory buses (Connected directly to LiteDRAM).
+        self.ibus         = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+        self.dbus         = wishbone.Interface(data_width=64, address_width=32, addressing="word")
+        self.pbus         = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+        self.periph_buses = [self.ibus, self.dbus, self.pbus] # Connected to the main SoC bus.
+        self.memory_buses = []                             # Connected directly to LiteDRAM.
 
+        self.ahb_rom  = ahb_rom  = ahb.AHBInterface(data_width=32, address_width=32)
+        self.ahb_ram  = ahb_ram  = ahb.AHBInterface(data_width=64, address_width=32)
+        self.ahb_exts = ahb_exts = ahb.AHBInterface(data_width=32, address_width=32)
 
-        # AHBLite Buses.
-        # --------------
-        self.ahb_rom   = ahb_rom  = ahb.AHBInterface(data_width=32, address_width=32)
-        self.ahb_ram   = ahb_ram  = ahb.AHBInterface(data_width=64, address_width=32)
-        self.ahb_exts  = ahb_exts = ahb.AHBInterface(data_width=32, address_width=32)
+        # # #
+
+        # AHB-Lite Bridges -------------------------------------------------------------------------
         self.comb += [
-            # Set AHBLite ROM static signals.
+            # The ROM port only exposes word transfers, without HSEL, HSIZE or HBURST.
             ahb_rom.sel.eq(1),
             ahb_rom.size.eq(0b010),
             ahb_rom.burst.eq(0),
-            # Set AHBLite RAM static signals.
+            # The RAM port has no HSEL; HTRANS identifies valid transfers.
             ahb_ram.sel.eq(1),
         ]
+        self.rom_bridge    = ahb.AHB2Wishbone(ahb_rom,  self.ibus)
+        self.ram_bridge    = ahb.AHB2Wishbone(ahb_ram,  self.dbus)
+        self.periph_bridge = ahb.AHB2Wishbone(ahb_exts, self.pbus)
 
-        # CPU Instance.
-        # -------------
+        # CPU Instance -----------------------------------------------------------------------------
         self.cpu_params = dict(
             # Clk/Rst.
             i_CORE_CLK       = ClockSignal("cpu"),
@@ -122,7 +131,7 @@ class GowinAE350(CPU):
             i_DMA_REQ        = Constant(0, 8),
             o_DMA_ACK        = Open(8),
 
-            # AHBLite ROM interface.
+            # AHB-Lite ROM Interface (CPU Master).
             i_ROM_HRDATA     = ahb_rom.rdata,
             i_ROM_HREADY     = ahb_rom.readyout,
             i_ROM_HRESP      = ahb_rom.resp,
@@ -130,7 +139,7 @@ class GowinAE350(CPU):
             o_ROM_HTRANS     = ahb_rom.trans,
             o_ROM_HWRITE     = ahb_rom.write,
 
-            # APBLite Fabric interface (Slave).
+            # APB Fabric Interface (CPU Master, Unused).
             o_APB_PADDR      = Open(32),
             o_APB_PENABLE    = Open(),
             i_APB_PRDATA     = Constant(0, 32),
@@ -142,7 +151,7 @@ class GowinAE350(CPU):
             o_APB_PPROT      = Open(3),
             o_APB_PSTRB      = Open(4),
 
-            # AHBLite Peripheral interface (Master).
+            # AHB-Lite Peripheral Interface (CPU Master).
             i_EXTS_HRDATA    = ahb_exts.rdata,
             i_EXTS_HREADYIN  = ahb_exts.readyout,
             i_EXTS_HRESP     = ahb_exts.resp,
@@ -155,7 +164,7 @@ class GowinAE350(CPU):
             o_EXTS_HWDATA    = ahb_exts.wdata,
             o_EXTS_HWRITE    = ahb_exts.write,
 
-            # AHBLite Peripheral interface (Slave).
+            # AHB-Lite Local Memory Interface (CPU Slave, Unused).
             i_EXTM_HADDR     = Constant(0, 32),
             i_EXTM_HBURST    = Constant(0, 3),
             i_EXTM_HPROT     = Constant(0, 4),
@@ -169,7 +178,7 @@ class GowinAE350(CPU):
             i_EXTM_HWDATA    = Constant(0, 64),
             i_EXTM_HWRITE    = 0,
 
-            # AHBLite RAM interface (Slave).
+            # AHB-Lite RAM Interface (CPU Master).
             i_DDR_HRDATA     = ahb_ram.rdata,
             i_DDR_HREADY     = ahb_ram.readyout,
             i_DDR_HRESP      = ahb_ram.resp,
@@ -199,7 +208,7 @@ class GowinAE350(CPU):
             i_INTEG_TRST     = 1,
             o_INTEG_TDO      = Open(),
 
-            # SRAM (FIXME    : Cleanup).
+            # SRAM Power, Retention and Timing Controls.
             i_PGEN_CHAIN_I   = 1,
             o_PRDYN_CHAIN_O  = Open(),
             i_EMA            = Constant(0b011, 3),
@@ -282,17 +291,9 @@ class GowinAE350(CPU):
             i_TEST_RSTN      = 1,
         )
 
-        # AHBLite ROM Interface.
-        # ----------------------
-        self.submodules += ahb.AHB2Wishbone(ahb_rom, self.ibus)
-
-        # AHBLite RAM Interface.
-        # ----------------------
-        self.submodules += ahb.AHB2Wishbone(ahb_ram, self.dbus)
-
-        # AHBLite Peripheral Interface.
-        # -----------------------------
-        self.submodules += ahb.AHB2Wishbone(ahb_exts, self.pbus)
+    def set_reset_address(self, reset_address):
+        if reset_address != self.reset_address:
+            raise ValueError("Gowin AE350 reset address is fixed at 0x80000000.")
 
     def connect_jtag(self, pads):
         self.cpu_params.update(
