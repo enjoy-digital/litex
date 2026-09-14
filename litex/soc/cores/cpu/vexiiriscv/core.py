@@ -308,7 +308,7 @@ class VexiiRiscv(CPU):
         vexii_args_hash = md5_hash.hexdigest()
         ppath = os.path.join(vdir, str(vexii_args_hash) + ".py")
         if VexiiRiscv.no_netlist_cache or not os.path.exists(ppath):
-            cmd = f"""cd {ndir} && sbt "runMain vexiiriscv.soc.litex.PythonArgsGen {metadata_args} --python-file={str(ppath)}\""""
+            cmd = f"""cd {ndir} && sbt -batch "runMain vexiiriscv.soc.litex.PythonArgsGen {metadata_args} --python-file={str(ppath)}\""""
             subprocess.check_call(cmd, shell=True)
         # Loads variables like VexiiRiscv.isa_map, that set the RISC-V extensions.
         with open(ppath) as file:
@@ -525,7 +525,7 @@ class VexiiRiscv(CPU):
             gen_args.append(" --device-region:{}={}".format(device, address))
         gen_args += VexiiRiscv._get_soc_args()
 
-        cmd = f"""cd {ndir} && sbt "runMain vexiiriscv.soc.litex.SocGen {" ".join(gen_args)}\""""
+        cmd = f"""cd {ndir} && sbt -batch "runMain vexiiriscv.soc.litex.SocGen {" ".join(gen_args)}\""""
         print("VexiiRiscv generation command :")
         print(cmd)
         subprocess.check_call(cmd, shell=True)

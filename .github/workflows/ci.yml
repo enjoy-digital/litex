@@ -51,6 +51,19 @@ jobs:
         run: |
           python3 -m pip install setuptools wheel requests pexpect meson distlib pytest pytest-xdist pytest-split
 
+      # NaxRiscv and VexiiRiscv generate their netlists with sbt. Avoid
+      # repo1.maven.org connection resets when resolving their dependencies.
+      - name: Configure sbt
+        run: |
+          sbt_repositories="${RUNNER_TEMP}/sbt-repositories"
+          cat > "${sbt_repositories}" <<'EOF'
+          [repositories]
+          local
+          maven-central: https://repo.maven.apache.org/maven2/
+          sbt-plugin-releases: https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/, [organization]/[module]/(scala_[scalaVersion]/)(sbt_[sbtVersion]/)[revision]/[type]s/[artifact](-[classifier]).[ext]
+          EOF
+          echo "SBT_OPTS=-Dsbt.override.build.repos=true -Dsbt.repository.config=${sbt_repositories}" >> "$GITHUB_ENV"
+
       # Install (n)Migen / LiteX / Cores
       - name: Install LiteX
         run: |

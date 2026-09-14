@@ -349,7 +349,7 @@ class NaxRiscv(CPU):
         if(NaxRiscv.with_rvc):
             gen_args.append(f"--scala-args=rvc=true")
 
-        cmd = f"""cd {ndir} && sbt "runMain naxriscv.platform.litex.NaxGen {" ".join(gen_args)}\""""
+        cmd = f"""cd {ndir} && sbt -batch "runMain naxriscv.platform.litex.NaxGen {" ".join(gen_args)}\""""
         print("NaxRiscv generation command :")
         print(cmd)
         subprocess.check_call(cmd, shell=True)
