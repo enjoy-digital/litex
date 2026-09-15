@@ -48,6 +48,11 @@ class TestGowinAE350(unittest.TestCase):
             with self.subTest(address=address), self.assertRaisesRegex(ValueError, "reset address is fixed"):
                 self.make_soc(cpu_reset_address=address)
 
+    def test_64bit_system_bus(self):
+        # Fabric ports must support the width converters used by a wider system bus.
+        soc = self.make_soc(bus_data_width=64)
+        soc.finalize()
+
     def test_linux_internal_regions(self):
         soc = self.make_soc(cpu_variant="linux")
         for name, origin, size in [
