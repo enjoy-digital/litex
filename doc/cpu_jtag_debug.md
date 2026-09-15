@@ -113,7 +113,9 @@ litex_jtag --csr-csv=build/sipeed_tang_mega_138k_pro/csr.csv
 
 `litex_jtag` uses `localhost:1234` for the LiteX server and listens on
 `127.0.0.1:3335` for OpenOCD. `--host`, `--port`, `--bind-ip`, `--bind-port` and
-`--csr-name` select other endpoints or a custom CSR instance.
+`--csr-name` select other endpoints or a custom CSR instance. Use `--timeout=15`
+when the LiteX server needs longer than the default two seconds to retry a
+request, for example over Etherbone on a busy network.
 
 With an OpenOCD build that enables the
 [remote_bitbang adapter](https://openocd.org/doc/html/Debug-Adapter-Configuration.html),

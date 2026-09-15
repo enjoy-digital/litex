@@ -60,6 +60,7 @@ def main():
     parser = argparse.ArgumentParser(description="OpenOCD remote_bitbang server for LiteX JTAG CSRs.")
     parser.add_argument("--host",      default="localhost",       help="LiteX server host.")
     parser.add_argument("--port",      default=1234,    type=int, help="LiteX server port.")
+    parser.add_argument("--timeout",   default=2.0,   type=float, help="LiteX server timeout in seconds.")
     parser.add_argument("--csr-csv",   default="csr.csv",         help="CSR CSV file.")
     parser.add_argument("--csr-name",  default="cpu_jtag_debug",  help="JTAG CSR prefix.")
     parser.add_argument("--bind-ip",   default="127.0.0.1",       help="OpenOCD bind address.")
@@ -68,7 +69,7 @@ def main():
 
     try:
         with RemoteClient(host=args.host, port=args.port, csr_csv=args.csr_csv,
-                          raise_on_timeout=True) as bus:
+                          timeout=args.timeout, raise_on_timeout=True) as bus:
             bus.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             jtag = JTAGRemoteBitbang(bus, csr_name=args.csr_name)
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
