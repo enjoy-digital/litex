@@ -209,11 +209,11 @@ class GowinAE350(CPU):
             i_SCAN_IN        = Constant(0xfffff, 20),
             o_SCAN_OUT       = Open(20),
 
-            # Integrated JTAG.
+            # Memory Self-Test JTAG (held in reset).
             i_INTEG_TCK      = 1,
             i_INTEG_TDI      = 1,
             i_INTEG_TMS      = 1,
-            i_INTEG_TRST     = 1,
+            i_INTEG_TRST     = 0,
             o_INTEG_TDO      = Open(),
 
             # SRAM Power, Retention and Timing Controls.
