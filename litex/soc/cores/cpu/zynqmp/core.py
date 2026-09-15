@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import re
 import logging
 
 from migen import *
@@ -131,6 +132,47 @@ class ZynqMP(CPU):
         self.ps_tcl.append(f"source {preset}")
         self.ps_tcl.append("set psu_cfg [apply_preset IPINST]")
         self.ps_tcl.append("set_property -dict $psu_cfg [get_ips {}]".format(self.ps_name))
+
+    def add_psu_config(self, config):
+        # Config must be provided as a config, value dict.
+        assert isinstance(config, dict)
+        self.config.update(config)
+
+    def add_mio_config(self, directions, iotype="", slew="", pullup="disable", drive_strength=None):
+        # directions: {mio_pin_number: direction ("in"/"out"/"inout")}.
+        assert pullup in ["disable", "pulldown", "pullup"]
+        assert drive_strength is None or isinstance(drive_strength, dict)
+        for i, direction in directions.items():
+            assert 0 <= i < 78
+            assert direction in ["in", "out", "inout"]
+            mio_iotype         = iotype.get(i, "")     if isinstance(iotype, dict)   else iotype
+            mio_slew           = slew.get(i, "")       if isinstance(slew, dict)     else slew
+            mio_drive_strength = drive_strength.get(i) if drive_strength is not None else None
+            assert mio_iotype in ["", "cmos", "schmitt"]
+            assert mio_drive_strength is None or isinstance(mio_drive_strength, int)
+            config = {
+                f"PSU_MIO_{i}_DIRECTION"  : direction,
+                f"PSU_MIO_{i}_PULLUPDOWN" : pullup,
+            }
+            if mio_iotype:
+                config[f"PSU_MIO_{i}_INPUT_TYPE"]     = mio_iotype
+            if mio_slew:
+                config[f"PSU_MIO_{i}_SLEW"]           = mio_slew
+            if mio_drive_strength is not None:
+                config[f"PSU_MIO_{i}_DRIVE_STRENGTH"] = mio_drive_strength
+            self.add_psu_config(config)
+
+    def detect_emio_mio_pins(self, pads_or_mio_group):
+        idx_lst = []
+        # MIO groups are strings; EMIO pads are resources.
+        io_type = {True: pads_or_mio_group, False: "EMIO"}[isinstance(pads_or_mio_group, str)]
+        # Expand MIO ranges and individual pins, including non-contiguous groups.
+        if io_type != "EMIO":
+            for first, last in re.findall(r"(\d+)(?:\s*\.\.\s*(\d+))?", io_type):
+                first = int(first)
+                last = int(last) if last else first
+                idx_lst.extend(range(first, last + 1))
+        return (io_type, idx_lst)
 
     def add_axi_gp_master(self, n=0, data_width=32):
         assert n < 3 and self.axi_gp_masters[n] is None
