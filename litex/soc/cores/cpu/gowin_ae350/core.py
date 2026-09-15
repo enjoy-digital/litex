@@ -25,6 +25,39 @@ APB_CE_PIT   = (1 << 5)
 APB_CE_I2C   = (1 << 6)
 APB_CE_WDT   = (1 << 7)
 
+# AE350 RAM Bridge ---------------------------------------------------------------------------------
+
+class AE350RAMBridge(LiteXModule):
+    def __init__(self, ahb_ram, dbus, port, origin, size):
+        from litedram.frontend.wishbone import LiteDRAMWishbone2Native
+
+        # The hard CPU uses the RAM AHB port for both DDR and fabric SRAM. Decode address phases,
+        # but select responses with the registered data-phase target while either slave stalls.
+        fabric_ahb      = ahb.AHBInterface(data_width=ahb_ram.data_width, address_width=ahb_ram.address_width)
+        memory_ahb      = ahb.AHBInterface(data_width=ahb_ram.data_width, address_width=ahb_ram.address_width)
+        memory_hit      = Signal()
+        memory_selected = Signal()
+        self.comb += memory_hit.eq((ahb_ram.addr >= origin) & (ahb_ram.addr < origin + size))
+        self.sync += If(ahb_ram.readyout & ahb_ram.sel & ahb_ram.trans[1],
+            memory_selected.eq(memory_hit),
+        )
+        for index, slave in enumerate((fabric_ahb, memory_ahb)):
+            for name in ("addr", "trans", "size", "burst", "write", "wdata", "prot", "mastlock"):
+                self.comb += getattr(slave, name).eq(getattr(ahb_ram, name))
+            # An inactive slave must not accept the following address before global HREADY.
+            self.comb += slave.sel.eq(ahb_ram.sel & ahb_ram.readyout & (memory_hit == index))
+        for name in ("rdata", "readyout", "resp"):
+            self.comb += getattr(ahb_ram, name).eq(Mux(memory_selected,
+                getattr(memory_ahb, name), getattr(fabric_ahb, name)))
+
+        # This private Wishbone link bypasses the SoC interconnect and L2. Keep CTI/BTE so the
+        # existing LiteDRAM frontend can pack complete cache-line writes without a read allocation.
+        memory_bus = wishbone.Interface(
+            data_width=ahb_ram.data_width, address_width=ahb_ram.address_width, addressing="word")
+        self.memory_bridge   = ahb.AHB2Wishbone(memory_ahb, memory_bus, with_bursting=True)
+        self.memory_frontend = LiteDRAMWishbone2Native(memory_bus, port, base_address=origin)
+        self.fabric_bridge   = ahb.AHB2Wishbone(fabric_ahb, dbus)
+
 # Gowin AE350 --------------------------------------------------------------------------------------
 
 class GowinAE350(CPU):
@@ -51,6 +84,18 @@ class GowinAE350(CPU):
         0xe800_0000 : 0x0800_0000,
     }
 
+    native_memory = False
+
+    @staticmethod
+    def args_fill(parser):
+        cpu_group = parser.add_argument_group(title="AE350 CPU options")
+        cpu_group.add_argument("--with-native-memory", action="store_true",
+            help="Connect DDR directly to LiteDRAM (requires --l2-size=0).")
+
+    @staticmethod
+    def args_read(args):
+        GowinAE350.native_memory = args.with_native_memory
+
     # Memory Mapping.
     @property
     def mem_map(self):
@@ -72,6 +117,8 @@ class GowinAE350(CPU):
         return flags
 
     def __init__(self, platform, variant="standard", *args, **kwargs):
+        self.native_memory = bool(self.native_memory)
+
         self.platform     = platform
         self.variant      = variant
         self.io_regions   = dict(self.io_regions)
@@ -100,7 +147,6 @@ class GowinAE350(CPU):
             ahb_ram.sel.eq(1),
         ]
         self.rom_bridge    = ahb.AHB2Wishbone(ahb_rom,  self.ibus)
-        self.ram_bridge    = ahb.AHB2Wishbone(ahb_ram,  self.dbus)
         self.periph_bridge = ahb.AHB2Wishbone(ahb_exts, self.pbus)
 
         # CPU Instance -----------------------------------------------------------------------------
@@ -300,6 +346,10 @@ class GowinAE350(CPU):
         )
 
     def add_soc_components(self, soc):
+        # SDRAM is added after CPU setup; retain the dictionaries to use its final region and L2 size.
+        self.soc_regions   = soc.bus.regions
+        self.soc_constants = soc.constants
+
         soc.add_config("CPU_COUNT", 1)
         soc.add_config("CPU_ISA",   "rv32imafdc")
         soc.add_config("CPU_MMU",   "sv32")
@@ -314,6 +364,24 @@ class GowinAE350(CPU):
                 origin=soc.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))
             soc.add_config("CPU_PLIC_NDEV", 27)
             soc.add_config("CPU_TIMEBASE_FREQUENCY", int(soc.clk_freq))
+
+    def check_sdram(self, phy, data_width):
+        if self.native_memory and not getattr(phy.settings, "with_dm", True):
+            raise ValueError("AE350 native memory requires SDRAM byte write masks.")
+
+    def add_memory_buses(self, address_width, data_width):
+        if not self.native_memory:
+            return
+        from litedram.common import LiteDRAMNativePort
+
+        region = self.soc_regions["main_ram"]
+        port = LiteDRAMNativePort(
+            mode          = "both",
+            address_width = address_width - log2_int(data_width//8),
+            data_width    = data_width,
+        )
+        self.ram_bridge = AE350RAMBridge(self.ahb_ram, self.dbus, port, region.origin, region.size)
+        self.memory_buses.append(port)
 
     def set_reset_address(self, reset_address):
         if reset_address != self.reset_address:
@@ -330,4 +398,10 @@ class GowinAE350(CPU):
         )
 
     def do_finalize(self):
+        if self.memory_buses and self.soc_constants.get("CONFIG_L2_SIZE", 0):
+            raise ValueError(
+                "AE350 native memory bypasses the fabric L2; use --l2-size=0 to keep "
+                "CPU and other fabric masters consistent.")
+        if not hasattr(self, "ram_bridge"):
+            self.ram_bridge = ahb.AHB2Wishbone(self.ahb_ram, self.dbus)
         self.specials += Instance("AE350_SOC", **self.cpu_params)
