@@ -10,6 +10,7 @@ from migen import *
 from litex.gen import *
 
 from litex.soc.interconnect import ahb, wishbone
+from litex.soc.integration.soc import SoCRegion
 
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
@@ -32,7 +33,7 @@ class GowinAE350(CPU):
     The target supplies the dedicated ``cpu`` clock. All fabric buses use ``sys``.
     Interrupts are not connected; LiteX peripherals use polling.
     """
-    variants             = ["standard"]
+    variants             = ["standard", "linux"]
     category             = "hardcore"
     family               = "riscv"
     name                 = "gowin_ae350"
@@ -59,6 +60,8 @@ class GowinAE350(CPU):
             "peripherals" : 0xf000_0000,
             "csr"         : 0xe800_0000,
             "ethmac"      : 0xe801_0000,
+            "plic"        : 0xe400_0000,
+            "plmt"        : 0xe600_0000,
         }
 
     # GCC Flags.
@@ -70,6 +73,10 @@ class GowinAE350(CPU):
 
     def __init__(self, platform, variant="standard", *args, **kwargs):
         self.platform     = platform
+        self.variant      = variant
+        self.io_regions   = dict(self.io_regions)
+        if variant == "linux":
+            self.io_regions[0xe400_0000] = 0x0400_0000
         self.reset        = Signal()
         self.ibus         = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
         self.dbus         = wishbone.Interface(data_width=64, address_width=32, addressing="word")
@@ -291,6 +298,22 @@ class GowinAE350(CPU):
             i_TEST_MODE      = 0,
             i_TEST_RSTN      = 1,
         )
+
+    def add_soc_components(self, soc):
+        soc.add_config("CPU_COUNT", 1)
+        soc.add_config("CPU_ISA",   "rv32imafdc")
+        soc.add_config("CPU_MMU",   "sv32")
+
+        if self.variant == "linux":
+            # These peripherals are internal to the hard CPU, outside the fabric bus.
+            soc.bus.add_region("plic", SoCRegion(
+                origin=self.mem_map["plic"], size=0x40_0000, cached=False, linker=True))
+            soc.bus.add_region("plmt", SoCRegion(
+                origin=self.mem_map["plmt"], size=0x1000, cached=False, linker=True))
+            soc.bus.add_region("opensbi", SoCRegion(
+                origin=soc.mem_map["main_ram"] + 0x00f0_0000, size=0x8_0000, cached=True, linker=True))
+            soc.add_config("CPU_PLIC_NDEV", 27)
+            soc.add_config("CPU_TIMEBASE_FREQUENCY", int(soc.clk_freq))
 
     def set_reset_address(self, reset_address):
         if reset_address != self.reset_address:

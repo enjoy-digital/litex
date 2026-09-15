@@ -48,6 +48,27 @@ class TestGowinAE350(unittest.TestCase):
             with self.subTest(address=address), self.assertRaisesRegex(ValueError, "reset address is fixed"):
                 self.make_soc(cpu_reset_address=address)
 
+    def test_linux_internal_regions(self):
+        soc = self.make_soc(cpu_variant="linux")
+        for name, origin, size in [
+            ("plic",    0xe400_0000, 0x40_0000),
+            ("plmt",    0xe600_0000, 0x1000),
+            ("opensbi", 0x40f0_0000, 0x8_0000),
+        ]:
+            with self.subTest(region=name):
+                region = soc.bus.regions[name]
+                self.assertEqual((region.origin, region.size), (origin, size))
+                self.assertTrue(region.linker)
+                self.assertNotIn(name, soc.bus.slaves)
+        self.assertEqual(soc.constants["CONFIG_CPU_PLIC_NDEV"], 27)
+        self.assertEqual(soc.constants["CONFIG_CPU_TIMEBASE_FREQUENCY"], 50_000_000)
+        self.assertEqual(soc.constants["CONFIG_CPU_MMU"], "sv32")
+
+    def test_standard_does_not_reserve_linux_regions(self):
+        soc = self.make_soc()
+        for name in ["plic", "plmt", "opensbi"]:
+            self.assertNotIn(name, soc.bus.regions)
+
     def test_ethernet_buffers_do_not_overlap_csrs(self):
         from liteeth.phy.model import LiteEthPHYModel
 

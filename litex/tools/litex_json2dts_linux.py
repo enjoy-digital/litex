@@ -342,6 +342,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     cpu_family = d["constants"].get("config_cpu_family")
     cpu_isa    = d["constants"].get("config_cpu_isa", None)
     cpu_mmu    = d["constants"].get("config_cpu_mmu", None)
+    polling    = polling or cpu_name == "gowin_ae350"
 
     # Header ---------------------------------------------------------------------------------------
     platform = d["constants"]["config_platform_name"]
@@ -614,7 +615,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 }};
             }};
 """.format(cpu=cpu, irq=cpu,
-    sys_clk_freq       = d["constants"]["config_clock_frequency"],
+    sys_clk_freq       = d["constants"].get("config_cpu_clk_freq", d["constants"]["config_clock_frequency"]),
     cpu_isa            = cpu_isa,
     cpu_isa_base       = get_riscv_cpu_isa_base(cpu_isa),                 # Required for kernel >= 6.6.0
     cpu_isa_extensions = get_riscv_cpu_isa_extensions(cpu_isa, cpu_name), # Required for kernel >= 6.6.0
@@ -736,6 +737,19 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
         clint_base  = d["memories"]["clint"]["base"],
         cpu_mapping = ("\n" + " "*20).join(["&L{} 3 &L{} 7".format(cpu, cpu) for cpu in range(cpu_count)]))
 
+    if "plmt" in d["memories"]:
+        dts += """
+            timer@{plmt_base:x} {{
+                compatible = "andestech,plmt0";
+                reg = <0x{plmt_base:x} 0x{plmt_size:x}>;
+                interrupts-extended = <
+                    {cpu_mapping}>;
+            }};
+""".format(
+        plmt_base   = d["memories"]["plmt"]["base"],
+        plmt_size   = d["memories"]["plmt"]["size"],
+        cpu_mapping = ("\n" + " "*20).join(["&L{} 7".format(cpu) for cpu in range(cpu_count)]))
+
     if cpu_family == "riscv":
         if "aplic_m" in d["memories"]:
             extra_attr_m = ""
@@ -813,11 +827,12 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
                 interrupt-controller;
                 interrupts-extended = <
                     {cpu_mapping}>;
-                riscv,ndev = <32>;
+                riscv,ndev = <{plic_ndev}>;
                 {extra_attr}
             }};
 """.format(
         plic_base   = d["memories"]["plic"]["base"],
+        plic_ndev   = get_dts_constant(d, "config_cpu_plic_ndev", 32),
         cpu_mapping = ("\n" + " "*20).join(["&L{} 11 &L{} 9".format(cpu, cpu) for cpu in range(cpu_count)]),
         extra_attr  = extra_attr)
         else:
@@ -905,7 +920,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
             }};
 """.format(
     uart_csr_base  = d["csr_bases"]["uart"],
-    uart_interrupt = generate_dts_interrupt(d, int(d["constants"]["uart_interrupt"]) + it_incr, polling))
+    uart_interrupt = "" if polling else generate_dts_interrupt(d, int(d["constants"]["uart_interrupt"]) + it_incr, polling))
 
     # Ethernet -------------------------------------------------------------------------------------
     for i in [''] + list(range(0, 10)):
@@ -937,7 +952,7 @@ def generate_dts(d, initrd_start=None, initrd_size=None, initrd=None, root_devic
     ethmac_rx_slots  = d["constants"][ethmac_name + "_rx_slots"],
     ethmac_tx_slots  = d["constants"][ethmac_name + "_tx_slots"],
     ethmac_slot_size = d["constants"][ethmac_name + "_slot_size"],
-    ethmac_interrupt = generate_dts_interrupt(d, int(d["constants"][ethmac_name + "_interrupt"]) + it_incr, polling),
+    ethmac_interrupt = "" if polling else generate_dts_interrupt(d, int(d["constants"][ethmac_name + "_interrupt"]) + it_incr, polling),
     local_mac_addr   = "" if not "macaddr1" in d["constants"] else "local-mac-address = [{mac_addr}];".format(
         mac_addr     = "{a1:02X} {a2:02X} {a3:02X} {a4:02X} {a5:02X} {a6:02X}".format(
             a1       = d["constants"]["macaddr1"],
