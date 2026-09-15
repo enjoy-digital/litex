@@ -78,9 +78,9 @@ class GowinAE350(CPU):
         if variant == "linux":
             self.io_regions[0xe400_0000] = 0x0400_0000
         self.reset        = Signal()
-        self.ibus         = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+        self.ibus         = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.dbus         = wishbone.Interface(data_width=64, address_width=32, addressing="word")
-        self.pbus         = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+        self.pbus         = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.periph_buses = [self.ibus, self.dbus, self.pbus] # Connected to the main SoC bus.
         self.memory_buses = []                             # Connected directly to LiteDRAM.
 
