@@ -9,7 +9,7 @@ import random
 import pytest
 from migen import If, Memory, Signal
 from migen.fhdl.simplify import FullMemoryWE
-from migen.sim import run_simulation
+from migen.sim import passive, run_simulation
 
 from litex.gen import LiteXModule
 from litex.soc.interconnect import wishbone
@@ -21,8 +21,8 @@ def initial_word(address):
 
 class CacheDUT(LiteXModule):
     def __init__(self, width=128, reverse=False, bursting=False, latency=1, full_we=False,
-        refill_bypass=False):
-        self.master = master = wishbone.Interface(data_width=32, address_width=16)
+        refill_bypass=False, master_width=32):
+        self.master = master = wishbone.Interface(data_width=master_width, address_width=16)
         self.slave = slave = wishbone.Interface(data_width=width, address_width=16)
         cache = wishbone.Cache(64, master, slave, reverse=reverse,
             with_bursting=bursting, with_refill_bypass=refill_bypass)
@@ -90,6 +90,44 @@ def transfer(bus, beats, stalls=None, bte=0):
 def read_beats(addresses, cti=wishbone.CTI_BURST_INCREMENTING):
     return [(address, None, 15, cti if index != len(addresses)-1 else wishbone.CTI_BURST_END)
             for index, address in enumerate(addresses)]
+
+
+@pytest.mark.parametrize("master_width", [8, 16, 32, 64, 128, 256, 512])
+@pytest.mark.parametrize("slave_width", [32, 128, 256])
+def test_cache_size_in_32bit_words(master_width, slave_width):
+    master = wishbone.Interface(data_width=master_width, address_width=16)
+    slave = wishbone.Interface(data_width=slave_width, address_width=16)
+    cache = wishbone.Cache(64, master, slave)
+    memories = [special for special in cache.get_fragment().specials if isinstance(special, Memory)]
+    assert max(memory.width*memory.depth for memory in memories) == 64*32
+
+
+@pytest.mark.parametrize("master_width", [64, 128])
+def test_wide_master_eviction_at_configured_size(master_width):
+    dut      = CacheDUT(width=256, master_width=master_width)
+    select   = (1 << (master_width//8)) - 1
+    address  = 512//(master_width//8) # Start with a nonzero tag.
+    conflict = address + 256//(master_width//8) # 64 32-bit words (256 bytes).
+    writebacks = []
+
+    @passive
+    def monitor():
+        while True:
+            if (yield dut.slave.cyc) and (yield dut.slave.stb) and (yield dut.slave.ack) and (yield dut.slave.we):
+                writebacks.append((yield dut.slave.adr))
+            yield
+
+    def generator():
+        expected = sum(initial_word(128 + lane) << (32*lane) for lane in range(master_width//32))
+        values, _ = yield from transfer(dut.master, [(address, None, select, wishbone.CTI_BURST_NONE)])
+        assert values == [expected]
+        yield from transfer(dut.master, [(address, 0xaa, 1, wishbone.CTI_BURST_NONE)])
+        yield from transfer(dut.master, [(conflict, None, select, wishbone.CTI_BURST_NONE)])
+        assert writebacks == [16]
+        values, _ = yield from transfer(dut.master, [(address, None, select, wishbone.CTI_BURST_NONE)])
+        assert values == [(expected & ~0xff) | 0xaa]
+
+    run_simulation(dut, [generator(), monitor()])
 
 
 @pytest.mark.parametrize("width", [32, 64, 128, 256])
