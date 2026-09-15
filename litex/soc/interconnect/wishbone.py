@@ -948,7 +948,7 @@ class Cache(LiteXModule):
         # TAG | LINE NUMBER | LINE OFFSET.
         offsetbits                    = log2_int(max(dw_to//dw_from, 1))
         addressbits                   = len(slave.adr) + offsetbits
-        linebits                      = log2_int(cachesize) - offsetbits
+        linebits                      = log2_int(cachesize*32) - log2_int(max(dw_from, dw_to))
         tagbits                       = addressbits - linebits
         wordbits                      = log2_int(max(dw_from//dw_to, 1))
         adr_offset, adr_line, adr_tag = split(master.adr, offsetbits, linebits, tagbits)
