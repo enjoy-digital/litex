@@ -11,6 +11,18 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.cores.spi import SPIMaster
 
+# Common SPI LCD Init Sequences -------------------------------------------------------------------
+
+def get_st7789_init_sequence():
+    return [
+        (0, 0x01),  # Software reset.
+        (0, 0x11),  # Sleep out.
+        (0, 0x36), (1, 0x00),  # MADCTL.
+        (0, 0x3A), (1, 0x55),  # 16-bit RGB565.
+        (0, 0x21),  # Display inversion on.
+        (0, 0x29),  # Display on.
+    ]
+
 # SPI LCD Control ---------------------------------------------------------------------------------
 
 class SPILCD(LiteXModule):

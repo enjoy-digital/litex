@@ -10,7 +10,7 @@ from migen import *
 
 from litex.gen import *
 
-from litex.soc.cores.spilcd import SPILCD
+from litex.soc.cores.spilcd import SPILCD, get_st7789_init_sequence
 
 
 class _Pads:
@@ -35,6 +35,11 @@ class TestSPILCD(unittest.TestCase):
         dut.get_fragment()
         self.assertTrue(hasattr(dut.spilcd, "spi"))
         self.assertTrue(hasattr(dut.spilcd, "control"))
+
+    def test_common_init_sequence(self):
+        sequence = get_st7789_init_sequence()
+        self.assertTrue(sequence)
+        self.assertTrue(all(len(entry) == 2 for entry in sequence))
 
 
 if __name__ == "__main__":
