@@ -19,12 +19,18 @@ class I2SAudio(LiteXModule):
     Generates BCLK/LRCLK from the system clock and serializes stereo samples
     from a LiteX stream endpoint.
     """
-    def __init__(self, pads, sys_clk_freq, sample_rate=48000, data_width=16, bits_per_channel=None, with_csr=True):
+    def __init__(self, pads, sys_clk_freq, sample_rate=48000, data_width=16, bits_per_channel=None, with_csr=True, fifo_depth=0):
         if bits_per_channel is None:
             bits_per_channel = data_width
 
         self.pads = pads
-        self.sink = sink = stream.Endpoint([("data", data_width*2)])
+        self.sink = stream.Endpoint([("data", data_width*2)])
+        if fifo_depth:
+            self.tx_fifo = stream.SyncFIFO([("data", data_width*2)], fifo_depth)
+            self.comb += self.sink.connect(self.tx_fifo.sink)
+            sink = self.tx_fifo.source
+        else:
+            sink = self.sink
         if with_csr:
             self.enable = CSRStorage(reset=1)
             enabled = self.enable.storage
@@ -90,7 +96,7 @@ class I2SAudio(LiteXModule):
 
         # Receive path.
         if hasattr(pads, "din"):
-            self.source = stream.Endpoint([("data", data_width*2)])
+            rx_source = stream.Endpoint([("data", data_width*2)])
             rx_shift = Signal(data_width*2)
             rx_bit   = Signal(max=data_width*2)
 
@@ -105,8 +111,8 @@ class I2SAudio(LiteXModule):
             rx_fsm.act("CAPTURE",
                 If(bclk_rise & enabled,
                     If(rx_bit == (data_width*2 - 1),
-                        self.source.valid.eq(1),
-                        If(self.source.ready,
+                        rx_source.valid.eq(1),
+                        If(rx_source.ready,
                             NextState("IDLE"),
                         ).Else(
                             NextState("WAIT"),
@@ -118,11 +124,17 @@ class I2SAudio(LiteXModule):
                 )
             )
             rx_fsm.act("WAIT",
-                self.source.valid.eq(1),
-                If(self.source.ready,
+                rx_source.valid.eq(1),
+                If(rx_source.ready,
                     NextState("IDLE"),
                 )
             )
-            self.comb += self.source.data.eq(Cat([
+            self.comb += rx_source.data.eq(Cat([
                 rx_shift[data_width*2 - 1 - i] for i in range(data_width*2)
             ]))
+            if fifo_depth:
+                self.rx_fifo = stream.SyncFIFO([("data", data_width*2)], fifo_depth)
+                self.comb += rx_source.connect(self.rx_fifo.sink)
+                self.source = self.rx_fifo.source
+            else:
+                self.source = rx_source

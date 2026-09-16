@@ -24,8 +24,8 @@ class _Pads:
 
 
 class _DUT(LiteXModule):
-    def __init__(self, with_din=False):
-        self.i2s = I2SAudio(_Pads(with_din), sys_clk_freq=100e6, sample_rate=48000, data_width=16, bits_per_channel=16)
+    def __init__(self, with_din=False, fifo_depth=0):
+        self.i2s = I2SAudio(_Pads(with_din), sys_clk_freq=100e6, sample_rate=48000, data_width=16, bits_per_channel=16, fifo_depth=fifo_depth)
 
 
 class TestI2SAudio(unittest.TestCase):
@@ -44,6 +44,12 @@ class TestI2SAudio(unittest.TestCase):
         dut = _DUT(with_din=True)
         dut.get_fragment()
         self.assertTrue(hasattr(dut.i2s, "source"))
+
+    def test_fifo_buffers(self):
+        dut = _DUT(with_din=True, fifo_depth=4)
+        dut.get_fragment()
+        self.assertTrue(hasattr(dut.i2s, "tx_fifo"))
+        self.assertTrue(hasattr(dut.i2s, "rx_fifo"))
 
 
 if __name__ == "__main__":
