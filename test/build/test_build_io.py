@@ -221,6 +221,29 @@ class TestBuildIO(unittest.TestCase):
         self.assertEqual(v.count("\nIDDR IDDR"), 4)
         self.assertEqual(v.count("\nODDR ODDR"), 4)
 
+    def test_gowin_differential_primitives(self):
+        i_p = Signal()
+        i_n = Signal()
+        o   = Signal()
+
+        v = _convert_special(
+            DifferentialInput(i_p, i_n, o),
+            {i_p, i_n, o},
+            gowin_special_overrides,
+        )
+        self.assertIn("Instance TLVDS_IBUF of TLVDS_IBUF Module.", v)
+
+        i   = Signal()
+        o_p = Signal()
+        o_n = Signal()
+
+        v = _convert_special(
+            DifferentialOutput(i, o_p, o_n),
+            {i, o_p, o_n},
+            gowin_special_overrides,
+        )
+        self.assertIn("Instance TLVDS_OBUF of TLVDS_OBUF Module.", v)
+
     def test_gowin_inout_slices_are_normalized(self):
         for name, overrides in {
             "gowin": gowin_special_overrides,
