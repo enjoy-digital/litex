@@ -28,6 +28,16 @@ GOWIN_PMODE_EXFLASH = 36
 GOWIN_CABLE_GWU2X = 0
 GOWIN_CABLE_FT2CH = 1
 
+GOWIN_CABLES = {
+    "gwu2x"           : GOWIN_CABLE_GWU2X,
+    "ft2ch"           : GOWIN_CABLE_FT2CH,
+    "lpt"             : 2,
+    "digilent"        : 3,
+    "usb-debugger"    : 4,
+    "usb-debugger-a"  : 4,
+    "winusb"          : 5,
+}
+
 # for all other options, please run 'programmer_cli -h' for details
 # feel free to add any options for your purpose.
 
@@ -46,9 +56,16 @@ def _wslpath(path):
 class GowinProgrammer(GenericProgrammer):
     needs_bitreverse = False
 
-    def __init__(self, devname, cable=GOWIN_CABLE_FT2CH):
+    def __init__(self, devname, cable=GOWIN_CABLE_FT2CH, channel=None, location=None, uid=None):
         self.device = str(devname)
-        self.cable = cable
+        if isinstance(cable, str):
+            if cable not in GOWIN_CABLES:
+                raise ValueError(f"Unsupported Gowin cable: {cable}, available: {list(GOWIN_CABLES)}")
+            cable = GOWIN_CABLES[cable]
+        self.cable    = cable
+        self.channel  = channel
+        self.location = location
+        self.uid      = uid
 
         # Ref: Gowin Programmer User Guide https://cdn.gowinsemi.com.cn/SUG502E.pdf
         self.has_embflash = self.device.startswith("GW1N")
@@ -80,6 +97,16 @@ class GowinProgrammer(GenericProgrammer):
                 self.call(cmd_line)
         else:
             self.call(cmd_line)
+
+    def _add_programmer_args(self, cmd_line):
+        cmd_line += ["--cable-index", str(self.cable)]
+        if self.location is not None:
+            cmd_line += ["--location", str(self.location)]
+        elif self.channel is not None:
+            cmd_line += ["--channel", str(self.channel)]
+        if self.uid is not None:
+            cmd_line += ["--uid", str(self.uid)]
+        return cmd_line
 
     # follow the help information:
     #  1. Gowin programmer does not support start address for embflash!
@@ -135,7 +162,8 @@ class GowinProgrammer(GenericProgrammer):
         if mcufile is not None:
             cmd_line += ["--mcuFile", str(mcufile)]
 
-        cmd_line += ["--cable-index", str(self.cable), "--operation_index", str(pmode)]
+        cmd_line = self._add_programmer_args(cmd_line)
+        cmd_line += ["--operation_index", str(pmode)]
         self._call(cmd_line)
 
     def load_bitstream(self, bitstream_file):
@@ -147,7 +175,7 @@ class GowinProgrammer(GenericProgrammer):
 
         cmd_line = [self.programmer,
             "--device", str(self.device),
-            "--fsFile", str(bitfile),
-            "--cable-index", str(self.cable),
-            "--operation_index", str(pmode)]
+            "--fsFile", str(bitfile)]
+        cmd_line = self._add_programmer_args(cmd_line)
+        cmd_line += ["--operation_index", str(pmode)]
         self._call(cmd_line)
