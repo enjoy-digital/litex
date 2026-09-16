@@ -20,7 +20,7 @@ class OV5640Camera(LiteXModule):
     Provides SCCB/I2C control, reset/power controls, and XCLK generation.
     Pixel capture can be connected on top of this control block.
     """
-    def __init__(self, pads, sys_clk_freq, xclk_freq=24e6, with_capture=True):
+    def __init__(self, pads, sys_clk_freq, xclk_freq=24e6, with_capture=True, fifo_depth=0):
         self.i2c = I2CMaster(pads)
 
         self.control = CSRStorage(fields=[
@@ -59,6 +59,16 @@ class OV5640Camera(LiteXModule):
             self.comb += self.cd_pclk.rst.eq(self.control.fields.reset)
 
             self.pclk_source = stream.Endpoint([("data", 8)])
+            href_d = Signal()
+            vsync_d = Signal()
+            self.sync.pclk += href_d.eq(pads.href)
+            self.sync.pclk += vsync_d.eq(pads.vsync)
+            self.frame_start = Signal()
+            self.line_end    = Signal()
+            self.comb += [
+                self.frame_start.eq(~vsync_d & pads.vsync),
+                self.line_end.eq(href_d & ~pads.href),
+            ]
             capture_fsm = ClockDomainsRenamer("pclk")(FSM(reset_state="IDLE"))
             self.submodules.capture_fsm = capture_fsm
             capture_fsm.act("IDLE",
@@ -82,4 +92,9 @@ class OV5640Camera(LiteXModule):
                 cd_to   = "sys",
             )
             self.comb += self.pclk_source.connect(self.capture_cdc.sink)
-            self.source = self.capture_cdc.source
+            if fifo_depth:
+                self.capture_fifo = stream.SyncFIFO([("data", 8)], fifo_depth)
+                self.comb += self.capture_cdc.source.connect(self.capture_fifo.sink)
+                self.source = self.capture_fifo.source
+            else:
+                self.source = self.capture_cdc.source

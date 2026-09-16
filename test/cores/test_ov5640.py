@@ -28,8 +28,8 @@ class _Pads:
 
 
 class _DUT(LiteXModule):
-    def __init__(self, with_dvp=False):
-        self.camera = OV5640Camera(_Pads(with_dvp), sys_clk_freq=50e6)
+    def __init__(self, with_dvp=False, fifo_depth=0):
+        self.camera = OV5640Camera(_Pads(with_dvp), sys_clk_freq=50e6, fifo_depth=fifo_depth)
 
 
 class TestOV5640Camera(unittest.TestCase):
@@ -43,6 +43,13 @@ class TestOV5640Camera(unittest.TestCase):
         dut = _DUT(with_dvp=True)
         dut.get_fragment()
         self.assertTrue(hasattr(dut.camera, "source"))
+        self.assertTrue(hasattr(dut.camera, "frame_start"))
+        self.assertTrue(hasattr(dut.camera, "line_end"))
+
+    def test_dvp_capture_fifo(self):
+        dut = _DUT(with_dvp=True, fifo_depth=4)
+        dut.get_fragment()
+        self.assertTrue(hasattr(dut.camera, "capture_fifo"))
 
 
 if __name__ == "__main__":
