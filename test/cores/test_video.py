@@ -20,6 +20,7 @@ from litex.soc.cores.video import (
     VideoTimingGenerator,
     ColorBarsPattern,
     VideoGenericPHY,
+    VideoLCDPHY,
     VideoFrameBuffer,
     video_framebuffer_format_depth,
     video_framebuffer_size,
@@ -566,6 +567,9 @@ class TestVideoGenericPHY(unittest.TestCase):
             self.assertEqual((yield dut.pads.vsync), 0)
 
         _run(dut, gen(dut), clocks=_SDR_CLOCKS)
+
+    def test_lcd_phy_alias(self):
+        self.assertTrue(issubclass(VideoLCDPHY, VideoGenericPHY))
 
     def test_rgb_forced_to_zero_during_blanking(self):
         """The PHY AND-masks r/g/b with `de` so VGA monitors see black during
