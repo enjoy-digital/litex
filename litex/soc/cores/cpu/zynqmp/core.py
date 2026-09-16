@@ -65,6 +65,12 @@ class ZynqMP(CPU):
         self.pps            = Signal(4)   # Optional PPS (with gemX and PTP enabled)
         self.libxil         = None        # Optional Xilinx libxil software package configuration.
 
+        # PSU EMIO GPIOs (starts at 78).
+        self._emio_use      = 0          # EMIO/GPIOs reserved/used.
+        self._emio_pads_i   = Signal(95)
+        self._emio_pads_o   = Signal(95)
+        self._emio_pads_t   = Signal(95)
+
         # [ 7: 0]: PL_PS_Group0 [128:121]
         # [15: 8]: PL_PS_Group1 [143:136]
         self.interrupt      = Signal(16)
@@ -74,19 +80,28 @@ class ZynqMP(CPU):
         self.ps_name = "ps"
         self.ps_tcl = []
         self.config = {
-            'PSU__FPGA_PL0_ENABLE'       : 1, # enable pl_clk0
-            'PSU__USE__IRQ0'             : 1, # enable PL_PS_Group0
-            'PSU__NUM_F2P0__INTR__INPUTS': 8,
-            'PSU__USE__IRQ1'             : 1, # enable PL_PS_Group1
-            'PSU__NUM_F2P1__INTR__INPUTS': 8,
-            'PSU__USE__M_AXI_GP1'        : 0,
+            'PSU__FPGA_PL0_ENABLE'               : 1, # enable pl_clk0
+            'PSU__USE__IRQ0'                     : 1, # enable PL_PS_Group0
+            'PSU__NUM_F2P0__INTR__INPUTS'        : 8,
+            'PSU__USE__IRQ1'                     : 1, # enable PL_PS_Group1
+            'PSU__NUM_F2P1__INTR__INPUTS'        : 8,
+            'PSU__USE__M_AXI_GP1'                : 0,
+
+            # Enable EMIO GPIO by default
+            'PSU__GPIO_EMIO__PERIPHERAL__ENABLE' : 1,
+            'PSU__GPIO_EMIO__PERIPHERAL__IO'     : 95,
         }
         rst_n = Signal()
         self.cpu_params = dict(
             o_pl_clk0=ClockSignal("ps"),
             o_pl_resetn0=rst_n,
             i_pl_ps_irq0 = self.interrupt[0: 8],
-            i_pl_ps_irq1 = self.interrupt[8:16]
+            i_pl_ps_irq1 = self.interrupt[8:16],
+
+            # EMIO.
+            i_emio_gpio_i = self._emio_pads_i,
+            o_emio_gpio_o = self._emio_pads_o,
+            o_emio_gpio_t = self._emio_pads_t,
         )
 
         # Use GP0 as peripheral bus / CSR
@@ -889,35 +904,70 @@ class ZynqMP(CPU):
                 f"o_emio_uart{n}_txd" : pads_or_mio_group.tx,
             })
 
-    def add_gpios(self, pads):
+    """
+    Connect Signal,TSTriple or pads to the EMIO interface.
+    Attributes
+    ==========
+    pads: physical pads (request/request_all), Signal(x), TSTriple or list of TSTriple.
+    pads_type: str (signal, pads), default: pads
+        pads means a physical signal, signal means any Signals internally
+        defined (may be connected to a physical pad or a Core).
+    pads_dir: str (in, out, inout)
+        pads direction, only used for signals.
+    """
+    def add_gpios(self, pads, pads_type="pads", pads_dir="inout"):
         assert pads is not None
+        assert pads_type in ["signal", "pads"]
+        assert pads_dir in ["in", "out", "inout"]
+        assert len(pads) + self._emio_use <= len(self._emio_pads_i)
 
-        # Parameters.
-        pads_len = len(pads)
+        def _connect_ios(p=None, p_i=None, p_o=None, p_t=None):
+            if p is not None:
+                assert p_i is None and p_o is None and p_t is None
+                assert self._emio_use < len(self._emio_pads_i)
 
-        # PSU configuration.
-        self.config["PSU__GPIO_EMIO__PERIPHERAL__ENABLE"] = 1
-        self.config["PSU__GPIO_EMIO__PERIPHERAL__IO"]     = len(pads)
+                # Use intermediate signals for IOBUF -> ZynqMP
+                # to avoid conflicts wire vs reg for the same signal.
+                p_i = Signal()
+                self.specials += Instance("IOBUF",
+                    i_I   = self._emio_pads_o[self._emio_use],
+                    o_O   = p_i,
+                    i_T   = self._emio_pads_t[self._emio_use],
+                    io_IO = p,
+                )
 
-        # Signals.
-        gpio_i = Signal(pads_len)
-        gpio_o = Signal(pads_len)
-        gpio_t = Signal(pads_len)
+            if p_i is not None:
+                self.comb += self._emio_pads_i[self._emio_use].eq(p_i)
+            if p_o is not None:
+                self.comb += p_o.eq(self._emio_pads_o[self._emio_use])
+            if p_t is not None:
+                # GPIO T disables the output; TSTriple.oe enables it.
+                self.comb += p_t.eq(~self._emio_pads_t[self._emio_use])
+            self._emio_use += 1
 
-        # PSU connections.
-        for i in range(pads_len):
-            self.specials += Instance("IOBUF",
-                i_I   = gpio_o[i],
-                o_O   = gpio_i[i],
-                i_T   = gpio_t[i],
-                io_IO = pads[i]
-            )
+        # TSTriple is not iterable.
+        # Directly connects _I/_O/_T and return.
+        if type(pads) == TSTriple:
+            _connect_ios(p_i=pads.i, p_o=pads.o, p_t=pads.oe)
+            return # Nothing to do
 
-        self.cpu_params.update({
-            "i_emio_gpio_i" : gpio_i,
-            "o_emio_gpio_o" : gpio_o,
-            "o_emio_gpio_t" : gpio_t,
-        })
+        # When pads is type Cat (from request_all)
+        # convert it to a list to have a clean verilog.
+        if pads_type == "pads" and isinstance(pads, Cat):
+            pads = [p for p in pads.l]
+
+        for (i, p) in enumerate(pads):
+            if type(p) == TSTriple: # bypass direction check
+                                    # In this mode .o/.i are considered having
+                                    # a size == 1
+                _connect_ios(p_i=p.i, p_o=p.o, p_t=p.oe)
+            elif pads_type == "pads": # Direct connection
+                _connect_ios(p=p)
+            else: # internal signal
+                _connect_ios(
+                    p_i = p,
+                    p_o = {True: p, False: None}[pads_dir in ["inout", "out"]],
+                )
 
     """
     Enable CANx peripheral (may be via PSU MIO or PL EMIO). Peripheral may be optionally set
