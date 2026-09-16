@@ -15,15 +15,17 @@ from litex.soc.cores.i2saudio import I2SAudio
 
 
 class _Pads:
-    def __init__(self):
+    def __init__(self, with_din=False):
         self.bclk = Signal()
         self.lrck = Signal()
         self.dout = Signal()
+        if with_din:
+            self.din = Signal()
 
 
 class _DUT(LiteXModule):
-    def __init__(self):
-        self.i2s = I2SAudio(_Pads(), sys_clk_freq=100e6, sample_rate=48000, data_width=16, bits_per_channel=16)
+    def __init__(self, with_din=False):
+        self.i2s = I2SAudio(_Pads(with_din), sys_clk_freq=100e6, sample_rate=48000, data_width=16, bits_per_channel=16)
 
 
 class TestI2SAudio(unittest.TestCase):
@@ -37,6 +39,11 @@ class TestI2SAudio(unittest.TestCase):
             self.assertNotEqual((yield dut.i2s.pads.lrck), 0)
 
         run_simulation(dut, generator(), clocks={"sys": 10})
+
+    def test_rx_endpoint(self):
+        dut = _DUT(with_din=True)
+        dut.get_fragment()
+        self.assertTrue(hasattr(dut.i2s, "source"))
 
 
 if __name__ == "__main__":
