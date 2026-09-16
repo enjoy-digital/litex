@@ -1208,6 +1208,10 @@ class VideoVGAPHY(VideoGenericPHY): pass
 
 class VideoDVIPHY(VideoGenericPHY): pass
 
+# LCD (Generic / Parallel RGB).
+
+class VideoLCDPHY(VideoGenericPHY): pass
+
 # HDMI (Generic).
 
 class VideoHDMI10to1Serializer(LiteXModule):
