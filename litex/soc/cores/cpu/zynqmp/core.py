@@ -568,17 +568,84 @@ class ZynqMP(CPU):
             f"o_emio_i2c{n}_sda_t" : sda_t,
         })
 
-    def add_uart(self, n, pads):
+    """
+    Connect and Enables UARTn controler (may be via PSU MIO or PL EMIO).
+    Attributes
+    ==========
+    n: int
+        controler ID 0/1
+    pads_or_mio_group: Record or str:
+        When pads_or_mio_group is:
+        - a Record, UARTn controler is configured to uses EMIO
+        - a str, UARTn controler is configured to uses PSU MIO. str must
+        be the name of the MIO group: "MIO xx .. yy"
+    iotype: str
+        RX IO type configuration (cmos/schmitt). This parameter is only used in MIO mode.
+    slew: str
+        TX IO slew rate (slow/fast). This parameter is only used in MIO mode.
+    tx_strength: (optional) int (default: 4)
+        TX Driver Strength. Value range is [2, 4, 8, 12].
+        When None default 4mA is used
+        This parameter is only used in MIO mode.
+    srcsel: str (optional, keyword-only) (Accepted values: DPLL/IOPLL/RPLL).
+        PSU reference clock source. Empty keeps the default value.
+    freq: float (optional, keyword-only)
+        PSU reference clock frequency in MHz. Zero keeps the default value.
+    """
+    def add_uart(self, n, pads_or_mio_group, baudrate=115200,
+        iotype      = "cmos",
+        slew        = "slow",
+        tx_strength = 4,
+        *,
+        srcsel      = "",
+        freq        = 0):
         assert n < 2 and not n in self.uart_use
-        assert pads is not None
+        assert pads_or_mio_group is not None
+        assert freq >= 0
 
-        self.config[f"PSU__UART{n}__PERIPHERAL__ENABLE"] = 1
-        self.config[f"PSU__UART{n}__PERIPHERAL__IO"]     = "EMIO"
+        # Mark as used.
+        self.uart_use.append(n)
 
-        self.cpu_params.update({
-            f"i_emio_uart{n}_rxd" : pads.rx,
-            f"o_emio_uart{n}_txd" : pads.tx,
+        # Detect the IO type and parse the MIO pin endpoints.
+        (io_type, pins) = self.detect_emio_mio_pins(pads_or_mio_group)
+
+        # PSU configuration.
+        self.add_psu_config({
+            f"PSU__UART{n}__PERIPHERAL__ENABLE" : 1,
+            f"PSU__UART{n}__PERIPHERAL__IO"     : io_type,
+            f"PSU__UART{n}__MODEM__ENABLE"      : 0, # FIXME
+            f"PSU__UART{n}__BAUD_RATE"          : baudrate,
         })
+        if srcsel:
+            self.add_psu_config({f"PSU__CRL_APB__UART{n}_REF_CTRL__SRCSEL": srcsel})
+        if freq:
+            self.add_psu_config({f"PSU__CRL_APB__UART{n}_REF_CTRL__FREQMHZ": int(freq)})
+
+        # Inject UARTn configuration to use it via csv/json
+        LiteXContext.top.add_constant(f"CONFIG_PSU_UART{n}_ENABLE", 1)
+        LiteXContext.top.add_constant(f"CONFIG_PSU_UART{n}_IO",     io_type)
+
+        # configures IOs associated to this interface
+        if io_type != "EMIO":
+            # UART0 maps RX/TX, while UART1 maps TX/RX.
+            directions   = ("in", "out")     if n == 0 else ("out", "in")
+            drv_strength = (12, tx_strength) if n == 0 else (tx_strength, 12)
+            self.add_mio_config(
+                directions = dict(zip(pins, directions)),
+                iotype     = iotype,
+                slew       = slew,
+                pullup     = "pullup",
+                strength   = dict(zip(pins, drv_strength)),
+                polarity   = "Default",
+            )
+
+        # UARTn interface is only exposed when controller is set to EMIO.
+        if io_type == "EMIO":
+            # PSU connections.
+            self.cpu_params.update({
+                f"i_emio_uart{n}_rxd" : pads_or_mio_group.rx,
+                f"o_emio_uart{n}_txd" : pads_or_mio_group.tx,
+            })
 
     def add_gpios(self, pads):
         assert pads is not None
