@@ -30,6 +30,15 @@ class _ApiculaPlatform(GowinPlatform):
     def do_finalize(self, fragment):
         self.add_period_constraint(self.lookup_request("clk27"), 1e9/27e6)
 
+class _GW5ApiculaPlatform(GowinPlatform):
+    def __init__(self):
+        GowinPlatform.__init__(self,
+            device     = "GW5A-LV25MG121NC1/I0",
+            io         = [("clk50", 0, Pins("A1"))],
+            toolchain  = "apicula",
+            devicename = "GW5A-25A",
+        )
+
 
 class _ApiculaSoC(LiteXModule):
     def __init__(self, platform, sys_clk_freq):
@@ -101,6 +110,13 @@ class TestGowinToolchain(unittest.TestCase):
 
         self.assertIn("--freq 48.0", build_script)
         self.assertNotIn("--freq 27.0", build_script)
+
+    def test_apicula_rejects_gw5(self):
+        platform = _GW5ApiculaPlatform()
+        dut = LiteXModule()
+        dut.cd_sys = ClockDomain()
+        with self.assertRaisesRegex(ValueError, "does not support GW5"):
+            platform.build(dut, build_dir="/tmp/test_apicula_gw5", build_name="top", run=False)
 
     def test_false_paths_use_named_primary_and_generated_clocks(self):
         platform = GowinPlatform("GW5AT-LV60PG484AC1/I0",

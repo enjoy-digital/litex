@@ -37,6 +37,11 @@ class GowinApiculaToolchain(YosysNextPNRToolchain):
 
     def finalize(self):
         devicename = self.platform.devicename
+        if devicename.startswith("GW5"):
+            raise ValueError(
+                "Apicula/nextpnr does not support GW5 devices yet. "
+                "Use the Gowin IDE toolchain instead."
+            )
         # Non-exhaustive list of family aliases that Gowin IDE supports but don't have a unique database
         if devicename == "GW1NR-9C":
             devicename = "GW1N-9C"
