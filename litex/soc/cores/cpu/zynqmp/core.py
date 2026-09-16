@@ -527,46 +527,105 @@ class ZynqMP(CPU):
             self.specials += Instance(f"gem{n}", **mac_params)
             self.gem_mac[n] = ("sgmii", gt_location)
 
-    def add_i2c(self, n, pads):
-        assert n < 2 and not n in self.i2c_use
-        assert pads is not None
+    """
+    Connect and Enables I2C controler (may be via PSU MIO or PL EMIO).
+    Attributes
+    ==========
+    n: int
+        controler ID 0/1
+    pads_or_mio_group: Record or str:
+        When pads is a Record, I2Cn controler is configured to uses EMIO
+        When pads is a str, I2Cn controler is configured to uses PSU MIO. str must
+        be "MIO xx .. yy"
+    iotype: str
+        IO type configuration (cmos/schmitt). This parameter is only
+        used in MIO mode.
+    slew: str
+        IO slew rate (slow/fast/...). This parameter is only used in MIO mode.
+    strength: (optional) dict(pad(str), value(int))
+        Drive Strength.
+        Pad/keys are scl and sda
+        Value range is [2, 4, 8, 12].
+        When None default 4mA is used for both pads, if one of pad is missing default
+        value is used too.
+        This parameter is only used in MIO mode.
+    srcsel: str (optional, keyword-only) (Accepted values: DPLL/IOPLL/RPLL).
+        PSU reference clock source. Empty keeps the default value.
+    freq: float (optional, keyword-only)
+        PSU reference clock frequency in MHz. Zero keeps the default value.
+    """
+    def add_i2c(self, n, pads_or_mio_group, iotype="cmos", slew="fast", strength=None,
+        *, srcsel="", freq=0):
+        assert 0 <= n < 2 and not n in self.i2c_use
+        assert pads_or_mio_group is not None
+        assert freq >= 0
+
+        # Mark as used.
+        self.i2c_use.append(n)
+
+        # Detect the IO type and parse the MIO pin endpoints.
+        (io_type, pins) = self.detect_emio_mio_pins(pads_or_mio_group)
 
         # PSU configuration.
-        self.config[f"PSU__I2C{n}__PERIPHERAL__ENABLE"] = 1
-        self.config[f"PSU__I2C{n}__PERIPHERAL__IO"]     = "EMIO"
-
-        # Signals.
-        scl_i   = Signal()
-        scl_o   = Signal()
-        scl_t   = Signal()
-        sda_i   = Signal()
-        sda_o   = Signal()
-        sda_t   = Signal()
-
-        # PSU connections.
-        self.specials += [
-            Instance("IOBUF",
-                i_I   = sda_o,
-                o_O   = sda_i,
-                i_T   = sda_t,
-                io_IO = pads.sda
-            ),
-            Instance("IOBUF",
-                i_I   = scl_o,
-                o_O   = scl_i,
-                i_T   = scl_t,
-                io_IO = pads.scl
-            ),
-        ]
-
-        self.cpu_params.update({
-            f"i_emio_i2c{n}_scl_i" : scl_i,
-            f"o_emio_i2c{n}_scl_o" : scl_o,
-            f"o_emio_i2c{n}_scl_t" : scl_t,
-            f"i_emio_i2c{n}_sda_i" : sda_i,
-            f"o_emio_i2c{n}_sda_o" : sda_o,
-            f"o_emio_i2c{n}_sda_t" : sda_t,
+        self.add_psu_config({
+            f"PSU__I2C{n}__PERIPHERAL__ENABLE" : 1,
+            f"PSU__I2C{n}__PERIPHERAL__IO"     : io_type,
         })
+        if srcsel:
+            self.add_psu_config({f"PSU__CRL_APB__I2C{n}_REF_CTRL__SRCSEL": srcsel})
+        if freq:
+            self.add_psu_config({f"PSU__CRL_APB__I2C{n}_REF_CTRL__FREQMHZ": int(freq)})
+
+        # Inject I2Cn configuration to use it via csv/json.
+        LiteXContext.top.add_constant(f"CONFIG_PSU_I2C{n}_ENABLE", 1)
+        LiteXContext.top.add_constant(f"CONFIG_PSU_I2C{n}_IO",     io_type)
+
+        if io_type != "EMIO":
+            drv_strength = {"scl": 4, "sda": 4}
+            if strength is not None:
+                for k,v in strength.items():
+                    assert k in ["scl", "sda"]
+                    drv_strength[k] = v
+            self.add_mio_config(
+                {i: "inout" for i in pins},
+                iotype   = iotype,
+                slew     = slew,
+                pullup   = "pullup",
+                strength = drv_strength,
+                polarity = "Default",
+            )
+
+        # I2Cn interface is only exposed when controller is set to EMIO.
+        if io_type == "EMIO":
+            # Signals.
+            scl = TSTriple()
+            sda = TSTriple()
+
+            # Physical connections.
+            self.specials += [
+                Instance("IOBUF",
+                    i_I   = sda.o,
+                    o_O   = sda.i,
+                    i_T   = sda.oe,
+                    io_IO = pads_or_mio_group.sda
+                ),
+                Instance("IOBUF",
+                    i_I   = scl.o,
+                    o_O   = scl.i,
+                    i_T   = scl.oe,
+                    io_IO = pads_or_mio_group.scl
+                ),
+            ]
+
+            # PSU connections.
+            self.cpu_params.update({
+                f"i_emio_i2c{n}_scl_i" : scl.i,
+                f"o_emio_i2c{n}_scl_o" : scl.o,
+                f"o_emio_i2c{n}_scl_t" : scl.oe,
+                f"i_emio_i2c{n}_sda_i" : sda.i,
+                f"o_emio_i2c{n}_sda_o" : sda.o,
+                f"o_emio_i2c{n}_sda_t" : sda.oe,
+            })
 
     """
     Connect and Enables UARTn controler (may be via PSU MIO or PL EMIO).
