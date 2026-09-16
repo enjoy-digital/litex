@@ -25,8 +25,8 @@ class _Pads:
 
 
 class _DUT(LiteXModule):
-    def __init__(self):
-        self.spilcd = SPILCD(_Pads(), sys_clk_freq=50e6)
+    def __init__(self, with_pixel_stream=False):
+        self.spilcd = SPILCD(_Pads(), sys_clk_freq=50e6, with_pixel_stream=with_pixel_stream)
 
 
 class TestSPILCD(unittest.TestCase):
@@ -40,6 +40,12 @@ class TestSPILCD(unittest.TestCase):
         sequence = get_st7789_init_sequence()
         self.assertTrue(sequence)
         self.assertTrue(all(len(entry) == 2 for entry in sequence))
+
+    def test_pixel_stream_endpoint(self):
+        dut = _DUT(with_pixel_stream=True)
+        dut.get_fragment()
+        self.assertTrue(hasattr(dut.spilcd, "sink"))
+        self.assertTrue(hasattr(dut.spilcd, "pixel_enable"))
 
 
 if __name__ == "__main__":
