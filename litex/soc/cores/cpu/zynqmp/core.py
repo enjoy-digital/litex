@@ -59,6 +59,7 @@ class ZynqMP(CPU):
         self.axi_gp_masters = [None] * 3  # General Purpose AXI Masters.
         self.gem_mac        = {}          # GEM MAC reserved ports.
         self.i2c_use        = []          # I2c reserved ports.
+        self.spi_use        = []          # SPI reserved ports.
         self.uart_use       = []          # UART reserved ports.
         self.can_use        = []          # CAN reserved/used ports.
         self.pps            = Signal(4)   # Optional PPS (with gemX and PTP enabled)
@@ -599,6 +600,150 @@ class ZynqMP(CPU):
                 f"o_emio_i2c{n}_sda_o" : sda.o,
                 f"o_emio_i2c{n}_sda_t" : sda.oe,
             })
+
+    """
+    Connect and Enables SPIn controler (may be via PSU MIO or PL EMIO).
+    Attributes
+    ==========
+    n: int
+        controler ID 0/1
+    pads_or_mio_group: Record or str:
+        When pads_or_mio_group is:
+        - a Record, SPIn controler is configured to uses EMIO
+        - a str, SPIn controler is configured to uses PSU MIO. str must
+        be the name of the MIO group: "MIO xx .. yy"
+    ss1_en: bool
+        Enable second CS (ss1). Only used in MIO mode. With EMIO ss1_en is
+        deduced by cs1_n in pads_or_mio_group
+    ss2_en: bool
+        Enable third CS (ss2). Only used in MIO mode. With EMIO ss2_en is
+        deduced by cs2_n in pads_or_mio_group
+    iotype: str
+        IO type configuration (cmos/schmitt). This parameter is only
+        used in MIO mode.
+    slew: str
+        IO slew rate (slow/fast/...). This parameter is only used in MIO mode.
+    srcsel: str (optional, keyword-only) (Accepted values: DPLL/IOPLL/RPLL).
+        PSU reference clock source.
+    freq: float (optional, keyword-only)
+        PSU reference clock frequency in MHz. Zero keeps the default value.
+    """
+    def add_spi(self, n, pads_or_mio_group, ss1_en=False, ss2_en=False, iotype="cmos", slew="slow", *,
+        srcsel="IOPLL", freq=0):
+        assert n < 2 and not n in self.spi_use
+        assert pads_or_mio_group is not None
+
+        # Mark as used.
+        self.spi_use.append(n)
+
+        # Detect the IO type and parse the MIO pin endpoints.
+        (io_type, pins) = self.detect_emio_mio_pins(pads_or_mio_group)
+
+        # In EMIO check if Record contains cs1_n/cs2_n
+        if io_type == "EMIO":
+            ss1_en = hasattr(pads_or_mio_group, "cs1_n")
+            ss2_en = hasattr(pads_or_mio_group, "cs2_n")
+
+        # PSU configuration.
+        self.add_psu_config({
+            f"PSU__SPI{n}__PERIPHERAL__ENABLE" : 1,
+            f"PSU__SPI{n}__PERIPHERAL__IO"     : io_type,
+            f"PSU__SPI{n}__GRP_SS1__ENABLE"    : {True: 1, False: 0}[ss1_en],
+            f"PSU__SPI{n}__GRP_SS2__ENABLE"    : {True: 1, False: 0}[ss2_en],
+        })
+
+        if srcsel:
+            self.add_psu_config({f"PSU__CRL_APB__SPI{n}_REF_CTRL__SRCSEL": srcsel})
+        if freq:
+            self.add_psu_config({f"PSU__CRL_APB__SPI{n}_REF_CTRL__FREQMHZ": int(freq)})
+
+        # Inject SPIn configuration to use it via csv/json
+        LiteXContext.top.add_constant(f"CONFIG_PSU_SPI{n}_ENABLE", 1)
+        LiteXContext.top.add_constant(f"CONFIG_PSU_SPI{n}_IO",     io_type)
+
+        # configures IOs associated to this interface
+        if io_type != "EMIO":
+            pins_name   = ['sclk', 'ss2', 'ss1', 'ss0', 'miso', 'mosi']
+            pin_map     = zip(pins, pins_name)
+            directions  = {
+                p_i: ("out" if p_n in ("ss1", "ss2") else "inout")
+                for p_i, p_n in pin_map
+                if not ((p_n == "ss1" and not ss1_en) or (p_n == "ss2" and not ss2_en))
+            }
+            self.add_mio_config(
+                directions = directions,
+                iotype     = iotype,
+                slew       = slew,
+                pullup     = "pullup",
+            )
+
+        # SPIn interface is only exposed when controler is set to EMIO.
+        if io_type == "EMIO":
+            # Signals.
+            sclk = TSTriple()
+            mosi = TSTriple()
+            miso = TSTriple()
+            ss   = TSTriple()
+
+            # Physical connections.
+            if hasattr(pads_or_mio_group, "mosi"):
+                self.specials += Instance("IOBUF",
+                    i_I   = mosi.o,
+                    o_O   = mosi.i,
+                    i_T   = mosi.oe,
+                    io_IO = pads_or_mio_group.mosi
+                )
+
+            if hasattr(pads_or_mio_group, "miso"):
+                self.specials += Instance("IOBUF",
+                    i_I   = miso.o,
+                    o_O   = miso.i,
+                    i_T   = miso.oe,
+                    io_IO = pads_or_mio_group.miso
+                )
+            self.specials += [
+                Instance("IOBUF",
+                    i_I   = sclk.o,
+                    o_O   = sclk.i,
+                    i_T   = sclk.oe,
+                    io_IO = pads_or_mio_group.clk
+                ),
+                Instance("IOBUF",
+                    i_I   = ss.o,
+                    o_O   = ss.i,
+                    i_T   = ss.oe,
+                    io_IO = pads_or_mio_group.cs_n
+                ),
+            ]
+
+            # PSU connections.
+            # see Table 23-2 @ https://docs.amd.com/api/khub/documents/xzMsp_c5sG9J6A3u7NkJYQ/content
+            self.cpu_params.update({
+                # SCLK
+                f"i_emio_spi{n}_sclk_i" : sclk.i,
+                f"o_emio_spi{n}_sclk_o" : sclk.o,
+                f"o_emio_spi{n}_sclk_t" : sclk.oe,
+                # MOSI
+                f"i_emio_spi{n}_s_i"    : mosi.i, # Yes _s_i is for MOSI
+                f"o_emio_spi{n}_m_o"    : mosi.o,
+                f"o_emio_spi{n}_mo_t"   : mosi.oe,
+                # MISO
+                f"i_emio_spi{n}_m_i"    : miso.i, # Yes _m_i is for MISO
+                f"o_emio_spi{n}_s_o"    : miso.o,
+                f"o_emio_spi{n}_so_t"   : miso.oe,
+                # SS0
+                f"i_emio_spi{n}_ss_i_n" : ss.i,
+                f"o_emio_spi{n}_ss_o_n" : ss.o,
+                f"o_emio_spi{n}_ss_n_t" : ss.oe,
+            })
+            if ss1_en:
+                self.cpu_params.update({
+                    f"o_emio_spi{n}_ss1_o_n" : pads_or_mio_group.cs1_n,
+                })
+            if ss2_en:
+                self.cpu_params.update({
+                    f"o_emio_spi{n}_ss2_o_n" : pads_or_mio_group.cs2_n,
+                })
 
     """
     Connect and Enables UARTn controler (may be via PSU MIO or PL EMIO).
