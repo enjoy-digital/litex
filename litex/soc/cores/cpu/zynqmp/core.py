@@ -599,42 +599,78 @@ class ZynqMP(CPU):
         })
 
     """
-    Enable CANx peripheral. Peripheral may be optionally set
+    Enable CANx peripheral (may be via PSU MIO or PL EMIO). Peripheral may be optionally set
     Attributes
     ==========
     n: int
         CAN id (0, 1)
-    pads:
-        Physicals pads (tx and rx)
+    pads_or_mio_group: Record or str:
+        When pads_or_mio_group is:
+        - a Record, CANn controler is configured to uses EMIO
+        - a str, CANn controler is configured to uses PSU MIO. str must
+        be the name of the MIO group: "MIO xx .. yy"
     ext_clk: int or None
         When unset/None CAN is clocked by internal clock (IO PLL).
-        value must be 0 <= ext_clk < 54.
+        value must be 0 <= ext_clk < 78.
     ext_clk_freq: float
         when ext_clk is set, external clock frequency (Hz)
+    iotype: str
+        IO type for the MIO pins (cmos/schmitt). This parameter is only
+        used in MIO mode.
+    slew: str
+        IO slew rate (slow/fast/...). This parameter is only used in MIO mode.
     """
-    def add_can(self, n, pads, ext_clk=None, ext_clk_freq=None):
+    def add_can(self, n, pads_or_mio_group, ext_clk=None, ext_clk_freq=None, iotype="cmos", slew="fast"):
         assert n < 2 and not n in self.can_use
-        assert ext_clk is None or (ext_clk < 54 and ext_clk is not None)
-        assert pads is not None
+        assert ext_clk is None or ext_clk < 78
+        assert ext_clk is None or (ext_clk_freq is not None and ext_clk_freq > 0)
+        assert pads_or_mio_group is not None
 
         # Mark as used
         self.can_use.append(n)
 
+        # Detect the IO type and parse the MIO pin endpoints.
+        (io_type, pins) = self.detect_emio_mio_pins(pads_or_mio_group)
+
         # PSU configuration.
-        self.config[f"PSU__CAN{n}__PERIPHERAL__ENABLE"] = 1
-        self.config[f"PSU__CAN{n}__PERIPHERAL__IO"]     = "EMIO"
-        self.config[f"PSU__CAN{n}__GRP_CLK__ENABLE"]    = {True: 0, False: 1}[ext_clk == None]
-
-        if ext_clk:
-            self.config[f"PSU__CAN{n}__GRP_CLK__IO"]               = f"MIO {ext_clk}"
-            self.config[f"PSU__CRL_APB__CAN{n}_REF_CTRL__FREQMHZ"] = int(clk_freq / 1e6)
-
-        # PS7 connections.
-        self.cpu_params.update({
-            f"i_emio_can{n}_phy_rx": pads.rx,
-            f"o_emio_can{n}_phy_tx": pads.tx,
+        self.add_psu_config({
+            f"PSU__CAN{n}__PERIPHERAL__ENABLE":       1,
+            f"PSU__CAN{n}__PERIPHERAL__IO":           io_type,
+            f"PSU__CAN{n}__GRP_CLK__ENABLE":          {True: 0,       False: 1}         [ext_clk is None],
+            f"PSU__CRL_APB__CAN{n}_REF_CTRL__SRCSEL": {True: "IOPLL", False: "external"}[ext_clk is None],
         })
 
+        if ext_clk is not None:
+            self.add_psu_config({
+                f"PSU__CAN{n}__GRP_CLK__IO"               : f"MIO {ext_clk}",
+                f"PSU__CRL_APB__CAN{n}_REF_CTRL__FREQMHZ" : int(ext_clk_freq / 1e6),
+            })
+
+        # Inject CANn configuration to use it via csv/json.
+        LiteXContext.top.add_constant(f"CONFIG_PSU_CAN{n}_ENABLE", 1)
+        LiteXContext.top.add_constant(f"CONFIG_PSU_CAN{n}_IO",     io_type)
+
+        # Configure IOs associated with this interface.
+        if io_type != "EMIO":
+            # CAN0 maps RX/TX, while CAN1 maps TX/RX.
+            directions = ("in", "out") if n == 0 else ("out", "in")
+            self.add_mio_config(
+                dict(zip(pins, directions)),
+                iotype = iotype,
+                slew   = slew,
+                pullup = "pullup"
+            )
+
+        if ext_clk is not None:
+            self.add_mio_config({ext_clk: "in"}, iotype=iotype, slew=slew)
+
+        # CANn interface is only exposed when controller is set to EMIO.
+        if io_type == "EMIO":
+            # PSU connections.
+            self.cpu_params.update({
+                f"i_emio_can{n}_phy_rx": pads_or_mio_group.rx,
+                f"o_emio_can{n}_phy_tx": pads_or_mio_group.tx,
+            })
     def do_finalize(self):
         if len(self.ps_tcl):
             self.ps_tcl.append("set_property -dict [list \\")
