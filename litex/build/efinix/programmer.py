@@ -26,10 +26,50 @@ class EfinixProgrammer(GenericProgrammer):
         # without a platform.
         self.family = family
 
+    def _load_bitstream_command(self, bitstream_file, cable_suffix=""):
+        cmd = [
+            self.efinity_path + "/bin/python3",
+            self.efinity_path + "/pgm/bin/efx_pgm/ftdi_program.py",
+            bitstream_file,
+            "-m", "jtag",
+        ]
+        if cable_suffix:
+            cmd.append(cable_suffix)
+        return cmd
+
+    def _flash_command(self, address, data_file):
+        return [
+            self.efinity_path + "/bin/python3",
+            self.efinity_path + "/pgm/bin/efx_pgm/ftdi_program.py",
+            data_file,
+            "-m", "jtag_bridge",
+            "--address", hex(address),
+        ]
+
+    def _bridge_image_path(self, bridge_image_name, device_id):
+        if self.family is None:
+            from litex.gen.context import LiteXContext
+            if LiteXContext.platform is not None:
+                self.family = LiteXContext.platform.family
+        if self.family is None:
+            raise ValueError("Unable to determine Efinix family, please pass it explicitly to EfinixProgrammer (family=...).")
+        if bridge_image_name is None:
+            if self.family == "Trion":
+                raise ValueError("Trion devices require a bridge image name.")
+            bridge_image_name = "u%08X.bit" % int(device_id)
+        fli_dir = os.path.join(self.efinity_path, "pgm", "fli")
+        if self.family == "Titanium":
+            fli_dir = os.path.join(fli_dir, "titanium")
+        elif self.family == "Topaz":
+            fli_dir = os.path.join(fli_dir, "topaz")
+        elif self.family == "Trion":
+            fli_dir = os.path.join(fli_dir, "trion")
+        else:
+            raise ValueError(f"Unknown Efinix family {self.family}")
+        return os.path.join(fli_dir, bridge_image_name)
+
     def load_bitstream(self, bitstream_file, cable_suffix=""):
-        if (subprocess.call([self.efinity_path + '/bin/python3', self.efinity_path +
-                   '/pgm/bin/efx_pgm/ftdi_program.py', bitstream_file,
-                   "-m", "jtag"], env=self.env) != 0):
+        if subprocess.call(self._load_bitstream_command(bitstream_file, cable_suffix), env=self.env) != 0:
             msg = f"Error occurred during {self.__class__.__name__}'s call, please check:\n"
             msg += f"- {self.__class__.__name__} installation.\n"
             msg += f"- Access permissions.\n"
@@ -41,32 +81,11 @@ class EfinixProgrammer(GenericProgrammer):
         if mode not in ["jtag_bridge"]:
             raise ValueError("Unsupported Efinix flash mode: {}.".format(mode))
         if device_id is not None or bridge_image_name is not None:
-            if self.family is None:
-                from litex.gen.context import LiteXContext
-                if LiteXContext.platform is not None:
-                    self.family = LiteXContext.platform.family
-            if self.family is None:
-                raise ValueError("Unable to determine Efinix family, please pass it explicitly to EfinixProgrammer (family=...).")
-            if bridge_image_name is None:
-                if self.family == "Trion":
-                    raise ValueError("Trion devices require a bridge image name.")
-                device_id_str = '%08X' % int(device_id)
-                bridge_image_name = f'u{device_id_str}.bit'
-            fli_dir = os.path.join(self.efinity_path, 'pgm', 'fli')
-            if self.family == "Titanium":
-                fli_dir = os.path.join(fli_dir, 'titanium')
-            elif self.family == "Topaz":
-                fli_dir = os.path.join(fli_dir, 'topaz')
-            elif self.family == "Trion":
-                fli_dir = os.path.join(fli_dir, 'trion')
-            else:
-                raise ValueError(f"Unknown Efinix family {self.family}")
-            print(f"Loading JTAG Bridge Image ({bridge_image_name})")
-            self.load_bitstream(os.path.join(fli_dir, bridge_image_name))
+            bridge_image = self._bridge_image_path(bridge_image_name, device_id)
+            print(f"Loading JTAG Bridge Image ({bridge_image})")
+            self.load_bitstream(bridge_image)
 
-        if (subprocess.call([self.efinity_path + '/bin/python3', self.efinity_path +
-                   '/pgm/bin/efx_pgm/ftdi_program.py', data_file,
-                   "-m", "jtag_bridge", "--address", hex(address)], env=self.env) != 0):
+        if subprocess.call(self._flash_command(address, data_file), env=self.env) != 0:
             msg = f"Error occurred during {self.__class__.__name__}'s call, please check:\n"
             msg += f"- {self.__class__.__name__} installation.\n"
             msg += f"- Access permissions.\n"
