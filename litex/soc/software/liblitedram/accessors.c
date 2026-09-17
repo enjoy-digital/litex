@@ -96,18 +96,27 @@ void write_inc_dqs_delay(int module) {
 	cdelay(100);
 }
 
-void write_rst_dqs_delay(int module) {
+int write_rst_dqs_delay_checked(int module) {
 #if defined(SDRAM_PHY_USDDRPHY) || defined(SDRAM_PHY_USPDDRPHY)
-	/* Reset DQS delay */
-	while (ddrphy_wdly_dqs_inc_count_read() != 0) {
+	/* Reset DQS delay. Bound the wrap so a stale or non-advancing status CSR
+	 * cannot hang SDRAM initialization forever. */
+	for (int i = 0; i < SDRAM_PHY_DELAYS; i++) {
+		if (ddrphy_wdly_dqs_inc_count_read() == 0)
+			return 1;
 		ddrphy_wdly_dqs_inc_write(1);
 		cdelay(100);
 	}
+	return ddrphy_wdly_dqs_inc_count_read() == 0;
 #else
 	/* Reset DQS delay */
 	ddrphy_wdly_dqs_rst_write(1);
 	cdelay(100);
+	return 1;
 #endif //defined(SDRAM_PHY_USDDRPHY) || defined(SDRAM_PHY_USPDDRPHY)
+}
+
+void write_rst_dqs_delay(int module) {
+	(void)write_rst_dqs_delay_checked(module);
 }
 
 void write_inc_delay(int module) {
