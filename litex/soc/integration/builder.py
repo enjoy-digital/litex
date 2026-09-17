@@ -16,6 +16,7 @@ import os
 import sys
 import shutil
 import inspect
+import shlex
 import argparse
 import subprocess
 
@@ -33,6 +34,8 @@ from litex.soc.integration import export, soc
 # Helpers ------------------------------------------------------------------------------------------
 
 def _makefile_escape(s):
+    if os.name == "nt":
+        s = s.replace("\\", "/")
     return s.replace("\\", "\\\\").replace("$", "$$")
 
 def _check_makefile_path(p):
@@ -245,6 +248,11 @@ class Builder:
             except AttributeError:
                 print(colorer(f"problem with {k}:", "red"))
                 raise
+
+        # Firmware helpers must use the environment that generated the SoC.
+        # Windows virtual environments may not provide a python3 executable.
+        python = sys.executable.replace("\\", "/") if os.name == "nt" else sys.executable
+        variables_contents.append("PYTHON ?= " + _makefile_escape(shlex.quote(python)))
 
         # Define packages and libraries.
         define("PACKAGES",     " ".join(name    for name, src_dir in self.software_packages))

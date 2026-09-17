@@ -28,9 +28,17 @@
 #include <liblitedram/accessors.h>
 
 //#define SDRAM_TEST_DISABLE
-//#define SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
-//#define SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
+#ifdef CONFIG_SDRAM_PHY_DEBUG
+/* Opt-in component-PHY detail: show command-delay scans and write-latency
+ * calibration samples. Normal read/write leveling summaries remain unchanged. */
+#define SDRAM_WRITE_LEVELING_CMD_DELAY_DEBUG
+#define SDRAM_WRITE_LATENCY_CALIBRATION_DEBUG
+#endif
 //#define SDRAM_LEVELING_SCAN_DISPLAY_HEX_DIV 10
+
+#if defined(CONFIG_SDRAM_DMA_SOFTWARE_ADMISSION) && defined(SDRAM_TEST_DISABLE)
+#error "Software DMA admission requires the final SDRAM memory test"
+#endif
 
 /*
  * SDRAM startup overview:
@@ -157,8 +165,8 @@ int sdram_get_databits(void) {
 	return SDRAM_PHY_DATABITS;
 }
 
-int sdram_get_freq(void) {
-	return SDRAM_PHY_XDR*SDRAM_PHY_PHASES*CONFIG_CLOCK_FREQUENCY;
+unsigned int sdram_get_freq(void) {
+	return (unsigned int)SDRAM_PHY_XDR*SDRAM_PHY_PHASES*CONFIG_CLOCK_FREQUENCY;
 }
 
 int sdram_get_cl(void) {
@@ -320,13 +328,24 @@ static void command_pwr(unsigned int value) {
 #define DFII_CONTROL_SOFTWARE (DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N)
 #define DFII_CONTROL_HARDWARE (DFII_CONTROL_SEL)
 
+void sdram_invalidate_dma(void) {
+#ifdef CONFIG_SDRAM_DMA_SOFTWARE_ADMISSION
+	/* PHY/MR mutation invalidates the last complete calibration and memtest.
+	 * Returning DFI ownership alone must never re-admit application DMA. */
+	dma_bench_software_ready_write(0);
+#endif
+}
+
 void sdram_software_control_on(void) {
 	unsigned int previous;
+	sdram_invalidate_dma();
 	previous = sdram_dfii_control_read();
 	/* Switch DFII to software control */
 	if (previous != DFII_CONTROL_SOFTWARE) {
 		sdram_dfii_control_write(DFII_CONTROL_SOFTWARE);
+#if !defined(CONFIG_SDRAM_USNATIVE_XEM8320) || defined(CONFIG_SDRAM_USNATIVE_DEBUG)
 		printf("Switching SDRAM to software control.\n");
+#endif
 	}
 
 #if CSR_DDRPHY_EN_VTC_ADDR
@@ -341,7 +360,9 @@ void sdram_software_control_off(void) {
 	/* Switch DFII to hardware control */
 	if (previous != DFII_CONTROL_HARDWARE) {
 		sdram_dfii_control_write(DFII_CONTROL_HARDWARE);
+#if !defined(CONFIG_SDRAM_USNATIVE_XEM8320) || defined(CONFIG_SDRAM_USNATIVE_DEBUG)
 		printf("Switching SDRAM to hardware control.\n");
+#endif
 	}
 #if CSR_DDRPHY_EN_VTC_ADDR
 	/* Enable Voltage/Temperature compensation */
@@ -1065,7 +1086,13 @@ int sdram_write_leveling(void) {
 	int cdly_range_end;
 	int cdly_range_step;
 
+#ifndef CONFIG_SDRAM_USNATIVE_XEM8320
 	_sdram_tck_taps = ddrphy_half_sys8x_taps_read()*4;
+#else
+	/* Native calibration uses measured windows, not this component-PHY CSR. */
+	printf("Use sdram_init for USNative calibration.\n");
+	return 0;
+#endif
 	printf("  tCK equivalent taps: %d\n", _sdram_tck_taps);
 
 	/* First align CK/CMD against DQS. This makes the later per-module data
@@ -1665,7 +1692,18 @@ int sdram_leveling(void) {
 
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 	printf("Write leveling:\n");
+#if defined(SDRAM_PHY_USDDRPHY) || defined(SDRAM_PHY_USPDDRPHY)
+	/* UltraScale PHYs report a real write-leveling failure. Preserve the
+	 * existing behavior for other PHYs: LPDDR5SimPHY, for example, advertises
+	 * dummy delay CSRs rather than a usable write-leveling search. */
+	if (!sdram_write_leveling()) {
+		printf("Write leveling failed.\n");
+		sdram_software_control_off();
+		return 0;
+	}
+#else
 	sdram_write_leveling();
+#endif
 #endif // SDRAM_PHY_WRITE_LEVELING_CAPABLE
 
 #ifdef SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE
@@ -1699,15 +1737,36 @@ int sdram_leveling(void) {
  * This file surrounds that fixed sequence with PHY reset/training and LiteX
  * controller status reporting.
  */
+#ifdef CONFIG_SDRAM_USNATIVE_XEM8320
+#include "usnative/init.h"
+#endif
+
 int sdram_init(void) {
 	printf("Initializing SDRAM @0x%08lx...\n", MAIN_RAM_BASE);
+
+/* Revoke DMA admission before every full initialization and grant it only
+ * after the final controller-path memory test passes. Native DMA refinement,
+ * when explicitly enabled, grants bounded access inside its training step. */
+#ifdef CONFIG_SDRAM_DMA_SOFTWARE_ADMISSION
+	dma_bench_software_ready_write(0);
+#endif
 
 #ifdef CSR_DDRCTRL_BASE
 	ddrctrl_init_done_write(0);
 	ddrctrl_init_error_write(0);
 #endif // CSR_DDRCTRL_BASE
 
-#ifdef CONFIG_SDRAM_CUSTOM_INIT
+#ifdef CONFIG_SDRAM_USNATIVE_XEM8320
+	if (!sdram_usnative_init()) {
+		/* Keep failed memory isolated; readiness alone cannot authorize traffic. */
+		nb_fail(ddrphy_training_error_read() ? ddrphy_training_error_read() : 1);
+#ifdef CSR_DDRCTRL_BASE
+		ddrctrl_init_error_write(1);
+		ddrctrl_init_done_write(1);
+#endif
+		return 0;
+	}
+#elif defined(CONFIG_SDRAM_CUSTOM_INIT)
 	/* Some memories require board-level power or a device-specific training
 	 * flow that cannot be represented by the generated generic sequence. */
 	if (!sdram_custom_init()) {
@@ -1744,6 +1803,27 @@ int sdram_init(void) {
 	/* Stop normal controller ownership and put the PHY into a clean state before
 	 * the JEDEC sequence touches the DRAM. */
 	sdram_software_control_on();
+#if (defined(SDRAM_PHY_USDDRPHY) || defined(SDRAM_PHY_USPDDRPHY)) && \
+	defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) && \
+	defined(CSR_DDRPHY_WDLY_DQS_INC_COUNT_ADDR)
+	/* UltraScale global PHY reset clears DQ ODELAY but leaves the DQS ODELAY
+	 * increment count unchanged. Wrap DQS to its base delay first so the DQ
+	 * reset and software-tracked DQS offset start leveling coherently. */
+	for (i=0; i<SDRAM_PHY_MODULES; i++) {
+		sdram_select(i, 0);
+		int dqs_reset_ok = write_rst_dqs_delay_checked(i);
+		sdram_deselect(i, 0);
+		if (!dqs_reset_ok) {
+			printf("DQS delay restoration failed on module %d\n", i);
+			sdram_software_control_off();
+#ifdef CSR_DDRCTRL_BASE
+			ddrctrl_init_error_write(1);
+			ddrctrl_init_done_write(1);
+#endif
+			return 0;
+		}
+	}
+#endif
 #if CSR_DDRPHY_RST_ADDR
 	ddrphy_rst_write(1);
 	cdelay(1000);
@@ -1755,7 +1835,14 @@ int sdram_init(void) {
 	 * the DRAM can respond to software DFII read/write probes. */
 	init_sequence();
 #if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
-	sdram_leveling();
+	if (!sdram_leveling()) {
+		printf("SDRAM leveling failed.\n");
+#ifdef CSR_DDRCTRL_BASE
+		ddrctrl_init_error_write(1);
+		ddrctrl_init_done_write(1);
+#endif
+		return 0;
+	}
 #endif // defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
 #endif // CONFIG_SDRAM_CUSTOM_INIT
 
@@ -1765,6 +1852,9 @@ int sdram_init(void) {
 #ifndef SDRAM_TEST_DISABLE
 	/* Final software smoke test before marking DDRCTRL init_done. */
 	if(!memtest((unsigned int *) MAIN_RAM_BASE_VA, MEMTEST_DATA_SIZE)) {
+#ifdef CONFIG_SDRAM_USNATIVE_XEM8320
+		nb_fail(20); /* Retraining is required after a failed final memory test. */
+#endif
 #ifdef CSR_DDRCTRL_BASE
 		ddrctrl_init_error_write(1);
 		ddrctrl_init_done_write(1);
@@ -1776,6 +1866,10 @@ int sdram_init(void) {
 #ifdef CSR_DDRCTRL_BASE
 	ddrctrl_init_done_write(1);
 #endif // CSR_DDRCTRL_BASE
+#if defined(CONFIG_SDRAM_DMA_SOFTWARE_ADMISSION) && !defined(SDRAM_TEST_DISABLE)
+	dma_bench_software_ready_write(1);
+	printf("SDRAM initialization PASS\n");
+#endif
 
 	return 1;
 }
