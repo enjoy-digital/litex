@@ -1762,7 +1762,8 @@ int sdram_init(void) {
 #ifdef CONFIG_SDRAM_USNATIVE
 	if (!sdram_usnative_init()) {
 		/* Keep failed memory isolated; readiness alone cannot authorize traffic. */
-		nb_fail(ddrphy_training_error_read() ? ddrphy_training_error_read() : 1);
+		if (usnative_mapping_verified)
+			nb_fail(ddrphy_training_error_read() ? ddrphy_training_error_read() : 1);
 #ifdef CSR_DDRCTRL_BASE
 		ddrctrl_init_error_write(1);
 		ddrctrl_init_done_write(1);

@@ -291,6 +291,7 @@ int main(void) {
 #define MEMTEST_DATA_SIZE 64
 #define false 0
 static unsigned calibration_ok, memory_ok=1, handoffs, tests, speeds, failed, done, status_error;
+static int usnative_mapping_verified=1;
 static int sdram_usnative_init(void) {return calibration_ok;}
 static unsigned ddrphy_training_error_read(void) {return 7;}
 static unsigned nb_fail(unsigned code) {failed=code;return code;}

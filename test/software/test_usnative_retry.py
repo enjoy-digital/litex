@@ -76,6 +76,8 @@ int main(void) {
 ''')
 
     def test_full_retry_bisc_and_final_memory_admission(self):
+        from test.software.test_usnative_mapping import DESCRIPTOR
+        reject = function(firmware.INCLUDE / "init.h", "static void usnative_mapping_reject(")
         init = function(firmware.INCLUDE / "init.h", "static int sdram_usnative_init(")
         bisc = function(firmware.INCLUDE / "init.h", "int sdram_usnative_bisc(")
         full = function(firmware.ROOT / "litex/soc/software/liblitedram/sdram.c", "int sdram_init(void)")
@@ -103,22 +105,24 @@ static unsigned admission=1,stage,error,bisc_only,reset,owner;
 static unsigned fail_cal=1,fail_memory,calibrations,memtests,bisc_calls,bisc_ok=1;
 static unsigned refine_error,refine_calls,dma_width=256;
 static unsigned mapping_ok=1;
-static int usnative_mapping_validate(void) {return mapping_ok;}
+static int usnative_mapping_verified;
+static unsigned dfii_control=99;
+static void sdram_dfii_control_write(unsigned v) {dfii_control=v;owner=1;}
 static void dma_bench_software_ready_write(unsigned v) {admission=v;}
 static unsigned dma_bench_data_width_read(void) {return dma_width;}
-static void sdram_software_control_on(void) {owner=1;}
-static void sdram_software_control_off(void) {owner=0;}
+static void sdram_software_control_on(void) {assert(mapping_ok);owner=1;}
+static void sdram_software_control_off(void) {assert(mapping_ok);owner=0;}
 static unsigned sdram_get_freq(void) {return 3200000000u;}
 static void cdelay(unsigned v) {(void)v;}
-static void ddrphy_training_stage_write(unsigned v) {stage=v;}
-static void ddrphy_training_error_write(unsigned v) {error=v;}
-static unsigned ddrphy_training_error_read(void) {return error;}
-static unsigned ddrphy_training_stage_read(void) {return stage;}
+static void ddrphy_training_stage_write(unsigned v) {assert(mapping_ok);stage=v;}
+static void ddrphy_training_error_write(unsigned v) {assert(mapping_ok);error=v;}
+static unsigned ddrphy_training_error_read(void) {assert(mapping_ok);return error;}
+static unsigned ddrphy_training_stage_read(void) {assert(mapping_ok);return stage;}
 static void ddrctrl_init_done_write(unsigned v) {(void)v;}
 static void ddrctrl_init_error_write(unsigned v) {(void)v;}
-static unsigned ddrphy_dly_rdy_read(void) {return 255;}
-static unsigned ddrphy_vtc_rdy_read(void) {return 255;}
-static unsigned nb_fail(unsigned v) {error=v;bisc_only=reset=owner=1;return v;}
+static unsigned ddrphy_dly_rdy_read(void) {assert(mapping_ok);return 255;}
+static unsigned ddrphy_vtc_rdy_read(void) {assert(mapping_ok);return 255;}
+static unsigned nb_fail(unsigned v) {assert(mapping_ok);error=v;bisc_only=reset=owner=1;return v;}
 static unsigned nb_calibrate(struct nb_result *r) {
  (void)r;assert(!admission);++calibrations;
  if(fail_cal)return nb_fail(6);
@@ -137,12 +141,20 @@ static int memtest(unsigned *p,unsigned size) {
 }
 static void memspeed(unsigned *p,unsigned size,int w,int rnd) {(void)p;(void)size;(void)w;(void)rnd;}
 '''
+        source += DESCRIPTOR + '\n#include "mapping.h"\n' + reject
         main = r'''
 int main(void) {
  mapping_ok=0;
- assert(!sdram_init() && !admission && reset && error==22 && !calibrations && !memtests);
- assert(!sdram_usnative_bisc() && !bisc_calls && error==22);
- mapping_ok=1;
+ for(unsigned mismatch=0;mismatch<3;++mismatch) {
+  version=mismatch==0?0x20000:0x10000;
+  identity=mismatch==1?0:0x12345678;
+  caps=mismatch==2?0:1;
+  admission=1;dfii_control=99;
+  assert(!sdram_init() && !admission && dfii_control==0 && !calibrations && !memtests);
+  admission=1;dfii_control=99;
+  assert(!sdram_usnative_bisc() && !admission && dfii_control==0 && !bisc_calls);
+ }
+ mapping_ok=1;version=0x10000;identity=0x12345678;caps=1;
  assert(!sdram_init() && !admission && bisc_only && reset && calibrations==1 && !memtests);
  fail_cal=0;
  assert(sdram_init() && admission && !bisc_only && calibrations==2 && memtests==1);
@@ -160,6 +172,13 @@ int main(void) {
  assert(!sdram_init() && !admission && error==21 && reset);
  assert(calibrations==prior_calibrations && refine_calls==6);
 #endif
+ /* A previously accepted boot must not leave permission for stale PHY writes. */
+ mapping_ok=0;identity=0;admission=1;dfii_control=99;
+ unsigned previous_calibrations=calibrations, previous_memtests=memtests;
+ assert(!sdram_init() && !admission && dfii_control==0);
+ assert(calibrations==previous_calibrations && memtests==previous_memtests);
+ admission=1;dfii_control=99;
+ assert(!sdram_usnative_bisc() && !admission && dfii_control==0);
  return 0;
 }
 '''

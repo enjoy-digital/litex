@@ -13,11 +13,29 @@
 #include "native_dma_calibration.h"
 #endif
 
+/* Only the identity CSR prefix is trusted until the contract is accepted. */
+static int usnative_mapping_verified;
+
+static void usnative_mapping_reject(void)
+{
+#ifdef CONFIG_SDRAM_DMA_SOFTWARE_ADMISSION
+    dma_bench_software_ready_write(0);
+#endif
+    /* SEL=0 keeps DFII software ownership; RESET_N=0 requests DDR reset.
+     * Do not call sdram_software_control_on(): it also writes PHY EN_VTC. */
+    sdram_dfii_control_write(0);
+#ifdef CSR_DDRCTRL_BASE
+    ddrctrl_init_done_write(0);
+    ddrctrl_init_error_write(1);
+#endif
+    printf("USNative mapping ABI/configuration mismatch (error 22); DDR training refused.\n");
+}
+
 static int sdram_usnative_init(void)
 {
-    if (!usnative_mapping_validate()) {
-        printf("USNative mapping ABI/configuration mismatch; DDR training refused.\n");
-        nb_fail(22);
+    usnative_mapping_verified = usnative_mapping_validate();
+    if (!usnative_mapping_verified) {
+        usnative_mapping_reject();
         return 0;
     }
 #ifdef CONFIG_SDRAM_USNATIVE_DMA_CALIBRATION
@@ -90,8 +108,9 @@ int sdram_usnative_bisc(void)
 #ifdef CONFIG_SDRAM_DMA_SOFTWARE_ADMISSION
     dma_bench_software_ready_write(0);
 #endif
-    if (!usnative_mapping_validate()) {
-        nb_fail(22);
+    usnative_mapping_verified = usnative_mapping_validate();
+    if (!usnative_mapping_verified) {
+        usnative_mapping_reject();
         return 0;
     }
 #ifdef CSR_DDRCTRL_BASE

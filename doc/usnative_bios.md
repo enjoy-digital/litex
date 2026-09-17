@@ -351,7 +351,12 @@ descriptor. ABI major must match, runtime minor must meet the generated minimum,
 and required capability bits must be present. Unsupported required capabilities,
 missing identity CSRs and unsupported training geometry reject compilation.
 Invalid array bounds, duplicate resource indices or a runtime identity mismatch
-reject initialization with error 22, retain software ownership and assert reset.
+reject initialization with a printed error 22 and direct DFII control value zero.
+This selects software ownership with DFI RESET_N low and denies DMA. No PHY
+control or training-status CSR is read or written after identity rejection,
+because its layout is untrusted; error 22 is not written to a PHY status CSR.
+For the supported PHY, DFI RESET_N low drives the external reset pin low. An
+incompatible PHY cannot be assumed to implement those same pin semantics.
 DMA admission is not granted after failure.
 
 Mapping portability does not widen the current calibration algorithm: this
