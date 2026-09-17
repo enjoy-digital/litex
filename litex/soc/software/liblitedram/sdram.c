@@ -20,6 +20,9 @@
 #include <libbase/lfsr.h>
 
 #include <generated/sdram_phy.h>
+#ifdef CONFIG_SDRAM_USNATIVE_XEM8320
+#error "Legacy USNative physical mapping is unsupported; regenerate the PHY and BIOS with CONFIG_SDRAM_USNATIVE"
+#endif
 #include <generated/mem.h>
 #include <system.h>
 
@@ -343,7 +346,7 @@ void sdram_software_control_on(void) {
 	/* Switch DFII to software control */
 	if (previous != DFII_CONTROL_SOFTWARE) {
 		sdram_dfii_control_write(DFII_CONTROL_SOFTWARE);
-#if !defined(CONFIG_SDRAM_USNATIVE_XEM8320) || defined(CONFIG_SDRAM_USNATIVE_DEBUG)
+#if !defined(CONFIG_SDRAM_USNATIVE) || defined(CONFIG_SDRAM_USNATIVE_DEBUG)
 		printf("Switching SDRAM to software control.\n");
 #endif
 	}
@@ -360,7 +363,7 @@ void sdram_software_control_off(void) {
 	/* Switch DFII to hardware control */
 	if (previous != DFII_CONTROL_HARDWARE) {
 		sdram_dfii_control_write(DFII_CONTROL_HARDWARE);
-#if !defined(CONFIG_SDRAM_USNATIVE_XEM8320) || defined(CONFIG_SDRAM_USNATIVE_DEBUG)
+#if !defined(CONFIG_SDRAM_USNATIVE) || defined(CONFIG_SDRAM_USNATIVE_DEBUG)
 		printf("Switching SDRAM to hardware control.\n");
 #endif
 	}
@@ -1086,7 +1089,7 @@ int sdram_write_leveling(void) {
 	int cdly_range_end;
 	int cdly_range_step;
 
-#ifndef CONFIG_SDRAM_USNATIVE_XEM8320
+#ifndef CONFIG_SDRAM_USNATIVE
 	_sdram_tck_taps = ddrphy_half_sys8x_taps_read()*4;
 #else
 	/* Native calibration uses measured windows, not this component-PHY CSR. */
@@ -1737,7 +1740,7 @@ int sdram_leveling(void) {
  * This file surrounds that fixed sequence with PHY reset/training and LiteX
  * controller status reporting.
  */
-#ifdef CONFIG_SDRAM_USNATIVE_XEM8320
+#ifdef CONFIG_SDRAM_USNATIVE
 #include "usnative/init.h"
 #endif
 
@@ -1756,7 +1759,7 @@ int sdram_init(void) {
 	ddrctrl_init_error_write(0);
 #endif // CSR_DDRCTRL_BASE
 
-#ifdef CONFIG_SDRAM_USNATIVE_XEM8320
+#ifdef CONFIG_SDRAM_USNATIVE
 	if (!sdram_usnative_init()) {
 		/* Keep failed memory isolated; readiness alone cannot authorize traffic. */
 		nb_fail(ddrphy_training_error_read() ? ddrphy_training_error_read() : 1);
@@ -1852,7 +1855,7 @@ int sdram_init(void) {
 #ifndef SDRAM_TEST_DISABLE
 	/* Final software smoke test before marking DDRCTRL init_done. */
 	if(!memtest((unsigned int *) MAIN_RAM_BASE_VA, MEMTEST_DATA_SIZE)) {
-#ifdef CONFIG_SDRAM_USNATIVE_XEM8320
+#ifdef CONFIG_SDRAM_USNATIVE
 		nb_fail(20); /* Retraining is required after a failed final memory test. */
 #endif
 #ifdef CSR_DDRCTRL_BASE

@@ -6,8 +6,8 @@
 /* Bounded RIU transactions and tap-status freshness for related sys:riu clocks.
  * Experimental, destructive calibration; see doc/usnative_bios.md.
  */
-#ifndef XEM_NATIVE_STATUS_IO_H
-#define XEM_NATIVE_STATUS_IO_H
+#ifndef USNATIVE_STATUS_IO_H
+#define USNATIVE_STATUS_IO_H
 static int native_riu_wait_idle(void)
 {
     for (unsigned i=0; i<10000; ++i) {
@@ -19,7 +19,7 @@ static int native_riu_wait_idle(void)
 static int native_riu_access(unsigned nibble, unsigned address, unsigned data,
                              int write, unsigned *result)
 {
-    if (nibble>=8 || address>=64 || !native_riu_wait_idle()) return 0;
+    if (nibble>=SDRAM_PHY_USNATIVE_CONTROL_COUNT || address>=64 || !native_riu_wait_idle()) return 0;
     ddrphy_riu_nibble_write(nibble); ddrphy_riu_address_write(address);
     ddrphy_riu_wdata_write(data);
     if (write) ddrphy_riu_write_write(1); else ddrphy_riu_read_write(1);

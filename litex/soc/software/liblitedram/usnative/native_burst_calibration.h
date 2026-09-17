@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-/* Direct-DFII clock, read and write window searches for the XEM8320 x16 profile.
+/* Direct-DFII clock, read and write window searches for the supported x16 profile.
  * Experimental, destructive calibration; see doc/usnative_bios.md.
  */
-#ifndef XEM8320_NATIVE_BURST_CALIBRATION_H
-#define XEM8320_NATIVE_BURST_CALIBRATION_H
+#ifndef USNATIVE_BURST_CALIBRATION_H
+#define USNATIVE_BURST_CALIBRATION_H
 #include <generated/csr.h>
 #include <generated/sdram_phy.h>
 #include "native_status_io.h"
@@ -56,7 +56,7 @@ static int nb_delay(unsigned lane, unsigned value, int transmit)
         else ddrphy_rdly_dq_inc_write(1);
         cdelay(100);
     }
-    ddrphy_tap_select_write(lane ? 23 : 4); cdelay(100);
+    ddrphy_tap_select_write(usnative_dq_taps[lane * 8]); cdelay(100);
     if (!native_tap_wait()) return 0;
     return (transmit ? ddrphy_tap_tx_count_read() : ddrphy_tap_rx_count_read())==value;
 }
@@ -67,7 +67,7 @@ static int nb_boot(unsigned ck)
     ddrphy_en_vtc_write(0); cdelay(1000);
     ddrphy_cdly_rst_write(1); cdelay(100);
     for (unsigned i=0; i<ck; ++i) { ddrphy_cdly_inc_write(1); cdelay(100); }
-    ddrphy_tap_select_write(39); cdelay(100);
+    ddrphy_tap_select_write(usnative_ck_taps[0]); cdelay(100);
     if (!native_tap_wait()) return 0;
     if (ddrphy_tap_tx_count_read()!=ck) return 0;
     /* Clock moves only while the device is held reset. */
@@ -81,7 +81,8 @@ static int nb_boot(unsigned ck)
     ddrphy_gate_delay0_write(USNATIVE_GATE_DELAY); ddrphy_gate_delay1_write(USNATIVE_GATE_DELAY);
     ddrphy_gate_width0_write(1); ddrphy_gate_width1_write(1);
     ddrphy_fifo_lane_mode_write(0);
-    for (unsigned n=0; n<4; ++n) if (!nb_gate(n)) return 0;
+    for (unsigned n=0; n<SDRAM_PHY_USNATIVE_DATA_CONTROLS_COUNT; ++n)
+        if (!nb_gate(usnative_data_controls[n])) return 0;
     ddrphy_dly_sel_write(3); ddrphy_wdly_dqs_rst_write(1); cdelay(100);
     for (unsigned i=0; i<68; ++i) { ddrphy_wdly_dqs_inc_write(1); cdelay(100); }
     for (unsigned lane=0; lane<2; ++lane) {
@@ -239,7 +240,7 @@ static unsigned nb_calibrate(struct nb_result *result)
     ddrphy_gate_override_write(0); ddrphy_en_vtc_write(1);
     unsigned i;
     for (i=0; i<100000; ++i) {
-        if (ddrphy_ready_read() && ddrphy_vtc_rdy_read()==255) break;
+        if (ddrphy_ready_read() && ddrphy_vtc_rdy_read()==USNATIVE_CONTROL_MASK) break;
         cdelay(100);
     }
     if (i==100000) return nb_fail(5);

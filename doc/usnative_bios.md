@@ -1,8 +1,8 @@
 # Experimental USNative BIOS initialization
 
 This adds an explicit BIOS startup path for the XEM8320 x16 native DDR4
-integration. It is an initial board-specific calibration driver, not a
-portable implementation for every UltraScale board. The coordinated LiteDRAM
+integration. Its versioned logical mapping is portable, while training remains
+limited to the documented x16 timing profiles. The coordinated LiteDRAM
 feature branch supplies the complete initial PHY/CSR ABI; the litex-boards
 feature branch selects it explicitly for Vivado.
 
@@ -11,7 +11,7 @@ feature branch selects it explicitly for Vivado.
 A board target opts in with:
 
 ```python
-self.add_config("SDRAM_USNATIVE_XEM8320")
+self.add_config("SDRAM_USNATIVE")
 ```
 
 `sdram_init()` then runs native readiness initialization, direct-DFII clock and
@@ -64,8 +64,8 @@ diagnostics are off.
   operating RD2/WR3 after BIOS initialization;
   requires the overclock configuration.
 - Related sys:RIU clocks 2:1, acknowledged RIU bridge and registered tap-status
-  freshness. Physical tap indices and nibble ownership match the existing
-  XEM8320 integration; a new board must not simply reuse this flag.
+  freshness. Logical tap indices and control ownership come from the generated
+  versioned mapping, with runtime identity checks before training.
 - Generated JEDEC initialization and memory timing settings remain the target's
   responsibility. Unsupported widths, phase/latency profiles, inadequate scratch
   memory and missing required CSR capabilities fail at compile time.
@@ -330,3 +330,68 @@ register commands enter software control and therefore follow the same rule.
 Only a complete successful initialization and final controller-path memory test
 re-establish normal admission; internal DMA refinement retains its scoped grant.
 Read-only status commands and builds without software DMA admission are unchanged.
+
+
+## Versioned logical mapping interface
+
+Native BIOS builds select `CONFIG_SDRAM_USNATIVE` and require mapping ABI major
+1 in generated `sdram_phy.h`. Legacy physical tap-index firmware is not accepted.
+The generated descriptor supplies logical DQ/DQS/DM/CK tap arrays, active data
+control indices, resource counts, required capabilities and a configuration ID.
+No package pin, bank number or physical primitive site is embedded in this
+firmware source. Vivado query results and generated descriptors are local build
+products and must not be committed.
+
+Normal startup prints `USNative mapping ABI 1.0, config=XXXXXXXX` after successful
+identity validation, making the generated contract visible in hardware logs.
+
+Before full calibration or the optional BISC diagnostic, BIOS compares the
+runtime `abi_version`, `abi_config_id` and `abi_capabilities` CSRs with its generated
+descriptor. ABI major must match, runtime minor must meet the generated minimum,
+and required capability bits must be present. Unsupported required capabilities,
+missing identity CSRs and unsupported training geometry reject compilation.
+Invalid array bounds, duplicate resource indices or a runtime identity mismatch
+reject initialization with error 22, retain software ownership and assert reset.
+DMA admission is not granted after failure.
+
+Mapping portability does not widen the current calibration algorithm: this
+revision explicitly supports x16 DDR4 with two byte lanes and four 32-bit DFI
+phases. Wider topology/configuration tests do not constitute wider BIOS training
+or hardware qualification. Existing operating-profile and overclock checks remain
+in effect.
+
+
+### ABI v1 contract and evolution
+
+All descriptor macros have the prefix `SDRAM_PHY_USNATIVE_` and are emitted in
+`generated/sdram_phy.h` by LiteDRAM. Array values are C initializers of unsigned
+logical indices. They are not persistent firmware source files.
+
+| Field | Meaning |
+| --- | --- |
+| `ABI_MAJOR`, `ABI_MINOR` | Incompatible contract version and minimum compatible extension version |
+| `CONFIG_ID` | 32-bit digest of canonical logical assignments and operating profile |
+| `REQUIRED_CAPS` | Required runtime capability bits; bit 0 is logical tap/control addressing |
+| `TAP_COUNT`, `CONTROL_COUNT`, `LANE_COUNT` | Bounds for resource IDs and byte lanes |
+| `DQ_TAPS`, `DQ_TAPS_COUNT` | DQ bit order to logical delay selector |
+| `DQS_TAPS`, `DQS_TAPS_COUNT` | Byte lane order to strobe selector |
+| `DM_TAPS`, `DM_TAPS_COUNT` | Byte lane order to mask selector |
+| `CK_TAPS`, `CK_TAPS_COUNT` | Clock order to clock selector |
+| `DATA_CONTROLS`, `DATA_CONTROLS_COUNT` | Unique logical controls requiring data gate setup |
+
+Runtime `ddrphy_abi_version` packs major in bits 31:16 and minor in bits 15:0.
+`ddrphy_abi_config_id` matches `CONFIG_ID`; `ddrphy_abi_capabilities` reports the
+implemented feature bits. The identity is a compatibility guard, not a
+cryptographic authenticity check or a complete bitstream hash. Validation reports
+must retain independent source, firmware and bitstream hashes.
+
+Changing index meanings, required CSR semantics or descriptor interpretation
+requires a major bump. Additive features may use a minor bump and a capability
+bit when old consumers can safely ignore them. A newer runtime minor is accepted
+only with the expected major, configuration identity and required capabilities.
+Firmware must never invent a physical-index fallback for an absent descriptor.
+
+Vivado discovery may be cached locally with validated provenance and an explicit
+refresh option. Neither cache records, queried maps, generated headers nor
+primitive-location outputs belong in commits. Committed ABI tests use synthetic
+logical descriptors; hardware results reference external build evidence.

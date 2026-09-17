@@ -35,6 +35,7 @@ static int capture(const char *format, ...) {
 #define printf capture
 #define USNATIVE_DEBUG(...) do {} while(0)
 #define USNATIVE_SNAPSHOT() do {} while(0)
+#define USNATIVE_CONTROL_MASK 255
 struct nb_window {unsigned first,last,center,short_window;};
 struct nb_result {struct nb_window ck,rx[2],dq[2];};
 static unsigned scenario,boots,checks,stage;
@@ -81,22 +82,28 @@ int main(void) {
         source = r'''
 #include <assert.h>
 #include <stdio.h>
-#define CONFIG_SDRAM_USNATIVE_XEM8320
+#define CONFIG_SDRAM_USNATIVE
 #define CONFIG_SDRAM_DMA_SOFTWARE_ADMISSION
 #define CSR_DDRCTRL_BASE 1
 #define MAIN_RAM_BASE 0x40000000ul
 #define MAIN_RAM_BASE_VA MAIN_RAM_BASE
 #define MEMTEST_DATA_SIZE 64
 #define USNATIVE_RDPHASE 2
+#define SDRAM_PHY_USNATIVE_ABI_MAJOR 1
+#define SDRAM_PHY_USNATIVE_ABI_MINOR 0
+#define SDRAM_PHY_USNATIVE_CONFIG_ID 0x12345678u
 #define SDRAM_PHY_WRPHASE 3
 #define USNATIVE_DEBUG(...) do {} while(0)
 #define USNATIVE_SNAPSHOT() do {} while(0)
+#define USNATIVE_CONTROL_MASK 255
 #define false 0
 struct nb_window {unsigned first,last,center,short_window;};
 struct nb_result {struct nb_window ck,rx[2],dq[2];};
 static unsigned admission=1,stage,error,bisc_only,reset,owner;
 static unsigned fail_cal=1,fail_memory,calibrations,memtests,bisc_calls,bisc_ok=1;
 static unsigned refine_error,refine_calls,dma_width=256;
+static unsigned mapping_ok=1;
+static int usnative_mapping_validate(void) {return mapping_ok;}
 static void dma_bench_software_ready_write(unsigned v) {admission=v;}
 static unsigned dma_bench_data_width_read(void) {return dma_width;}
 static void sdram_software_control_on(void) {owner=1;}
@@ -132,6 +139,10 @@ static void memspeed(unsigned *p,unsigned size,int w,int rnd) {(void)p;(void)siz
 '''
         main = r'''
 int main(void) {
+ mapping_ok=0;
+ assert(!sdram_init() && !admission && reset && error==22 && !calibrations && !memtests);
+ assert(!sdram_usnative_bisc() && !bisc_calls && error==22);
+ mapping_ok=1;
  assert(!sdram_init() && !admission && bisc_only && reset && calibrations==1 && !memtests);
  fail_cal=0;
  assert(sdram_init() && admission && !bisc_only && calibrations==2 && memtests==1);

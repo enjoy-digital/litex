@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-/* Per-DQ read deskew for the XEM8320 native tap-index ABI.
+/* Per-DQ read deskew using the generated logical tap mapping.
  * Experimental, destructive calibration; see doc/usnative_bios.md.
  */
-static const unsigned nd_sites[16]={4,2,3,11,5,10,8,9,23,22,16,15,18,21,17,24};
+
 struct nd_score {unsigned errors[16];};
 static int nd_error(unsigned address,unsigned actual,unsigned expected,void *arg)
 {
@@ -33,7 +33,7 @@ static int nd_program(const unsigned *centers,unsigned lane_mask,int offset)
         if(!(lane_mask & (1u<<(bit/8)))) continue;
         int tap=(int)centers[bit]+offset;
         if(tap<0 || tap>511) return 0;
-        ddrphy_tap_select_write(nd_sites[bit]);cdelay(100);
+        ddrphy_tap_select_write(usnative_dq_taps[bit]);cdelay(100);
         if(!ddrphy_tap_allowed_read()) return 0;
         ddrphy_tap_rx_rst_write(1);cdelay(100);
         for(int i=0;i<tap;++i) {ddrphy_tap_rx_inc_write(1);cdelay(100);}

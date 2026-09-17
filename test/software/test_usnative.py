@@ -172,7 +172,7 @@ int main(void) {{ return native_dma_completion_timeout_us() != {expected_us}u; }
     def test_dma_admission_for_native_and_component_phys(self):
         self.compile_run(r'''
 #include <assert.h>
-#define CONFIG_SDRAM_USNATIVE_XEM8320
+#define CONFIG_SDRAM_USNATIVE
 static unsigned ready, stage, error, bist_only;
 static unsigned ddrphy_ready_read(void) { return ready; }
 static unsigned ddrphy_training_stage_read(void) { return stage; }
@@ -261,6 +261,7 @@ static void ddrphy_riu_wdata_write(unsigned v) {(void)v;}
 static void ddrphy_riu_write_write(unsigned v) {(void)v;++starts;}
 static void ddrphy_riu_read_write(unsigned v) {(void)v;++starts;}
 static unsigned ddrphy_tap_status_valid_read(void) {return tap_valid;}
+#define SDRAM_PHY_USNATIVE_CONTROL_COUNT 8
 #include "native_status_io.h"
 int main(void) {
  unsigned result=0;
@@ -283,7 +284,7 @@ int main(void) {
         self.compile_run(r"""
 #include <assert.h>
 #include <stdio.h>
-#define CONFIG_SDRAM_USNATIVE_XEM8320
+#define CONFIG_SDRAM_USNATIVE
 #define CSR_DDRCTRL_BASE 1
 #define MAIN_RAM_BASE 0x40000000ul
 #define MAIN_RAM_BASE_VA MAIN_RAM_BASE

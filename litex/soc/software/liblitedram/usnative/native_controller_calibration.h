@@ -12,7 +12,7 @@ static int nc_wait_vtc(void)
 {
     /* Poll real readiness after tap changes; CPU speed must not decide success. */
     for (unsigned attempt=0;attempt<1000;++attempt) {
-        if (ddrphy_ready_read() && ddrphy_vtc_rdy_read()==255) return 1;
+        if (ddrphy_ready_read() && ddrphy_vtc_rdy_read()==USNATIVE_CONTROL_MASK) return 1;
         cdelay(1000);
     }
     return 0;

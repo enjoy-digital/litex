@@ -5,6 +5,7 @@
 
 /* Included by sdram.c so direct-DFII helpers share its generated interface. */
 #include "profile.h"
+#include "mapping.h"
 #include "native_burst_calibration.h"
 #include "native_controller_calibration.h"
 #include "native_bit_calibration.h"
@@ -14,6 +15,11 @@
 
 static int sdram_usnative_init(void)
 {
+    if (!usnative_mapping_validate()) {
+        printf("USNative mapping ABI/configuration mismatch; DDR training refused.\n");
+        nb_fail(22);
+        return 0;
+    }
 #ifdef CONFIG_SDRAM_USNATIVE_DMA_CALIBRATION
     if (dma_bench_data_width_read() != 256) {
         printf("USNative calibration requires 256-bit DMA.\n");
@@ -21,7 +27,11 @@ static int sdram_usnative_init(void)
         return 0;
     }
 #endif
-    printf("USNativeDDRPHY: XEM8320 x16, %u MT/s, RD%u/WR%u (experimental)\n",
+    printf("USNative mapping ABI %u.%u, config=%08x\n",
+        (unsigned)SDRAM_PHY_USNATIVE_ABI_MAJOR,
+        (unsigned)SDRAM_PHY_USNATIVE_ABI_MINOR,
+        (unsigned)SDRAM_PHY_USNATIVE_CONFIG_ID);
+    printf("USNativeDDRPHY: x16, %u MT/s, RD%u/WR%u (experimental)\n",
         sdram_get_freq()/1000000u, USNATIVE_RDPHASE, SDRAM_PHY_WRPHASE);
     printf("Standalone native burst calibration (experimental)\n");
     sdram_software_control_on();
@@ -80,6 +90,10 @@ int sdram_usnative_bisc(void)
 #ifdef CONFIG_SDRAM_DMA_SOFTWARE_ADMISSION
     dma_bench_software_ready_write(0);
 #endif
+    if (!usnative_mapping_validate()) {
+        nb_fail(22);
+        return 0;
+    }
 #ifdef CSR_DDRCTRL_BASE
     ddrctrl_init_done_write(0);
     ddrctrl_init_error_write(0);

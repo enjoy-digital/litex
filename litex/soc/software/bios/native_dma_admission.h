@@ -14,7 +14,7 @@ static inline int native_dma_admission_ready(void)
 {
 #ifdef CONFIG_SDRAM_DMA_SOFTWARE_ADMISSION
 	return dma_bench_software_ready_read();
-#elif defined(CONFIG_SDRAM_USNATIVE_XEM8320)
+#elif defined(CONFIG_SDRAM_USNATIVE)
 	return ddrphy_ready_read() && ddrphy_training_stage_read() == 5 &&
 		!ddrphy_training_error_read() && !ddrphy_bisc_only_read();
 #else

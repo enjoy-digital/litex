@@ -3,16 +3,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#ifndef __USNATIVE_XEM8320_PROFILE_H
-#define __USNATIVE_XEM8320_PROFILE_H
+#ifndef __USNATIVE_PROFILE_H
+#define __USNATIVE_PROFILE_H
 
-/* This opt-in identifies the existing XEM8320 native CSR/tap-index ABI.
- * It is not a board autodetector or a promise of portable native calibration. */
+/* Mapping is portable; this training algorithm currently supports x16 DDR4. */
 #if !defined(SDRAM_PHY_DDR4) || SDRAM_PHY_DATABITS != 16 || SDRAM_PHY_DFI_DATABITS != 32 || SDRAM_PHY_PHASES != 4 || SDRAM_PHY_XDR != 2
-#error "USNative XEM8320 calibration requires x16 DDR4 with four 32-bit DFI phases"
+#error "USNative calibration requires x16 DDR4 with four 32-bit DFI phases"
 #endif
 #if SDRAM_PHY_DELAYS != 512 || SDRAM_PHY_BITSLIPS != 8 || SDRAM_PHY_CMD_LATENCY != 5
-#error "USNative XEM8320 calibration requires the registered-TX native timing profile"
+#error "USNative calibration requires the registered-TX native timing profile"
 #endif
 #if MAIN_RAM_BASE != 0x40000000 || MAIN_RAM_SIZE < 0x01200000
 #error "USNative calibration needs scratch RAM at 0x41000000 through 0x411fffff"
@@ -61,7 +60,7 @@
 #define USNATIVE_RD_BANK sdram_dfii_pi2_baddress_write
 #define USNATIVE_RD_COMMAND command_p2
 #else
-#error "Unsupported USNative XEM8320 profile; high rates require explicit overclock configuration"
+#error "Unsupported USNative profile; high rates require explicit overclock configuration"
 #endif
 
 /* The 3200 routed profile resets its read-phase CSR to 3, but its trained

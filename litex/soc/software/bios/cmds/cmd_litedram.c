@@ -200,7 +200,7 @@ define_command(sdram_force_cmd_delay, sdram_force_cmd_delay_handler, "Force writ
  */
 define_command(sdram_init, sdram_init, "Initialize SDRAM (Init + Calibration)", LITEDRAM_CMDS);
 
-#if defined(CONFIG_SDRAM_USNATIVE_XEM8320) && defined(CONFIG_SDRAM_USNATIVE_DEBUG)
+#if defined(CONFIG_SDRAM_USNATIVE) && defined(CONFIG_SDRAM_USNATIVE_DEBUG)
 define_command(sdram_bisc, sdram_usnative_bisc,
     "USNative BISC only (holds DDR reset; run sdram_init afterward)", LITEDRAM_CMDS);
 #endif
