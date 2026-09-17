@@ -61,6 +61,7 @@ class ZynqMP(CPU):
         self.i2c_use        = []          # I2c reserved ports.
         self.spi_use        = []          # SPI reserved ports.
         self.uart_use       = []          # UART reserved ports.
+        self.sdio_use       = []          # SD reserved ports.
         self.can_use        = []          # CAN reserved/used ports.
         self.pps            = Signal(4)   # Optional PPS (with gemX and PTP enabled)
         self.libxil         = None        # Optional Xilinx libxil software package configuration.
@@ -903,6 +904,203 @@ class ZynqMP(CPU):
                 f"i_emio_uart{n}_rxd" : pads_or_mio_group.rx,
                 f"o_emio_uart{n}_txd" : pads_or_mio_group.tx,
             })
+
+    """
+    Enable SD0/SD1 through PSU MIO or PL EMIO.
+    Attributes
+    ==========
+    n: int
+        Controller ID (0/1).
+    pads_or_mio_group: Record or str
+        EMIO pads (clk, cmd, data) or MIO group ("MIO xx .. yy").
+        Optional EMIO pads: cd, wp, pow, led, bus_volt[2:0].
+    card_detect: int
+        Active-low card detect: MIO pin id. Only used for MIO Mode.
+        For EMIO mode the signal, if present, is shipped in
+        pads_or_mio_group (cd). Forbidden for eMMC.
+    write_protect: int
+        Write protect: MIO pin id. Only used for MIO Mode.
+        For EMIO mode the signal, if present, is shipped in
+        pads_or_mio_group (wp). Forbidden for eMMC.
+    power_control: int
+        Bus power (or eMMC reset): MIO pin id. Only used for MIO Mode.
+        For EMIO mode the signal, if present, is shipped in
+        pads_or_mio_group (pow).
+    iotype: str
+        MIO input type (cmos/schmitt), unused for clk_out and bus_pow.
+    slew: str
+        MIO slew rate (slow/fast). cd_n and wp always use fast.
+    strength: (optional) dict(pad(str), value(int))
+        Drive Strength.
+        Pad/keys are data, cmd, clk, pow. Write Protect and Card Detect are fixed to 12mA
+        Value range is [2, 4, 8, 12].
+        When None default 4mA is used for both pads, if one of pad is missing default
+        value is used too.
+        This parameter is only used in MIO mode.
+    slot_type: str (optional, keyword-only)
+        SD 2.0, SD 3.0, SD 3.0 AUTODIR or eMMC.
+    data_width: int (optional, keyword-only)
+        Data Transfer Mode (4/8). Defaults to 4 for SD 2.0, 8 otherwise.
+        eMMC supports either mode.
+    srcsel: str (optional, keyword-only)
+        PSU reference clock source. Empty keeps the default value.
+    freq: float (optional, keyword-only)
+        PSU reference clock frequency in MHz. Zero keeps the default value.
+    """
+    def add_sdio(self, n, pads_or_mio_group,
+        card_detect   = None,
+        write_protect = None,
+        power_control = None,
+        iotype        = "cmos",
+        slew          = "slow",
+        strength      = None,
+        *,
+        slot_type     = "SD 2.0",
+        data_width    = None,
+        srcsel        = "",
+        freq          = 0
+        ):
+        assert 0 <= n < 2 and n not in self.sdio_use
+        assert pads_or_mio_group is not None
+        assert freq >= 0
+        assert slot_type in ["SD 2.0", "SD 3.0", "SD 3.0 AUTODIR", "eMMC"]
+
+        default_width = {True: 4, False: 8}[slot_type == "SD 2.0"]
+        if data_width is None:
+            data_width = default_width
+        assert data_width in [4, 8]
+        assert slot_type == "eMMC" or data_width == default_width
+
+        # Detect the IO type and parse the MIO pin endpoints.
+        (io_type, pins) = self.detect_emio_mio_pins(pads_or_mio_group)
+
+        # For EMIO Mode, all three controls are EMIO too and are
+        # included in pads_or_mio_group. Method parameters are
+        # ignored.
+        if io_type == "EMIO":
+            card_detect   = getattr(pads_or_mio_group, "cd",  None)
+            power_control = getattr(pads_or_mio_group, "pow", None)
+            write_protect = getattr(pads_or_mio_group, "wp",  None)
+
+        if slot_type == "eMMC":
+            assert card_detect is None and write_protect is None
+
+        # When controler is in EMIO Mode all Controls must also be in EMIO.
+        card_detect_io   = "EMIO" if io_type == "EMIO" else f"MIO {card_detect}"
+        write_protect_io = "EMIO" if io_type == "EMIO" else f"MIO {write_protect}"
+        power_control_io = "EMIO" if io_type == "EMIO" else f"MIO {power_control}"
+
+        # PSU configuration.
+        self.sdio_use.append(n)
+        config = {
+            f"PSU__SD{n}__PERIPHERAL__ENABLE" : 1,
+            f"PSU__SD{n}__PERIPHERAL__IO"     : io_type,
+            # These two lines must be in this order, otherwise Vivado
+            # removes the requested data_width !!!
+            f"PSU__SD{n}__DATA_TRANSFER_MODE" : f"{data_width}Bit",
+            f"PSU__SD{n}__SLOT_TYPE"          : slot_type,
+            f"PSU__SD{n}__GRP_CD__ENABLE"     : int(card_detect   is not None),
+            f"PSU__SD{n}__GRP_WP__ENABLE"     : int(write_protect is not None),
+            f"PSU__SD{n}__GRP_POW__ENABLE"    : int(power_control is not None),
+        }
+        if card_detect is not None:
+            config[f"PSU__SD{n}__GRP_CD__IO"]  = card_detect_io
+        if write_protect is not None:
+            config[f"PSU__SD{n}__GRP_WP__IO"]  = write_protect_io
+        if power_control is not None:
+            config[f"PSU__SD{n}__GRP_POW__IO"] = power_control_io
+        if slot_type == "eMMC":
+            config[f"PSU__SD{n}__RESET__ENABLE"] = int(power_control is not None)
+        if srcsel:
+            config[f"PSU__CRL_APB__SDIO{n}_REF_CTRL__SRCSEL"] = srcsel
+        if freq:
+            config[f"PSU__CRL_APB__SDIO{n}_REF_CTRL__FREQMHZ"] = int(freq)
+        self.add_psu_config(config)
+
+        # Inject SDn configuration to use it via csv/json.
+        LiteXContext.top.add_constant(f"CONFIG_PSU_SD{n}_ENABLE", 1)
+        LiteXContext.top.add_constant(f"CONFIG_PSU_SD{n}_IO",     io_type)
+
+        if io_type != "EMIO":
+            # Sanity check for control must be int and in allowed range pour MIO IDs.
+            assert card_detect   is None or type(card_detect)   == int and card_detect   < 78
+            assert power_control is None or type(power_control) == int and power_control < 78
+            assert write_protect is None or type(write_protect) == int and write_protect < 78
+
+            first, last = pins[0], pins[-1]
+            # SD0 clock is first in banks 1/2, last in bank 0; SD1 clock is last.
+            clk_pin      = first     if n == 0 and first != 13 else last
+            cmd_pin      = first + 1 if clk_pin == first       else last - 1
+            data_pins    = [i            for i in pins if i not in (clk_pin, cmd_pin, power_control)]
+            drv_strength = {i: 4         for i in pins}
+            directions   = {i: "inout"   for i in pins if i != power_control}
+            iotypes      = {i: iotype    for i in pins}
+            slews        = {i: slew      for i in pins}
+
+            directions[clk_pin] = "out"
+            iotypes[clk_pin]    = "cmos"
+
+            for pin in (card_detect, write_protect, power_control):
+                if pin is not None:
+                    drv_strength[pin] = {True: 4,      False: 12    }[pin == power_control]
+                    directions[pin]   = {True: "out",  False: "in"  }[pin == power_control]
+                    iotypes[pin]      = {True: "cmos", False: iotype}[pin == power_control]
+                    slews[pin]        = {True: slew,   False: "fast"}[pin == power_control]
+            if strength is not None:
+                strength_pins = {
+                    "data": data_pins,
+                    "cmd" : [cmd_pin],
+                    "clk" : [clk_pin],
+                    "pow" : [] if power_control is None else [power_control],
+                }
+                for name, value in strength.items():
+                    assert name in strength_pins, name
+                    assert isinstance(value, int) and value in [2, 4, 8, 12]
+                    for pin in strength_pins[name]:
+                        drv_strength[pin] = value
+
+            self.add_mio_config(directions,
+                iotype   = iotypes,
+                slew     = slews,
+                pullup   = "pullup",
+                strength = drv_strength,
+                polarity = "Default",
+            )
+
+            # End of configuration for MIO mode.
+            return
+
+        # EMIO connections.
+        assert len(pads_or_mio_group.clk) == len(pads_or_mio_group.cmd) == 1
+        assert len(pads_or_mio_group.data) == data_width
+        if card_detect is not None:
+            self.cpu_params[f"i_emio_sdio{n}_cd_n"] = card_detect
+        if write_protect is not None:
+            self.cpu_params[f"i_emio_sdio{n}_wp"] = write_protect
+        if power_control is not None:
+            self.cpu_params[f"o_emio_sdio{n}_buspower"] = power_control
+
+        # Vivado exposes cmdena/dataena as active-high tristate controls.
+        for name, pads in [("cmd", pads_or_mio_group.cmd), ("data", pads_or_mio_group.data)]:
+            sd_i = Signal(len(pads))
+            sd_o = Signal(len(pads))
+            sd_t = Signal(len(pads))
+            for i in range(len(pads)):
+                self.specials += Instance("IOBUF",
+                    i_I=sd_o[i], o_O=sd_i[i], i_T=sd_t[i], io_IO=pads[i],
+                )
+            self.cpu_params.update({
+                f"i_emio_sdio{n}_{name}in"  : sd_i,
+                f"o_emio_sdio{n}_{name}out" : sd_o,
+                f"o_emio_sdio{n}_{name}ena" : sd_t,
+            })
+
+        self.cpu_params.update({
+            f"o_emio_sdio{n}_clkout"     : pads_or_mio_group.clk,
+            f"i_emio_sdio{n}_fb_clk_in"  : pads_or_mio_group.clk,
+            f"o_emio_sdio{n}_ledcontrol" : getattr(pads_or_mio_group, "led", Open()),
+            f"o_emio_sdio{n}_bus_volt"   : getattr(pads_or_mio_group, "bus_volt", Open(3)),
+        })
 
     """
     Connect Signal,TSTriple or pads to the EMIO interface.
