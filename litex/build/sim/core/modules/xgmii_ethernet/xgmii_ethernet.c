@@ -18,8 +18,16 @@
 // XGMII bus data width. Can be either 32 or 64 bit.
 #define XGMII_WIDTH 64
 
-// Ethernet MTU. Must be >= MIN_ETH_LEN.
-#define ETH_LEN 9000
+// Ethernet frame buffer length (bytes), must be >= MIN_ETH_LEN.
+//
+// Sized for Jumbo Frames: a frame with a 9000 bytes MTU is 14 bytes header + 9000 bytes
+// payload + 4 bytes FCS = 9018 bytes, 9022 bytes with a VLAN tag (LiteEth's
+// eth_mtu_jumboframe) and 9026 bytes with QinQ (two VLAN tags). 9216 bytes (9KiB) is the
+// usual maximum frame size of 10G NICs and switches and keeps some headroom above these
+// values, so the simulation carries anything a real link would. The TAP interface delivers
+// frames without FCS (up to MTU + 14 bytes), the FCS is appended/checked by this module.
+// The cost is three buffers of ETH_LEN bytes per instance.
+#define ETH_LEN 9216
 
 // MAC address for the host's TAP interface
 static const char macadr[6] = {0xaa, 0xb6, 0x24, 0x69, 0x77, 0x21};
@@ -562,7 +570,7 @@ static void xgmii_ethernet_tx_adv(xgmii_ethernet_state_t *s, uint64_t time_ps,
             if ((bus.ctl & (1 << idx)) == 0) {
                 // We are reading a data character. If ETH_LEN is reached, drop
                 // other bytes and issue a warning once.
-                if (s->current_tx_len <= ETH_LEN) {
+                if (s->current_tx_len < ETH_LEN) {
                     s->current_tx_pkt[s->current_tx_len++] =
                         (uint8_t) (bus.data >> (idx * 8) & 0xFF);
                 } else if (!drop_warning_issued) {
