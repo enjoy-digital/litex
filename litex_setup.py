@@ -219,7 +219,10 @@ def print_indented(output, indent="    ", max_lines=None):
 
 def git_format_sha1(sha1):
     if isinstance(sha1, int):
-        return f"{sha1:07x}"
+        # Restore the leading zeros a full 40-digit hash may have lost as an integer; values
+        # shorter than 32 hex digits are abbreviated pins and are left as is.
+        s = f"{sha1:07x}"
+        return s.zfill(40) if len(s) >= 32 else s
     return str(sha1)
 
 def git_checkout(sha1=None, tag=None, quiet=False, cwd=None):
