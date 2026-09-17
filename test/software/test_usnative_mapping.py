@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 """Execute ABI admission against synthetic logical maps, never queried pins."""
+
 import unittest
 from test.software import test_usnative as firmware
 

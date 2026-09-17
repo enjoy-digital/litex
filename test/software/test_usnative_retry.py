@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 """Execute production initialization code with injected training/CSR failures."""
+
 import unittest
 
 from test.software import test_usnative as firmware
@@ -182,7 +183,7 @@ int main(void) {
  return 0;
 }
 '''
-        for debug, dma in ((False,False),(True,False),(False,True),(True,True)):
+        for debug, dma in ((False, False), (True, False), (False, True), (True, True)):
             with self.subTest(debug=debug, dma=dma):
                 config = ("#define CONFIG_SDRAM_USNATIVE_DEBUG\n" if debug else "")
                 config += ("#define CONFIG_SDRAM_USNATIVE_DMA_CALIBRATION\n" if dma else "")

@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 """Execute DMA calibration against traffic-dependent and unstable DQ windows."""
+
 import unittest
 
 from test.software import test_usnative as firmware

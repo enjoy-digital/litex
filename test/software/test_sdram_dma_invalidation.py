@@ -3,26 +3,27 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 """Run BIOS mutation handlers and the real DMA admission lifecycle on the host."""
+
 import unittest
 from test.software import test_usnative as firmware
 from test.software.test_usnative_retry import function
 
 @unittest.skipUnless(firmware.CC, "Host C compiler required")
 class TestSDRAMDMAInvalidation(unittest.TestCase):
-    compile_run=firmware.TestUSNativeFirmware.compile_run
+    compile_run = firmware.TestUSNativeFirmware.compile_run
 
     def test_phy_mr_mutations_require_complete_reinitialization(self):
-        source=firmware.ROOT/'litex/soc/software/liblitedram/sdram.c'
-        commands=firmware.ROOT/'litex/soc/software/bios/cmds/cmd_litedram.c'
-        names=['sdram_force_rdphase','sdram_force_wrphase','sdram_rst_cmd_delay',
-               'sdram_force_cmd_delay','sdram_cal','sdram_rst_dat_delay',
-               'sdram_force_dat_delay','sdram_rst_bitslip','sdram_force_bitslip','sdram_mr_write']
-        bodies=''.join(function(source,sig) for sig in [
+        source = firmware.ROOT/'litex/soc/software/liblitedram/sdram.c'
+        commands = firmware.ROOT/'litex/soc/software/bios/cmds/cmd_litedram.c'
+        names = ['sdram_force_rdphase', 'sdram_force_wrphase', 'sdram_rst_cmd_delay',
+               'sdram_force_cmd_delay', 'sdram_cal', 'sdram_rst_dat_delay',
+               'sdram_force_dat_delay', 'sdram_rst_bitslip', 'sdram_force_bitslip', 'sdram_mr_write']
+        bodies = ''.join(function(source, sig) for sig in [
             'void sdram_invalidate_dma(', 'void sdram_software_control_on(',
             'void sdram_software_control_off('])
-        handlers=''.join(function(commands,'static void '+name+'_handler(') for name in names)
-        full=function(source,'int sdram_init(')
-        stub=r'''
+        handlers = ''.join(function(commands, 'static void '+name+'_handler(') for name in names)
+        full = function(source, 'int sdram_init(')
+        stub = r'''
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,8 +71,8 @@ static int memtest(unsigned *p,unsigned size) {
 }
 static void memspeed(unsigned *p,unsigned size,int w,int rnd) {(void)p;(void)size;(void)w;(void)rnd;}
 '''
-        training='static int sdram_custom_init(void) {sdram_software_control_on();return 1;}\n'
-        main='int main(void) {\n void (*handlers[])(int,char** )={'+','.join(x+'_handler' for x in names)+'};\n'+r'''
+        training = 'static int sdram_custom_init(void) {sdram_software_control_on();return 1;}\n'
+        main = 'int main(void) {\n void (*handlers[])(int,char** )={'+','.join(x+'_handler' for x in names)+'};\n'+r'''
  char *valid[]={"1","2"},*invalid[]={"invalid"};
  assert(sdram_init() && admission);
  sdram_software_control_on();sdram_software_control_off();
@@ -98,7 +99,7 @@ static void memspeed(unsigned *p,unsigned size,int w,int rnd) {(void)p;(void)siz
  return 0;
 }
 '''
-        for dma in [False,True]:
+        for dma in [False, True]:
             with self.subTest(dma=dma):
                 self.compile_run(('#define CONFIG_SDRAM_DMA_SOFTWARE_ADMISSION\n' if dma else '')+
                                  stub+bodies+training+handlers+full+main)

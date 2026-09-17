@@ -4,17 +4,22 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 """Host C tests for native profile selection and bounded firmware CSR polling."""
+
 import os
-from pathlib import Path
 import shutil
-import subprocess
 import tempfile
 import unittest
+import subprocess
 
-ROOT = Path(__file__).resolve().parents[2]
-INCLUDE = ROOT / "litex/soc/software/liblitedram/usnative"
+from pathlib import Path
+
+# Firmware harness --------------------------------------------------------------------------------
+
+ROOT         = Path(__file__).resolve().parents[2]
+INCLUDE      = ROOT / "litex/soc/software/liblitedram/usnative"
 BIOS_INCLUDE = ROOT / "litex/soc/software/bios"
-CC = shutil.which(os.environ.get("CC", "gcc"))
+CC           = shutil.which(os.environ.get("CC", "gcc"))
+
 
 @unittest.skipUnless(CC, "Host C compiler required")
 class TestUSNativeFirmware(unittest.TestCase):
@@ -24,9 +29,11 @@ class TestUSNativeFirmware(unittest.TestCase):
             source = directory / "test.c"
             binary = directory / ("test.exe" if os.name == "nt" else "test")
             source.write_text(code)
-            result = subprocess.run([CC, "-std=c99", "-Werror=implicit-function-declaration", *extra_flags,
-                "-I", str(INCLUDE), "-I", str(BIOS_INCLUDE), str(source), "-o", str(binary)],
-                capture_output=True, text=True, timeout=60)
+            result = subprocess.run(
+                [CC, "-std=c99", "-Werror=implicit-function-declaration", *extra_flags,
+                 "-I", str(INCLUDE), "-I", str(BIOS_INCLUDE), str(source), "-o", str(binary)],
+                capture_output=True, text=True, timeout=60,
+            )
             if not success:
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("#error", result.stderr)
@@ -36,8 +43,12 @@ class TestUSNativeFirmware(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def profile(self, rate=2400, extra="", check=""):
-        clock, cl, cwl, rd, wr = {2400: (300000000,17,12,2,3), 2667: (333333333,19,14,0,1),
-            2933: (366666666,21,16,2,3), 3200: (400000000,24,16,3,3)}[rate]
+        clock, cl, cwl, rd, wr = {
+            2400: (300000000, 17, 12, 2, 3),
+            2667: (333333333, 19, 14, 0, 1),
+            2933: (366666666, 21, 16, 2, 3),
+            3200: (400000000, 24, 16, 3, 3),
+        }[rate]
         operating_rd = 2 if rate == 3200 else rd
         return f'''
 #define SDRAM_PHY_DDR4
