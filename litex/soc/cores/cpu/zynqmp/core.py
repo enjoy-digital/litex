@@ -261,37 +261,162 @@ class ZynqMP(CPU):
     ==========
     n: int
         GEM id (0, 1, 2, 3)
-    pads:
-        Physicals pads.
+    pads_or_mio_group:
+        Ethernet pads for EMIO, or a "MIO xx .. yy" group. With a GT
+        lane, pads are provided by the GT and this parameter can be None.
+    mdio_pads_or_mio_group:
+        MDIO/MDC pads, a MIO group, or None to disable MDIO.
     clock_pads:
-        Physicals tx/rx clock pads (required for SGMII).
+        Physical tx/rx clock pads for SGMII through the PL. When gt_lane
+        is set, pass the GT reference-clock ID (0 to 3) instead of pads.
     if_type: str
-        Physical ethernet interface (gmii, rgmii, sgmii).
-    reset: Signal
-        Reset signal between PS and converter (required for SGMII).
+        Ethernet interface for EMIO (gmii, rgmii, or sgmii through the PL).
+        It is ignored for MIO (fixed RGMII) and GT lane (fixed SGMII).
+    clock_pads_freq: float (optional, keyword-only)
+        External GEM reference-clock frequency in MHz. Required with
+        the GT reference-clock ID when gt_lane is set.
+    ref_ctrl_clk_sel: str (optional, keyword-only)
+        GEM reference clock source (DPLL/IOPLL/RPLL).
+    ref_ctrl_clk_freq: float (optional, keyword-only)
+        GEM reference clock frequency in MHz.
+    gt_lane: int (optional, keyword-only)
+        GT lane for SGMII (0 for GEM0, 1 for GEM1). When set, the
+        interface is fixed to SGMII and pads_or_mio_group may be None.
     gt_location: str
         for SGMII Pads location (XaYb) (Required for SGMII).
+    reset: Signal
+        Reset signal between PS and converter (required for SGMII).
     with_ptp: bool
         Enable PTP support.
+    iotype: str
+        MIO input type (cmos/schmitt).
+    slew: str
+        MIO slew rate (slow/fast/...).
     """
     def add_ethernet(self, n=0,
-        pads       = None,
-        clock_pads = None,
-        if_type    = "gmii",
-        gt_location= None,
-        reset      = None,
-        with_ptp   = False):
-        assert n < 3 and not n in self.gem_mac
-        assert pads is not None
-        assert if_type in ["gmii", "rgmii", "sgmii"]
+        pads_or_mio_group      = None,
+        mdio_pads_or_mio_group = None,
+        clock_pads             = None,
+        if_type                = "gmii",
 
-        # psu configuration
-        self.config[f"PSU__ENET{n}__PERIPHERAL__ENABLE"] = 1
-        self.config[f"PSU__ENET{n}__PERIPHERAL__IO"]     = "EMIO"
-        self.config[f"PSU__ENET{n}__GRP_MDIO__ENABLE"]   = 1
-        self.config[f"PSU__ENET{n}__GRP_MDIO__IO"]       = "EMIO"
+        # ZynqMP clock and SGMII configuration.
+        *,
+        clock_pads_freq        = 0,
+        ref_ctrl_clk_sel       = None,
+        ref_ctrl_clk_freq      = 0,
+        gt_lane                = None,
+        gt_location            = None,
+        reset                  = None,
+        with_ptp               = False,
+        iotype                 = "",
+        slew                   = "fast"):
+        assert 0 <= n < 4 and not n in self.gem_mac
+        assert gt_lane is None or (n in [0, 1] and gt_lane == n)
+        assert pads_or_mio_group is not None or gt_lane is not None
+        if gt_lane is not None:
+            assert type(clock_pads) is int and 0 <= clock_pads < 4
+            assert clock_pads_freq != 0
+            clock_pads = f"Ref Clk{clock_pads}"
+
+        # MIO groups are strings; EMIO connections use platform resources.
+        if gt_lane is None:
+            (eth_io_type, eth_pins) = self.detect_emio_mio_pins(pads_or_mio_group)
+            eth_if_type = "rgmii" if eth_io_type != "EMIO" else if_type
+        else:
+            eth_io_type, eth_pins = f"GT Lane{gt_lane}", []
+            eth_if_type = "sgmii"
+        if mdio_pads_or_mio_group is not None:
+            (mdio_io_type, mdio_pins) = self.detect_emio_mio_pins(mdio_pads_or_mio_group)
+        else:
+            mdio_io_type, mdio_pins = "EMIO", []
+
+        pads      = pads_or_mio_group
+        mdio_pads = mdio_pads_or_mio_group
+
+        # PSU configuration.
+        self.add_psu_config({
+            f"PSU__ENET{n}__PERIPHERAL__ENABLE" : 1,
+            f"PSU__ENET{n}__PERIPHERAL__IO"     : eth_io_type,
+            f"PSU__ENET{n}__GRP_MDIO__ENABLE"   : int(mdio_pads is not None),
+        })
+
+        if mdio_pads is not None:
+            self.add_psu_config({
+                f"PSU__ENET{n}__GRP_MDIO__IO" : mdio_io_type,
+            })
+
+        if isinstance(clock_pads, str):
+            assert clock_pads_freq != 0
+            self.add_psu_config({
+                f"PSU__GEM{n}__REF_CLK_SEL"  : clock_pads,
+                f"PSU__GEM{n}__REF_CLK_FREQ" : clock_pads_freq,
+            })
+
+        if ref_ctrl_clk_sel is not None:
+            assert ref_ctrl_clk_freq != 0
+            self.add_psu_config({
+                f"PSU__CRL_APB__GEM{n}_REF_CTRL__SRCSEL"  : ref_ctrl_clk_sel,
+                f"PSU__CRL_APB__GEM{n}_REF_CTRL__FREQMHZ" : ref_ctrl_clk_freq,
+            })
+
+        # PTP.
         if with_ptp:
-            self.config[f"PSU__ENET{n}__PTP__ENABLE"]    = 1
+            self.add_psu_config({
+                f"PSU__ENET{n}__PTP__ENABLE" : 1,
+            })
+
+        if gt_lane is None and eth_io_type != "EMIO":
+            assert len(eth_pins) == 12
+            directions = {i: "out"  if index < 6 else "in"   for index, i in enumerate(eth_pins)}
+            iotypes    = {i: "cmos" if index < 6 else iotype for index, i in enumerate(eth_pins)}
+            slews      = {i: slew   if index < 6 else "fast" for index, i in enumerate(eth_pins)}
+            self.add_mio_config(directions, iotype=iotypes, slew=slews)
+        if mdio_pads is not None and mdio_io_type != "EMIO":
+            assert len(mdio_pins) == 2
+            self.add_mio_config(
+                {mdio_pins[0]: "out", mdio_pins[1]: "inout"},
+                iotype = {mdio_pins[0]: "cmos", mdio_pins[1]: iotype},
+                slew   = slew,
+            )
+
+        # Inject GEMn configuration to use it via csv/json.
+        LiteXContext.top.add_constant(f"CONFIG_PSU_GEM{n}_ENABLE",      1)
+        LiteXContext.top.add_constant(f"CONFIG_PSU_GEM{n}_TYPE",        eth_if_type)
+        LiteXContext.top.add_constant(f"CONFIG_PSU_GEM{n}_IO",          eth_io_type)
+        LiteXContext.top.add_constant(f"CONFIG_PSU_GEM{n}_MDIO_ENABLE", int(mdio_pads is not None))
+        LiteXContext.top.add_constant(f"CONFIG_PSU_GEM{n}_MDIO_IO",     mdio_io_type)
+
+        # MDIO routing is independent of the Ethernet data interface.
+        mdio_mdc  = Signal()
+        mdio_i    = Signal()
+        mdio_o    = Signal()
+        mdio_t    = Signal()
+        mdio_emio = mdio_pads is not None and mdio_io_type == "EMIO"
+        if mdio_emio:
+            self.cpu_params.update({
+                f"o_emio_enet{n}_mdio_mdc" : mdio_mdc,
+                f"i_emio_enet{n}_mdio_i"   : mdio_i,
+                f"o_emio_enet{n}_mdio_o"   : mdio_o,
+                f"o_emio_enet{n}_mdio_t"   : mdio_t,
+            })
+
+            # For interface in MIO or for gmii (ie direct connection)
+            # the MDIO interface is directly connected to the PSU primitive.
+            if eth_io_type != "EMIO" or eth_if_type == "gmii":
+                self.comb += mdio_pads.mdc.eq(mdio_mdc)
+                self.specials += Instance("IOBUF",
+                    i_I   = mdio_o,
+                    o_O   = mdio_i,
+                    i_T   = mdio_t,
+                    io_IO = mdio_pads.mdio,
+                )
+
+        # End of the Game with interface not in EMIO Mode.
+        if eth_io_type != "EMIO":
+            self.gem_mac[n] = ("GT", gt_lane) if gt_lane is not None else ("MIO", None)
+            return
+
+        assert eth_if_type in ["gmii", "rgmii", "sgmii"]
 
         # psu GMII connection
         gmii_rx_clk = Signal()
@@ -320,40 +445,41 @@ class ZynqMP(CPU):
             f"o_emio_enet{n}_gmii_tx_er"  : gmii_tx_er,
         })
 
-        # psu MDIO connection
-        mdio_mdc = Signal()
-        mdio_i   = Signal()
-        mdio_o   = Signal()
-        mdio_t   = Signal()
-        self.cpu_params.update({
-            f"o_emio_enet{n}_mdio_mdc" : mdio_mdc,
-            f"i_emio_enet{n}_mdio_i"   : mdio_i,
-            f"o_emio_enet{n}_mdio_o"   : mdio_o,
-            f"o_emio_enet{n}_mdio_t"   : mdio_t,
-        })
+        if eth_if_type == "gmii":
+            assert clock_pads is not None and not isinstance(clock_pads, str)
+            self.comb += [
+                gmii_rx_clk.eq( clock_pads.rx),
+                gmii_tx_clk.eq( clock_pads.tx),
+                gmii_crs.eq(    pads.crs),
+                gmii_col.eq(    pads.col),
+                gmii_rxd.eq(    pads.rx_data),
+                gmii_rx_er.eq(  pads.rx_er),
+                gmii_rx_dv.eq(  pads.rx_dv),
+                pads.tx_data.eq(gmii_txd),
+                pads.tx_en.eq(  gmii_tx_en),
+                pads.tx_er.eq(  gmii_tx_er),
+            ]
+            self.gem_mac[n] = ("gmii", None)
+        elif eth_if_type == "rgmii":
 
-        if if_type == "gmii":
-            self.comb += pads.mdc.eq(mdio_mdc)
-
-            self.specials += Instance("IOBUF",
-                i_I   = mdio_o,
-                o_O   = mdio_i,
-                i_T   = mdio_t,
-                io_IO = pads.mdio
-            )
-        elif if_type == "rgmii":
+            # In RGMII a gmii2rgmii adapter is required
+            # The MDIO crosse the adapter
             phys_mdio_i = Signal()
             phys_mdio_o = Signal()
             phys_mdio_t = Signal()
 
-            self.specials += Instance("IOBUF",
-                i_I   = phys_mdio_o,
-                o_O   = phys_mdio_i,
-                i_T   = phys_mdio_t,
-                io_IO = pads.mdio
-            )
+            if mdio_emio:
+                self.specials += Instance("IOBUF",
+                    i_I   = phys_mdio_o,
+                    o_O   = phys_mdio_i,
+                    i_T   = phys_mdio_t,
+                    io_IO = mdio_pads.mdio
+                )
+            else:
+                self.comb += phys_mdio_i.eq(1)
 
-            self.comb += pads.rst_n.eq(~ResetSignal("sys"))
+            if hasattr(pads, "rst_n"):
+                self.comb += pads.rst_n.eq(~ResetSignal("sys"))
 
             mac_params = dict(
                 i_tx_reset          = ResetSignal("sys"),
@@ -361,10 +487,10 @@ class ZynqMP(CPU):
                 i_clkin             = ClockSignal("rgmii"),
 
                 # PS GEM: MDIO
-                i_mdio_gem_mdc      = mdio_mdc,
+                i_mdio_gem_mdc      = mdio_mdc if mdio_emio else 0,
                 o_mdio_gem_i        = mdio_i,
-                i_mdio_gem_o        = mdio_o,
-                i_mdio_gem_t        = mdio_t,
+                i_mdio_gem_o        = mdio_o if mdio_emio else 1,
+                i_mdio_gem_t        = mdio_t if mdio_emio else 1,
                 # PS GEM: GMII
                 o_gmii_tx_clk       = gmii_tx_clk,
                 i_gmii_tx_en        = gmii_tx_en,
@@ -384,7 +510,7 @@ class ZynqMP(CPU):
                 i_rgmii_rx_ctl      = pads.rx_ctl,
                 i_rgmii_rxc         = pads.rxc,
                 # PHY: MDIO
-                o_mdio_phy_mdc      = pads.mdc,
+                o_mdio_phy_mdc      = mdio_pads.mdc if mdio_emio else Open(),
                 i_mdio_phy_i        = phys_mdio_i,
                 o_mdio_phy_o        = phys_mdio_o,
                 o_mdio_phy_t        = phys_mdio_t,
@@ -403,6 +529,22 @@ class ZynqMP(CPU):
             self.gem_mac[n] = ("rgmii", None)
         else:
             assert gt_location is not None
+            assert clock_pads is not None and not isinstance(clock_pads, str)
+
+            pcs_mdio_o = Signal()
+            pcs_mdio_t = Signal()
+            if mdio_emio:
+                phys_mdio_i = Signal()
+                self.specials += Instance("IOBUF",
+                    i_I   = mdio_o,
+                    o_O   = phys_mdio_i,
+                    i_T   = mdio_t,
+                    io_IO = mdio_pads.mdio,
+                )
+                self.comb += [
+                    mdio_pads.mdc.eq(mdio_mdc),
+                    mdio_i.eq(Mux(pcs_mdio_t, phys_mdio_i, pcs_mdio_o)),
+                ]
 
             pwrgood         = Signal()
             status          = Signal(16)
@@ -498,10 +640,10 @@ class ZynqMP(CPU):
                 o_gmii_isolate           = Open(),                 # Tristate control to electrically isolate GMII.
 
                 # PS GEM: MDIO
-                i_mdc                    = mdio_mdc,               # Management Data Clock
-                i_mdio_i                 = mdio_o,                 # Management Data In
-                o_mdio_o                 = mdio_i,                 # Management Data Out
-                o_mdio_t                 = Open(),                 # Management Data Tristate
+                i_mdc                    = mdio_mdc if mdio_emio else 0, # Management Data Clock
+                i_mdio_i                 = mdio_o   if mdio_emio else 1, # Management Data In
+                o_mdio_o                 = pcs_mdio_o,                   # Management Data Out
+                o_mdio_t                 = pcs_mdio_t,                   # Management Data Tristate
 
                 # Configuration
                 i_phyaddr                = Constant(9, 5),
@@ -1255,6 +1397,8 @@ class ZynqMP(CPU):
         if len(self.gem_mac):
             mac_tcl = []
             for i, (if_type, gt_location) in self.gem_mac.items():
+                if if_type in ["MIO", "GT", "gmii"]:
+                    continue
                 ip_name = {"rgmii": "gmii_to_rgmii", "sgmii": "gig_ethernet_pcs_pma"}[if_type]
                 mac_tcl.append(f"set gem{i} [create_ip -vendor xilinx.com -name {ip_name} -module_name gem{i}]")
                 mac_tcl.append("set_property -dict [ list \\")
