@@ -62,6 +62,7 @@ class ZynqMP(CPU):
         self.spi_use        = []          # SPI reserved ports.
         self.uart_use       = []          # UART reserved ports.
         self.sdio_use       = []          # SD reserved ports.
+        self.usb_use        = []          # USB reserved ports.
         self.can_use        = []          # CAN reserved/used ports.
         self.pps            = Signal(4)   # Optional PPS (with gemX and PTP enabled)
         self.libxil         = None        # Optional Xilinx libxil software package configuration.
@@ -1101,6 +1102,147 @@ class ZynqMP(CPU):
             f"o_emio_sdio{n}_ledcontrol" : getattr(pads_or_mio_group, "led", Open()),
             f"o_emio_sdio{n}_bus_volt"   : getattr(pads_or_mio_group, "bus_volt", Open(3)),
         })
+
+    """
+    Enable USBn through its USB 2.0 ULPI MIO interface.
+    USB0 uses MIO 52 .. 63 and USB1 uses MIO 64 .. 75.
+    USB3 can be enabled on GT Lane 0, 1 or 2 for USB0, and GT Lane 3 for USB1.
+    Attributes
+    ==========
+    n: int
+        Controller ID (0/1).
+    reset: int (optional)
+        MIO pin used to reset the USB controller.
+    reset_polarity: str
+        USB reset polarity ("Active Low" or "Active High").
+    iotype: str
+        MIO input type (cmos/schmitt). STP and RESET are fixed to cmos.
+    slew: str
+        MIO slew rate (slow/fast/...). CLK_IN, DIR and NXT are fixed to fast.
+    strength: (optional) dict(pad(str), value(int))
+        Drive Strength.
+        Pad/keys are data, stp, rst. clk, dir, nxt are fixed to 12mA.
+        Value range is [2, 4, 8, 12].
+        When None default 4mA is used for both pads, if one of pad is missing default
+        value is used too.
+        This parameter is only used in MIO mode.
+    gt_lane: int (optional, keyword-only)
+        GT lane used to enable the USB 3.0 controller. None disables USB 3.0.
+    ref_clk_sel: int (optional, keyword-only)
+        USB3 GT reference clock selection (0 through 3).
+    ref_clk_freq: float (optional, keyword-only)
+        USB3 GT reference clock frequency in MHz. Zero keeps the default value.
+    srcsel: str (optional, keyword-only)
+        USB reference clock source. Allowed values: DPLL, IOPLL, RPLL.
+        Default: IOPLL
+    freq: float (optional, keyword-only)
+        USBn bus reference clock frequency in MHz. Allowed range is 0 to 250.
+    dual_srcsel: str (optional, keyword-only)
+        USB3 dual reference clock source. Allowed values: DPLL, IOPLL, RPLL.
+        Default: IOPLL
+    dual_freq: float (optional, keyword-only)
+        USB3 dual reference clock frequency in MHz. Allowed range is 0 to 20.
+    """
+    def add_usb(self, n,
+        reset          = None,
+        reset_polarity = "Active Low",
+        iotype         = "cmos",
+        slew           = "fast",
+        strength       = None,
+        *,
+        gt_lane        = None,
+        ref_clk_sel    = None,
+        ref_clk_freq   = 0,
+        srcsel         = "IOPLL",
+        freq           = 250,
+        dual_srcsel    = "IOPLL",
+        dual_freq      = 20,
+        ):
+        assert 0 <= n < 2 and n not in self.usb_use
+        assert reset is None or type(reset) is int and 0 <= reset < 78
+        assert reset_polarity in ["Active Low", "Active High"]
+        assert gt_lane is None or type(gt_lane) is int and gt_lane in ([0, 1, 2] if n == 0 else [3])
+        assert ref_clk_sel is None or type(ref_clk_sel) is int and 0 <= ref_clk_sel <= 3
+        assert ref_clk_freq in [0, 26, 52, 100]
+        assert srcsel in ["IOPLL", "RPLL", "DPLL"]
+        assert 0 <= freq <= 250
+        assert dual_srcsel in ["IOPLL", "RPLL", "DPLL"]
+        assert 0 <= dual_freq <= 20
+        assert gt_lane is not None or (ref_clk_sel is None and not ref_clk_freq)
+        assert self.config.get("PSU__USB__RESET__POLARITY", reset_polarity) == reset_polarity
+        assert self.config.get("PSU__CRL_APB__USB3_DUAL_REF_CTRL__SRCSEL", dual_srcsel) == dual_srcsel
+        assert self.config.get("PSU__CRL_APB__USB3_DUAL_REF_CTRL__FREQMHZ", int(dual_freq)) == int(dual_freq)
+
+        pins    = list(range(52 + 12*n, 64 + 12*n))
+        io_type = f"MIO {pins[0]} .. {pins[-1]}"
+
+        # PSU configuration.
+        self.usb_use.append(n)
+        config = {
+            f"PSU__USB{n}__PERIPHERAL__ENABLE"            : 1,
+            f"PSU__USB{n}__PERIPHERAL__IO"                : io_type,
+            f"PSU__USB{n}__RESET__ENABLE"                 : int(reset is not None),
+            "PSU__USB__RESET__POLARITY"                   : reset_polarity,
+            f"PSU__USB2_{n}__EMIO__ENABLE"                : 0,
+            f"PSU__CRL_APB__USB{n}_BUS_REF_CTRL__SRCSEL"  : srcsel,
+            f"PSU__CRL_APB__USB{n}_BUS_REF_CTRL__FREQMHZ" : int(freq),
+            "PSU__CRL_APB__USB3_DUAL_REF_CTRL__SRCSEL"    : dual_srcsel,
+            "PSU__CRL_APB__USB3_DUAL_REF_CTRL__FREQMHZ"   : int(dual_freq),
+        }
+        if reset is not None:
+            config[f"PSU__USB{n}__RESET__IO"] = f"MIO {reset}"
+        if gt_lane is not None:
+            if ref_clk_sel is not None:
+                config[f"PSU__USB{n}__REF_CLK_SEL"] = f"Ref Clk{ref_clk_sel}"
+            if ref_clk_freq:
+                config[f"PSU__USB{n}__REF_CLK_FREQ"] = int(ref_clk_freq)
+            config.update({
+                f"PSU__USB3_{n}__PERIPHERAL__ENABLE" : 1,
+                f"PSU__USB3_{n}__PERIPHERAL__IO"     : f"GT Lane{gt_lane}",
+                f"PSU__USB3_{n}__EMIO__ENABLE"       : 0,
+                "PSU__CRL_APB__USB3__ENABLE"         : 1,
+                "PSU_USB3__DUAL_CLOCK_ENABLE"        : 1,
+            })
+        self.add_psu_config(config)
+
+        # Inject USBn configuration to use it via csv/json.
+        LiteXContext.top.add_constant(f"CONFIG_PSU_USB{n}_ENABLE", 1)
+        LiteXContext.top.add_constant(f"CONFIG_PSU_USB{n}_IO",     io_type)
+
+        # USB ULPI pin order: clk_in, dir, data[2], nxt, data[0:1], stp, data[3:7].
+        directions     = ["in", "in", "inout", "in", "inout", "inout", "out"] + ["inout"] * 5
+        # build iotype and slew default value
+        iotypes      = [iotype] * len(pins)
+        slews        = [slew]   * len(pins)
+        drv_strength = [4]      * len(pins)
+        # for stp iotypes is fixed, for clk_in, dir and nxt slew is fixed.
+        iotypes[6] = "cmos"
+        for index in [0, 1, 3]:
+            slews[index]        = "fast"
+            drv_strength[index] = 12
+        if strength is not None:
+            drv_strength[6] = strength.get("stp", 4)
+            if "data" in strength:
+                data_pins = [2] + [i for i in range(4, 6)] + [i for i in range(7, 12)]
+                for i in data_pins:
+                    drv_strength[i] = strength["data"]
+
+        self.add_mio_config(dict(zip(pins, directions)),
+            iotype   = dict(zip(pins, iotypes)),
+            slew     = dict(zip(pins, slews)),
+            pullup   = "pullup",
+            strength = dict(zip(pins, drv_strength)),
+            polarity = "Default",
+        )
+        if reset is not None:
+            rst_strength = 4 if strength is None else strength.get("rst", 4)
+            self.add_mio_config({reset: "out"},
+                iotype   = {reset: "cmos"},
+                slew     = slew,
+                pullup   = "pullup",
+                strength = {reset: rst_strength},
+                polarity = "Default"
+            )
 
     """
     Connect Signal,TSTriple or pads to the EMIO interface.
