@@ -63,6 +63,7 @@ class ZynqMP(CPU):
         self.uart_use       = []          # UART reserved ports.
         self.sdio_use       = []          # SD reserved ports.
         self.usb_use        = []          # USB reserved ports.
+        self.qspi_use       = False       # QSPI reserved port.
         self.can_use        = []          # CAN reserved/used ports.
         self.pps            = Signal(4)   # Optional PPS (with gemX and PTP enabled)
         self.libxil         = None        # Optional Xilinx libxil software package configuration.
@@ -1279,6 +1280,107 @@ class ZynqMP(CPU):
             f"o_emio_sdio{n}_ledcontrol" : getattr(pads_or_mio_group, "led", Open()),
             f"o_emio_sdio{n}_bus_volt"   : getattr(pads_or_mio_group, "bus_volt", Open(3)),
         })
+
+    """
+    Enable the QSPI controller through its fixed PSU MIO interface.
+    MIO 0 .. 5 is used for Single, MIO 0 .. 7 for Dual Stacked, and
+    MIO 0 .. 12 for Dual Parallel. MIO 6 is used for the optional feedback clock.
+    Attributes
+    ==========
+    mode: str
+        Flash connection mode (Single, Dual Stacked or Dual Parallel).
+    data_mode: str
+        Data mode (x1, x2 or x4). Dual Parallel requires x4.
+    feedback_clk: bool
+        Enable the feedback clock on MIO 6.
+    iotype: str
+        MIO input type (cmos/schmitt). sclk_out and n_ss_out use cmos.
+    slew: str
+        MIO slew rate (slow/fast/...).
+    strength: (optional) dict key/int
+        key must be: sclk, moX (with x in [0:3], ss, lpbk.
+        values must be: 2/4/8/12.
+        if this parameter is None all MIO are set to 4 mA.
+        If one key is missing default value (4) is used.
+    srcsel: str (optional, keyword-only)
+        PSU reference clock source. Empty keeps the default value.
+    freq: float (optional, keyword-only)
+        PSU reference clock frequency in MHz. Zero keeps the default value.
+    """
+    def add_qspi(self,
+        mode         = "Single",
+        data_mode    = "x1",
+        feedback_clk = False,
+        iotype       = "cmos",
+        slew         = "fast",
+        strength     = None,
+        *,
+        srcsel       = "",
+        freq         = 0,
+        ):
+        assert not self.qspi_use
+        assert mode      in ["Single", "Dual Stacked", "Dual Parallel"]
+        assert data_mode in ["x1", "x2", "x4"]
+        assert mode != "Dual Parallel" or data_mode == "x4"
+        assert freq >= 0
+
+        # Mark QSPI as used/configured.
+        self.qspi_use = True
+        last_pin      = {"Single": 5, "Dual Stacked": 7, "Dual Parallel": 12}[mode]
+        pins          = list(range(last_pin + 1))
+        if 6 not in pins:
+            pins.append(6)
+
+        # PSU configuration.
+        config = {
+            "PSU__QSPI__PERIPHERAL__ENABLE"    : 1,
+            "PSU__QSPI__PERIPHERAL__IO"        : f"MIO 0 .. {last_pin}",
+            "PSU__QSPI__PERIPHERAL__MODE"      : mode,
+            "PSU__QSPI__PERIPHERAL__DATA_MODE" : data_mode,
+            "PSU__QSPI__GRP_FBCLK__ENABLE"     : int(feedback_clk),
+        }
+        if feedback_clk:
+            config["PSU__QSPI__GRP_FBCLK__IO"]             = "MIO 6"
+        if srcsel:
+            config["PSU__CRL_APB__QSPI_REF_CTRL__SRCSEL"]  = srcsel
+        if freq:
+            config["PSU__CRL_APB__QSPI_REF_CTRL__FREQMHZ"] = int(freq)
+        self.add_psu_config(config)
+
+        # Inject QSPI configuration to use it via csv/json.
+        LiteXContext.top.add_constant("CONFIG_PSU_QSPI_ENABLE", 1)
+        LiteXContext.top.add_constant("CONFIG_PSU_QSPI_IO",     config["PSU__QSPI__PERIPHERAL__IO"])
+        LiteXContext.top.add_constant("CONFIG_PSU_QSPI_MODE", mode)
+        LiteXContext.top.add_constant("CONFIG_PSU_QSPI_DATA_MODE", data_mode)
+
+        directions    = {pin: "inout" for pin in pins}
+        directions[0] = "out"
+        directions[5] = "out"
+        directions[6] = {True: "out", False: "inout"}[feedback_clk]
+        iotypes       = {pin: iotype for pin in pins}
+        iotypes[0]    = "cmos"
+        iotypes[5]    = "cmos"
+        iotypes[6]    = "cmos"
+        drv_strength  = {pin: 4 for pin in pins}
+        if mode != "Single":
+            directions[7] = "out"
+            iotypes[7]    = "cmos"
+        if mode == "Dual Parallel":
+            directions[12] = "out"
+            iotypes[12]    = "cmos"
+        if strength is not None:
+            drv_keys = {"sclk": 0, "mo0": 4, "mo1": 1, "mo2": 2, "mo3": 3, "ss": 5, "lpbk": 6}
+            for k, v in strength.items():
+                assert v in [2, 4, 8, 12]
+                assert k in drv_keys, k
+                drv_strength[drv_keys[k]] = v
+        self.add_mio_config(directions,
+            iotype   = iotypes,
+            slew     = slew,
+            pullup   = "pullup",
+            strength = drv_strength,
+            polarity = "Default",
+        )
 
     """
     Enable USBn through its USB 2.0 ULPI MIO interface.
