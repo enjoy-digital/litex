@@ -65,6 +65,7 @@ class ZynqMP(CPU):
         self.usb_use        = []          # USB reserved ports.
         self.qspi_use       = False       # QSPI reserved port.
         self.can_use        = []          # CAN reserved/used ports.
+        self.pmu_use        = False       # PMU reserved port.
         self.dp_use         = False     # DisplayPort reserved port.
         self.pps            = Signal(4)   # Optional PPS (with gemX and PTP enabled)
         self.libxil         = None        # Optional Xilinx libxil software package configuration.
@@ -999,6 +1000,129 @@ class ZynqMP(CPU):
                 f"o_emio_i2c{n}_sda_o" : sda.o,
                 f"o_emio_i2c{n}_sda_t" : sda.oe,
             })
+
+    """
+    Enable the PMU peripheral through PSU MIO or PL EMIO.
+    Attributes
+    ==========
+    gpi: list of int (optional)
+        PMU input IDs. Allowed IDs are 0 to 5 and map to MIO 26 to MIO 31.
+    gpo: list of int (optional)
+        PMU output IDs. Allowed IDs are 0 to 5 and map to MIO 32 to MIO 37.
+    pads_or_mio_group: Record (optional)
+        EMIO pads with gpi and gpo fields connected to the 32-bit PMU EMIO
+        buses.
+    gpi_iotype: (optional) dict(id(int), value(str))
+        MIO input type (cmos/schmitt), keyed by GPI ID. Only used for GPI
+        signals. Missing IDs default to cmos.
+    gpo_slew: (optional) dict(id(int), value(str))
+        MIO slew rate, keyed by GPO ID. Only used for GPO signals. Missing
+        IDs default to slow.
+    gpo_strength: (optional) dict(id(int), value(int))
+        MIO drive strength, keyed by GPO ID. Only used for GPO signals.
+        Missing IDs default to 4 mA.
+        Value range is [2, 4, 8, 12].
+        When None default 4mA is used for both pads, if one of pad is missing default
+        value is used too.
+        This parameter is only used in MIO mode.
+    gpo_polarity: (optional) dict(id(int), value(str))
+        Initial state of GPO2 to GPO5, keyed by GPO ID. Values are low or
+        high. Missing IDs default to low.
+    """
+    def add_pmu(self,
+        gpi               = None,
+        gpo               = None,
+        pads_or_mio_group = None,
+        gpi_iotype        = None,
+        gpo_slew          = None,
+        gpo_strength      = None,
+        gpo_polarity      = None,
+        ):
+        assert not self.pmu_use
+        assert gpi is None or isinstance(gpi, list)
+        assert gpo is None or isinstance(gpo, list)
+        assert (
+            pads_or_mio_group is not None
+            or (gpi is not None and len(gpi) > 0)
+            or (gpo is not None and len(gpo) > 0)
+        )
+        assert gpi is None or all(isinstance(i, int) and 0 <= i <= 5 for i in gpi)
+        assert gpo is None or all(isinstance(i, int) and 0 <= i <= 5 for i in gpo)
+        assert gpi is None or len(gpi) == len(set(gpi))
+        assert gpo is None or len(gpo) == len(set(gpo))
+
+        assert gpi_iotype   is None or isinstance(gpi_iotype,   dict)
+        assert gpo_slew     is None or isinstance(gpo_slew,     dict)
+        assert gpo_strength is None or isinstance(gpo_strength, dict)
+        assert gpo_polarity is None or isinstance(gpo_polarity, dict)
+
+        for values in [gpi_iotype, gpo_slew, gpo_strength, gpo_polarity]:
+            if values is not None:
+                assert all(isinstance(i, int) and 0 <= i <= 5 for i in values)
+        if gpi_iotype is not None:
+            assert all(value in ["cmos", "schmitt"] for value in gpi_iotype.values())
+        if gpo_slew is not None:
+            assert all(isinstance(value, str) for value in gpo_slew.values())
+        if gpo_strength is not None:
+            assert all(isinstance(value, int) for value in gpo_strength.values())
+        if gpo_polarity is not None:
+            assert all(i in [2, 3, 4, 5] for i in gpo_polarity)
+            assert all(value in ["low", "high"] for value in gpo_polarity.values())
+
+        emio_gpi        = None if pads_or_mio_group is None else getattr(pads_or_mio_group, "gpi", None)
+        emio_gpo        = None if pads_or_mio_group is None else getattr(pads_or_mio_group, "gpo", None)
+        emio_gpi_enable = emio_gpi is not None and (not isinstance(emio_gpi, (list, tuple)) or len(emio_gpi) > 0)
+        emio_gpo_enable = emio_gpo is not None and (not isinstance(emio_gpo, (list, tuple)) or len(emio_gpo) > 0)
+        iotype          = {}
+        strength        = {}
+        slew            = {}
+        directions      = {}
+        gpi_ids         = [] if gpi is None else gpi
+        gpo_ids         = [] if gpo is None else gpo
+
+        config = {
+            "PSU__PMU__PERIPHERAL__ENABLE" : 1,
+            "PSU__PMU__EMIO_GPI__ENABLE"   : int(emio_gpi_enable),
+            "PSU__PMU__EMIO_GPO__ENABLE"   : int(emio_gpo_enable),
+        }
+
+        for i in range(6):
+            mio = 26 + i
+            config[f"PSU__PMU__GPI{i}__ENABLE"] = int(i in gpi_ids)
+            if i in gpi_ids:
+                config[f"PSU__PMU__GPI{i}__IO"] = f"MIO {mio}"
+                iotype[mio]     = "cmos" if gpi_iotype is None else gpi_iotype.get(i, "cmos")
+                strength[mio]   = 12
+                slew[mio]       = "fast"
+                directions[mio] = "in"
+        for i in range(6):
+            mio = 32 + i
+            config[f"PSU__PMU__GPO{i}__ENABLE"] = int(i in gpo_ids)
+            if i in gpo_ids:
+                config[f"PSU__PMU__GPO{i}__IO"] = f"MIO {mio}"
+                if i in [2, 3, 4, 5]:
+                    polarity = "low" if gpo_polarity is None else gpo_polarity.get(i, "low")
+                    config[f"PSU__PMU__GPO{i}__POLARITY"] = polarity
+                iotype[mio]     = "cmos"
+                strength[mio]   = 4      if gpo_strength is None else gpo_strength.get(i, 4)
+                slew[mio]       = "slow" if gpo_slew     is None else gpo_slew.get(i, "slow")
+                directions[mio] = "out"
+        self.add_psu_config(config)
+
+        if directions:
+            self.add_mio_config(directions,
+                iotype   = iotype,
+                slew     = slew,
+                pullup   = "pullup",
+                strength = strength,
+                polarity = "Default",
+            )
+        if emio_gpi_enable:
+            self.cpu_params["i_pl_pmu_gpi"] = emio_gpi
+        if emio_gpo_enable:
+            self.cpu_params["o_pmu_pl_gpo"] = emio_gpo
+
+        self.pmu_use = True
 
     """
     Connect and Enables SPIn controler (may be via PSU MIO or PL EMIO).
