@@ -65,6 +65,7 @@ class ZynqMP(CPU):
         self.usb_use        = []          # USB reserved ports.
         self.qspi_use       = False       # QSPI reserved port.
         self.can_use        = []          # CAN reserved/used ports.
+        self.dp_use         = False     # DisplayPort reserved port.
         self.pps            = Signal(4)   # Optional PPS (with gemX and PTP enabled)
         self.libxil         = None        # Optional Xilinx libxil software package configuration.
 
@@ -722,6 +723,182 @@ class ZynqMP(CPU):
 
             self.specials += Instance(f"gem{n}", **mac_params)
             self.gem_mac[n] = ("sgmii", gt_location)
+
+    """
+    Enable the DisplayPort controller through PSU MIO or PL EMIO.
+    Attributes
+    ==========
+    pads_or_mio_group: Record or str
+        EMIO pads (data_out, data_in, data_oe, hot_plug_detect), or one of
+        the supported DPAUX MIO groups ("MIO 27 .. 30" or "MIO 34 .. 37").
+    iotype: str
+        MIO input type for hot_plug_detect and data_in. Fixed to "cmos" for
+        data_out and data_oe signals.
+        Only used in MIO mode.
+    slew: str
+        MIO slew rate for data_out and data_oe. Fixed to "fast"
+        for hot_plug_detect and data_in.
+        Only used in MIO mode.
+    strength: (optional) dict(str, int)
+        MIO drive strength for data_out and data_oe. The keys are data_out and
+        data_oe.
+        Value range is [2, 4, 8, 12].
+        When None default 4mA is used for both pads, if one of pad is missing default
+        value is used too.
+        hot_plug_detect and data_in are fixed.
+        This parameter is only used in MIO mode.
+    lane_sel: str
+        DisplayPort lane selection (Dual Higher, Dual Lower, Single Higher,
+        Single Lower or None).
+    ref_clk_sel: int
+        GT Lane Reference clock source (Ref ClkX with X=0,1,2,3).
+        Only required when lane_sel != None. Default: 2
+    ref_clk_freq: int
+        GT Lane Reference clock frequency in MHz.
+        Allowed frequency: 27, 108, 135
+        Only required when lane_sel != None. Default: 27
+    dp_video_ref_srcsel: str
+        DP video reference clock source. Allowed values are VPLL, DPLL and
+        RPLL. Default: VPLL.
+    dp_video_ref_freq: int or float
+        DP video reference clock frequency in MHz. Allowed range is 0 to 320.
+        Default: 300.
+    dp_video_frac_en: bool
+        Enabled DP Video source Fractional PLL mode for floating frequency.
+        Default: False.
+    dp_audio_ref_srcsel: str
+        DP audio reference clock source. Allowed values are VPLL, DPLL and
+        RPLL. Default: RPLL.
+    dp_audio_ref_freq: int or float
+        DP audio reference clock frequency in MHz. Allowed range is 0 to 25.
+        Default: 25.
+    dp_audio_frac_en: bool
+        Enabled DP Audio source Fractional PLL mode for floating frequency.
+        Default: False.
+    dp_stc_ref_srcsel: str
+        DP STC reference clock source. Allowed values are VPLL, DPLL, RPLL and
+        FMIO_AUDIO_STREAM_CLK. Default: RPLL.
+    dp_stc_ref_freq: int or float
+        DP STC reference clock frequency in MHz. Allowed range is 0 to 27.
+        Default: 27.
+    video_ref_clk_io: str or None
+        MIO used by the video reference clock. Allowed values are "MIO 27"
+        and "MIO 50".
+        Default: None.
+    video_ref_clk_iotype: str
+        MIO input type for the video reference clock. Default: "cmos".
+    """
+    def add_display_port(self, pads_or_mio_group,
+        iotype               = "cmos",
+        slew                 = "slow",
+        strength             = None,
+        lane_sel             = "Single Lower",
+        ref_clk_sel          = 2,
+        ref_clk_freq         = 27,
+        dp_video_ref_srcsel  = "VPLL",
+        dp_video_ref_freq    = 300,
+        dp_video_frac_en     = False,
+        dp_audio_ref_srcsel  = "RPLL",
+        dp_audio_ref_freq    = 25,
+        dp_audio_frac_en     = False,
+        dp_stc_ref_srcsel    = "RPLL",
+        dp_stc_ref_freq      = 27,
+        video_ref_clk_io     = None,
+        video_ref_clk_iotype = "cmos",
+        ):
+        assert not self.dp_use
+        assert strength is None or isinstance(strength, dict)
+        if strength is not None:
+            assert all(k in ["data_out", "data_oe"] for k in strength)
+        assert lane_sel in ["Dual Higher", "Dual Lower", "Single Higher", "Single Lower", "None"]
+        assert lane_sel == "None" or (isinstance(ref_clk_sel,  int) and ref_clk_sel  in range(4))
+        assert lane_sel == "None" or (isinstance(ref_clk_freq, int) and ref_clk_freq in [27, 108, 135])
+
+        assert dp_video_ref_srcsel in ["VPLL", "DPLL", "RPLL"]
+        assert dp_audio_ref_srcsel in ["VPLL", "DPLL", "RPLL"]
+        assert dp_stc_ref_srcsel   in ["VPLL", "DPLL", "RPLL", "FMIO_AUDIO_STREAM_CLK"]
+        assert isinstance(dp_video_ref_freq, (int, float)) and 0 <= dp_video_ref_freq <= 320
+        assert isinstance(dp_audio_ref_freq, (int, float)) and 0 <= dp_audio_ref_freq <= 25
+        assert isinstance(dp_stc_ref_freq,   (int, float)) and 0 <= dp_stc_ref_freq   <= 27
+
+        assert video_ref_clk_io     in [None, "MIO 27", "MIO 50"]
+        assert video_ref_clk_iotype in ["cmos", "schmitt"]
+
+        assert isinstance(dp_audio_frac_en, bool)
+        assert isinstance(dp_video_frac_en, bool)
+
+        (io_type, pins) = self.detect_emio_mio_pins(pads_or_mio_group)
+        assert io_type == "EMIO" or pins in [[27, 28, 29, 30], [34, 35, 36, 37]]
+
+        # Check lan_sel configuration.
+        # GT Lane2 for Dual Higher, GT Lane0 for Dual Lower and None, <Select> otherwise
+        lane1_io = "GT Lane2" if lane_sel == "Dual Higher" else "GT Lane0"
+
+        config = {
+            "PSU__DISPLAYPORT__PERIPHERAL__ENABLE"    : 1,
+            "PSU__DPAUX__PERIPHERAL__ENABLE"          : 1,
+            "PSU__DPAUX__PERIPHERAL__IO"              : io_type,
+            "PSU__VIDEO_REF_CLK__ENABLE"              : int(video_ref_clk_io is not None),
+            "PSU__DP__LANE_SEL"                       : lane_sel,
+            "PSU__DISPLAYPORT__LANE0__ENABLE"         : 1, # Always enabled
+            "PSU__DISPLAYPORT__LANE0__IO"             : "GT Lane3" if "Higher" in lane_sel else "GT Lane1",
+            "PSU__DISPLAYPORT__LANE1__ENABLE"         : int("Dual" in lane_sel or "None" in lane_sel),
+            "PSU__DISPLAYPORT__LANE1__IO"             : "<Select>" if "Single" in lane_sel else lane1_io,
+            "PSU__DP__REF_CLK_SEL"                    : "<Select>" if lane_sel == "None"   else f"Ref Clk{ref_clk_sel}",
+            "PSU__DP__REF_CLK_FREQ"                   : "<Select>" if lane_sel == "None"   else ref_clk_freq,
+            "PSU__CRF_APB__DP_VIDEO_REF_CTRL__SRCSEL" : dp_video_ref_srcsel,
+            "PSU__CRF_APB__DP_VIDEO_REF_CTRL__FREQMHZ": dp_video_ref_freq,
+            "PSU__CRF_APB__DP_AUDIO_REF_CTRL__SRCSEL" : dp_audio_ref_srcsel,
+            "PSU__CRF_APB__DP_AUDIO_REF_CTRL__FREQMHZ": dp_audio_ref_freq,
+            "PSU__CRF_APB__DP_STC_REF_CTRL__SRCSEL"   : dp_stc_ref_srcsel,
+            "PSU__CRF_APB__DP_STC_REF_CTRL__FREQMHZ"  : dp_stc_ref_freq,
+            "PSU__CRF_APB__DP_AUDIO__FRAC_ENABLED"    : int(dp_audio_frac_en),
+            "PSU__CRF_APB__DP_VIDEO__FRAC_ENABLED"    : int(dp_video_frac_en),
+        }
+        if video_ref_clk_io is not None:
+            config["PSU__VIDEO_REF_CLK__IO"] = video_ref_clk_io
+        self.add_psu_config(config)
+
+        LiteXContext.top.add_constant("CONFIG_PSU_DISPLAYPORT_ENABLE", 1)
+        LiteXContext.top.add_constant("CONFIG_PSU_DPAUX_IO",           io_type)
+        LiteXContext.top.add_constant("CONFIG_PSU_DP_LANE_SEL",        lane_sel)
+
+        if video_ref_clk_io is not None:
+            video_ref_clk_pin = {"MIO 27": 27, "MIO 50": 50}[video_ref_clk_io]
+            self.add_mio_config(
+                {video_ref_clk_pin: "in"},
+                iotype = video_ref_clk_iotype,
+            )
+
+        if io_type != "EMIO":
+            directions = {
+                pins[0]: "out",  # DPAUX_DATA_OUT
+                pins[1]: "in",   # DPAUX_HPD
+                pins[2]: "out",  # DPAUX_DATA_OE
+                pins[3]: "in",   # DPAUX_DATA_IN
+            }
+            self.add_mio_config(
+                directions,
+                iotype   = {pins[0]: "cmos", pins[1]: iotype, pins[2]: "cmos", pins[3]: iotype},
+                slew     = {pins[0]: slew,   pins[1]: "fast", pins[2]: slew,   pins[3]: "fast"},
+                pullup   = "pullup",
+                strength = {
+                    pins[0]: 4 if strength is None else strength.get("data_out", 4),
+                    pins[1]: 12,
+                    pins[2]: 4 if strength is None else strength.get("data_oe",  4),
+                    pins[3]: 12,
+                },
+                polarity = "Default",
+            )
+        else:
+            self.cpu_params.update({
+                "o_emio_dp_aux_data_out"    : pads_or_mio_group.data_out,
+                "i_emio_dp_aux_data_in"     : pads_or_mio_group.data_in,
+                "o_emio_dp_aux_data_oe_n"   : pads_or_mio_group.data_oe,
+                "i_emio_dp_hot_plug_detect" : pads_or_mio_group.hot_plug_detect,
+            })
+
+        self.dp_use = True
 
     """
     Connect and Enables I2C controler (may be via PSU MIO or PL EMIO).
