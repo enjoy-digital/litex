@@ -17,11 +17,17 @@ entity microwatt_wrapper is
     generic (
         SIM             : boolean := false;
         DISABLE_FLATTEN : boolean := false;
-        HAS_FPU         : boolean := false
+        HAS_FPU         : boolean := true;
+        -- CPU boots here when alt_reset = '1'. ghdl --synth constant-folds vector generics to this
+        -- default (it is not exposed as a Verilog parameter), so bake the ROM origin (mem_map["rom"])
+        -- here directly. Keep in sync with Microwatt.mem_map["rom"] in core.py (0xFFFE_0000).
+        ALT_RESET_ADDRESS : std_ulogic_vector(63 downto 0) := x"00000000fffe0000"
     );
     port (
         clk          : in std_logic;
         rst          : in std_logic;
+        -- When '1', CPU boots from ALT_RESET_ADDRESS (the high ROM).
+        alt_reset    : in std_logic := '0';
 
         wishbone_insn_dat_r : in std_ulogic_vector(63 downto 0);
         wishbone_insn_ack   : in std_ulogic;
@@ -111,15 +117,16 @@ begin
 
     microwatt_core : entity work.core
         generic map (
-            SIM             => SIM,
-            DISABLE_FLATTEN => DISABLE_FLATTEN,
-            HAS_FPU         => HAS_FPU
+            SIM               => SIM,
+            DISABLE_FLATTEN   => DISABLE_FLATTEN,
+            HAS_FPU           => HAS_FPU,
+            ALT_RESET_ADDRESS => ALT_RESET_ADDRESS
         )
         port map (
             clk               => clk,
             rst               => rst,
 
-            alt_reset         => '0',
+            alt_reset         => alt_reset,
 
             wishbone_insn_in  => wishbone_insn_in,
             wishbone_insn_out => wishbone_insn_out,
