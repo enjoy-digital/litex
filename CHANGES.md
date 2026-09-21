@@ -108,6 +108,7 @@
 
 [> Ecosystem
 ------------
+* **litejesd204**                                  : Renamed LiteJESD204B to LiteJESD204 now that the core supports JESD204B (8b10b) and JESD204C (64b66b); the `litejesd204b` Python package remains as a deprecated compatibility shim for two release cycles. Existing checkouts: `mv litejesd204b litejesd204` (or re-run `litex_setup.py init`) and update imports to `litejesd204.*` ([litejesd204#9](https://github.com/enjoy-digital/litejesd204/pull/9)).
 * **litex-boards**                                 : Fixed several platform/target descriptions, switched targets to exact SDRAM module definitions where appropriate, and added Altera Agilex 5E / brisbaneSilicon BRS-100 GW1NR9 board support ([changes](https://github.com/litex-hub/litex-boards/compare/2026.04...master)).
 * **litex-boards**                                 : Migrated HyperRAM-capable targets to the SoC-level `add_hyperram` helper and switched 7-Series monitor targets to `S7DNA` / `S7SystemMonitor` after LiteX removed compatibility aliases ([12f023fc](https://github.com/litex-hub/litex-boards/commit/12f023fc), [6da4c6bb](https://github.com/litex-hub/litex-boards/commit/6da4c6bb)).
 * **litedram**                                     : Fixed DDR4 RDIMM/SK hynix timing and geometry data, added board-backed SDR/DDR3 module definitions, exposed SDRAM byte-mask capability, and adopted LiteX SoCCore/CSR compatibility updates ([changes](https://github.com/enjoy-digital/litedram/compare/2026.04...master)).

@@ -5,7 +5,7 @@ release set is:
 
 ```text
 litex, liteiclink, liteeth, litedram, litepcie, litesata, litesdcard,
-litescope, litejesd204b, litespi, litei2c, litex-boards
+litescope, litejesd204, litespi, litei2c, litex-boards
 ```
 
 `migen` and `pythondata-*` repositories are not released by default.
