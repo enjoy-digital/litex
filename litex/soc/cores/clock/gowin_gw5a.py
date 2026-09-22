@@ -34,6 +34,7 @@ class GW5APLL(LiteXModule):
         self.clkouts    = {}
         self.config     = {}
         self.params     = {}
+        self.dpa_clkout = None
         self.primitive      = self.get_primitive(devicename)
         self.vco_freq_range = self.get_vco_freq_range(devicename)
         self.pfd_freq_range = self.get_pfd_freq_range(devicename)
@@ -136,6 +137,24 @@ class GW5APLL(LiteXModule):
             best_config, best_score = update_best_config(best_config, best_score, config, errors, config["vco"])
 
         return best_config
+
+    def expose_dpa(self, clkout=0):
+        """Expose dynamic phase adjustment for one previously created output.
+
+        A falling edge of phase_step shifts the output by 1/(8*VCO):
+        phase_dir=0 delays it, phase_dir=1 advances it (Gowin UG306).
+        Keep the channel fixed: changing PSSEL resets its dynamic phase.
+        """
+        if clkout not in self.clkouts:
+            raise ValueError("DPA requires an existing clock output.")
+        if self.clkouts[clkout].phase != 0:
+            raise ValueError("DPA starts at zero phase; static phase must be zero.")
+        if self.dpa_clkout is not None:
+            raise ValueError("DPA is already exposed.")
+        self.dpa_clkout = clkout
+        self.clkouts[clkout].clk.attr.add(("syn_keep", 1))
+        self.phase_dir  = Signal()
+        self.phase_step = Signal()
 
     def do_finalize(self):
         check_clkin_registered(hasattr(self, "clkin"))
@@ -306,5 +325,14 @@ class GW5APLL(LiteXModule):
             self.params["p_ODIV%d_SEL" % i] = config["odiv%d" % i]
             self.params["p_CLKOUT%d_PE_COARSE" % i] = config["pe%d" % i]
             self.params["p_CLKOUT%d_PE_FINE" % i] = config["pe%d_fine" % i]
+
+        if self.dpa_clkout is not None:
+            self.params.update(
+                p_DYN_DPA_EN = "TRUE",
+                i_PSDIR     = self.phase_dir,
+                i_PSSEL     = Constant(self.dpa_clkout, 3),
+                i_PSPULSE   = self.phase_step,
+            )
+            self.params[f"p_DYN_PE{self.dpa_clkout}_SEL"] = "TRUE"
 
         self.specials += Instance(self.primitive, name=self.name or "", **self.params)
