@@ -64,7 +64,12 @@ class GowinAE350(CPU):
     """AE350 hard CPU with ROM, RAM and peripheral AHB-Lite ports connected to LiteX.
 
     The target supplies the dedicated ``cpu`` clock. All fabric buses use ``sys``.
-    Interrupts are not connected; LiteX peripherals use polling.
+
+    ``interrupt`` drives the platform's 16 user interrupt inputs (GP_INT).
+    They are sources of the hard CPU's own PLIC, which is internal to the
+    CPU and not on the LiteX bus: software enables a source there and
+    acknowledges it with claim/complete. LiteX's interrupt locations are the
+    GP_INT bit indexes; the firmware adds the platform's source offset.
     """
     variants             = ["standard", "linux"]
     category             = "hardcore"
@@ -125,6 +130,7 @@ class GowinAE350(CPU):
         if variant == "linux":
             self.io_regions[0xe400_0000] = 0x0400_0000
         self.reset        = Signal()
+        self.interrupt    = Signal(16) # GP_INT: user sources of the CPU's PLIC.
         self.ibus         = wishbone.Interface(data_width=32, address_width=32, addressing="word")
         self.dbus         = wishbone.Interface(data_width=64, address_width=32, addressing="word")
         self.pbus         = wishbone.Interface(data_width=32, address_width=32, addressing="word")
@@ -179,7 +185,7 @@ class GowinAE350(CPU):
             o_RTC_WAKEUP     = Open(),
 
             # Interrupts.
-            i_GP_INT         = Constant(0, 16),
+            i_GP_INT         = self.interrupt,
 
             # DMA.
             i_DMA_REQ        = Constant(0, 8),
