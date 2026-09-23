@@ -64,13 +64,27 @@ class TestLiteXJson2DTSZephyr(unittest.TestCase):
         self.assertEqual(cpu_handler("cpu", {}, csr).strip(),
             "clock-frequency = <{}>;".format(SYS_CLK_FREQ))
 
-    def test_system_clock_node_uses_sys_clk_freq(self):
+    def test_cpu_and_system_clock_frequencies_in_both_output_modes(self):
         csr = csr_with_i2c_instances()
-        csr["constants"]["config_cpu_system_clock_node_ref"] = "ae350_clk"
-        with redirect_stdout(io.StringIO()):
-            dts, _ = generate_dts_config(csr, _overlay_handlers)
-        self.assertIn("&ae350_clk {{ clock-frequency = <{}>; }};".format(SYS_CLK_FREQ),
-            " ".join(dts.split()))
+        csr["constants"].update({
+            "config_cpu_clk_freq": CPU_CLK_FREQ,
+            "config_cpu_system_clock_node_ref": "ae350_clk",
+        })
+
+        for generate_soc_nodes in (False, True):
+            with self.subTest(generate_soc_nodes=generate_soc_nodes):
+                with redirect_stdout(io.StringIO()):
+                    dts, _ = generate_dts_config(
+                        csr,
+                        _overlay_handlers,
+                        generate_soc_nodes=generate_soc_nodes,
+                    )
+
+                dts = " ".join(dts.split())
+                self.assertIn(
+                    "&cpu0 {{ clock-frequency = <{}>; }};".format(CPU_CLK_FREQ), dts)
+                self.assertIn(
+                    "&ae350_clk {{ clock-frequency = <{}>; }};".format(SYS_CLK_FREQ), dts)
 
     def test_overlay_mode_keeps_fixed_handler_behavior(self):
         with redirect_stdout(io.StringIO()) as output:
