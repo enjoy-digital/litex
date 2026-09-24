@@ -30,6 +30,16 @@ LiteX provides all the common components required to easily create an FPGA Core/
  - :heavy_check_mark: Build backends for open-source and vendors toolchains.
  - :heavy_check_mark: And a lot more... :)
 
+## 2026.08 highlights
+
+- More ways to build SoCs: Intel Cyclone V/Agilex HPS integration, Gowin AE350 improvements, native AXI/AXI-Lite HyperRAM, and broader framebuffer memory support.
+- New hardware building blocks: FPGA temperature monitors, AP Memory PSRAM and Gowin HyperRAM, SPI/parallel LCD, OV5640 camera capture, and I2S audio.
+- Better connectivity: packet streams with byte-valid final words, new LiteEth 1000BASE-X/SGMII PHY options, and LitePCIe protocol and DMA improvements.
+- More boards and targets, including ModRetro M64/Chromatic, Sipeed Tang Mega 60K, and new Cyclone V/Agilex HPS paths.
+- A dedicated release helper and PyPI publishing workflow for the LiteX ecosystem.
+
+See [CHANGES.md](CHANGES.md) for the full list of fixes, additions, and ecosystem updates. LiteJESD204B has been renamed to [LiteJESD204](https://github.com/enjoy-digital/litejesd204); the old Python package remains as a temporary compatibility shim.
+
 By combining LiteX with the ecosystem of cores, creating complex SoCs becomes a lot easier than with traditional approaches while providing better portability and flexibility: Here is for example a Multi-core Linux Capable SoC based on VexRiscv-SMP CPU, LiteDRAM, LiteSATA built and integrated with LiteX, running on a cheap repurposed [Acorn CLE215+ Mining Board](https://github.com/enjoy-digital/litex/wiki/Use-LiteX-on-the-Acorn-CLE-215):
 ![](https://user-images.githubusercontent.com/1450143/103343266-f8cc9a00-4a8b-11eb-9444-f02e1522a490.png)
 For more info, have a look at [Linux-on-LiteX-Vexriscv](https://github.com/litex-hub/linux-on-litex-vexriscv) project and try running Linux on your FPGA board!
@@ -151,15 +161,15 @@ Provides tools to build FPGA bitstreams (interface to vendor toolchains) and to 
 Provides definitions/modules to build cores (bus, bank, flow), cores and tools to build a SoC from such cores.
 
 # Quick start guide
-1. Install Python 3.6+ and FPGA vendor's development tools and/or [Verilator](http://www.veripool.org/).
+1. Install Python 3.7+ and FPGA vendor's development tools and/or [Verilator](http://www.veripool.org/).
 2. Install Migen/LiteX and the LiteX's cores:
 
 ```sh
 $ wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
 $ chmod +x litex_setup.py
-$ ./litex_setup.py --init --install --user (--user to install to user directory) --config=(minimal, standard, full)
+$ ./litex_setup.py --init --install --user --config=standard
 ```
-  `litex_setup.py` downloads the repository definitions it needs automatically.
+  `litex_setup.py` downloads the repository definitions it needs automatically. Use `--config=minimal` or `--config=full` for a smaller or larger set of cores; omit `--user` for an environment-managed installation.
   Later, if you need to update all repositories:
 ```sh
 $ ./litex_setup.py --update

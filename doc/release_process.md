@@ -147,9 +147,20 @@ To include PyPI preflight/builds in the release:
 ```
 
 `--pypi` runs the normal release phases plus `--pypi-check` and
-`--pypi-build`; artifact builds run before the push phase. With PyPI Trusted
-Publishing configured, the tag push starts the repository workflow and
-publishes the release artifacts.
+`--pypi-build`; artifact builds run before the push phase. The current PyPI
+workflows use `workflow_dispatch`, so tag pushes do not publish packages. After
+the tags are pushed and verified, start each repository's PyPI workflow at the
+release tag. With PyPI Trusted Publishing configured for that repository, the
+workflow builds and publishes its package:
+
+```sh
+gh workflow run pypi.yml --repo enjoy-digital/litex --ref 2026.08
+```
+
+Repeat for the other released repositories using their GitHub owner/repository
+names, then verify the workflow runs and the published package versions. Do not
+start a production workflow until its corresponding tag points to the reviewed
+release commit.
 
 For a local/manual TestPyPI upload:
 
@@ -164,8 +175,24 @@ For a local/manual production upload after the artifacts have been checked:
 ```
 
 For local/manual uploads, the helper uses `twine`; for regular tagged releases,
-each repository should publish from GitHub Actions using PyPI Trusted
-Publishing.
+each repository can publish from its manually dispatched GitHub Actions workflow
+using PyPI Trusted Publishing.
+
+## Publish The GitHub Release
+
+After the LiteX tag has been pushed, create the `2026.08` release on
+`enjoy-digital/litex`. Previous release bodies used the dated `CHANGES.md`
+section. For this release, use the `2026.08 highlights` section from `README.md`
+as the short introduction, followed by the complete dated `CHANGES.md` section
+for `2026.08`. Review the resulting notes file and tag before publishing:
+
+```sh
+gh release create 2026.08 --repo enjoy-digital/litex --title 2026.08 \
+    --notes-file /tmp/litex-2026.08-release-notes.md --verify-tag
+```
+
+The release notes file should contain only the finalized text, without draft
+markers or a placeholder release date.
 
 Useful PyPI-only resumes:
 
