@@ -1,0 +1,2 @@
+# 鸿蒙移植安装脚本：强制 LF，保证 Windows 参考环境检出后可直接拷入真机 POSIX shell 执行
+scripts/setup_harmonyos.sh text eol=lf
