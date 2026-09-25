@@ -18,7 +18,7 @@
 | `scripts/setup_harmonyos.sh` | POSIX/鸿蒙真机安装脚本（默认手动最小安装，可选上游 litex_setup 模式） |
 | `scripts/setup_harmonyos.ps1` | Windows 参考环境等价脚本（保证两端流程一致、可对比） |
 | `docs/dependency-matrix.md` | 依赖兼容矩阵（分级结论 + 真机回填列） |
-| `logs/` | 检测与安装日志归档目录 |
+| `logs/` | 检测与安装日志归档目录（**仅真机日志为交付物**；参考环境本地输出不入库，见 §6） |
 
 ## 2. 真机执行手册（建议第 3–4 天，一次性验证命令已按分工要求收敛为三条）
 
@@ -81,13 +81,16 @@ sh scripts/setup_harmonyos.sh 2>&1 | tee logs/setup-harmonyos.txt
 - **接收←1 号**：基线 commit 变更时同步（影响矩阵页首与 setup 脚本内 Migen SHA1 常量，两处需手改一致）。
 - 与 4 号共同在全新环境复测安装：清空 venv 与 `../migen`，重跑第 2 节命令，结果应可复现。
 
-## 6. 参考环境复现（Windows 11 已验证通过）
+## 6. 参考环境复现（仅用于调试，结果不入库）
+
+按组内决定（2026-09-25）：**Windows 探测报告不作为交付物**——它不代表鸿蒙环境，
+验收证据一律来自真机三条命令的输出。以下流程仅用于本机验证脚本本身可运行：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\setup_harmonyos.ps1
 ```
 
-- 参考环境实测报告：`logs/check-environment-windows-reference.txt`（84 项、0 FAIL，见矩阵 §8 摘要）。
+- 参考环境本机输出留在 `logs/` 的探测文件不随 PR 提交（已在 `.gitignore` 排除），可随时删除重跑。
 - 注意：本机 `python` 命令可能是 WindowsApps 存根，脚本会自动回退 `py -3` 并在日志首行记录实际解释器路径；
   真机报告同样首行输出 `sys.executable`，两端对比时以该行为准。
 - Linux 参考环境直接复用 `.sh` 脚本即可，无参数差异。

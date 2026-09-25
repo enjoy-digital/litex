@@ -4,7 +4,8 @@
   Migen 基线 SHA1 `4c2ae8dfeea37f235b52acb8166f12acaaae4f7c`（`litex_repos.py:23-28`，recursive 克隆、非 editable）。
 - 分级定义（分工文档 2 号任务）：**① 可直接安装 / ② 需指定版本 / ③ 需源码构建 / ④ 暂不可用**。
 - **本表"真机实测"列只填真机验证结果，未验证的一律标注"待测"**。"静态分析"列是从源码与 PyPI 分发形态得出的预判，供真机测试聚焦。
-- 检测工具：`scripts/check_environment.py`（对应各项探测点）；参考环境实测记录：`logs/check-environment-windows-reference.txt / .json`。
+- 检测工具：`scripts/check_environment.py`（对应各项探测点）。
+- 按组内决定（2026-09-25）：**Windows 参考环境探测报告不作为交付物**（不代表鸿蒙环境）；本矩阵所有分级最终一律以鸿蒙真机实测回填为准，参考环境仅用于复现与调试安装流程（方法见 `docs/harmonyos-environment-setup.md` §6）。
 
 ## 1. 前置运行时（核心必达门槛，决定第 5 天 A/B/C 分类）
 
@@ -71,8 +72,8 @@
 | 子进程 spawn（argv 形式） | 39 个文件 66 处 `subprocess.*` | **核心必达**；`--full` 报告"子进程能力"实测 |
 | `os.execl` 自更新重启 | `litex_setup.py:100` | 失败被外层 `except Exception: pass` 容忍（:196-197），不构成阻塞；`--dev` 可完全跳过 |
 | 符号链接 `os.symlink` | 核心安装流程**不使用**；仅 `litex/soc/software/libxil/__init__.py:122`（Xilinx 扩展路径） | 真机不支持只影响扩展，记 ④（扩展） |
-| 文件名大小写 | 上游按 POSIX 大小写敏感设计 | 真机记录实测行为即可（Windows 参考环境已实测：不敏感） |
-| 255 字节文件名 / 深层长路径 | build/<config> 输出目录嵌套 | 真机记录组件与总长上限；参考环境实测：Windows 受 MAX_PATH 260 限制（见 logs WARN 项） |
+| 文件名大小写 | 上游按 POSIX 大小写敏感设计 | 真机记录实测行为即可（Windows 参考环境为不敏感，鸿蒙待真机确认） |
+| 255 字节文件名 / 深层长路径 | build/<config> 输出目录嵌套 | 真机记录组件与总长上限（Windows 参考环境受 MAX_PATH 260 限制，仅作对照） |
 | 可执行位 | venv/bin、console scripts | POSIX 真机必测（报告"可执行位"行，已列为核心必达） |
 
 ## 7. 真机前风险预案（不改变验收口径，仅提高成功率）
@@ -81,20 +82,11 @@
 2. **Migen 单源风险**：git.m-labs.hk 不通时，由已在参考环境克隆好的基线 SHA1 仓库整体拷贝/打包传递（版本以 SHA1 为准，来源可审计）。
 3. 以上两条均不满足时，按分工文档提交 C 类阻塞报告（模板见 `docs/harmonyos-environment-setup.md`），**不得改用虚拟机/容器/兼容层达成验收**。
 
-## 8. 参考环境（Windows 11）实测快照
+## 8. 参考环境（Windows 11）——不入库说明
 
-环境：Windows 11 (10.0.26200) / CPython 3.13.5 / pip 25.1.1 / Git 2.51.0.windows.2 / MinGW gcc 14.2.0（不在 PATH 亦可，仅扩展用）。
-完整输出：`logs/check-environment-windows-reference.txt`（84 项，0 FAIL）。要点：
-
-| 探测项 | 参考环境结果 |
-|---|---|
-| Python / pip / venv 实测（含 ensurepip） | OK / OK / OK（venv 创建 6.8s） |
-| 子进程、环境变量继承、cwd、sh -c | 全 OK |
-| 临时目录写入 / HOME 可写 / 硬链接 | OK；符号链接因 Windows 特权限制 WARN |
-| 网络 5 端点 | 全可达（files.pythonhosted.org 根路径 HTTP 404 = 服务可达） |
-| git ls-remote m-labs | OK（master `beffe831…`）；GitHub 443 直连一次超时 → 已记 WARN，HTTPS 站点可达 |
-| 外部工具 | 仅 gcc 存在；meson/ninja/verilator/riscv 均未装（参考环境同样只保核心必达） |
-| Python 依赖 8 项 | 未装（参考环境为"干净起点"，安装后复跑应变 OK）——真机对比基线 |
+按组内决定（2026-09-25），Windows 环境探测报告无实际验收意义，**不填入本矩阵、不随交付提交**；
+`scripts/check_environment.py` 在参考环境的本地输出仅用于脚本调试与安装流程验证。
+真机执行后，本矩阵各"真机实测"列即为唯一的分级结论来源。
 
 ## 9. 待办（真机执行时回填）
 
