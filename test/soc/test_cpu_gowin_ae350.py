@@ -7,9 +7,11 @@
 import unittest
 
 from migen import Record
+from litex.gen import Open
 
 from litex.build.gowin import GowinPlatform
 from litex.soc.integration.soc import SoCCore, SoCRegion, SoCError
+from litex.soc.cores.cpu.gowin_ae350.core import APB_CE_APB, APB_CE_UART1, APB_CE_UART2
 
 
 class TestGowinAE350(unittest.TestCase):
@@ -31,6 +33,48 @@ class TestGowinAE350(unittest.TestCase):
         for origin in [0xe800_0000, 0xefff_f000]:
             soc.bus.add_region(f"fabric_{origin:x}",
                 SoCRegion(origin=origin, size=0x1000, cached=False))
+
+    def test_hard_uarts(self):
+        for order in [(1, 2), (2, 1)]:
+            with self.subTest(order=order):
+                cpu = self.make_soc().cpu
+                enabled = APB_CE_APB
+                pads = {n: Record([("tx", 1), ("rx", 1)]) for n in order}
+                for n in order:
+                    cpu.connect_uart(n, pads[n])
+                    enabled |= {1: APB_CE_UART1, 2: APB_CE_UART2}[n]
+                    self.assertEqual(cpu.cpu_params["i_APB_CE"].value, enabled)
+                for n in order:
+                    self.assertIs(cpu.cpu_params[f"o_UART{n}_TXD"], pads[n].tx)
+                    self.assertIs(cpu.cpu_params[f"i_UART{n}_RXD"], pads[n].rx)
+                    for modem in ["CTSN", "DCDN", "DSRN", "RIN"]:
+                        self.assertEqual(cpu.cpu_params[f"i_UART{n}_{modem}"], n - 1)
+
+    def test_hard_uart_control_pads(self):
+        inputs = ["cts", "dcd", "dsr", "ri"]
+        outputs = ["rts", "dtr", "out1", "out2"]
+        for n in [1, 2]:
+            for controls in [inputs + outputs, ["cts", "rts"]]:
+                with self.subTest(n=n, controls=controls):
+                    cpu = self.make_soc().cpu
+                    pads = Record([(name, 1) for name in ["tx", "rx"] + controls])
+                    cpu.connect_uart(n, pads)
+                    for names, direction in [(inputs, "i"), (outputs, "o")]:
+                        for name in names:
+                            port = cpu.cpu_params[f"{direction}_UART{n}_{name.upper()}N"]
+                            if name in controls:
+                                self.assertIs(port, getattr(pads, name))
+                            elif direction == "i":
+                                self.assertEqual(port, n - 1)
+                            else:
+                                self.assertIsInstance(port, Open)
+
+    def test_invalid_hard_uart(self):
+        cpu = self.make_soc().cpu
+        for n in [0, 3]:
+            with self.subTest(n=n), self.assertRaisesRegex(ValueError, "1 or 2"):
+                cpu.connect_uart(n, Record([("tx", 1), ("rx", 1)]))
+        self.assertEqual(cpu.cpu_params["i_APB_CE"].value, APB_CE_APB)
 
     def test_internal_peripherals_and_apb_extension_are_not_fabric_io(self):
         soc = self.make_soc()
