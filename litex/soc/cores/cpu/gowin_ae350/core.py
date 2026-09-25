@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
+from migen.fhdl.specials import Tristate
 
 from litex.gen import *
 
@@ -436,6 +437,24 @@ class GowinAE350(CPU):
             f"o_UART{n}_OUT1N": getattr(pads, "out1", Open()),
             f"o_UART{n}_OUT2N": getattr(pads, "out2", Open()),
         })
+
+    def connect_gpio(self, pads):
+        self._enable_apb(APB_CE_GPIO)
+        gpio_in  = Signal(32)
+        gpio_out = Signal(32)
+        gpio_oe  = Signal(32)
+        for i in range(32):
+            if i in pads:
+                pad_in = Signal()
+                self.specials += Tristate(pads[i], gpio_out[i], gpio_oe[i], pad_in)
+                self.comb += gpio_in[i].eq(pad_in)
+            else:
+                self.comb += gpio_in[i].eq(0)
+        self.cpu_params.update(
+            i_GPIO_IN  = gpio_in,
+            o_GPIO_OUT = gpio_out,
+            o_GPIO_OE  = gpio_oe,
+        )
 
     def do_finalize(self):
         if self.memory_buses and self.soc_constants.get("CONFIG_L2_SIZE", 0):
