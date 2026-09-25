@@ -2405,6 +2405,7 @@ class LiteXSoC(SoC):
         l2_cache_full_memory_we = True,
         l2_cache_bursting       = False,
         l2_cache_refill_bypass  = False,
+        l2_cache_tag_mem_attrs  = None,
         **kwargs):
 
         # Checks.
@@ -2597,7 +2598,8 @@ class LiteXSoC(SoC):
                     slave              = wishbone.Interface(data_width=l2_cache_data_width, address_width=32, addressing="word"),
                     reverse            = l2_cache_reverse,
                     with_bursting      = l2_cache_bursting,
-                    with_refill_bypass = l2_cache_refill_bypass)
+                    with_refill_bypass = l2_cache_refill_bypass,
+                    tag_mem_attrs     = l2_cache_tag_mem_attrs)
                 if l2_cache_full_memory_we:
                     l2_cache = FullMemoryWE()(l2_cache)
                 self.l2_cache = l2_cache

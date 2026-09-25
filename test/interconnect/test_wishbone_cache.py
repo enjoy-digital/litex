@@ -7,7 +7,7 @@
 import random
 
 import pytest
-from migen import If, Memory, Signal
+from migen import ClockDomain, If, Memory, Signal
 from migen.fhdl.simplify import FullMemoryWE
 from migen.sim import passive, run_simulation
 
@@ -299,3 +299,21 @@ def test_wide_master_refill_and_narrow_slave_fallback(width, reverse):
 
         run_simulation(dut, generator())
     assert first_reads[1] == first_reads[0] - int(width >= 64)
+
+
+@pytest.mark.parametrize("full_we", [False, True])
+def test_tag_memory_attributes_preserve_synchronous_port(full_we):
+    from litex.gen.fhdl import verilog
+    master = wishbone.Interface(data_width=32)
+    slave = wishbone.Interface(data_width=128)
+    cache = wishbone.Cache(64, master, slave,
+        tag_mem_attrs={("ram_style", "distributed")})
+    if full_we:
+        cache = FullMemoryWE()(cache)
+    fragment = cache.get_fragment()
+    tagged = [m for m in fragment.specials if isinstance(m, Memory) and getattr(m, "attr", None)]
+    assert len(tagged) == 1
+    assert tagged[0].attr == {("ram_style", "distributed")}
+    assert all(not port.async_read for port in tagged[0].ports)
+    fragment.clock_domains.append(ClockDomain("sys"))
+    assert 'ram_style = "distributed"' in str(verilog.convert(fragment, ios=set(master.flatten() + slave.flatten())))

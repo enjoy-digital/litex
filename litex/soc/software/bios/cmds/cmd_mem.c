@@ -306,3 +306,7 @@ static void mem_cmp_handler(int nb_params, char **params)
 }
 define_command_args(mem_cmp, mem_cmp_handler, "Compare memory content",
 	"mem_cmp <addr1> <addr2> <count (32-bit words)>", 3, 3, MEM_CMDS);
+
+#ifdef CONFIG_SDRAM_NATIVE_DMA_TEST
+#include "../native_dma.h"
+#endif

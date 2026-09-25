@@ -216,6 +216,9 @@ __attribute__((__used__)) int main(int i, char **c)
 	printf(" LiteX git sha1: "LITEX_GIT_SHA1"\n");
 	printf("\n");
 	bios_print_section("SoC");
+#ifdef CONFIG_SDRAM_USNATIVE_OVERCLOCK
+	printf("DDR profile: experimental USNative overclock\n");
+#endif
 	printf(ANSI_BOLD "CPU" ANSI_RESET ":\t\t%s @ %dMHz\n",
 		CONFIG_CPU_HUMAN_NAME,
 #ifdef CONFIG_CPU_CLK_FREQ
@@ -255,7 +258,7 @@ __attribute__((__used__)) int main(int i, char **c)
 	uint64_t supported_memory = sdram_get_supported_memory();
 	printf(ANSI_BOLD "SDRAM" ANSI_RESET ":\t\t");
 	litex_print_size(supported_memory);
-	printf(" %d-bit @ %dMT/s ",
+	printf(" %d-bit @ %uMT/s ",
 		sdram_get_databits(),
 		sdram_get_freq()/1000000);
 	printf("(CL-%d",

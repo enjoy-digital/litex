@@ -155,7 +155,7 @@ MINIMAL_PICOLIBC_SRCS += \
 endif
 
 define minimal_obj
-minimal_$(subst /,_,$(basename $(1))).o
+minimal_$(subst :,_,$(subst /,_,$(basename $(1)))).o
 endef
 
 MINIMAL_PICOLIBC_OBJECTS = $(foreach src,$(MINIMAL_PICOLIBC_SRCS),$(call minimal_obj,$(src)))
