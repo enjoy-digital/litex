@@ -137,5 +137,95 @@ class TestCSRBusInterconnect(unittest.TestCase):
         run_simulation(dut, gen())
 
 
+class TestCSRBankPaging(unittest.TestCase):
+    # A CSRBank decodes its simple CSRs with bus.adr[:log2(paging//4)] == i and is mapped to a
+    # single page. A bank with more than paging//4 simple CSRs used to silently roll its last
+    # words over the page-select bits, aliasing them into the next module's bank (with the
+    # generated csr.h still documenting them at the rolled-over addresses). Such a bank must
+    # now be rejected at generation time.
+
+    def test_bank_exceeding_paging_rejected(self):
+        # One CSRStorage(32*513) on a 32-bit bus expands to 513 simple CSRs, one more than the
+        # 512 CSRs/page of the default paging.
+        with self.assertRaisesRegex(ValueError, "CSRs but paging only supports"):
+            csr_bus.CSRBank(
+                description = [csr.CSRStorage(32*513, name="blob")],
+                address     = 0,
+                bus         = csr_bus.Interface(data_width=32),
+                paging      = 0x800,
+            )
+
+    def test_bank_exceeding_paging_rejected_through_bankarray(self):
+        # Same rejection through CSRBankArray, with a reduced paging to keep the test small:
+        # paging=0x10 allows 4 CSRs/page; the module below needs 5.
+        class _WideMod(Module, csr.AutoCSR):
+            def __init__(self):
+                self._w = csr.CSRStorage(32, name="w")
+                self._x = csr.CSRStorage(8,  name="x")
+
+        class _DUTWide(Module):
+            def address_map(self, name, memory):
+                return {"widemod": 0}[name]
+
+            def __init__(self):
+                self.submodules.widemod = _WideMod()
+                self.submodules.bankarray = csr_bus.CSRBankArray(
+                    source      = self,
+                    address_map = self.address_map,
+                    paging      = 0x10,
+                    data_width  = 8,
+                )
+
+        with self.assertRaisesRegex(ValueError, "CSRs but paging only supports"):
+            _DUTWide()
+
+    def test_bank_at_paging_capacity_does_not_alias_next_bank(self):
+        # A bank with exactly paging//4 simple CSRs is still legal: its last word must decode
+        # inside its own page and must not reach the next bank.
+        class _ModA(Module, csr.AutoCSR):
+            def __init__(self):
+                self._w = csr.CSRStorage(32, name="w")  # 4 simple CSRs at data_width=8.
+
+        class _ModB(Module, csr.AutoCSR):
+            def __init__(self):
+                self._b = csr.CSRStorage(8, name="b", reset=0xB0)
+
+        class _DUTBoundary(Module):
+            PAGING = 0x10  # 4 CSRs/page.
+
+            def address_map(self, name, memory):
+                return {"moda": 0, "modb": 1}[name]
+
+            def __init__(self):
+                self.bus = csr_bus.Interface(data_width=8)
+                self.submodules.moda = _ModA()
+                self.submodules.modb = _ModB()
+                self.submodules.bankarray = csr_bus.CSRBankArray(
+                    source      = self,
+                    address_map = self.address_map,
+                    paging      = self.PAGING,
+                    data_width  = 8,
+                )
+                self.submodules.con = csr_bus.Interconnect(
+                    master = self.bus,
+                    slaves = self.bankarray.get_buses(),
+                )
+
+        dut = _DUTBoundary()
+        last_word_of_a = 0 * (dut.PAGING//4) + 3
+        bank_b_first   = 1 * (dut.PAGING//4) + 0
+
+        def gen():
+            # Bank B is reachable through its own page.
+            yield from bus_write(dut.bus, bank_b_first, 0x0F)
+            self.assertEqual((yield from bus_read(dut.bus, bank_b_first)), 0x0F)
+            # Writing the last legal word of Bank A must not modify Bank B.
+            yield from bus_write(dut.bus, last_word_of_a, 0x5A)
+            self.assertEqual((yield from bus_read(dut.bus, last_word_of_a)), 0x5A)
+            self.assertEqual((yield from bus_read(dut.bus, bank_b_first)),   0x0F)
+
+        run_simulation(dut, gen())
+
+
 if __name__ == "__main__":
     unittest.main()
