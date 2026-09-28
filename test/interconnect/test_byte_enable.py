@@ -178,3 +178,48 @@ class TestByteEnable(unittest.TestCase):
                         dut = stream.StrideConverter(description(widths[0], qualifier), description(widths[1], qualifier), reverse=reverse)
                         dut.clock_domains.cd_sys = ClockDomain("sys")
                         verilog.convert(dut, ios=set(dut.sink.flatten() + dut.source.flatten()))
+
+class TestByteEnableHelpers(unittest.TestCase):
+    def test_mask_and_count(self):
+        for width in [1, 2, 4, 8, 16]:
+            with self.subTest(width=width):
+                dut = Module()
+                count = Signal(max=width + 2)
+                mask = Signal(width)
+                counted = Signal(max=width + 1)
+                dut.comb += [mask.eq(stream.byte_mask(count, width)), counted.eq(stream.byte_count(mask))]
+                def check():
+                    for n in range(width + 2):
+                        yield count.eq(n)
+                        yield
+                        self.assertEqual((yield mask), (1 << min(n, width)) - 1)
+                        self.assertEqual((yield counted), min(n, width))
+                run_simulation(dut, check())
+        dut = Module()
+        mask = Signal(8)
+        count = Signal(4)
+        dut.comb += count.eq(stream.byte_count(mask))
+        def check_sparse():
+            for value in range(256):
+                yield mask.eq(value)
+                yield
+                self.assertEqual((yield count), bin(value).count("1"))
+        run_simulation(dut, check_sparse())
+
+    def test_qualifier_validation(self):
+        for name in ["be", "keep"]:
+            endpoint = stream.Endpoint([("data", 32), (name, 4)])
+            self.assertEqual(stream.byte_enable_name(endpoint), name)
+            for layout in [[("data", 32), (name, 1)], [("data", 9), (name, 1)]]:
+                with self.subTest(layout=layout), self.assertRaises(ValueError):
+                    stream.byte_enable_name(stream.Endpoint(layout))
+        with self.assertRaises(ValueError):
+            stream.byte_enable_name(stream.Endpoint([("data", 32), ("be", 4), ("keep", 4)]))
+        # Protocol parameters are not per-beat byte qualifiers.
+        endpoint = stream.Endpoint(stream.EndpointDescription([("data", 32)], [("be", 4)]))
+        self.assertIsNone(stream.byte_enable_name(endpoint))
+        self.assertIsNone(stream.byte_enable_name(stream.Endpoint([("data", 32)])))
+        with self.assertRaises(ValueError):
+            stream.StrideConverter(description(32), stream.EndpointDescription([("data", 8)]))
+        with self.assertRaises(ValueError):
+            stream.byte_mask(Signal(4), 0)

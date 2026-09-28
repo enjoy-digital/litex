@@ -159,21 +159,6 @@ class Header:
                 r.append(field.eq(signal[start:end]))
         return r
 
-# Byte-Enable Helpers ------------------------------------------------------------------------------
-
-def _byte_enable_name(endpoint):
-    payload = dict(endpoint.description.payload_layout)
-    return next((name for name in ("be", "keep")
-        if name in payload and "data" in payload and len(getattr(endpoint, name)) == len(endpoint.data)//8), None)
-
-
-def _byte_enable(endpoint):
-    return getattr(endpoint, _byte_enable_name(endpoint))
-
-
-def _byte_enable_assign(endpoint, be):
-    return _byte_enable(endpoint).eq(be)
-
 # Packetizer ---------------------------------------------------------------------------------------
 
 class Packetizer(LiteXModule):
@@ -201,7 +186,11 @@ class Packetizer(LiteXModule):
         header_words    = (header.length*8)//data_width
         header_leftover = header.length%bytes_per_clk
         aligned         = header_leftover == 0
-        with_be         = _byte_enable_name(sink) is not None and _byte_enable_name(source) is not None
+        sink_be_name    = stream.byte_enable_name(sink)
+        source_be_name  = stream.byte_enable_name(source)
+        with_be         = sink_be_name is not None and source_be_name is not None
+        if (sink_be_name is None) != (source_be_name is None):
+            raise ValueError("Packet helpers require byte qualifiers on both endpoints or neither.")
         with_error      = hasattr(sink, "error") and hasattr(source, "error")
         if header_words == 0:
             raise ValueError(f"Header length ({header.length} bytes) must be >= data width ({data_width} bits).")
@@ -223,7 +212,7 @@ class Packetizer(LiteXModule):
         source_be = Signal(bytes_per_clk, reset=(1 << bytes_per_clk) - 1)
         be_copy   = []
         if with_be:
-            self.comb += [sink_be.eq(_byte_enable(sink)), _byte_enable_assign(source, source_be)]
+            self.comb += [sink_be.eq(getattr(sink, sink_be_name)), getattr(source, source_be_name).eq(source_be)]
             be_copy = [source_be.eq(sink_be)]
 
         # FSM.
@@ -384,7 +373,11 @@ class Depacketizer(LiteXModule):
         header_words    = (header.length*8)//data_width
         header_leftover = header.length%bytes_per_clk
         aligned         = header_leftover == 0
-        with_be         = _byte_enable_name(sink) is not None and _byte_enable_name(source) is not None
+        sink_be_name    = stream.byte_enable_name(sink)
+        source_be_name  = stream.byte_enable_name(source)
+        with_be         = sink_be_name is not None and source_be_name is not None
+        if (sink_be_name is None) != (source_be_name is None):
+            raise ValueError("Packet helpers require byte qualifiers on both endpoints or neither.")
         with_error      = hasattr(sink, "error") and hasattr(source, "error")
         if header_words == 0:
             raise ValueError(f"Header length ({header.length} bytes) must be >= data width ({data_width} bits).")
@@ -412,7 +405,7 @@ class Depacketizer(LiteXModule):
         source_be = Signal(bytes_per_clk, reset=(1 << bytes_per_clk) - 1)
         be_copy   = []
         if with_be:
-            self.comb += [sink_be.eq(_byte_enable(sink)), _byte_enable_assign(source, source_be)]
+            self.comb += [sink_be.eq(getattr(sink, sink_be_name)), getattr(source, source_be_name).eq(source_be)]
             be_copy = [source_be.eq(sink_be)]
 
         # FSM.

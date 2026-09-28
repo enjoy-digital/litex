@@ -81,6 +81,41 @@ class Endpoint(Record):
         except AttributeError:
             return getattr(object.__getattribute__(self, "param"), name)
 
+# Byte Enables -------------------------------------------------------------------------------------
+
+def byte_enable_name(endpoint):
+    """Return the byte qualifier in an endpoint's payload, or None for whole-word streams.
+
+    Packet parameters are not stream qualifiers. A byte-enabled payload must have byte-aligned
+    data and exactly one mask bit per byte. Both ``be`` and AXI ``keep`` are supported.
+    """
+    fields = dict(endpoint.description.payload_layout)
+    names  = [name for name in ("be", "keep") if name in fields]
+    if "data" not in fields or not names:
+        return None
+    if len(names) != 1:
+        raise ValueError("A stream payload cannot have both be and keep qualifiers.")
+    name = names[0]
+    if len(endpoint.data) % 8 or len(getattr(endpoint, name)) != len(endpoint.data)//8:
+        raise ValueError("A stream byte qualifier must have one bit per data byte.")
+    return name
+
+
+def byte_count(be):
+    """Count enabled bytes, including sparse masks; zero means no valid bytes."""
+    return sum(be[i] for i in range(len(be)))
+
+
+def byte_mask(count, width):
+    """Enable the lowest count bytes in a width-byte word; zero produces an empty mask.
+
+    Counts greater than width enable the whole word. This is a combinatorial expression and
+    does not pack or move data.
+    """
+    if width < 1:
+        raise ValueError("A byte mask must have a positive width.")
+    return Cat(*[count > i for i in range(width)])
+
 # Actor --------------------------------------------------------------------------------------------
 
 def _rawbits_layout(l):
@@ -552,10 +587,10 @@ class StrideConverter(LiteXModule):
 
 
         # Cast converter.source to source (raw bits --> user fields).
-        fields_from = dict(sink.description.payload_layout)
-        fields_to   = dict(source.description.payload_layout)
-        byte_enable = next((name for name in ("be", "keep")
-            if name in fields_from and name in fields_to), None)
+        byte_enable = byte_enable_name(sink)
+        source_byte_enable = byte_enable_name(source)
+        if byte_enable != source_byte_enable:
+            raise ValueError("StrideConverter requires matching byte qualifiers on both endpoints.")
         if byte_enable is not None and converter.cls == _DownConverter:
             sink_be   = getattr(sink, byte_enable)
             source_be = getattr(source, byte_enable)
