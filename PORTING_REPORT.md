@@ -36,9 +36,19 @@
 | 可选 litex_sim 帮助 | OPTIONAL_FAIL：缺少 LiteEth | 相同 |
 | BIOS / 固件编译 | NOT_RUN | NOT_RUN |
 | Verilator 完整仿真 | NOT_RUN | NOT_RUN |
-| 新空环境全流程复现 | 未执行 | 未执行，复用已有公共虚拟环境 |
+| 新空环境全流程复现 | 未执行 | PR #1 全新虚拟环境已通过，详见下节 |
 
 耗时仅为当次运行记录，不作为性能结论。两端使用的现有验收脚本未因可选项失败而跳过核心步骤。
+
+## 全新虚拟环境安装复现
+
+4 号已在鸿蒙原生 HiShell 中交叉验证 2 号 PR #1 的 `f6d66ae576baef2d3a29bb55be5cf40c7506e0ad`：在新的 `~/projects/litex/qa-clean-20260928-r2/` 目录运行未修改的 `sh scripts/setup_harmonyos.sh`，安装和核心验收退出码均为 0，5/5 必达步骤与 24/24 核心测试通过（测试日志 31.447 秒）。`litex_soc_gen`、`litex_periph_gen` 的帮助入口也通过；`litex_sim` 仍缺 LiteEth。
+
+运行前项目虚拟环境和 Migen 源码目录均不存在，包缓存独立且初始为空；`include-system-site-packages = false`，Migen 导入来自新虚拟环境，LiteX 导入来自新检出的仓库。依赖版本与原记录一致。已有原生 HarmonyBrew Python/Git 是安装前提；本次未重装操作系统或基础工具。源码通过校验 SHA-256 的 Git bundle 传入，安装脚本使用 `LITEX_MIGEN_URL` 指向本地 bundle；公共依赖由 PyPI 下载，未验证源码的直接网络克隆路径。
+
+安装前完整环境探测、安装后快速探测均为 0 个 FAIL；完整探测保留 `raw.githubusercontent.com` TLS 超时的可选警告。当前 PATH 未发现 Meson、Verilator 和 RISC-V GCC；未尝试移植或构建这些扩展工具。新结果与此前鸿蒙结果相比，CSR JSON 和初始化文件逐字节一致，其余 6 个文件只剩 LiteX 提交号标记变化；机器比较仍为 `DIFFERENT`。源码提交变化来自环境文件，核心代码、最小示例和验收入口未变。
+
+证据：[全新环境摘要](docs/evidence/2026-09-28/clean-install.json)、[与原鸿蒙产物比较](docs/evidence/2026-09-28/clean-install-comparison.json)。这完成了 PR #1 指定提交的安装流程交叉验证，最终集成提交仍需组长复现。
 
 ## 产物比较与例外
 
@@ -63,11 +73,13 @@ PR #3 的提交 `c39782399c28f3f5962ad6acbeb6c1a70b843548` 已通过 [四组 Ubu
 - 仓库内提交上述摘要和比较报告，以及 [CSR 参考数据](test/fixtures/harmonyos/README.md)。这些是从实际产物提取的交付内容。
 - 原始 Windows 验收 JSON、完整日志、9 个生成文件及原始哈希留在本地 `build/acceptance-windows-20260928/`。
 - 鸿蒙完整安装记录、验收 JSON、日志和产物已逐字节回收至本地 `build/acceptance-harmonyos-20260928/`；设备原件在 `~/projects/litex/qa-20260928/results/`。
+- 新环境的 31 份原始日志/JSON/产物及两张原生终端截图位于本地 `build/acceptance-harmonyos-clean-20260928-r2/`；设备原件在同名 `qa-clean-20260928-r2/results/`。截图展示保存的结果，未重复运行测试。
+- 首次传输在 bundle 分支检出阶段失败，安装器尚未运行；已修正传输调用并保留该次记录，未将它记作安装器失败。
 - 本地另保存完整证据 ZIP 供交接，不将大型原始运行目录混入源码。临时 USB 转发及本机传输服务已关闭。
 
 ## 尚待完成
 
 1. 组长/另一名成员交叉验证本次结果，确认 Python 3.12.10/3.12.14 的比较口径和层级注释差异；不影响保留当前实测证据。
-2. 已为 2 号 PR #1 的 `f6d66ae576baef2d3a29bb55be5cf40c7506e0ad` 准备固定源码及独立空环境复现材料；当前设备锁屏，尚未执行。解锁后可先交叉验证该提交，集成后的最终复现仍由组长完成。
+2. PR #1 指定提交的全新环境安装已通过；待相关 PR 集成后，由组长对最终提交进行空目录复现。
 3. 与 2 号确定是否推进 LiteEth 等生态依赖、Verilator 和交叉编译工具链。当前阻塞在可选 Python 导入层，不能宣称 Verilator 已不可用。
-4. 已补齐 [五分钟演示流程与交接清单](docs/week1-demo.md)，最终截图/视频尚未录制；完成另一成员复核后，由组长审核并向集成分支合并。
+4. 已补齐 [五分钟演示流程与交接清单](docs/week1-demo.md) 和两张原生终端证据截图，最终视频尚未录制；完成另一成员对 4 号交付的复核后，由组长审核并向集成分支合并。

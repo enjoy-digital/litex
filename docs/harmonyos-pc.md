@@ -29,7 +29,27 @@ python -m pip install --no-index --no-deps --no-build-isolation ./migen
 python -m pip install --no-index --no-deps --no-build-isolation -e ./litex
 ```
 
-`--no-deps` 依赖已有公共环境，安装后验收入口中的 `pip check` 已通过。这些命令不能作为空环境的完整安装方案；从零安装流程由 2 号维护，待其 PR 集成后另做复现。
+`--no-deps` 依赖已有公共环境，安装后验收入口中的 `pip check` 已通过。这些命令不能作为空环境的完整安装方案。随后已独立复现 2 号的安装流程，见下节。
+
+## PR #1 全新环境复现
+
+2026-09-28，已验证 PR #1 提交 `f6d66ae576baef2d3a29bb55be5cf40c7506e0ad` 的原始安装脚本。新目录为 `~/projects/litex/qa-clean-20260928-r2/`，与此前 `qa-20260928` 及公共 `.venv` 分开。预装条件是原生 HarmonyBrew Python 3.12.14、Git 和已有可写 TMPDIR，未重新安装这些基础工具。
+
+在准备好的全新目录内，通过 Git bundle 显式取出该提交；相邻目录放置包含固定 Migen 提交的 `migen.bundle`，并核对摘要中的 SHA-256。确认没有 `.venv-litex`、相邻 `migen` 目录和旧包缓存后，实际安装及验收命令为：
+
+```sh
+# 在上述新目录内的 litex 源码根目录运行，使用原生基础 Python 的 PATH。
+export PYTHONUTF8=1
+export PIP_CACHE_DIR="$(cd .. && pwd)/pip-cache"
+export LITEX_MIGEN_URL="$(cd .. && pwd)/migen.bundle"
+sh scripts/setup_harmonyos.sh && \
+.venv-litex/bin/python scripts/check_environment.py --json ../results/post-install-check.json && \
+.venv-litex/bin/python scripts/run_acceptance.py --output-dir ../results/acceptance
+```
+
+安装成功，环境前后探测无 FAIL，核心验收 5/5、24 项测试通过。`pyvenv.cfg` 记录 `include-system-site-packages = false`，导入路径指向新环境/源码。公共依赖由 PyPI 下载，Migen 使用安装脚本提供的本地源码 URL 选项；未验证直接网络克隆，也未运行 `--with-litex-setup` 模式。实际依赖版本与上表一致。
+
+新运行使用不同的 LiteX 提交号，不能标为与旧提交全部产物相同：CSR JSON 与初始化数据完全一致，其余差异为生成文件中的提交标记。[安装摘要](evidence/2026-09-28/clean-install.json) 和 [比较明细](evidence/2026-09-28/clean-install-comparison.json) 均保留来源与差异。完整日志回收到 `build/acceptance-harmonyos-clean-20260928-r2/`，与已有结果分别保存。
 
 ## 运行核心验收
 
