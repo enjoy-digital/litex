@@ -84,8 +84,9 @@ class Endpoint(Record):
 # Byte Enables -------------------------------------------------------------------------------------
 
 def last_be_to_be(last_be, last):
-    """Convert a legacy one-hot final-byte marker (zero means full) to a byte mask."""
-    return Mux(last & (last_be != 0), (last_be << 1) - 1, (1 << len(last_be)) - 1)
+    """Convert a legacy final-byte marker; zero/non-one-hot values retain the full-word fallback."""
+    one_hot = (last_be != 0) & ((last_be & (last_be - 1)) == 0)
+    return Mux(last & one_hot, (last_be << 1) - 1, (1 << len(last_be)) - 1)
 
 
 def be_to_last_be(be, last):

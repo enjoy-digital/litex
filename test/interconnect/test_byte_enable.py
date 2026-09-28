@@ -203,4 +203,8 @@ class TestByteEnable(unittest.TestCase):
                             yield dut.sink.last_be.eq(0)
                             yield
                             self.assertEqual((yield dut.source.be), (1 << (width//8)) - 1)
+                            if width > 8:
+                                yield dut.sink.last_be.eq(3)
+                                yield
+                                self.assertEqual((yield dut.source.be), (1 << (width//8)) - 1)
                     run_simulation(dut, check())

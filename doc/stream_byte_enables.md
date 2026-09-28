@@ -58,7 +58,8 @@ renamed without changing the values. For a 32-bit stream:
 
 `stream.LastBEConverter(native_description)` provides an explicit legacy sink
 and native source. `reverse=True` provides a native sink and legacy source.
-It forwards data, parameters and handshakes without buffering. Put adapters at
+Zero and non-one-hot legacy markers retain the full-word fallback used by legacy
+streamers. It forwards data, parameters and handshakes without buffering. Put adapters at
 integration boundaries, then use one representation throughout the datapath.
 The adapter cannot represent sparse masks or empty native beats.
 
