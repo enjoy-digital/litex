@@ -81,46 +81,6 @@ class Endpoint(Record):
         except AttributeError:
             return getattr(object.__getattribute__(self, "param"), name)
 
-# Byte Enables -------------------------------------------------------------------------------------
-
-def last_be_to_be(last_be, last):
-    """Convert a legacy final-byte marker; zero/non-one-hot values retain the full-word fallback."""
-    one_hot = (last_be != 0) & ((last_be & (last_be - 1)) == 0)
-    return Mux(last & one_hot, (last_be << 1) - 1, (1 << len(last_be)) - 1)
-
-
-def be_to_last_be(be, last):
-    """Convert a contiguous byte mask to a legacy one-hot final-byte marker."""
-    return Mux(last, be & ~(be >> 1), 0)
-
-
-class LastBEConverter(LiteXModule):
-    """Adapt a legacy endpoint to a byte-enabled endpoint, or the reverse.
-
-    ``description`` is the native layout with a ``be`` payload field. With ``reverse=False``,
-    the sink has ``last_be`` and the source has ``be``. With ``reverse=True``, these are swapped.
-    The native stream must have full intermediate beats and a nonzero contiguous final mask;
-    the legacy encoding cannot represent an empty beat or a sparse mask.
-    """
-    def __init__(self, description, reverse=False):
-        if not isinstance(description, EndpointDescription):
-            description = EndpointDescription(description)
-        legacy = EndpointDescription(
-            payload_layout = [("last_be" if name == "be" else name, width)
-                for name, width in description.payload_layout],
-            param_layout = description.param_layout,
-        )
-        self.sink   = sink   = Endpoint(description if reverse else legacy)
-        self.source = source = Endpoint(legacy if reverse else description)
-
-        # # #
-
-        self.comb += sink.connect(source, omit={"be", "last_be"})
-        if reverse:
-            self.comb += source.last_be.eq(be_to_last_be(sink.be, sink.last))
-        else:
-            self.comb += source.be.eq(last_be_to_be(sink.last_be, sink.last))
-
 # Actor --------------------------------------------------------------------------------------------
 
 def _rawbits_layout(l):
@@ -594,12 +554,6 @@ class StrideConverter(LiteXModule):
         # Cast converter.source to source (raw bits --> user fields).
         fields_from = dict(sink.description.payload_layout)
         fields_to   = dict(source.description.payload_layout)
-        with_last_be = (
-            converter.cls == _DownConverter and
-            "last_be" in fields_from and
-            "last_be" in fields_to and
-            len(sink.last_be) == (converter.ratio*len(source.last_be))
-        )
         byte_enable = next((name for name in ("be", "keep")
             if name in fields_from and name in fields_to), None)
         if byte_enable is not None and converter.cls == _DownConverter:
@@ -634,24 +588,6 @@ class StrideConverter(LiteXModule):
                 ).Else(
                     index.eq(index + 1),
                     If(packet_end, drop.eq(1)),
-                )
-            )
-        elif with_last_be:
-            last_be_drop       = Signal()
-            last_be_packet_end = Signal()
-            # Stop on the narrow slice carrying last_be and drain remaining slices internally.
-            self.comb += [
-                last_be_packet_end.eq(sink.last & (source.last_be != 0)),
-                source.valid.eq(converter.source.valid & ~last_be_drop),
-                source.first.eq(converter.source.first & ~last_be_drop),
-                source.last.eq(converter.source.last | last_be_packet_end),
-                converter.source.ready.eq(source.ready | last_be_drop)
-            ]
-            self.sync += If(converter.source.valid & converter.source.ready,
-                If(last_be_drop,
-                    If(converter.source.last, last_be_drop.eq(0))
-                ).Elif(last_be_packet_end & ~converter.source.last,
-                    last_be_drop.eq(1)
                 )
             )
         else:

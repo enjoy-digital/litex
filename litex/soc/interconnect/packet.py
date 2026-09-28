@@ -163,24 +163,16 @@ class Header:
 
 def _byte_enable_name(endpoint):
     payload = dict(endpoint.description.payload_layout)
-    return next((name for name in ("be", "keep", "last_be")
+    return next((name for name in ("be", "keep")
         if name in payload and "data" in payload and len(getattr(endpoint, name)) == len(endpoint.data)//8), None)
 
 
 def _byte_enable(endpoint):
-    name = _byte_enable_name(endpoint)
-    be   = getattr(endpoint, name)
-    if name == "last_be":
-        # Compatibility with existing one-hot endpoints, including their zero/full convention.
-        return stream.last_be_to_be(be, endpoint.last)
-    return be
+    return getattr(endpoint, _byte_enable_name(endpoint))
 
 
 def _byte_enable_assign(endpoint, be):
-    name = _byte_enable_name(endpoint)
-    if name == "last_be":
-        return getattr(endpoint, name).eq(stream.be_to_last_be(be, endpoint.last))
-    return getattr(endpoint, name).eq(be)
+    return _byte_enable(endpoint).eq(be)
 
 # Packetizer ---------------------------------------------------------------------------------------
 
@@ -192,7 +184,7 @@ class Packetizer(LiteXModule):
     up by header_leftover bytes: each source word combines the tail of the previous sink word with
     the head of the current one, and the packet's last bytes can spill into an extra source word.
 
-    With a byte qualifier on sink and source (be, keep, or legacy last_be), valid bytes and
+    With a byte qualifier on sink and source (be or keep), valid bytes and
     their masks move together, and a flush word is only emitted when it contains valid bytes.
     Without a qualifier, an unaligned header always adds a flush word.
     """
@@ -288,7 +280,7 @@ class Packetizer(LiteXModule):
         )
         if aligned:
             if with_error:
-                if with_be and _byte_enable_name(sink) != "last_be" and len(sink.error) == bytes_per_clk:
+                if with_be and len(sink.error) == bytes_per_clk:
                     self.comb += If(fsm.ongoing("ALIGNED-DATA-COPY"), source.error.eq(sink.error))
                 else:
                     self.comb += source.error.eq(sink.error)
@@ -322,7 +314,7 @@ class Packetizer(LiteXModule):
             if with_error:
                 sink_d_error    = Signal.like(sink.error)
                 sink_d_capture += [sink_d_error.eq(sink.error)]
-                if with_be and _byte_enable_name(sink) != "last_be" and len(sink.error) == bytes_per_clk:
+                if with_be and len(sink.error) == bytes_per_clk:
                     self.comb += If(fsm.ongoing("UNALIGNED-DATA-COPY"),
                         source.error.eq(Cat(
                             Mux(fsm_from_idle, 0, sink_d_error[bytes_per_clk-header_leftover:]),
@@ -513,7 +505,7 @@ class Depacketizer(LiteXModule):
             if with_error:
                 sink_d_error    = Signal.like(sink.error)
                 sink_d_capture += [sink_d_error.eq(sink.error)]
-                if with_be and _byte_enable_name(sink) != "last_be" and len(sink.error) == bytes_per_clk:
+                if with_be and len(sink.error) == bytes_per_clk:
                     self.comb += source.error.eq(Cat(
                         sink_d_error[header_leftover:],
                         Mux(flush, 0, sink.error[:header_leftover]),

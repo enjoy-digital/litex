@@ -56,16 +56,10 @@ renamed without changing the values. For a 32-bit stream:
 | Final three-byte word | `0100` | `0111` |
 | Final full word | `1000` (or legacy `0000`) | `1111` |
 
-`stream.LastBEConverter(native_description)` provides an explicit legacy sink
-and native source. `reverse=True` provides a native sink and legacy source.
-Zero and non-one-hot legacy markers retain the full-word fallback used by legacy
-streamers. It forwards data, parameters and handshakes without buffering. Put adapters at
-integration boundaries, then use one representation throughout the datapath.
-The adapter cannot represent sparse masks or empty native beats.
+The legacy stream encoding and its adapters are removed. Update producers,
+consumers and layouts together; there is no zero-to-full fallback or implicit
+conversion. Whole-word endpoints without a qualifier remain supported.
 
-`stream.last_be_to_be()` and `stream.be_to_last_be()` provide the combinational
-expressions when only a field mapping is needed. The generic packet helpers and
-stride converter still accept legacy layouts so existing designs can migrate
-independently. These helpers recognize stream qualifiers in the payload, not
-unrelated packet parameters. In particular, PCIe TLP `first_be`/`last_be` fields
-have protocol-defined meanings and must remain unchanged.
+The helpers recognize stream qualifiers in the payload, not unrelated packet
+parameters. PCIe TLP `first_be`/`last_be` fields have protocol-defined meanings
+and remain unchanged.

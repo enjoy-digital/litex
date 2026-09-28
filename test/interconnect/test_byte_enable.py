@@ -178,33 +178,3 @@ class TestByteEnable(unittest.TestCase):
                         dut = stream.StrideConverter(description(widths[0], qualifier), description(widths[1], qualifier), reverse=reverse)
                         dut.clock_domains.cd_sys = ClockDomain("sys")
                         verilog.convert(dut, ios=set(dut.sink.flatten() + dut.source.flatten()))
-
-    def test_legacy_converter(self):
-        for width in [8, 32, 64]:
-            for reverse in [False, True]:
-                with self.subTest(width=width, reverse=reverse):
-                    dut = stream.LastBEConverter(description(width), reverse=reverse)
-                    def check():
-                        for last in [0, 1]:
-                            for n in range(1, width//8 + 1):
-                                yield dut.sink.valid.eq(1)
-                                yield dut.source.ready.eq(1)
-                                yield dut.sink.last.eq(last)
-                                if reverse:
-                                    yield dut.sink.be.eq((1 << n) - 1)
-                                else:
-                                    yield dut.sink.last_be.eq(1 << (n - 1))
-                                yield
-                                if reverse:
-                                    self.assertEqual((yield dut.source.last_be), (1 << (n - 1)) if last else 0)
-                                else:
-                                    self.assertEqual((yield dut.source.be), (1 << n) - 1 if last else (1 << (width//8)) - 1)
-                        if not reverse:
-                            yield dut.sink.last_be.eq(0)
-                            yield
-                            self.assertEqual((yield dut.source.be), (1 << (width//8)) - 1)
-                            if width > 8:
-                                yield dut.sink.last_be.eq(3)
-                                yield
-                                self.assertEqual((yield dut.source.be), (1 << (width//8)) - 1)
-                    run_simulation(dut, check())

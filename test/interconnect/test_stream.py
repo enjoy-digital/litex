@@ -1001,31 +1001,31 @@ class TestStream(unittest.TestCase):
             (0x33, 0x44, 0xD, 0, 1),
         ])
 
-    def test_stride_converter_down_last_be(self):
+    def test_stride_converter_down_be(self):
         dut = StrideConverter(
             EndpointDescription(
-                payload_layout = [("data", 64), ("last_be", 8), ("error", 8)],
+                payload_layout = [("data", 64), ("be", 8), ("error", 8)],
                 param_layout   = [("tag", 4)],
             ),
             EndpointDescription(
-                payload_layout = [("data", 32), ("last_be", 4), ("error", 4)],
+                payload_layout = [("data", 32), ("be", 4), ("error", 4)],
                 param_layout   = [("tag", 4)],
             ),
         )
         packets = [
-            (0x8877665544332211, 0x02, 0x1),
-            (0x8877665544332211, 0x80, 0x2),
+            (0x8877665544332211, 0x03, 0x1),
+            (0x8877665544332211, 0xff, 0x2),
             (0x8877665544332211, 0x00, 0x3),
         ]
         received = []
 
         def generator():
-            for data, last_be, tag in packets:
+            for data, be, tag in packets:
                 yield dut.sink.valid.eq(1)
                 yield dut.sink.first.eq(1)
                 yield dut.sink.last.eq(1)
                 yield dut.sink.data.eq(data)
-                yield dut.sink.last_be.eq(last_be)
+                yield dut.sink.be.eq(be)
                 yield dut.sink.error.eq(0)
                 yield dut.sink.tag.eq(tag)
                 yield
@@ -1034,7 +1034,7 @@ class TestStream(unittest.TestCase):
                 yield dut.sink.valid.eq(0)
                 yield dut.sink.first.eq(0)
                 yield dut.sink.last.eq(0)
-                yield dut.sink.last_be.eq(0)
+                yield dut.sink.be.eq(0)
                 yield
 
         def checker():
@@ -1045,7 +1045,7 @@ class TestStream(unittest.TestCase):
                 if (yield dut.source.valid) and (yield dut.source.ready):
                     received.append((
                         (yield dut.source.data),
-                        (yield dut.source.last_be),
+                        (yield dut.source.be),
                         (yield dut.source.error),
                         (yield dut.source.tag),
                         (yield dut.source.first),
@@ -1055,14 +1055,13 @@ class TestStream(unittest.TestCase):
 
         run_simulation(dut, [generator(), checker()])
         self.assertEqual(received, [
-            # Partial final word: stop after the narrow slice containing last_be.
-            (0x44332211, 0x2, 0x0, 0x1, 1, 1),
+            # Partial final word: stop after the narrow slice containing be.
+            (0x44332211, 0x3, 0x0, 0x1, 1, 1),
             # Full final word: emit both narrow slices.
-            (0x44332211, 0x0, 0x0, 0x2, 1, 0),
-            (0x88776655, 0x8, 0x0, 0x2, 0, 1),
-            # Legacy/unspecified last_be: preserve previous behavior.
-            (0x44332211, 0x0, 0x0, 0x3, 1, 0),
-            (0x88776655, 0x0, 0x0, 0x3, 0, 1),
+            (0x44332211, 0xf, 0x0, 0x2, 1, 0),
+            (0x88776655, 0xf, 0x0, 0x2, 0, 1),
+            # An empty final input beat produces one empty final output beat.
+            (0x44332211, 0x0, 0x0, 0x3, 1, 1),
         ])
 
     def test_syncfifo_level(self):
