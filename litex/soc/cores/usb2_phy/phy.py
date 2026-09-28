@@ -22,6 +22,10 @@ Board circuit (pads):
 Clocks: ``cd_utmi`` (60 MHz), ``cd_hs`` (120 MHz, SerDes parallel clock) and ``cd_hs_fast`` (960 MHz,
 SerDes serial clock, DDR), from the same source; ``serdes_rst`` resets the SerDes.
 
+Full-Speed only (``with_hs=False``): ``fs_dp``/``fs_dn``/``pullup`` pads and ``cd_utmi`` only (no
+SerDes, only Tristate needed: portable to any FPGA), High-Speed chirp not driven (the host keeps the
+link at Full-Speed); High-Speed ``d_p``/``d_n`` pads, if provided, are released.
+
 UTMI signals are exposed with LUNA names (compatible with LiteX LunaCDCACM's UTMI mode).
 """
 
@@ -45,9 +49,12 @@ class USB2PHY(LiteXModule):
     XcvrSelect: 00 High-Speed (TX/RX on d_p/d_n, line state on se_dp/se_dn), 01 Full-Speed, 1x
     Low-Speed (fs_dp/fs_dn). TermSelect: 1 Full-Speed termination (1.5K pull-up), 0 High-Speed
     terminations (fs_dp/fs_dn driven low) in High-Speed.
+
+    With ``with_hs=False``, XcvrSelect 00 is handled as Full-Speed with TX discarded (High-Speed
+    chirp not sent, ``tx_ready`` acknowledged): the link stays at Full-Speed.
     """
     def __init__(self, pads, cd_utmi="usb", cd_hs="usb_hs", cd_hs_fast="usb_hs_fast", serdes_rst=0,
-        tx_oe_extend=1):
+        tx_oe_extend=1, with_hs=True):
         self.reset = Signal()
 
         # UTMI.
@@ -65,56 +72,64 @@ class USB2PHY(LiteXModule):
 
         # # #
 
-        hs_sel = Signal()
+        hs_sel   = Signal()
+        hs_terms = Signal()
         self.comb += hs_sel.eq(self.xcvr_select == 0b00)
 
         # High-Speed -------------------------------------------------------------------------------
-        self.hs = hs = USBHSPHY(cd_utmi=cd_utmi, cd_hs=cd_hs)
-        self.comb += [
-            hs.tx_data.eq(self.tx_data),
-            hs.tx_valid.eq(self.tx_valid & hs_sel),
-            hs.op_mode.eq(self.op_mode),
-        ]
+        if with_hs:
+            self.hs = hs = USBHSPHY(cd_utmi=cd_utmi, cd_hs=cd_hs)
+            self.comb += [
+                hs.tx_data.eq(self.tx_data),
+                hs.tx_valid.eq(self.tx_valid & hs_sel),
+                hs.op_mode.eq(self.op_mode),
+            ]
 
-        # TX: 16:1 serializer (each line bit x4), RX: 1:16 deserializer (4x oversampling).
-        hs_txd = Signal()
-        hs_rxd = Signal()
-        hs_oe  = Signal()
-        # Driver enable extended after the transmission (serializer latency margin, the enable doesn't
-        # go through the serializer): extends the EOP by a few bits (allowed).
-        sync_hs = getattr(self.sync, cd_hs)
-        oe_sr   = Signal(tx_oe_extend)
-        sync_hs += [
-            oe_sr.eq(Cat(hs.tx_oe, oe_sr)),
-            hs_oe.eq(hs.tx_oe | (oe_sr != 0)),
-        ]
-        self.specials += [
-            SerDesOutput(
-                i        = Cat(*[Replicate(hs.tx_line[n], 4) for n in range(4)]),
-                o        = hs_txd,
-                clk      = ClockSignal(cd_hs),
-                clk_fast = ClockSignal(cd_hs_fast),
-                rst      = serdes_rst,
-            ),
-            SerDesInput(
-                i        = hs_rxd,
-                o        = hs.rx_samples,
-                clk      = ClockSignal(cd_hs),
-                clk_fast = ClockSignal(cd_hs_fast),
-                rst      = serdes_rst,
-            ),
-            DifferentialTristate(
-                io_p = pads.d_p,
-                io_n = pads.d_n,
-                o    = hs_txd,
-                oe   = hs_oe,
-                i    = hs_rxd,
-            ),
-        ]
+            # TX: 16:1 serializer (each line bit x4), RX: 1:16 deserializer (4x oversampling).
+            hs_txd = Signal()
+            hs_rxd = Signal()
+            hs_oe  = Signal()
+            # Driver enable extended after the transmission (serializer latency margin, the enable
+            # doesn't go through the serializer): extends the EOP by a few bits (allowed).
+            sync_hs = getattr(self.sync, cd_hs)
+            oe_sr   = Signal(tx_oe_extend)
+            sync_hs += [
+                oe_sr.eq(Cat(hs.tx_oe, oe_sr)),
+                hs_oe.eq(hs.tx_oe | (oe_sr != 0)),
+            ]
+            self.specials += [
+                SerDesOutput(
+                    i        = Cat(*[Replicate(hs.tx_line[n], 4) for n in range(4)]),
+                    o        = hs_txd,
+                    clk      = ClockSignal(cd_hs),
+                    clk_fast = ClockSignal(cd_hs_fast),
+                    rst      = serdes_rst,
+                ),
+                SerDesInput(
+                    i        = hs_rxd,
+                    o        = hs.rx_samples,
+                    clk      = ClockSignal(cd_hs),
+                    clk_fast = ClockSignal(cd_hs_fast),
+                    rst      = serdes_rst,
+                ),
+                DifferentialTristate(
+                    io_p = pads.d_p,
+                    io_n = pads.d_n,
+                    o    = hs_txd,
+                    oe   = hs_oe,
+                    i    = hs_rxd,
+                ),
+            ]
 
-        # High-Speed line state (single-ended High-Speed level inputs).
-        hs_line_state = Signal(2)
-        self.specials += MultiReg(Cat(pads.se_dp, pads.se_dn), hs_line_state, cd_utmi)
+            # High-Speed line state (single-ended High-Speed level inputs).
+            hs_line_state = Signal(2)
+            self.specials += MultiReg(Cat(pads.se_dp, pads.se_dn), hs_line_state, cd_utmi)
+
+            # High-Speed terminations (fs_dp/fs_dn driven low).
+            self.comb += hs_terms.eq(hs_sel & ~self.term_select)
+        elif hasattr(pads, "d_p"):
+            # High-Speed driver/receiver released.
+            self.specials += DifferentialTristate(io_p=pads.d_p, io_n=pads.d_n, o=0, oe=0)
 
         # Full-Speed/Low-Speed ---------------------------------------------------------------------
         self.fs = fs = ClockDomainsRenamer(cd_utmi)(USBFSPHY())
@@ -131,8 +146,7 @@ class USB2PHY(LiteXModule):
                 i.eq(t.i),
                 If(self.reset,
                     t.oe.eq(0),
-                ).Elif(hs_sel & ~self.term_select,
-                    # High-Speed terminations.
+                ).Elif(hs_terms,
                     t.oe.eq(1),
                     t.o.eq(0),
                 ).Else(
@@ -150,20 +164,23 @@ class USB2PHY(LiteXModule):
         ]
 
         # UTMI Mux ---------------------------------------------------------------------------------
-        self.comb += [
-            If(hs_sel,
+        fs_utmi = [
+            # Without High-Speed, High-Speed TX (chirp) discarded.
+            self.tx_ready.eq(fs.tx_ready | hs_sel),
+            self.rx_data.eq(fs.rx_data),
+            self.rx_valid.eq(fs.rx_valid),
+            self.rx_active.eq(fs.rx_active),
+            self.rx_error.eq(fs.rx_error),
+            self.line_state.eq(fs.line_state),
+        ]
+        if with_hs:
+            self.comb += If(hs_sel,
                 self.tx_ready.eq(hs.tx_ready),
                 self.rx_data.eq(hs.rx_data),
                 self.rx_valid.eq(hs.rx_valid),
                 self.rx_active.eq(hs.rx_active),
                 self.rx_error.eq(hs.rx_error),
                 self.line_state.eq(hs_line_state),
-            ).Else(
-                self.tx_ready.eq(fs.tx_ready),
-                self.rx_data.eq(fs.rx_data),
-                self.rx_valid.eq(fs.rx_valid),
-                self.rx_active.eq(fs.rx_active),
-                self.rx_error.eq(fs.rx_error),
-                self.line_state.eq(fs.line_state),
-            )
-        ]
+            ).Else(*fs_utmi)
+        else:
+            self.comb += fs_utmi
