@@ -32,7 +32,8 @@ Clock requirements depend on the selected bus type:
   - With ``clk_o``, LUNA consumes ``ClockSignal("usb")``, which must be driven by the SoC.
 - UTMI mode (8-bit, 60 MHz UTMI PHY, ex: a soft USB 2.0 PHY):
   - ``usb`` must be provided by the SoC: UTMI clock (60 MHz) and reset.
-  - the device runs at High-Speed (Full-Speed fallback), 512-byte bulk packets.
+  - the device runs at High-Speed (Full-Speed fallback), 512-byte bulk packets, or at Full-Speed
+    only (``high_speed=False``, ex: a Full-Speed only UTMI PHY), 64-byte bulk packets.
 """
 
 import os
@@ -75,12 +76,16 @@ utmi_layout = [
 # LUNA High-Speed UTMI Serial Device ---------------------------------------------------------------
 
 class _USBSerialDeviceUTMI(luna.full_devices.USBSerialDevice):
-    """LUNA USBSerialDevice on a UTMI PHY: High-Speed capable (LUNA uses a raw UTMI bus at Full-Speed
-    only, with a 12 MHz data clock)."""
+    """LUNA USBSerialDevice on a UTMI PHY (60 MHz): High-Speed capable or Full-Speed only (LUNA uses a
+    raw UTMI bus at Full-Speed only, with a 12 MHz data clock)."""
+    def __init__(self, *args, high_speed=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._high_speed = high_speed
+
     def elaborate(self, platform):
         m   = super().elaborate(platform)
         usb = m.submodules.usb
-        usb.always_fs  = False
+        usb.always_fs  = not self._high_speed
         usb.data_clock = 60e6
         return m
 
@@ -100,6 +105,8 @@ class LunaCDCACM(LiteXModule):
               ``rx_active``, ``tx_ready``, ...).
         vid: USB vendor ID (default: ``0x1209``).
         pid: USB product ID (default: ``0x0001``).
+        high_speed: UTMI mode: High-Speed capable device (default), ``False`` for a Full-Speed only
+            device (Full-Speed only UTMI PHY).
 
     Exposed attributes:
         sink: LiteX stream endpoint carrying bytes to USB (TX path).
@@ -131,7 +138,7 @@ class LunaCDCACM(LiteXModule):
         - use ``clk_n`` when the available pad is the inverted clock
         - do not provide both at the same time.
     """
-    def __init__(self, platform, pads=None, vid=0x1209, pid=0x0001):
+    def __init__(self, platform, pads=None, vid=0x1209, pid=0x0001, high_speed=True):
         self.source  = source = stream.Endpoint([("data", 8)])
         self.sink    = sink   = stream.Endpoint([("data", 8)])
 
@@ -309,7 +316,8 @@ class LunaCDCACM(LiteXModule):
             self.usb = usb = _USBSerialDeviceUTMI(bus=bus,
                 idVendor        = vid,
                 idProduct       = pid,
-                max_packet_size = 512,
+                max_packet_size = {True: 512, False: 64}[high_speed],
+                high_speed      = high_speed,
             )
         else:
             self.usb = usb = luna.full_devices.USBSerialDevice(bus=bus,
