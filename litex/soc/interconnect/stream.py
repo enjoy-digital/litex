@@ -528,7 +528,7 @@ class StrideConverter(LiteXModule):
         nbits_from = len(sink.payload.raw_bits())
         nbits_to   = len(source.payload.raw_bits())
 
-        converter = Converter(nbits_from, nbits_to, reverse)
+        converter = Converter(nbits_from, nbits_to, reverse, report_valid_token_count=True)
         self.submodules += converter
 
         # Cast sink to converter.sink (user fields --> raw bits)
@@ -552,28 +552,42 @@ class StrideConverter(LiteXModule):
 
 
         # Cast converter.source to source (raw bits --> user fields).
-        with_last_be = (
-            converter.cls == _DownConverter and
-            hasattr(sink,   "last_be") and
-            hasattr(source, "last_be") and
-            len(sink.last_be) == (converter.ratio*len(source.last_be))
-        )
-        if with_last_be:
-            last_be_drop       = Signal()
-            last_be_packet_end = Signal()
-            # Stop on the narrow slice carrying last_be and drain remaining slices internally.
+        fields_from = dict(sink.description.payload_layout)
+        fields_to   = dict(source.description.payload_layout)
+        byte_enable = next((name for name in ("be", "keep")
+            if name in fields_from and name in fields_to), None)
+        if byte_enable is not None and converter.cls == _DownConverter:
+            sink_be   = getattr(sink, byte_enable)
+            source_be = getattr(source, byte_enable)
+            ratio     = converter.ratio
+            if len(sink_be) != ratio*len(source_be):
+                raise ValueError("Byte-enable width must follow the data conversion ratio.")
+            index      = Signal(max=ratio)
+            drop       = Signal()
+            packet_end = Signal()
+            cases      = {}
+            for i in range(ratio):
+                if i == (ratio - 1):
+                    cases[i] = packet_end.eq(sink.last)
+                else:
+                    remaining = sink_be[:(ratio-i-1)*len(source_be)] if reverse else sink_be[(i+1)*len(source_be):]
+                    cases[i] = packet_end.eq(sink.last & (remaining == 0))
             self.comb += [
-                last_be_packet_end.eq(sink.last & (source.last_be != 0)),
-                source.valid.eq(converter.source.valid & ~last_be_drop),
-                source.first.eq(converter.source.first & ~last_be_drop),
-                source.last.eq(converter.source.last | last_be_packet_end),
-                converter.source.ready.eq(source.ready | last_be_drop)
+                Case(index, cases),
+                source.valid.eq(converter.source.valid & ~drop),
+                source.first.eq(converter.source.first & ~drop),
+                source.last.eq(packet_end),
+                converter.source.ready.eq(source.ready | drop),
             ]
+            # Terminate at the last occupied slice and consume any empty tail internally.
+            # An entirely empty last beat is retained as a single last/zero-mask beat.
             self.sync += If(converter.source.valid & converter.source.ready,
-                If(last_be_drop,
-                    If(converter.source.last, last_be_drop.eq(0))
-                ).Elif(last_be_packet_end & ~converter.source.last,
-                    last_be_drop.eq(1)
+                If(index == (ratio - 1),
+                    index.eq(0),
+                    drop.eq(0),
+                ).Else(
+                    index.eq(index + 1),
+                    If(packet_end, drop.eq(1)),
                 )
             )
         else:
@@ -590,7 +604,13 @@ class StrideConverter(LiteXModule):
                 for name, width in sink.description.payload_layout:
                     src = converter.source.data[i*nbits_from+j:i*nbits_from+j+width]
                     dst = getattr(source, name)[i*width:(i+1)*width]
-                    self.comb += dst.eq(src)
+                    if name == byte_enable:
+                        # Unwritten slices still contain the previous word's data. They must
+                        # never retain its byte enables after an early packet termination.
+                        token = ratio - i - 1 if reverse else i
+                        self.comb += dst.eq(Mux(converter.source.valid_token_count > token, src, 0))
+                    else:
+                        self.comb += dst.eq(src)
                     j += width
         else:
             self.comb += source.payload.raw_bits().eq(converter.source.data)

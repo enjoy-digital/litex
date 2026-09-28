@@ -915,10 +915,9 @@ class TestPacket(unittest.TestCase):
             "source2_valid": 0,
         })
 
-# Last Byte-Enable Tests ---------------------------------------------------------------------------
+# Byte-Enable Tests ---------------------------------------------------------------------------
 
-# Byte-level helpers: packets are lists of bytes, driven/collected honoring last_be (one-hot on the
-# last valid byte of the last word) when the endpoint carries it.
+# Byte-level helpers: packets are lists of bytes, driven/collected using per-beat byte masks.
 
 def bytes_to_words(data, bytes_per_word, fill=0):
     words = []
@@ -928,8 +927,8 @@ def bytes_to_words(data, bytes_per_word, fill=0):
         words.append(int.from_bytes(bytes(chunk), "little"))
     return words
 
-def last_be_for(length, bytes_per_word):
-    return 1 << ((length - 1) % bytes_per_word)
+def be_for(length, bytes_per_word):
+    return (1 << ((length - 1) % bytes_per_word + 1)) - 1
 
 def byte_header(length):
     """Header of `length` 1-byte fields b00..bNN (byte i <-> field b{i:02d}), no byte swapping."""
@@ -937,9 +936,9 @@ def byte_header(length):
     return Header(fields, length, swap_field_bytes=False)
 
 def stream_insert(sink, packets, prng, valid_rand=50, with_garbage=True, timeout=4000):
-    """Drive packets on sink: params dict + "data" bytes (+ optional "error"/"last_be" override)."""
+    """Drive packets on sink: params dict + "data" bytes (+ optional "error"/"be" override)."""
     bytes_per_word = len(sink.data)//8
-    has_last_be    = hasattr(sink, "last_be")
+    has_be         = hasattr(sink, "be")
     cycles         = 0
     for packet in packets:
         for name, value in packet.get("params", {}).items():
@@ -960,9 +959,9 @@ def stream_insert(sink, packets, prng, valid_rand=50, with_garbage=True, timeout
             yield sink.data.eq(word)
             if hasattr(sink, "error"):
                 yield sink.error.eq(packet.get("error", 0) if last else 0)
-            if has_last_be:
-                last_be = packet.get("last_be", last_be_for(len(packet["data"]), bytes_per_word))
-                yield sink.last_be.eq(last_be if last else 0)
+            if has_be:
+                be = packet.get("be", be_for(len(packet["data"]), bytes_per_word))
+                yield sink.be.eq(be if last else (1 << bytes_per_word) - 1)
             yield
             while not (yield sink.ready):
                 yield
@@ -974,7 +973,7 @@ def stream_insert(sink, packets, prng, valid_rand=50, with_garbage=True, timeout
     yield
 
 def stream_collect(source, beats, nbeats, prng, ready_rand=50, params=[], timeout=4000):
-    """Collect nbeats accepted beats from source as dicts (data/first/last/last_be/error/params)."""
+    """Collect nbeats accepted beats from source as dicts (data/first/last/be/error/params)."""
     cycles = 0
     while len(beats) < nbeats:
         yield source.ready.eq(int(prng.randrange(100) >= ready_rand))
@@ -987,8 +986,8 @@ def stream_collect(source, beats, nbeats, prng, ready_rand=50, params=[], timeou
                 "first": (yield source.first),
                 "last":  (yield source.last),
             }
-            if hasattr(source, "last_be"):
-                beat["last_be"] = (yield source.last_be)
+            if hasattr(source, "be"):
+                beat["be"] = (yield source.be)
             if hasattr(source, "error"):
                 beat["error"] = (yield source.error)
             for name in params:
@@ -1007,19 +1006,19 @@ def split_packets(beats):
     assert current == [], "incomplete packet"
     return packets
 
-def packet_bytes(beats, bytes_per_word, with_last_be=True):
-    """Bytes of a collected packet, truncated at last_be of the last beat (0: full word)."""
+def packet_bytes(beats, bytes_per_word, with_be=True):
+    """Bytes of a collected packet, qualified by the mask on every beat."""
     data = b""
     for beat in beats:
         word = beat["data"].to_bytes(bytes_per_word, "little")
-        if beat["last"] and with_last_be and beat.get("last_be", 0):
-            word = word[:beat["last_be"].bit_length()]
+        if with_be:
+            word = bytes(byte for i, byte in enumerate(word) if beat["be"] & (1 << i))
         data += word
     return data
 
 
-class TestPacketLastBE(unittest.TestCase):
-    """Packetizer/Depacketizer with last_be: byte-exact packets for any header/payload length."""
+class TestPacketByteEnable(unittest.TestCase):
+    """Packetizer/Depacketizer with be: byte-exact packets for any header/payload length."""
 
     def _run(self, dut, generators):
         run_simulation(dut, generators)
@@ -1027,7 +1026,7 @@ class TestPacketLastBE(unittest.TestCase):
     def _sweep(self, data_width):
         bytes_per_word = data_width//8
         # Header lengths covering every leftover and 1..2 header words, payload lengths covering
-        # every last_be position over 1..3 words.
+        # every be position over 1..3 words.
         for header_length in range(bytes_per_word, 3*bytes_per_word):
             for payload_length in range(1, 3*bytes_per_word + 1):
                 yield header_length, payload_length
@@ -1036,14 +1035,14 @@ class TestPacketLastBE(unittest.TestCase):
 
     def _packetizer_case(self, data_width, header_length, payload_lengths,
         seed         = 0,
-        with_last_be = True,
+        with_be      = True,
         errors       = None,
     ):
         bytes_per_word = data_width//8
         header         = byte_header(header_length)
         payload_layout = [("data", data_width), ("error", 1)]
-        if with_last_be:
-            payload_layout += [("last_be", bytes_per_word)]
+        if with_be:
+            payload_layout += [("be", bytes_per_word)]
         dut = Packetizer(
             sink_description   = EndpointDescription(payload_layout, header.get_layout()),
             source_description = EndpointDescription(payload_layout),
@@ -1063,7 +1062,7 @@ class TestPacketLastBE(unittest.TestCase):
             expected.append(header_bytes + payload_bytes)
         nbeats = 0
         for e in expected:
-            if with_last_be:
+            if with_be:
                 nbeats += (len(e) + bytes_per_word - 1)//bytes_per_word
             else:
                 # Whole payload words plus an extra word for the wrapped tail when unaligned.
@@ -1079,12 +1078,12 @@ class TestPacketLastBE(unittest.TestCase):
         self.assertEqual(len(received), len(expected))
         for n, (got, exp) in enumerate(zip(received, expected)):
             msg = f"dw={data_width} header={header_length} payload={payload_lengths[n]} packet={n}"
-            self.assertEqual(packet_bytes(got, bytes_per_word, with_last_be)[:len(exp)], exp, msg)
+            self.assertEqual(packet_bytes(got, bytes_per_word, with_be)[:len(exp)], exp, msg)
             self.assertEqual([b["first"] for b in got], [1] + [0]*(len(got) - 1), msg)
-            if with_last_be:
+            if with_be:
                 self.assertEqual(len(packet_bytes(got, bytes_per_word)), len(exp), msg)
-                self.assertEqual([b["last_be"] for b in got[:-1]], [0]*(len(got) - 1), msg)
-                self.assertEqual(got[-1]["last_be"], last_be_for(len(exp), bytes_per_word), msg)
+                self.assertEqual([b["be"] for b in got[:-1]], [(1 << bytes_per_word) - 1]*(len(got) - 1), msg)
+                self.assertEqual(got[-1]["be"], be_for(len(exp), bytes_per_word), msg)
             if errors:
                 self.assertEqual(got[-1]["error"], errors[n], msg)
         return received
@@ -1105,15 +1104,15 @@ class TestPacketLastBE(unittest.TestCase):
                 with self.subTest(data_width=data_width, header_length=header_length):
                     self._packetizer_case(data_width, header_length, lengths, seed=header_length)
 
-    def test_packetizer_without_last_be(self):
-        # Without last_be the header/payload bytes are preserved (whole words, unaligned tail in an
+    def test_packetizer_without_be(self):
+        # Without be the header/payload bytes are preserved (whole words, unaligned tail in an
         # extra word).
         for data_width in [32, 64]:
             bytes_per_word = data_width//8
             for header_length in [bytes_per_word, bytes_per_word + 2, 2*bytes_per_word + 1]:
                 lengths = [bytes_per_word*n for n in [1, 2, 3, 1]]
                 with self.subTest(data_width=data_width, header_length=header_length):
-                    self._packetizer_case(data_width, header_length, lengths, with_last_be=False)
+                    self._packetizer_case(data_width, header_length, lengths, with_be=False)
 
     def test_packetizer_error_on_last_beat(self):
         for data_width, header_length in [(32, 5), (64, 14), (64, 8)]:
@@ -1126,7 +1125,7 @@ class TestPacketLastBE(unittest.TestCase):
 
     def _depacketizer_case(self, data_width, header_length, payload_lengths,
         seed         = 0,
-        with_last_be = True,
+        with_be      = True,
         errors       = None,
         valid_rand   = 50,
         ready_rand   = 50,
@@ -1134,8 +1133,8 @@ class TestPacketLastBE(unittest.TestCase):
         bytes_per_word = data_width//8
         header         = byte_header(header_length)
         payload_layout = [("data", data_width), ("error", 1)]
-        if with_last_be:
-            payload_layout += [("last_be", bytes_per_word)]
+        if with_be:
+            payload_layout += [("be", bytes_per_word)]
         dut = Depacketizer(
             sink_description   = EndpointDescription(payload_layout),
             source_description = EndpointDescription(payload_layout, header.get_layout()),
@@ -1155,7 +1154,7 @@ class TestPacketLastBE(unittest.TestCase):
         header_leftover = header_length % bytes_per_word
         nbeats = 0
         for _, payload in expected:
-            if with_last_be:
+            if with_be:
                 nbeats += (len(payload) + bytes_per_word - 1)//bytes_per_word
             else:
                 # Tail of the last sink word dropped, except for a single payload word.
@@ -1178,12 +1177,12 @@ class TestPacketLastBE(unittest.TestCase):
             for beat in got:
                 decoded = bytes(beat[f"b{i:02d}"] for i in range(header_length))
                 self.assertEqual(decoded, header_bytes, msg)
-            if with_last_be:
+            if with_be:
                 self.assertEqual(packet_bytes(got, bytes_per_word), payload, msg)
-                self.assertEqual([b["last_be"] for b in got[:-1]], [0]*(len(got) - 1), msg)
-                self.assertEqual(got[-1]["last_be"], last_be_for(len(payload), bytes_per_word), msg)
+                self.assertEqual([b["be"] for b in got[:-1]], [(1 << bytes_per_word) - 1]*(len(got) - 1), msg)
+                self.assertEqual(got[-1]["be"], be_for(len(payload), bytes_per_word), msg)
             else:
-                data = packet_bytes(got, bytes_per_word, with_last_be=False)
+                data = packet_bytes(got, bytes_per_word, with_be=False)
                 self.assertEqual(data[:min(len(data), len(payload))], payload[:len(data)], msg)
             if errors:
                 self.assertEqual(got[-1]["error"], errors[n], msg)
@@ -1219,13 +1218,13 @@ class TestPacketLastBE(unittest.TestCase):
                         ready_rand = 0,
                     )
 
-    def test_depacketizer_without_last_be(self):
+    def test_depacketizer_without_be(self):
         for data_width in [32, 64]:
             bytes_per_word = data_width//8
             for header_length in [bytes_per_word, bytes_per_word + 2, 2*bytes_per_word + 1]:
                 lengths = [bytes_per_word*n for n in [1, 2, 3, 1]]
                 with self.subTest(data_width=data_width, header_length=header_length):
-                    self._depacketizer_case(data_width, header_length, lengths, with_last_be=False)
+                    self._depacketizer_case(data_width, header_length, lengths, with_be=False)
 
     def test_depacketizer_error_on_last_beat(self):
         for data_width, header_length in [(32, 5), (64, 14), (64, 8)]:
@@ -1234,49 +1233,11 @@ class TestPacketLastBE(unittest.TestCase):
                     errors = [1, 0, 1, 1],
                 )
 
-    # Legacy last_be / 8-bit ----------------------------------------------------------------------
+    # Eight-bit byte masks ------------------------------------------------------------------------
 
-    def test_last_be_zero_is_full_word(self):
-        # A last_be of 0 on the last word (legacy producers) is a full word: for a packet ending on
-        # a word boundary the result is the same as with the explicit last_be, and the output
-        # last_be is one-hot.
-        for data_width, header_length in [(32, 4), (32, 6), (64, 8), (64, 14)]:
-            bytes_per_word = data_width//8
-            header         = byte_header(header_length)
-            payload_layout = [("data", data_width), ("last_be", bytes_per_word)]
-            header_bytes   = bytes(range(0x80, 0x80 + header_length))
-            params         = {f"b{i:02d}": header_bytes[i] for i in range(header_length)}
-            raw_desc       = EndpointDescription(payload_layout)
-            packet_desc    = EndpointDescription(payload_layout, header.get_layout())
-            # Sink packet ending on a word boundary: payload for the Packetizer, header + payload
-            # for the Depacketizer.
-            pad = (-header_length) % bytes_per_word
-            for cls, sink_desc, source_desc, payload_length in [
-                (Packetizer,   packet_desc, raw_desc,    2*bytes_per_word),
-                (Depacketizer, raw_desc,    packet_desc, 2*bytes_per_word + pad),
-            ]:
-                payload = bytes((i + 1) & 0xff for i in range(payload_length))
-                data, expected = {
-                    Packetizer   : (payload,                header_bytes + payload),
-                    Depacketizer : (header_bytes + payload, payload),
-                }[cls]
-                packet = {"params": params if cls is Packetizer else {}, "data": data}
-                packet["last_be"] = 0
-                nbeats = (len(expected) + bytes_per_word - 1)//bytes_per_word
-                with self.subTest(cls=cls.__name__, dw=data_width, header=header_length):
-                    dut   = cls(sink_desc, source_desc, header)
-                    beats = []
-                    self._run(dut, [
-                        stream_insert(dut.sink, [packet], random.Random(1)),
-                        stream_collect(dut.source, beats, nbeats, random.Random(2)),
-                    ])
-                    self.assertEqual(packet_bytes(beats, bytes_per_word), expected)
-                    expected_last_be = last_be_for(len(expected), bytes_per_word)
-                    self.assertEqual(beats[-1]["last_be"], expected_last_be)
-
-    def test_8bit_last_be(self):
+    def test_8bit_be(self):
         header         = byte_header(3)
-        payload_layout = [("data", 8), ("last_be", 1)]
+        payload_layout = [("data", 8), ("be", 1)]
         payload        = bytes([1, 2, 3, 4, 5])
         header_bytes   = bytes([0xa, 0xb, 0xc])
         params         = {f"b{i:02d}": header_bytes[i] for i in range(3)}
@@ -1286,19 +1247,18 @@ class TestPacketLastBE(unittest.TestCase):
             (Packetizer,   packet_desc, raw_desc,    payload,               header_bytes + payload),
             (Depacketizer, raw_desc,    packet_desc, header_bytes + payload, payload),
         ]:
-            for last_be in [0, 1]:
-                packet = {"params": params if cls is Packetizer else {}, "data": data}
-                packet["last_be"] = last_be
-                with self.subTest(cls=cls.__name__, last_be=last_be):
-                    dut   = cls(sink_desc, source_desc, header)
-                    beats = []
-                    self._run(dut, [
-                        stream_insert(dut.sink, [packet], random.Random(1)),
-                        stream_collect(dut.source, beats, len(expected), random.Random(2)),
-                    ])
-                    self.assertEqual(bytes(b["data"] for b in beats), expected)
-                    # last_be follows last on 8-bit data paths.
-                    self.assertEqual([b["last_be"] for b in beats], [b["last"] for b in beats])
+            packet = {"params": params if cls is Packetizer else {}, "data": data}
+            packet["be"] = 1
+            with self.subTest(cls=cls.__name__):
+                dut   = cls(sink_desc, source_desc, header)
+                beats = []
+                self._run(dut, [
+                    stream_insert(dut.sink, [packet], random.Random(1)),
+                    stream_collect(dut.source, beats, len(expected), random.Random(2)),
+                ])
+                self.assertEqual(bytes(b["data"] for b in beats), expected)
+                # Every byte is enabled on 8-bit data paths.
+                self.assertEqual([b["be"] for b in beats], [1]*len(beats))
 
     # Truncated packets ---------------------------------------------------------------------------
 
@@ -1310,7 +1270,7 @@ class TestPacketLastBE(unittest.TestCase):
             bytes_per_word  = data_width//8
             header_leftover = header_length % bytes_per_word
             header          = byte_header(header_length)
-            payload_layout  = [("data", data_width), ("last_be", bytes_per_word)]
+            payload_layout  = [("data", data_width), ("be", bytes_per_word)]
             truncated = list(range(1, header_length + 1))
             if header_leftover == 0:
                 # Aligned: only whole (or the last, partial) header words can end a packet.
@@ -1364,7 +1324,7 @@ class TestPacketLastBE(unittest.TestCase):
             i += 1
         header = Header(fields, header_length, swap_field_bytes=bool(prng.getrandbits(1)))
 
-        payload_layout = [("data", data_width), ("last_be", bytes_per_word)]
+        payload_layout = [("data", data_width), ("be", bytes_per_word)]
         raw_desc       = EndpointDescription(payload_layout)
         packet_desc    = EndpointDescription(payload_layout, header.get_layout())
 
@@ -1396,7 +1356,7 @@ class TestPacketLastBE(unittest.TestCase):
         self.assertEqual(len(received), npackets)
         for sent, got in zip(packets, received):
             self.assertEqual(packet_bytes(got, bytes_per_word), sent["data"])
-            self.assertEqual(got[-1]["last_be"], last_be_for(len(sent["data"]), bytes_per_word))
+            self.assertEqual(got[-1]["be"], be_for(len(sent["data"]), bytes_per_word))
             for beat in got:
                 for name, value in sent["params"].items():
                     self.assertEqual(beat[name], value, name)
