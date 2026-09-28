@@ -34,9 +34,21 @@ data and byte enables. Packet parameters stay attached to the buffered word.
 
 `Packetizer` and `Depacketizer` shift masks with data when headers are unaligned.
 Header bytes are enabled; unused flush lanes are disabled. Their packet format
-requires full intermediate beats and a nonzero, contiguous final mask starting
-at byte zero. They do not compact sparse streams or support empty payloads.
-They also retain their historical behavior for endpoints without a qualifier.
+requires full intermediate beats and a contiguous final mask starting at byte
+zero. They do not compact sparse streams. Whole-word endpoints without a
+qualifier retain their historical behavior.
+
+`Packetizer` accepts any positive header length, including headers shorter than
+one word. A header-only packet is represented by a single input beat with
+`last=1` and a zero mask; the output contains just the header, with no empty
+trailing beat. The first input beat and its parameters remain held until its
+payload is consumed, including while header words are emitted. By default the
+next beat after a packet starts another packet. With `with_first=True`, beats
+outside a packet are discarded until `first=1`.
+
+`Depacketizer` requires a header at least one word long and a nonempty payload.
+Its final mask must be nonzero. Short-header and header-only support in
+`Packetizer` does not change these receive-side restrictions.
 
 Applications should document any narrower contract. For example, LiteEth uses
 full intermediate words and a contiguous nonzero final mask. An AXI producer

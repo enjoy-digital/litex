@@ -164,183 +164,139 @@ class Header:
 class Packetizer(LiteXModule):
     """Prepend a header to a packet stream.
 
-    The header is built from the sink's param fields and sent first, then the payload is copied.
-    When the header length is not a multiple of the data width (unaligned), the payload is shifted
-    up by header_leftover bytes: each source word combines the tail of the previous sink word with
-    the head of the current one, and the packet's last bytes can spill into an extra source word.
-
-    With a byte qualifier on sink and source (be or keep), valid bytes and
-    their masks move together, and a flush word is only emitted when it contains valid bytes.
-    Without a qualifier, an unaligned header always adds a flush word.
+    Headers may span words or share a word with payload. Byte qualifiers (be or keep) move
+    with data; a final zero-mask input beat represents a header-only packet. Without a
+    qualifier, unaligned headers always add a flush word. With ``with_first=True``, discard
+    beats outside a packet until ``first`` is asserted.
     """
-    def __init__(self, sink_description, source_description, header):
+    def __init__(self, sink_description, source_description, header, with_first=False):
         self.sink   = sink   = stream.Endpoint(sink_description)
         self.source = source = stream.Endpoint(source_description)
         self.header = Signal(header.length*8)
 
         # # #
 
-        # Parameters.
-        data_width      = len(self.sink.data)
+        data_width      = len(sink.data)
         bytes_per_clk   = data_width//8
-        header_words    = (header.length*8)//data_width
+        header_words    = header.length//bytes_per_clk
         header_leftover = header.length%bytes_per_clk
         aligned         = header_leftover == 0
         sink_be_name    = stream.byte_enable_name(sink)
         source_be_name  = stream.byte_enable_name(source)
         with_be         = sink_be_name is not None and source_be_name is not None
+        with_error      = hasattr(sink, "error") and hasattr(source, "error")
+        byte_errors     = with_error and with_be and len(sink.error) == bytes_per_clk
         if (sink_be_name is None) != (source_be_name is None):
             raise ValueError("Packet helpers require byte qualifiers on both endpoints or neither.")
-        with_error      = hasattr(sink, "error") and hasattr(source, "error")
-        if header_words == 0:
-            raise ValueError(f"Header length ({header.length} bytes) must be >= data width ({data_width} bits).")
+        if header.length <= 0:
+            raise ValueError("Packetizer requires a nonempty header.")
 
-        # Signals.
-        sr       = Signal(header.length*8, reset_less=True)
-        sr_load  = Signal()
-        sr_shift = Signal()
-        count    = Signal(max=max(header_words, 2))
-
-        # Header Encode/Load/Shift.
         self.comb += header.encode(sink, self.header)
-        self.sync += If(sr_load, sr.eq(self.header))
-        if header_words != 1:
-            self.sync += If(sr_shift, sr.eq(sr[data_width:]))
-
-        # Byte enables accompany the data on every beat. Header bytes are always valid.
-        sink_be   = Signal(bytes_per_clk)
-        source_be = Signal(bytes_per_clk, reset=(1 << bytes_per_clk) - 1)
-        be_copy   = []
+        full_be   = (1 << bytes_per_clk) - 1
+        sink_be   = getattr(sink, sink_be_name) if with_be else C(full_be, bytes_per_clk)
+        source_be = Signal(bytes_per_clk, reset=full_be)
         if with_be:
-            self.comb += [sink_be.eq(getattr(sink, sink_be_name)), getattr(source, source_be_name).eq(source_be)]
-            be_copy = [source_be.eq(sink_be)]
+            self.comb += getattr(source, source_be_name).eq(source_be)
+        empty = sink.last & (sink_be == 0) if with_be else 0
 
-        # FSM.
+        # The first input beat is held until its payload is consumed. Its header parameters
+        # therefore remain stable throughout header emission; no separate header register is needed.
+        header_beats = header_words + (header_leftover != 0)
+        count        = Signal(max=max(header_beats, 2))
+        last_header  = count == (header_beats - 1)
+        header_cases = {
+            i : source.data.eq(self.header[i*data_width:(i + 1)*data_width])
+            for i in range(header_words)
+        }
+
         self.fsm = fsm = FSM(reset_state="IDLE")
-        fsm_from_idle = Signal()
-        fsm.act("IDLE",
-            sink.ready.eq(1),
-            NextValue(count, 1),
-            If(sink.valid,
-                sink.ready.eq(0),
-                source.valid.eq(1),
-                source.first.eq(1),
-                source.last.eq(0),
-                source.data.eq(self.header[:data_width]),
-                If(source.valid & source.ready,
-                    sr_load.eq(1),
-                    NextValue(fsm_from_idle, 1),
-                    If(header_words == 1,
-                        NextState("ALIGNED-DATA-COPY" if aligned else "UNALIGNED-DATA-COPY")
-                    ).Else(
-                        NextState("HEADER-SEND")
-                    )
-               )
-            )
-        )
-        fsm.act("HEADER-SEND",
-            source.valid.eq(1),
-            source.first.eq(0),
-            source.last.eq(0),
-            source.data.eq(sr[min(data_width, len(sr)-1):]),
-            If(source.valid & source.ready,
-                sr_shift.eq(1),
-                If(count == (header_words - 1),
-                    sr_shift.eq(0),
-                    NextState("ALIGNED-DATA-COPY" if aligned else "UNALIGNED-DATA-COPY"),
-                    NextValue(count, count + 1)
-               ).Else(
-                    NextValue(count, count + 1),
-               )
-            )
-        )
-        fsm.act("ALIGNED-DATA-COPY",
-            source.valid.eq(sink.valid),
-            source.first.eq(0),
-            source.last.eq(sink.last),
-            source.data.eq(sink.data),
-            *be_copy,
-            If(source.valid & source.ready,
-               sink.ready.eq(1),
-               If(source.last,
-                  NextState("IDLE")
-               )
-            )
-        )
         if aligned:
+            header_last  = empty
+            header_ready = empty
+            header_be    = C(full_be, bytes_per_clk)
             if with_error:
-                if with_be and len(sink.error) == bytes_per_clk:
-                    self.comb += If(fsm.ongoing("ALIGNED-DATA-COPY"), source.error.eq(sink.error))
+                if byte_errors:
+                    self.comb += If(fsm.ongoing("COPY"), source.error.eq(sink.error))
                 else:
                     self.comb += source.error.eq(sink.error)
         else:
-            # The payload is shifted up by header_leftover bytes: each source word combines the
-            # tail of the previous sink word (sink_d) with the head of the current one. The last
-            # sink word's tail spills into an extra source word (flush) when its last valid byte
-            # wraps beyond the word (always without be).
-            sink_d_data = Signal(data_width)
-            sink_d_be   = Signal(bytes_per_clk)
-            flush       = Signal()
-            wrap        = Signal()
-            if with_be:
-                self.comb += wrap.eq(sink_be[bytes_per_clk-header_leftover:] != 0)
-            else:
-                self.comb += wrap.eq(1)
+            # Retain the accepted payload's tail for the next word. Only the FSM/flush
+            # state needs reset: saved data and masks are read after an accepted beat.
+            leftover_bits = 8*header_leftover
+            tail_bits     = data_width - leftover_bits
+            sink_d_data   = Signal(data_width, reset_less=True)
+            sink_d_be     = Signal(bytes_per_clk, reset_less=True)
+            flush         = Signal()
+            wrap = (sink_be[bytes_per_clk-header_leftover:] != 0) if with_be else 1
+            header_last  = sink.last & ~wrap if with_be else 0
+            header_ready = 1
+            header_be    = Cat(C((1 << header_leftover) - 1, header_leftover),
+                sink_be[:bytes_per_clk-header_leftover])
+            header_cases[header_words] = source.data.eq(Cat(
+                self.header[header_words*data_width:], sink.data[:tail_bits]))
 
-            # Capture the *accepted* sink word (capturing on source.ready alone latched don't-care
-            # data during bubbles/IDLE). The flush is cleared once the extra word has been accepted.
-            sink_d_capture = [sink_d_data.eq(sink.data), flush.eq(sink.last & wrap)]
-            be_shift = []
-            if with_be:
-                sink_d_capture += [sink_d_be.eq(sink_be)]
-                be_shift = [
-                    source_be.eq(Cat(
-                        Mux(fsm_from_idle, (1 << header_leftover) - 1,
-                            sink_d_be[bytes_per_clk-header_leftover:]),
-                        Mux(flush, 0, sink_be[:bytes_per_clk-header_leftover]),
-                    ))
-                ]
+            accepted = sink.valid & sink.ready
+            if with_first:
+                accepted = accepted & (sink.first | (count != 0) | ~fsm.ongoing("IDLE"))
+            self.sync += [
+                If(accepted,
+                    sink_d_data.eq(sink.data),
+                    sink_d_be.eq(sink_be),
+                    flush.eq(sink.last & wrap),
+                ),
+                If(fsm.ongoing("COPY") & flush & source.ready, flush.eq(0)),
+            ]
             if with_error:
-                sink_d_error    = Signal.like(sink.error)
-                sink_d_capture += [sink_d_error.eq(sink.error)]
-                if with_be and len(sink.error) == bytes_per_clk:
-                    self.comb += If(fsm.ongoing("UNALIGNED-DATA-COPY"),
-                        source.error.eq(Cat(
-                            Mux(fsm_from_idle, 0, sink_d_error[bytes_per_clk-header_leftover:]),
-                            Mux(flush, 0, sink.error[:bytes_per_clk-header_leftover]),
-                        ))
+                sink_d_error = Signal.like(sink.error, reset_less=True)
+                self.sync += If(accepted, sink_d_error.eq(sink.error))
+                if byte_errors:
+                    self.comb += If(fsm.ongoing("IDLE"),
+                        If(last_header,
+                            source.error.eq(Cat(C(0, header_leftover), sink.error[:bytes_per_clk-header_leftover])),
+                        ),
+                    ).Else(
+                        source.error.eq(Cat(sink_d_error[bytes_per_clk-header_leftover:],
+                            Mux(flush, 0, sink.error[:bytes_per_clk-header_leftover]))),
                     )
                 else:
                     self.comb += source.error.eq(Mux(flush, sink_d_error, sink.error))
-            self.sync += [
-                If(sink.valid & sink.ready, *sink_d_capture),
-                If(flush & source.ready,    flush.eq(0)),
-            ]
 
-            # Source word: low bytes from the header leftover (first word, still in sr after the
-            # header words have been sent) or the previous sink word's tail, high bytes from the
-            # current sink word's head (zero on the flush word).
-            leftover_bits = header_leftover*8
-            tail_bits     = (bytes_per_clk - header_leftover)*8
-            header_tail   = sr[(1 if header_words == 1 else 2)*data_width:]
-            fsm.act("UNALIGNED-DATA-COPY",
-                source.valid.eq(sink.valid | flush),
-                source.first.eq(0),
-                source.last.eq(flush | (sink.last & ~wrap)),
-                If(fsm_from_idle,
-                    source.data[:leftover_bits].eq(header_tail)
-                ).Else(
-                    source.data[:leftover_bits].eq(sink_d_data[tail_bits:])
+        fsm.act("IDLE",
+            sink.ready.eq(count == 0),
+            Case(count, header_cases),
+            If(last_header, source_be.eq(header_be)),
+            If(sink.valid & ((count != 0) | sink.first if with_first else 1),
+                source.valid.eq(1),
+                source.first.eq(count == 0),
+                source.last.eq(last_header & header_last),
+                sink.ready.eq(last_header & header_ready & source.ready),
+                If(source.ready,
+                    If(last_header,
+                        NextValue(count, 0),
+                        If(~source.last, NextState("COPY")),
+                    ).Else(
+                        NextValue(count, count + 1),
+                    ),
                 ),
-                source.data[leftover_bits:].eq(Mux(flush, 0, sink.data)),
-                *be_shift,
+            ),
+        )
+        if aligned:
+            fsm.act("COPY",
+                sink.connect(source, keep={"valid", "ready", "last", "data"}),
+                source_be.eq(sink_be),
+                If(source.valid & source.ready & source.last, NextState("IDLE")),
+            )
+        else:
+            fsm.act("COPY",
+                source.valid.eq(sink.valid | flush),
+                source.last.eq(flush | (sink.last & ~wrap) if with_be else flush),
+                source.data.eq(Cat(sink_d_data[tail_bits:], Mux(flush, 0, sink.data[:tail_bits]))),
+                source_be.eq(Cat(sink_d_be[bytes_per_clk-header_leftover:],
+                    Mux(flush, 0, sink_be[:bytes_per_clk-header_leftover]))),
                 If(source.valid & source.ready,
                     sink.ready.eq(~flush),
-                    NextValue(fsm_from_idle, 0),
-                    If(source.last,
-                        NextState("IDLE")
-                    )
-                )
+                    If(source.last, NextState("IDLE")),
+                ),
             )
 
 # Depacketizer -------------------------------------------------------------------------------------
