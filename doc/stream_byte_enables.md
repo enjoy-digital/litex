@@ -63,3 +63,18 @@ conversion. Whole-word endpoints without a qualifier remain supported.
 The helpers recognize stream qualifiers in the payload, not unrelated packet
 parameters. PCIe TLP `first_be`/`last_be` fields have protocol-defined meanings
 and remain unchanged.
+
+## Byte-Mask Helpers
+
+`stream.byte_enable_name(endpoint)` finds the payload's `be` or AXI `keep` field
+and checks that it has one bit per data byte. It ignores packet parameters and
+returns `None` for unqualified streams. Ambiguous or malformed qualifiers are
+rejected. Width converters require matching qualifiers; packet helpers require
+a qualifier on both endpoints or neither.
+
+`stream.byte_count(be)` counts enabled bytes, including sparse masks.
+`stream.byte_mask(count, width)` enables the lowest `count` bytes of a `width`-byte
+word; a zero count produces zero and counts at least `width` produce a full mask.
+These are combinatorial expressions. Converting a packet-length remainder to a
+final-word mask is the caller's responsibility: a zero remainder of a nonempty
+packet means a full final word, not zero valid bytes.
