@@ -159,25 +159,28 @@ class Header:
                 r.append(field.eq(signal[start:end]))
         return r
 
-# Last Byte-Enable Helpers -------------------------------------------------------------------------
+# Byte-Enable Helpers ------------------------------------------------------------------------------
 
-# last_be is a one-hot mask of the last valid byte of a packet's last word (0 on the other words).
-# It is optional: Packetizer/Depacketizer only handle it when both sink and source carry it. A
-# last_be of 0 on the last word is treated as a full word (legacy 8-bit/whole-word producers).
+def _byte_enable_name(endpoint):
+    payload = dict(endpoint.description.payload_layout)
+    return next((name for name in ("be", "keep", "last_be")
+        if name in payload and "data" in payload and len(getattr(endpoint, name)) == len(endpoint.data)//8), None)
 
-def _last_be_normalize(last_be):
-    """Map a last_be of 0 (legacy full word) to the last byte (only the top bit needs the test)."""
-    if len(last_be) == 1:
-        return C(1, 1)
-    return Cat(last_be[:-1], last_be[-1] | (last_be == 0))
 
-def _last_be_rotate(last_be, shift):
-    """Rotate a one-hot last_be by shift bytes (bit i to bit (i + shift) % n)."""
-    n     = len(last_be)
-    shift = shift % n
-    if shift == 0:
-        return last_be
-    return Cat(last_be[n-shift:], last_be[:n-shift])
+def _byte_enable(endpoint):
+    name = _byte_enable_name(endpoint)
+    be   = getattr(endpoint, name)
+    if name == "last_be":
+        # Compatibility with existing one-hot endpoints, including their zero/full convention.
+        return stream.last_be_to_be(be, endpoint.last)
+    return be
+
+
+def _byte_enable_assign(endpoint, be):
+    name = _byte_enable_name(endpoint)
+    if name == "last_be":
+        return getattr(endpoint, name).eq(stream.be_to_last_be(be, endpoint.last))
+    return getattr(endpoint, name).eq(be)
 
 # Packetizer ---------------------------------------------------------------------------------------
 
@@ -189,9 +192,9 @@ class Packetizer(LiteXModule):
     up by header_leftover bytes: each source word combines the tail of the previous sink word with
     the head of the current one, and the packet's last bytes can spill into an extra source word.
 
-    With last_be on sink and source, the extra word is only emitted when the last valid byte wraps
-    and last_be is adjusted, so the packet is byte-exact. Without last_be, the extra word is always
-    emitted (whole payload words) and its unused bytes are undefined.
+    With a byte qualifier on sink and source (be, keep, or legacy last_be), valid bytes and
+    their masks move together, and a flush word is only emitted when it contains valid bytes.
+    Without a qualifier, an unaligned header always adds a flush word.
     """
     def __init__(self, sink_description, source_description, header):
         self.sink   = sink   = stream.Endpoint(sink_description)
@@ -206,8 +209,8 @@ class Packetizer(LiteXModule):
         header_words    = (header.length*8)//data_width
         header_leftover = header.length%bytes_per_clk
         aligned         = header_leftover == 0
-        with_last_be    = hasattr(sink, "last_be") and hasattr(source, "last_be")
-        with_error      = hasattr(sink, "error")   and hasattr(source, "error")
+        with_be         = _byte_enable_name(sink) is not None and _byte_enable_name(source) is not None
+        with_error      = hasattr(sink, "error") and hasattr(source, "error")
         if header_words == 0:
             raise ValueError(f"Header length ({header.length} bytes) must be >= data width ({data_width} bits).")
 
@@ -223,12 +226,13 @@ class Packetizer(LiteXModule):
         if header_words != 1:
             self.sync += If(sr_shift, sr.eq(sr[data_width:]))
 
-        # Last Byte-Enable (normalized: 0 on the last word is a full word).
-        sink_last_be = Signal(bytes_per_clk)
-        last_be_copy = []
-        if with_last_be:
-            self.comb += sink_last_be.eq(_last_be_normalize(sink.last_be))
-            last_be_copy = [If(sink.last, source.last_be.eq(sink_last_be))]
+        # Byte enables accompany the data on every beat. Header bytes are always valid.
+        sink_be   = Signal(bytes_per_clk)
+        source_be = Signal(bytes_per_clk, reset=(1 << bytes_per_clk) - 1)
+        be_copy   = []
+        if with_be:
+            self.comb += [sink_be.eq(_byte_enable(sink)), _byte_enable_assign(source, source_be)]
+            be_copy = [source_be.eq(sink_be)]
 
         # FSM.
         self.fsm = fsm = FSM(reset_state="IDLE")
@@ -274,7 +278,7 @@ class Packetizer(LiteXModule):
             source.first.eq(0),
             source.last.eq(sink.last),
             source.data.eq(sink.data),
-            *last_be_copy,
+            *be_copy,
             If(source.valid & source.ready,
                sink.ready.eq(1),
                If(source.last,
@@ -284,38 +288,49 @@ class Packetizer(LiteXModule):
         )
         if aligned:
             if with_error:
-                self.comb += source.error.eq(sink.error)
+                if with_be and _byte_enable_name(sink) != "last_be" and len(sink.error) == bytes_per_clk:
+                    self.comb += If(fsm.ongoing("ALIGNED-DATA-COPY"), source.error.eq(sink.error))
+                else:
+                    self.comb += source.error.eq(sink.error)
         else:
             # The payload is shifted up by header_leftover bytes: each source word combines the
             # tail of the previous sink word (sink_d) with the head of the current one. The last
             # sink word's tail spills into an extra source word (flush) when its last valid byte
-            # wraps beyond the word (always without last_be).
-            sink_d_data    = Signal(data_width)
-            sink_d_last_be = Signal(bytes_per_clk)
-            flush          = Signal()
-            wrap           = Signal()
-            if with_last_be:
-                self.comb += wrap.eq(sink_last_be[bytes_per_clk-header_leftover:] != 0)
+            # wraps beyond the word (always without be).
+            sink_d_data = Signal(data_width)
+            sink_d_be   = Signal(bytes_per_clk)
+            flush       = Signal()
+            wrap        = Signal()
+            if with_be:
+                self.comb += wrap.eq(sink_be[bytes_per_clk-header_leftover:] != 0)
             else:
                 self.comb += wrap.eq(1)
 
             # Capture the *accepted* sink word (capturing on source.ready alone latched don't-care
             # data during bubbles/IDLE). The flush is cleared once the extra word has been accepted.
             sink_d_capture = [sink_d_data.eq(sink.data), flush.eq(sink.last & wrap)]
-            last_be_shift  = []
-            if with_last_be:
-                sink_d_capture += [sink_d_last_be.eq(sink_last_be)]
-                last_be_shift   = [
-                    If(flush,
-                        source.last_be.eq(_last_be_rotate(sink_d_last_be, header_leftover))
-                    ).Elif(sink.last & ~wrap,
-                        source.last_be.eq(_last_be_rotate(sink_last_be, header_leftover))
-                    )
+            be_shift = []
+            if with_be:
+                sink_d_capture += [sink_d_be.eq(sink_be)]
+                be_shift = [
+                    source_be.eq(Cat(
+                        Mux(fsm_from_idle, (1 << header_leftover) - 1,
+                            sink_d_be[bytes_per_clk-header_leftover:]),
+                        Mux(flush, 0, sink_be[:bytes_per_clk-header_leftover]),
+                    ))
                 ]
             if with_error:
                 sink_d_error    = Signal.like(sink.error)
                 sink_d_capture += [sink_d_error.eq(sink.error)]
-                self.comb      += source.error.eq(Mux(flush, sink_d_error, sink.error))
+                if with_be and _byte_enable_name(sink) != "last_be" and len(sink.error) == bytes_per_clk:
+                    self.comb += If(fsm.ongoing("UNALIGNED-DATA-COPY"),
+                        source.error.eq(Cat(
+                            Mux(fsm_from_idle, 0, sink_d_error[bytes_per_clk-header_leftover:]),
+                            Mux(flush, 0, sink.error[:bytes_per_clk-header_leftover]),
+                        ))
+                    )
+                else:
+                    self.comb += source.error.eq(Mux(flush, sink_d_error, sink.error))
             self.sync += [
                 If(sink.valid & sink.ready, *sink_d_capture),
                 If(flush & source.ready,    flush.eq(0)),
@@ -323,7 +338,7 @@ class Packetizer(LiteXModule):
 
             # Source word: low bytes from the header leftover (first word, still in sr after the
             # header words have been sent) or the previous sink word's tail, high bytes from the
-            # current sink word's head (undefined on the flush word).
+            # current sink word's head (zero on the flush word).
             leftover_bits = header_leftover*8
             tail_bits     = (bytes_per_clk - header_leftover)*8
             header_tail   = sr[(1 if header_words == 1 else 2)*data_width:]
@@ -336,8 +351,8 @@ class Packetizer(LiteXModule):
                 ).Else(
                     source.data[:leftover_bits].eq(sink_d_data[tail_bits:])
                 ),
-                source.data[leftover_bits:].eq(sink.data),
-                *last_be_shift,
+                source.data[leftover_bits:].eq(Mux(flush, 0, sink.data)),
+                *be_shift,
                 If(source.valid & source.ready,
                     sink.ready.eq(~flush),
                     NextValue(fsm_from_idle, 0),
@@ -357,9 +372,9 @@ class Depacketizer(LiteXModule):
     header_leftover bytes: each source word combines the tail of the previous sink word with the
     head of the current one, and the packet's last bytes can require an extra source word.
 
-    With last_be on sink and source, the extra word is only emitted when the last valid bytes are in
-    the tail of the last sink word and last_be is adjusted, so the packet is byte-exact. Without
-    last_be, the tail of the last sink word is dropped, except for a single-word payload (whose
+    With be on sink and source, the extra word is only emitted when the last valid bytes are in
+    the tail of the last sink word and be is adjusted, so the packet is byte-exact. Without
+    be, the tail of the last sink word is dropped, except for a single-word payload (whose
     tail is the whole payload), matching the Packetizer's whole-word transmission.
 
     Packets ending within the header (truncated) are dropped.
@@ -377,8 +392,8 @@ class Depacketizer(LiteXModule):
         header_words    = (header.length*8)//data_width
         header_leftover = header.length%bytes_per_clk
         aligned         = header_leftover == 0
-        with_last_be    = hasattr(sink, "last_be") and hasattr(source, "last_be")
-        with_error      = hasattr(sink, "error")   and hasattr(source, "error")
+        with_be         = _byte_enable_name(sink) is not None and _byte_enable_name(source) is not None
+        with_error      = hasattr(sink, "error") and hasattr(source, "error")
         if header_words == 0:
             raise ValueError(f"Header length ({header.length} bytes) must be >= data width ({data_width} bits).")
 
@@ -400,12 +415,13 @@ class Depacketizer(LiteXModule):
         self.comb += self.header.eq(sr)
         self.comb += header.decode(self.header, source)
 
-        # Last Byte-Enable (normalized: 0 on the last word is a full word).
-        sink_last_be = Signal(bytes_per_clk)
-        last_be_copy = []
-        if with_last_be:
-            self.comb += sink_last_be.eq(_last_be_normalize(sink.last_be))
-            last_be_copy = [If(sink.last, source.last_be.eq(sink_last_be))]
+        # Byte enables accompany the data on every beat. Header bytes are always valid.
+        sink_be   = Signal(bytes_per_clk)
+        source_be = Signal(bytes_per_clk, reset=(1 << bytes_per_clk) - 1)
+        be_copy   = []
+        if with_be:
+            self.comb += [sink_be.eq(_byte_enable(sink)), _byte_enable_assign(source, source_be)]
+            be_copy = [source_be.eq(sink_be)]
 
         # FSM.
         self.fsm = fsm = FSM(reset_state="IDLE")
@@ -447,7 +463,7 @@ class Depacketizer(LiteXModule):
             source.last.eq(sink.last),
             sink.ready.eq(source.ready),
             source.data.eq(sink.data),
-            *last_be_copy,
+            *be_copy,
             If(source.valid & source.ready,
                NextValue(data_copy_first, 0),
                NextValue(fsm_from_idle, 0),
@@ -463,15 +479,15 @@ class Depacketizer(LiteXModule):
             # The payload is shifted down by header_leftover bytes: each source word combines the
             # tail of the previous sink word (sink_d) with the head of the current one. The last
             # sink word's tail needs an extra source word (flush) when it holds payload: with
-            # last_be, when the last valid byte is at or beyond the leftover; without, only for a
+            # be, when the last valid byte is at or beyond the leftover; without, only for a
             # single-word payload (otherwise the tail is dropped, matching the Packetizer's
             # whole-word transmission).
-            sink_d_data    = Signal(data_width)
-            sink_d_last_be = Signal(bytes_per_clk)
-            flush          = Signal()
-            flush_needed   = Signal()
-            if with_last_be:
-                self.comb += flush_needed.eq(sink_last_be[header_leftover:] != 0)
+            sink_d_data  = Signal(data_width)
+            sink_d_be    = Signal(bytes_per_clk)
+            flush        = Signal()
+            flush_needed = Signal()
+            if with_be:
+                self.comb += flush_needed.eq(sink_be[header_leftover:] != 0)
             else:
                 self.comb += flush_needed.eq(fsm_from_idle)
 
@@ -481,24 +497,29 @@ class Depacketizer(LiteXModule):
                 sink_d_data.eq(sink.data),
                 flush.eq(sink.last & flush_needed & fsm.ongoing("UNALIGNED-DATA-COPY")),
             ]
-            last_be_shift  = []
+            be_shift = []
             from_idle_drop = []
-            if with_last_be:
-                sink_d_capture += [sink_d_last_be.eq(sink_last_be)]
-                last_be_shift   = [
-                    If(flush,
-                        source.last_be.eq(_last_be_rotate(sink_d_last_be, -header_leftover))
-                    ).Elif(sink.last & ~flush_needed,
-                        source.last_be.eq(_last_be_rotate(sink_last_be, -header_leftover))
-                    )
+            if with_be:
+                sink_d_capture += [sink_d_be.eq(sink_be)]
+                be_shift = [
+                    source_be.eq(Cat(
+                        sink_d_be[header_leftover:],
+                        Mux(flush, 0, sink_be[:header_leftover]),
+                    ))
                 ]
                 # First payload word ending without payload in its tail: truncated, drop (without
-                # last_be the tail always holds payload).
+                # be the tail always holds payload).
                 from_idle_drop  = [If(sink.last & ~flush_needed, NextState("IDLE"))]
             if with_error:
                 sink_d_error    = Signal.like(sink.error)
                 sink_d_capture += [sink_d_error.eq(sink.error)]
-                self.comb      += source.error.eq(Mux(flush, sink_d_error, sink.error))
+                if with_be and _byte_enable_name(sink) != "last_be" and len(sink.error) == bytes_per_clk:
+                    self.comb += source.error.eq(Cat(
+                        sink_d_error[header_leftover:],
+                        Mux(flush, 0, sink.error[:header_leftover]),
+                    ))
+                else:
+                    self.comb += source.error.eq(Mux(flush, sink_d_error, sink.error))
             self.sync += [
                 If(sink.valid & sink.ready, *sink_d_capture),
                 If(flush & source.ready,    flush.eq(0)),
@@ -514,8 +535,8 @@ class Depacketizer(LiteXModule):
                 source.last.eq(flush | (sink.last & ~flush_needed)),
                 sink.ready.eq(source.ready & ~flush),
                 source.data.eq(sink_d_data[leftover_bits:]),
-                source.data[tail_bits:].eq(sink.data),
-                *last_be_shift,
+                source.data[tail_bits:].eq(Mux(flush, 0, sink.data)),
+                *be_shift,
                 If(fsm_from_idle,
                     # First payload word: header leftover + payload head, nothing to output yet.
                     source.valid.eq(0),

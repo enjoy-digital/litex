@@ -87,3 +87,7 @@ PMA that satisfies its interface, reuse applicable LiteICLink clock/reset/DRP
 helpers, connect them in a PHY wrapper, and put board-specific pad and clock
 selection in the target. Add another PMA only when the existing one cannot
 express the device's gearbox or reset behavior.
+
+Byte-oriented stream interfaces should use the payload mask convention described in
+[stream_byte_enables.md](stream_byte_enables.md). Keep any legacy encoding adapters
+at integration boundaries so reusable datapaths use a single representation.
