@@ -223,6 +223,9 @@ Documentation should be concise and command-oriented. Prefer examples that
 users can run. When documenting maintenance procedures, list preflight checks
 and recovery/resume steps explicitly.
 
+For module boundaries, hardware portability, and device adapters, see
+[architectural_style.md](architectural_style.md).
+
 ## Guidance For AI Agents
 
 Before editing, inspect the local file and a few neighboring LiteX files of the
