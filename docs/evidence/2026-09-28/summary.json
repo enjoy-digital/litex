@@ -1,0 +1,152 @@
+{
+  "date": "2026-09-28",
+  "source": {
+    "litex_commit": "6bd66c63f77e3c32452e8b5f7dbfb50df45ad501",
+    "migen_commit": "4c2ae8dfeea37f235b52acb8166f12acaaae4f7c",
+    "python_source": "uv-managed CPython 3.12.10, local installation, no registry change",
+    "PYTHONUTF8": "1",
+    "common_dependencies": "Pinned to the 2026-09-28 HarmonyOS common-environment snapshot; colorama 0.4.6 added for Migen"
+  },
+  "runs": {
+    "windows": {
+      "status": "PASS",
+      "required_passed": 5,
+      "required_total": 5,
+      "environment": {
+        "platform": "Windows-11-10.0.26200-SP0",
+        "system": "Windows",
+        "release": "11",
+        "machine": "AMD64",
+        "python": "3.12.10 (main, May 30 2025, 05:39:07) [MSC v.1943 64 bit (AMD64)]",
+        "default_encoding": "utf-8",
+        "filesystem_encoding": "utf-8",
+        "litex_version": "2026.4",
+        "migen_version": "0.9.2",
+        "git_branch": "feature/tests-docs",
+        "git_commit": "6bd66c63f77e3c32452e8b5f7dbfb50df45ad501"
+      },
+      "portable_tests": 24,
+      "steps": [
+        {
+          "name": "pip-check",
+          "status": "PASS",
+          "returncode": 0,
+          "duration_seconds": 1.0,
+          "required": true
+        },
+        {
+          "name": "imports",
+          "status": "PASS",
+          "returncode": 0,
+          "duration_seconds": 0.297,
+          "required": true
+        },
+        {
+          "name": "litex-cli-help",
+          "status": "PASS",
+          "returncode": 0,
+          "duration_seconds": 0.203,
+          "required": true
+        },
+        {
+          "name": "litex-sim-help",
+          "status": "OPTIONAL_FAIL",
+          "returncode": 1,
+          "duration_seconds": 1.219,
+          "required": false
+        },
+        {
+          "name": "portable-core-tests",
+          "status": "PASS",
+          "returncode": 0,
+          "duration_seconds": 17.5,
+          "required": true
+        },
+        {
+          "name": "minimal-soc",
+          "status": "PASS",
+          "returncode": 0,
+          "duration_seconds": 1.078,
+          "required": true
+        }
+      ]
+    },
+    "harmonyos": {
+      "status": "PASS",
+      "required_passed": 5,
+      "required_total": 5,
+      "environment": {
+        "platform": "HarmonyOS-HongMeng_Kernel_1.12.0-aarch64-64bit-ELF",
+        "system": "Linux",
+        "release": "HongMeng Kernel 1.12.0",
+        "machine": "aarch64",
+        "python": "3.12.14 (main, Sep 10 2026, 17:12:55) [Clang 15.0.4 (/srv/workspace/llvm-release/2026_0313_llvm15_release/toolchain/ll",
+        "default_encoding": "utf-8",
+        "filesystem_encoding": "utf-8",
+        "litex_version": "2026.4",
+        "migen_version": "0.9.2",
+        "git_branch": "",
+        "git_commit": "6bd66c63f77e3c32452e8b5f7dbfb50df45ad501"
+      },
+      "portable_tests": 24,
+      "steps": [
+        {
+          "name": "pip-check",
+          "status": "PASS",
+          "returncode": 0,
+          "duration_seconds": 0.372,
+          "required": true
+        },
+        {
+          "name": "imports",
+          "status": "PASS",
+          "returncode": 0,
+          "duration_seconds": 0.238,
+          "required": true
+        },
+        {
+          "name": "litex-cli-help",
+          "status": "PASS",
+          "returncode": 0,
+          "duration_seconds": 0.158,
+          "required": true
+        },
+        {
+          "name": "litex-sim-help",
+          "status": "OPTIONAL_FAIL",
+          "returncode": 1,
+          "duration_seconds": 0.811,
+          "required": false
+        },
+        {
+          "name": "portable-core-tests",
+          "status": "PASS",
+          "returncode": 0,
+          "duration_seconds": 31.929,
+          "required": true
+        },
+        {
+          "name": "minimal-soc",
+          "status": "PASS",
+          "returncode": 0,
+          "duration_seconds": 0.933,
+          "required": true
+        }
+      ]
+    }
+  },
+  "comparison_status": "DIFFERENT",
+  "manual_difference_review": {
+    "file": "gateware/minimal_soc.v",
+    "reason": "Windows ASCII versus non-Windows Unicode hierarchy tree in one generated block comment",
+    "source": "litex/gen/fhdl/hierarchy.py:17-24",
+    "node_names_and_tree_structure_equal": true,
+    "all_remaining_text_equal_after_documented_timestamp_and_line_ending_rules": true,
+    "team_exception_confirmation": "pending"
+  },
+  "tool_tests": {
+    "test_module": "test.test_compare_baseline",
+    "tests": 8,
+    "result": "PASS"
+  }
+}

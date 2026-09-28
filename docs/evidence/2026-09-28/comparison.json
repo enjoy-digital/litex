@@ -1,0 +1,61 @@
+{
+  "status": "DIFFERENT",
+  "reference": "build\\acceptance-windows-20260928\\minimal-soc",
+  "candidate": "build\\acceptance-harmonyos-20260928\\acceptance\\minimal-soc",
+  "excluded": [
+    "baseline-summary.json",
+    "litex.log"
+  ],
+  "files": [
+    {
+      "path": "csr.csv",
+      "reference_sha256": "aa62c30c3d5a54022cc3f22334219dd5df8741b5a03c1bdb49db2942958e7a4b",
+      "candidate_sha256": "eeb225fb8dba3a6231cbcf706239c0a858bff06c55ad9996fcbb4b42fff19de7",
+      "status": "NORMALIZED_EQUAL"
+    },
+    {
+      "path": "csr.json",
+      "reference_sha256": "71a922c4350c79dcad2aa4a1b23e6fad9a1d893ed8a13f301e96dbfafe16cab0",
+      "candidate_sha256": "9c70bff4cacfccf0acd723d1f707f719fba87dcbd11606ea2219a62755c58a40",
+      "status": "NORMALIZED_EQUAL"
+    },
+    {
+      "path": "gateware/minimal_soc.v",
+      "reference_sha256": "f7602c925e142ab1217b77dbdfa6bad4e53486569349918ff219a1900654466f",
+      "candidate_sha256": "74d601b720068a23deac905ed168ab64db6607d4bedc7db9bcbfaa4fb41ad4cb",
+      "status": "DIFFERENT",
+      "diff": "--- reference/gateware/minimal_soc.v\n+++ candidate/gateware/minimal_soc.v\n@@ -31,34 +31,34 @@\n \n /*\n MinimalSoC\n-|-- bus (SoCBusHandler)\n-|-- csr (SoCCSRHandler)\n-|-- irq (SoCIRQHandler)\n-|-- ctrl (SoCController)\n-|-- cpu (CPUNone)\n-|-- identifier (Identifier)\n-|-- timer0 (Timer)\n-|    `-- ev (EventManager)\n-|         `-- eventsourceprocess_0 (EventSourceProcess) [Gen]\n-|-- crg (CRG)\n-|-- csr_bridge (Wishbone2CSR)\n-|    `-- fsm (FSM)\n-|-- csr_bankarray (CSRBankArray)\n-|    |-- csrbank_0 (CSRBank) [Gen]\n-|    |    |-- csrstorage_0 (CSRStorage) [Gen]\n-|    |    |-- csrstorage_1 (CSRStorage) [Gen]\n-|    |    `-- csrstatus_0 (CSRStatus) [Gen]\n-|    |-- sram_0 (SRAM) [Gen]\n-|    `-- csrbank_1 (CSRBank) [Gen]\n-|         |-- csrstorage_0 (CSRStorage) [Gen]\n-|         |-- csrstorage_1 (CSRStorage) [Gen]\n-|         |-- csrstorage_2 (CSRStorage) [Gen]\n-|         |-- csrstorage_3 (CSRStorage) [Gen]\n-|         |-- csrstatus_0 (CSRStatus) [Gen]\n-|         |-- csrstatus_1 (CSRStatus) [Gen]\n-|         |-- csrstatus_2 (CSRStatus) [Gen]\n-|         `-- csrstorage_4 (CSRStorage) [Gen]\n-`-- csr_interconnect (InterconnectShared)\n+├── bus (SoCBusHandler)\n+├── csr (SoCCSRHandler)\n+├── irq (SoCIRQHandler)\n+├── ctrl (SoCController)\n+├── cpu (CPUNone)\n+├── identifier (Identifier)\n+├── timer0 (Timer)\n+│    └── ev (EventManager)\n+│         └── eventsourceprocess_0 (EventSourceProcess) [Gen]\n+├── crg (CRG)\n+├── csr_bridge (Wishbone2CSR)\n+│    └── fsm (FSM)\n+├── csr_bankarray (CSRBankArray)\n+│    ├── csrbank_0 (CSRBank) [Gen]\n+│    │    ├── csrstorage_0 (CSRStorage) [Gen]\n+│    │    ├── csrstorage_1 (CSRStorage) [Gen]\n+│    │    └── csrstatus_0 (CSRStatus) [Gen]\n+│    ├── sram_0 (SRAM) [Gen]\n+│    └── csrbank_1 (CSRBank) [Gen]\n+│         ├── csrstorage_0 (CSRStorage) [Gen]\n+│         ├── csrstorage_1 (CSRStorage) [Gen]\n+│         ├── csrstorage_2 (CSRStorage) [Gen]\n+│         ├── csrstorage_3 (CSRStorage) [Gen]\n+│         ├── csrstatus_0 (CSRStatus) [Gen]\n+│         ├── csrstatus_1 (CSRStatus) [Gen]\n+│         ├── csrstatus_2 (CSRStatus) [Gen]\n+│         └── csrstorage_4 (CSRStorage) [Gen]\n+└── csr_interconnect (InterconnectShared)\n Legend:\n   [Gen]: Auto-generated instance name.\n   [BB:NAME]: Blackbox instance (verilog Instance).\n"
+    },
+    {
+      "path": "gateware/minimal_soc_mem.init",
+      "reference_sha256": "fd64866669d92a19efb85b6e6585c05913cf955880dae989961e41b6bbf3a51e",
+      "candidate_sha256": "7f78d197eeb021d4cc51516fe765b6553e5a4992c41caaffe6f83aefc778251e",
+      "status": "NORMALIZED_EQUAL"
+    },
+    {
+      "path": "software/include/generated/csr.h",
+      "reference_sha256": "d4959c94870895e0e87faa1c9a6055a77717fc530cca1449e27835fba64ba86d",
+      "candidate_sha256": "c0fa66fc6007cae8219439fd2633e3b68fa8fb1af852001224c717409b6fc9b5",
+      "status": "NORMALIZED_EQUAL"
+    },
+    {
+      "path": "software/include/generated/git.h",
+      "reference_sha256": "33a10563d32bc3558d68311673aa0223c42fa280c07e81ce6168b1c10733e3c9",
+      "candidate_sha256": "447dbe02db5186b5375081bf7579bf331133e36c9c639f446063656f7f8cec38",
+      "status": "NORMALIZED_EQUAL"
+    },
+    {
+      "path": "software/include/generated/mem.h",
+      "reference_sha256": "c052d0482b74966ae3f139f9d4b6015e230dadab8b3ead1616c56c84e6c694a1",
+      "candidate_sha256": "27589b80dd080e39eb85206947f833d7c6a09265df27c0a4b8a1a4d64bd1ae29",
+      "status": "NORMALIZED_EQUAL"
+    },
+    {
+      "path": "software/include/generated/soc.h",
+      "reference_sha256": "69f9e00f291a2e2472cf118c621a27330b7189b224b3e0c3f4e076b6aa1b7110",
+      "candidate_sha256": "d8b426458aa835daea437a3b96671d6c0cb4255b662099a3328f52494accb4ec",
+      "status": "NORMALIZED_EQUAL"
+    }
+  ],
+  "errors": []
+}
