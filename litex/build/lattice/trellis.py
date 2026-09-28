@@ -172,7 +172,8 @@ def trellis_args(parser):
     toolchain_group.add_argument("--ecppack-spimode",      default=None,        help="Set slave SPI programming mode.")
     toolchain_group.add_argument("--ecppack-freq",         default=None,        help="Set SPI MCLK frequency.")
     toolchain_group.add_argument("--ecppack-idcode",       default=None,        help="IDCODE to override in bitstream.")
-    toolchain_group.add_argument("--ecppack-compress",     action="store_true", help="Use Bitstream compression.")
+    toolchain_group.add_argument("--ecppack-compress",     action="store_true", default=True, help="Use Bitstream compression (default).")
+    toolchain_group.add_argument("--no-ecppack-compress",  action="store_false", dest="ecppack_compress", help="Disable Bitstream compression.")
 
 def trellis_argdict(args):
     return {
