@@ -61,6 +61,18 @@ class _UTMIDeviceTest(USBDeviceTest):
                 self.received.append((yield self.dut.rx.payload))
             yield
 
+    def data_endpoints(self):
+        """(address, max packet size) of the endpoints of the configuration descriptor."""
+        handshake, data = yield from self.get_descriptor(0x02, length=255)
+        self.assertEqual(handshake, USBPacketID.ACK)
+        endpoints = []
+        i = 0
+        while i < len(data):
+            if data[i + 1] == 0x05: # Endpoint descriptor.
+                endpoints.append((data[i + 2], data[i + 4] | (data[i + 5] << 8)))
+            i += data[i]
+        return endpoints
+
     def chirp_cycle(self, cycles):
         """Cycle of the first High-Speed chirp (op_mode = chirp while transmitting), None if none."""
         for cycle in range(cycles):
@@ -82,14 +94,7 @@ class TestLunaCDCACMUTMI(_UTMIDeviceTest):
     @usb_domain_test_case
     def test_bulk_512_bytes_endpoints(self):
         # Configuration descriptor: data endpoints with 512-byte max packets (High-Speed bulk).
-        handshake, data = yield from self.get_descriptor(0x02, length=255)
-        self.assertEqual(handshake, USBPacketID.ACK)
-        endpoints = []
-        i = 0
-        while i < len(data):
-            if data[i + 1] == 0x05: # Endpoint descriptor.
-                endpoints.append((data[i + 2], data[i + 4] | (data[i + 5] << 8)))
-            i += data[i]
+        endpoints = yield from self.data_endpoints()
         self.assertIn((0x80 | DATA_ENDPOINT, 512), endpoints)
         self.assertIn((DATA_ENDPOINT,        512), endpoints)
 
@@ -129,6 +134,36 @@ class TestLunaCDCACMUTMIHighSpeed(_UTMIDeviceTest):
     def test_high_speed_chirp(self):
         # High-Speed capable: chirp K after the bus reset.
         self.assertIsNotNone((yield from self.chirp_cycle(20000)))
+
+class TestLunaCDCACMUTMIFullSpeed(_UTMIDeviceTest):
+    FRAGMENT_ARGUMENTS = dict(idVendor=VID, idProduct=PID, max_packet_size=64, high_speed=False)
+
+    @usb_domain_test_case
+    def test_bulk_64_bytes_endpoints(self):
+        # Full-Speed only: data endpoints with 64-byte max packets (Full-Speed bulk).
+        endpoints = yield from self.data_endpoints()
+        self.assertIn((0x80 | DATA_ENDPOINT, 64), endpoints)
+        self.assertIn((DATA_ENDPOINT,        64), endpoints)
+
+    @usb_domain_test_case
+    def test_bulk_out(self):
+        yield from self.set_configuration(1)
+        handshake = yield from self.out_transaction(0x12, 0x34,
+            endpoint = DATA_ENDPOINT,
+            data_pid = USBPacketID.DATA0,
+        )
+        self.assertEqual(handshake, USBPacketID.ACK)
+        yield from self.advance_cycles(100)
+        self.assertEqual(self.received, [0x12, 0x34])
+
+class TestLunaCDCACMUTMIFullSpeedNoChirp(_UTMIDeviceTest):
+    FRAGMENT_ARGUMENTS = dict(idVendor=VID, idProduct=PID, max_packet_size=64, high_speed=False)
+    LINE_STATE         = LINE_STATE_SE0 # Bus reset.
+
+    @usb_domain_test_case
+    def test_no_chirp(self):
+        # Full-Speed only: no chirp after the bus reset.
+        self.assertIsNone((yield from self.chirp_cycle(20000)))
 
 class TestLunaFullSpeedUTMIReference(_UTMIDeviceTest):
     FRAGMENT_UNDER_TEST = USBSerialDevice
