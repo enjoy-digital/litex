@@ -313,6 +313,28 @@ class Gw5ASerDesOutput:
     def lower(dr):
         return Gw5AOSER(dr.i, dr.o, pclk=dr.clk, fclk=dr.clk_fast, reset=dr.rst)
 
+class Gw5ASerDesTristateImpl(LiteXModule):
+    def __init__(self, io, o, oe, i, clk, clk_fast, rst):
+        _o    = Signal()
+        _oe_n = Signal()
+        _i    = Signal()
+        self.oser = Gw5AOSER(o, _o, pclk=clk, fclk=clk_fast, reset=rst, t=~oe, q_t=_oe_n)
+        self.specials += Instance("IOBUF", name="gw5a_serdes_iobuf",
+            io_IO = io,
+            o_O   = _i,
+            i_I   = _o,
+            i_OEN = _oe_n,
+        )
+        if i is not None:
+            self.ides = Gw5AIDES(_i, i, pclk=clk, fclk=clk_fast, reset=rst)
+
+class Gw5ASerDesTristate:
+    """Output serializer (with its tristate path) and input deserializer on an IOBUF (OSER4/OSER8,
+    IDES4/IDES8)."""
+    @staticmethod
+    def lower(dr):
+        return Gw5ASerDesTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk, dr.clk_fast, dr.rst)
+
 # Gw5A Differential Tristate -----------------------------------------------------------------------
 
 class Gw5ADifferentialTristateImpl(Module):
@@ -337,6 +359,7 @@ gw5a_special_overrides = {
     DifferentialTristate: Gw5ADifferentialTristate,
     SerDesInput:          Gw5ASerDesInput,
     SerDesOutput:         Gw5ASerDesOutput,
+    SerDesTristate:       Gw5ASerDesTristate,
     SDRTristate:          Gw5ASDRTristate,
     SDROutput:            Gw5ASDROutput,
     SDRInput:             Gw5ASDRInput,

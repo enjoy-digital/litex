@@ -305,6 +305,42 @@ class SerDesOutput(Special):
     def lower(dr):
         raise NotImplementedError("Attempted to use a SerDes output, but platform does not support them")
 
+
+class SerDesTristate(Special):
+    """1:N serializer/N:1 deserializer on a bidirectional pad: ``o`` (N bits, ``o[0]`` sent
+    first) is sent on ``io`` when ``oe`` (per parallel word) is set, ``i`` (N bits, ``i[0]``
+    received first) receives ``io``. ``clk`` is the parallel clock, ``clk_fast`` the serial clock
+    (DDR: N/2 x ``clk``)."""
+    def __init__(self, io, o, oe, i, clk, clk_fast, rst=0):
+        Special.__init__(self)
+        self.io       = wrap(io)
+        self.o        = wrap(o)
+        self.oe       = wrap(oe)
+        self.i        = wrap(i) if i is not None else None
+        self.clk      = wrap(clk)
+        self.clk_fast = wrap(clk_fast)
+        self.rst      = wrap(rst)
+        if len(self.io) != 1:
+            raise ValueError(f"{self.__class__.__name__} only supports a single-bit pad")
+        if len(self.oe) != 1:
+            raise ValueError(f"{self.__class__.__name__} only supports a single-bit output enable")
+        if (self.i is not None) and (len(self.i) != len(self.o)):
+            raise ValueError(f"{self.__class__.__name__} requires matching i/o widths")
+
+    def iter_expressions(self):
+        yield self, "io"      , SPECIAL_INOUT
+        yield self, "o"       , SPECIAL_INPUT
+        yield self, "oe"      , SPECIAL_INPUT
+        if self.i is not None:
+            yield self, "i"   , SPECIAL_OUTPUT
+        yield self, "clk"     , SPECIAL_INPUT
+        yield self, "clk_fast", SPECIAL_INPUT
+        yield self, "rst"     , SPECIAL_INPUT
+
+    @staticmethod
+    def lower(dr):
+        raise NotImplementedError("Attempted to use a SerDes tristate, but platform does not support them")
+
 # DDR Tristate -------------------------------------------------------------------------------------
 
 class InferredDDRTristate(Module):
