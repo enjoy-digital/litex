@@ -221,30 +221,43 @@ class WishboneDMAWriter(LiteXModule):
     sink : Record("address", "data")
         Sink for MMAP addresses/datas to be written.
     """
-    def __init__(self, bus, endianness="little", with_csr=False, bursting=None, with_byteswap=None):
+    def __init__(self, bus, endianness="little", with_csr=False, bursting=None, with_byteswap=None, with_be=False):
         """Create a Wishbone DMA writer.
 
         ``endianness`` preserves the legacy behavior: ``"little"`` byte-swaps stream words before
         writing them to Wishbone, while ``"big"`` leaves them unchanged. Raw word users can set
         ``with_byteswap=False`` explicitly to keep the stream word order independent of CPU
         endianness.
+
+        With ``with_be=True``, ``sink.be`` selects each written byte on every beat, including
+        sparse and zero masks. The mask is reversed with the data when byte swapping is enabled.
+        A zero-mask beat still completes a bus transaction. The optional controller retains its
+        word-aligned base and length contract; masks select bytes within those addressed words.
         """
         if not isinstance(bus, wishbone.Interface):
             raise TypeError("DMAWriter requires a Wishbone bus.")
         if "w" not in bus.mode:
             raise ValueError("DMAWriter requires a writable Wishbone bus.")
-        self.bus  = bus
-        self.sink = sink = stream.Endpoint([("address", bus.adr_width), ("data", bus.data_width)])
+        self.bus     = bus
+        self.with_be = with_be
+        payload_layout = [("address", bus.adr_width), ("data", bus.data_width)]
+        if with_be:
+            payload_layout += [("be", bus.data_width//8)]
+        self.sink = sink = stream.Endpoint(payload_layout)
 
         # # #
 
+        # Byte enables follow the same lane ordering as data, including optional byte swapping.
+        if with_byteswap is None:
+            with_byteswap = {"big": False, "little": True}.get(endianness, False)
+        be = (sink.be[::-1] if with_byteswap else sink.be) if with_be else (1 << (bus.data_width//8)) - 1
+
         # Writes.
-        data = Signal(bus.data_width)
         self.comb += [
             bus.stb.eq(sink.valid),
             bus.cyc.eq(sink.valid),
             bus.we.eq(1),
-            bus.sel.eq(2**(bus.data_width//8)-1),
+            bus.sel.eq(be),
             bus.adr.eq(sink.address),
             bus.dat_w.eq(format_bytes(sink.data, endianness, with_byteswap)),
             sink.ready.eq(bus.ack),
@@ -268,7 +281,10 @@ class WishboneDMAWriter(LiteXModule):
         ``ready_on_idle`` retains the optional discard behavior while the controller is idle.
         """
         self._sink = self.sink
-        self.sink  = stream.Endpoint([("data", self.bus.data_width)])
+        payload_layout = [("data", self.bus.data_width)]
+        if self.with_be:
+            payload_layout += [("be", self.bus.data_width//8)]
+        self.sink = stream.Endpoint(payload_layout)
 
         self.base   = Signal(64, reset=default_base)
         self.length = Signal(32, reset=default_length)
@@ -289,6 +305,9 @@ class WishboneDMAWriter(LiteXModule):
         unaligned = (self.base[:shift] != 0) | (self.length[:shift] != 0) if shift else 0
 
         self.comb += self.offset.eq(offset)
+
+        if self.with_be:
+            self.comb += self._sink.be.eq(self.sink.be)
 
         self.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
         self.comb += fsm.reset.eq(~self.enable)
