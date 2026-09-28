@@ -11,7 +11,7 @@ endpoints in the ``sys`` domain:
 
 Data is transferred through CDC shims between ``sys`` and:
 - ``usb_12`` for raw USB full-speed D+/D- pads.
-- ``usb`` for ULPI pads.
+- ``usb`` for ULPI pads or a UTMI PHY.
 
 Clock requirements depend on the selected bus type:
 - Raw USB full-speed mode:
@@ -30,6 +30,9 @@ Clock requirements depend on the selected bus type:
   - With ``clk`` or ``clk_n``, LUNA drives ``ClockSignal("usb")`` from the
     ULPI PHY clock.
   - With ``clk_o``, LUNA consumes ``ClockSignal("usb")``, which must be driven by the SoC.
+- UTMI mode (8-bit, 60 MHz UTMI PHY, ex: a soft USB 2.0 PHY):
+  - ``usb`` must be provided by the SoC: UTMI clock (60 MHz) and reset.
+  - the device runs at High-Speed (Full-Speed fallback), 512-byte bulk packets.
 """
 
 import os
@@ -50,6 +53,37 @@ from amaranth.hdl.rec import DIR_FANIN, DIR_FANOUT
 
 import luna.full_devices
 
+from luna.gateware.interface.utmi import UTMIInterface
+
+# UTMI Layout --------------------------------------------------------------------------------------
+
+# UTMI signals (LUNA names), direction from the PHY: "i" (PHY -> LUNA) / "o" (LUNA -> PHY).
+utmi_layout = [
+    ("rx_data",     8, "i"),
+    ("rx_valid",    1, "i"),
+    ("rx_active",   1, "i"),
+    ("rx_error",    1, "i"),
+    ("line_state",  2, "i"),
+    ("tx_data",     8, "o"),
+    ("tx_valid",    1, "o"),
+    ("tx_ready",    1, "i"),
+    ("op_mode",     2, "o"),
+    ("xcvr_select", 2, "o"),
+    ("term_select", 1, "o"),
+]
+
+# LUNA High-Speed UTMI Serial Device ---------------------------------------------------------------
+
+class _USBSerialDeviceUTMI(luna.full_devices.USBSerialDevice):
+    """LUNA USBSerialDevice on a UTMI PHY: High-Speed capable (LUNA uses a raw UTMI bus at Full-Speed
+    only, with a 12 MHz data clock)."""
+    def elaborate(self, platform):
+        m   = super().elaborate(platform)
+        usb = m.submodules.usb
+        usb.always_fs  = False
+        usb.data_clock = 60e6
+        return m
+
 # LunaCDCACM ---------------------------------------------------------------------------------------
 
 class LunaCDCACM(LiteXModule):
@@ -62,6 +96,8 @@ class LunaCDCACM(LiteXModule):
             - ULPI: ``data``, ``stp``, ``nxt``, ``dir`` and clock
               (``clk`` input, ``clk_n`` inverted input, or ``clk_o`` output),
               with optional ``rst``/``rst_n``.
+            - UTMI: UTMI PHY interface with the ``utmi_layout`` signals (``rx_data``,
+              ``rx_active``, ``tx_ready``, ...).
         vid: USB vendor ID (default: ``0x1209``).
         pid: USB product ID (default: ``0x0001``).
 
@@ -82,6 +118,7 @@ class LunaCDCACM(LiteXModule):
           - with ``clk_n``: LUNA drives ``usb`` from the inverted ULPI PHY
             clock input by internally using ``~clk_n``.
           - with ``clk_o``: LUNA consumes ``usb`` clock provided by the SoC.
+        - UTMI mode: ``usb`` (60 MHz UTMI clock, reset) provided by the SoC.
 
     Notes:
         In raw USB full-speed mode, ``usb_12`` and ``usb_48`` are consumed by
@@ -101,15 +138,16 @@ class LunaCDCACM(LiteXModule):
         self.connect = Signal()
 
         assert pads is not None
-        assert hasattr(pads, "d_p") or hasattr(pads, "data")
+        assert hasattr(pads, "d_p") or hasattr(pads, "data") or hasattr(pads, "rx_active")
 
         # # #
 
         self.platform    = platform
         self.core_params = {}
         self.cd_list     = ["usb"]
-        is_ulpi          = hasattr(pads, "data") # ULPI or IO
-        cd_sync          = {True: "usb", False: "usb_12"}[is_ulpi]
+        is_ulpi          = hasattr(pads, "data")      # ULPI.
+        is_utmi          = hasattr(pads, "rx_active") # UTMI.
+        cd_sync          = {True: "usb", False: "usb_12"}[is_ulpi or is_utmi]
 
         # CDC ACM clock domain converter -----------------------------------------------------------
         self.tx_cdc = tx_cdc = stream.ClockDomainCrossing([("data", 8)],
@@ -177,6 +215,11 @@ class LunaCDCACM(LiteXModule):
                 self.comb += pads.rst.eq(ulpi_rst)
             elif hasattr(pads, 'rst_n'):
                 self.comb += pads.rst_n.eq(~(ulpi_rst))
+        elif is_utmi:
+            self.core_params.update({
+                "i_usb_clk" : ClockSignal("usb"),
+                "i_usb_rst" : ResetSignal("usb"),
+            })
         else:
             self.core_params.update({
                 "i_usb_clk"    : ClockSignal("usb_12"),
@@ -191,7 +234,7 @@ class LunaCDCACM(LiteXModule):
             ulpi_data = TSTriple(8)
             self.specials += ulpi_data.get_tristate(pads.data)
 
-            ulpi = aRecord([
+            bus = aRecord([
                 ('data', [('i', 8, DIR_FANIN), ('o', 8, DIR_FANOUT), ('oe', 1, DIR_FANOUT)]),
                 ('clk',  [('i', 1, DIR_FANIN)] if is_clk_in else [('o', 1, DIR_FANOUT)]),
                 ('stp',  [('o', 1, DIR_FANOUT)]),
@@ -208,6 +251,10 @@ class LunaCDCACM(LiteXModule):
                 "i__bus_nxt_i"   : pads.nxt,
                 "i__bus_dir_i"   : pads.dir,
             })
+        elif is_utmi:
+            bus = UTMIInterface()
+            for name, _, direction in utmi_layout:
+                self.core_params[f"{direction}__bus_{name}"] = getattr(pads, name)
         else:
             ulpi_d_p = TSTriple()
             ulpi_d_n = TSTriple()
@@ -216,7 +263,7 @@ class LunaCDCACM(LiteXModule):
                 ulpi_d_n.get_tristate(pads.d_n),
             ]
 
-            ulpi = aRecord([
+            bus = aRecord([
                 ('d_p',    [('i', 1, DIR_FANIN), ('o', 1, DIR_FANOUT), ('oe', 1, DIR_FANOUT)]),
                 ('d_n',    [('i', 1, DIR_FANIN), ('o', 1, DIR_FANOUT), ('oe', 1, DIR_FANOUT)]),
                 ("pullup", [('o', 1, DIR_FANOUT)]),
@@ -258,10 +305,17 @@ class LunaCDCACM(LiteXModule):
 
         # LUNA USB CDC-ACM -------------------------------------------------------------------------
 
-        self.usb = usb = luna.full_devices.USBSerialDevice(bus=ulpi,
-            idVendor  = vid,
-            idProduct = pid,
-        )
+        if is_utmi:
+            self.usb = usb = _USBSerialDeviceUTMI(bus=bus,
+                idVendor        = vid,
+                idProduct       = pid,
+                max_packet_size = 512,
+            )
+        else:
+            self.usb = usb = luna.full_devices.USBSerialDevice(bus=bus,
+                idVendor  = vid,
+                idProduct = pid,
+            )
 
     def do_finalize(self):
         # Check packages versions
