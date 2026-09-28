@@ -1,6 +1,6 @@
 # 鸿蒙 PC 核心验证与复现
 
-2026-09-28：4 号在 Windows 与鸿蒙 PC 原生 HiShell 中分别运行了现有 `scripts/run_acceptance.py`，两端均为 5/5 必达步骤通过、24/24 核心测试通过。详细结果见 [移植报告](../PORTING_REPORT.md) 和 [证据摘要](evidence/2026-09-28/summary.json)。
+2026-09-28：4 号在 Windows 与鸿蒙 PC 原生 HiShell 中分别运行了现有 `scripts/run_acceptance.py`，两端均为 5/5 必达步骤通过、24/24 核心测试通过。详细结果见 [移植报告](../PORTING_REPORT.md) 和 [证据摘要](evidence/2026-09-28/summary.json)；交接时可使用 [五分钟演示流程及组长确认清单](week1-demo.md)。
 
 ## 固定输入
 
