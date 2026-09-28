@@ -216,11 +216,129 @@ class Gw5ASDRTristate:
     def lower(dr):
         return Gw5ASDRTristateImpl(dr.io, dr.o, dr.oe, dr.i, dr.clk)
 
+# Gw5A SerDes --------------------------------------------------------------------------------------
+
+# Note: Instances are named explicitly: GowinSynthesis can silently mis-synthesize designs with an
+# instance named as its primitive (ex: "OSER4 OSER4(...)").
+
+class Gw5AOSER(LiteXModule):
+    """GW5A output serializer (OSER4/OSER8/OSER10/OSER16).
+
+    Serializes ``d`` (``len(d)`` in 4/8/10/16, ``d[0]`` sent first) on ``q``: ``pclk`` is the
+    parallel clock, ``fclk`` the fast clock (``len(d)//2`` x ``pclk``, DDR). OSER4/OSER8 also have an
+    optional tristate path: ``t`` (1: high-impedance, sampled on ``pclk``) is serialized to ``q_t``
+    (to drive the ``OEN`` of an ``IOBUF``). OSER10/OSER16 use both IOs of the pad pair (the other IO
+    of the pair can't be used).
+    """
+    def __init__(self, d, q, pclk, fclk, reset=0, t=None, q_t=None):
+        ratio = len(d)
+        if ratio not in [4, 8, 10, 16]:
+            raise ValueError(f"Unsupported OSER ratio {ratio} (4, 8, 10, 16).")
+        if (t is not None or q_t is not None) and ratio not in [4, 8]:
+            raise ValueError(f"OSER{ratio} has no tristate path (OSER4/OSER8 only).")
+
+        # # #
+
+        params = dict(
+            i_PCLK  = pclk,
+            i_FCLK  = fclk,
+            i_RESET = reset,
+            **{f"i_D{n}" : d[n] for n in range(ratio)},
+        )
+        if ratio in [4, 8]:
+            t = 0 if t is None else t
+            params.update(
+                p_HWL       = "false",
+                p_TXCLK_POL = 0,
+                o_Q0        = q,
+                o_Q1        = Signal() if q_t is None else q_t,
+                **{f"i_TX{n}" : t for n in range(ratio//2)},
+            )
+        else:
+            params.update(o_Q=q)
+        self.specials += Instance(f"OSER{ratio}", name=f"gw5a_oser{ratio}", **params)
+
+class Gw5AIDES(LiteXModule):
+    """GW5A input deserializer (IDES4/IDES8/IDES10/IDES16).
+
+    Deserializes ``d`` on ``q`` (``len(q)`` in 4/8/10/16, ``q[0]`` received first): ``pclk`` is the
+    parallel clock, ``fclk`` the fast clock (``len(q)//2`` x ``pclk``, DDR). A ``calib`` pulse shifts
+    the word alignment by one bit.
+    """
+    def __init__(self, d, q, pclk, fclk, reset=0, calib=0):
+        ratio = len(q)
+        if ratio not in [4, 8, 10, 16]:
+            raise ValueError(f"Unsupported IDES ratio {ratio} (4, 8, 10, 16).")
+
+        # # #
+
+        self.specials += Instance(f"IDES{ratio}", name=f"gw5a_ides{ratio}",
+            i_D     = d,
+            i_PCLK  = pclk,
+            i_FCLK  = fclk,
+            i_CALIB = calib,
+            i_RESET = reset,
+            **{f"o_Q{n}" : q[n] for n in range(ratio)},
+        )
+
+# Gw5A IODelay -------------------------------------------------------------------------------------
+
+class Gw5AIODELAY(LiteXModule):
+    """GW5A input/output delay (IODELAY), static ``delay`` taps (0-255)."""
+    def __init__(self, i, o, delay=0):
+        if not (0 <= delay <= 255):
+            raise ValueError(f"Unsupported IODELAY delay {delay} (0-255 taps).")
+
+        # # #
+
+        self.specials += Instance("IODELAY", name="gw5a_iodelay",
+            p_C_STATIC_DLY = delay,
+            i_DI           = i,
+            i_SDTAP        = 0,
+            i_DLYSTEP      = Constant(0, 8),
+            i_VALUE        = 0,
+            o_DO           = o,
+            o_DF           = Signal(),
+        )
+
+# Gw5A SerDes Input/Output (Special Overrides) -----------------------------------------------------
+
+class Gw5ASerDesInput:
+    @staticmethod
+    def lower(dr):
+        return Gw5AIDES(dr.i, dr.o, pclk=dr.clk, fclk=dr.clk_fast, reset=dr.rst)
+
+class Gw5ASerDesOutput:
+    @staticmethod
+    def lower(dr):
+        return Gw5AOSER(dr.i, dr.o, pclk=dr.clk, fclk=dr.clk_fast, reset=dr.rst)
+
+# Gw5A Differential Tristate -----------------------------------------------------------------------
+
+class Gw5ADifferentialTristateImpl(Module):
+    def __init__(self, io_p, io_n, o, oe, i):
+        self.specials += Instance("ELVDS_IOBUF", name="gw5a_elvds_iobuf",
+            i_I    = o,
+            i_OEN  = ~oe,
+            o_O    = Signal() if i is None else i,
+            io_IO  = io_p,
+            io_IOB = io_n,
+        )
+
+class Gw5ADifferentialTristate:
+    """Emulated LVDS bidirectional buffer (ELVDS_IOBUF)."""
+    @staticmethod
+    def lower(dr):
+        return Gw5ADifferentialTristateImpl(dr.io_p, dr.io_n, dr.o, dr.oe, dr.i)
+
 # Gw5A Special Overrides ---------------------------------------------------------------------------
 
 gw5a_special_overrides = {
-    SDRTristate: Gw5ASDRTristate,
-    SDROutput:   Gw5ASDROutput,
-    SDRInput:    Gw5ASDRInput,
-    Tristate:    Gw5ATristate,
+    DifferentialTristate: Gw5ADifferentialTristate,
+    SerDesInput:          Gw5ASerDesInput,
+    SerDesOutput:         Gw5ASerDesOutput,
+    SDRTristate:          Gw5ASDRTristate,
+    SDROutput:            Gw5ASDROutput,
+    SDRInput:             Gw5ASDRInput,
+    Tristate:             Gw5ATristate,
 }

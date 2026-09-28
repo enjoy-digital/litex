@@ -57,6 +57,32 @@ class DifferentialOutput(Special):
     def lower(dr):
         raise NotImplementedError("Attempted to use a Differential Output, but platform does not support them")
 
+# Differential Tristate ----------------------------------------------------------------------------
+
+class DifferentialTristate(Special):
+    def __init__(self, io_p, io_n, o, oe, i=None):
+        Special.__init__(self)
+        self.io_p = wrap(io_p)
+        self.io_n = wrap(io_n)
+        self.o    = wrap(o)
+        self.oe   = wrap(oe)
+        self.i    = wrap(i) if i is not None else None
+        _check_widths(self.__class__.__name__, io_p=self.io_p, io_n=self.io_n, o=self.o, i=self.i)
+        if len(self.o) != 1:
+            raise ValueError(f"{self.__class__.__name__} only supports single-bit signals")
+
+    def iter_expressions(self):
+        yield self, "io_p", SPECIAL_INOUT
+        yield self, "io_n", SPECIAL_INOUT
+        yield self, "o"   , SPECIAL_INPUT
+        yield self, "oe"  , SPECIAL_INPUT
+        if self.i is not None:
+            yield self, "i", SPECIAL_OUTPUT
+
+    @staticmethod
+    def lower(dr):
+        raise NotImplementedError("Attempted to use a Differential Tristate, but platform does not support them")
+
 # Clk Input/Output ---------------------------------------------------------------------------------
 
 class ClkInput(Special):
@@ -227,6 +253,57 @@ class DDROutput(Special):
     @staticmethod
     def lower(dr):
         raise NotImplementedError("Attempted to use a DDR output, but platform does not support them")
+
+# SerDes Input/Output ------------------------------------------------------------------------------
+
+class SerDesInput(Special):
+    """N:1 deserializer: ``i`` (serial) -> ``o`` (N bits, ``o[0]`` received first). ``clk`` is the
+    parallel clock, ``clk_fast`` the serial clock (DDR: N/2 x ``clk``)."""
+    def __init__(self, i, o, clk, clk_fast, rst=0):
+        Special.__init__(self)
+        self.i        = wrap(i)
+        self.o        = wrap(o)
+        self.clk      = wrap(clk)
+        self.clk_fast = wrap(clk_fast)
+        self.rst      = wrap(rst)
+        if len(self.i) != 1:
+            raise ValueError(f"{self.__class__.__name__} only supports a single-bit serial input")
+
+    def iter_expressions(self):
+        yield self, "i"       , SPECIAL_INPUT
+        yield self, "o"       , SPECIAL_OUTPUT
+        yield self, "clk"     , SPECIAL_INPUT
+        yield self, "clk_fast", SPECIAL_INPUT
+        yield self, "rst"     , SPECIAL_INPUT
+
+    @staticmethod
+    def lower(dr):
+        raise NotImplementedError("Attempted to use a SerDes input, but platform does not support them")
+
+
+class SerDesOutput(Special):
+    """1:N serializer: ``i`` (N bits, ``i[0]`` sent first) -> ``o`` (serial). ``clk`` is the parallel
+    clock, ``clk_fast`` the serial clock (DDR: N/2 x ``clk``)."""
+    def __init__(self, i, o, clk, clk_fast, rst=0):
+        Special.__init__(self)
+        self.i        = wrap(i)
+        self.o        = wrap(o)
+        self.clk      = wrap(clk)
+        self.clk_fast = wrap(clk_fast)
+        self.rst      = wrap(rst)
+        if len(self.o) != 1:
+            raise ValueError(f"{self.__class__.__name__} only supports a single-bit serial output")
+
+    def iter_expressions(self):
+        yield self, "i"       , SPECIAL_INPUT
+        yield self, "o"       , SPECIAL_OUTPUT
+        yield self, "clk"     , SPECIAL_INPUT
+        yield self, "clk_fast", SPECIAL_INPUT
+        yield self, "rst"     , SPECIAL_INPUT
+
+    @staticmethod
+    def lower(dr):
+        raise NotImplementedError("Attempted to use a SerDes output, but platform does not support them")
 
 # DDR Tristate -------------------------------------------------------------------------------------
 
