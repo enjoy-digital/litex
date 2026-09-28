@@ -32,6 +32,7 @@ class GW5APLL(LiteXModule):
         self.vcxo_freq  = None
         self.nclkouts   = 0
         self.clkouts    = {}
+        self.clkout_cds = {}
         self.config     = {}
         self.params     = {}
         self.dpa_clkout = None
@@ -70,8 +71,9 @@ class GW5APLL(LiteXModule):
 
     def register_clkin(self, clkin, freq):
         check_freq_positive(freq, "Input clock frequency")
-        self.clkin = connect_clkin(self, clkin)
-        self.clkin_freq = freq
+        self.clkin        = connect_clkin(self, clkin)
+        self.clkin_source = clkin # Input clock (for generated clock constraints).
+        self.clkin_freq   = freq
         register_clkin_log(self.logger, clkin, freq)
 
     def create_clkout(self, cd, freq, phase=0, margin=1e-2, with_reset=True):
@@ -80,10 +82,25 @@ class GW5APLL(LiteXModule):
         check_clkout_cd_unused(self, cd)
         check_clkout_count(self.nclkouts, self.nclkouts_max)
         clkout = Signal()
-        self.clkouts[self.nclkouts] = ClkOut(clkout, freq, phase, margin)
+        self.clkouts[self.nclkouts]    = ClkOut(clkout, freq, phase, margin)
+        self.clkout_cds[self.nclkouts] = cd
         connect_clkout(self, cd, clkout, reset=~self.locked, with_reset=with_reset)
         create_clkout_log(self.logger, cd.name, freq, margin, self.nclkouts)
         self.nclkouts += 1
+
+    def add_generated_clock_constraints(self, platform):
+        """Declare the output clocks as generated clocks (on the PLL output pins) from the input
+        clock, so they can be referred to in timing constraints (ex: false paths). The PLL must be
+        named (``name``) and its input clock period constrained."""
+        if not self.name:
+            raise ValueError("GW5APLL generated clock constraints require a PLL name.")
+        config = self.compute_config()
+        for n, cd in self.clkout_cds.items():
+            platform.add_generated_clock_constraint(cd.clk, self.clkin_source,
+                divide_by   = config["idiv"]*config[f"odiv{n}"],
+                multiply_by = config["fdiv"]*config["mdiv"],
+                pin         = f"{self.name}/CLKOUT{n}",
+            )
 
     def compute_config(self):
         check_clkin_registered(hasattr(self, "clkin"))

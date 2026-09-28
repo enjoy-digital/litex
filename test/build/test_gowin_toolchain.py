@@ -99,6 +99,52 @@ class TestGowinToolchain(unittest.TestCase):
             "-divide_by 4 -multiply_by 1 [get_nets {sys_clk}]",
         ])
 
+    def test_generated_clock_on_pin(self):
+        # PLL outputs: clocks created on the PLL pins, named after the output nets (false paths).
+        from litex.soc.cores.clock.gowin_gw5a import GW5APLL
+        platform = GowinPlatform("GW5A-LV25UG324C2/I1",
+            io=[("clk24", 0, Pins("A1"))], devicename="GW5A-25A")
+        dut = LiteXModule()
+        dut.cd_usb     = ClockDomain("usb")
+        dut.cd_usb_960 = ClockDomain("usb_960")
+        clk24 = platform.request("clk24")
+        dut.pll = pll = GW5APLL(devicename=platform.devicename, device=platform.device, name="usb_pll")
+        pll.register_clkin(clk24, 24e6)
+        pll.create_clkout(dut.cd_usb_960, 960e6, with_reset=False)
+        pll.create_clkout(dut.cd_usb,     60e6,  with_reset=False)
+        platform.add_period_constraint(clk24, 1e9/24e6)
+        pll.add_generated_clock_constraints(platform)
+        platform.add_false_path_constraint(dut.cd_usb.clk, dut.cd_usb_960.clk)
+
+        with tempfile.TemporaryDirectory() as build_dir:
+            platform.build(dut, build_dir=build_dir, build_name="top", run=False)
+            with open(os.path.join(build_dir, "top.sdc"), encoding="utf-8") as f:
+                sdc = f.read().splitlines()
+
+        generated = [l for l in sdc if l.startswith("create_generated_clock")]
+        self.assertEqual(len(generated), 2)
+        for line, name, pin, freq in [
+            (generated[0], "usb_960_clk", "usb_pll/CLKOUT0", 960e6),
+            (generated[1], "usb_clk",     "usb_pll/CLKOUT1",  60e6),
+        ]:
+            self.assertIn(f"-name {name} -source [get_ports {{clk24}}]", line)
+            self.assertTrue(line.endswith(f"[get_pins {{{pin}}}]"))
+            m = int(line.split("-multiply_by ")[1].split()[0])
+            d = int(line.split("-divide_by ")[1].split()[0])
+            self.assertAlmostEqual(24e6*m/d, freq)
+        self.assertIn("set_false_path -from [get_clocks {usb_clk}] -to [get_clocks {usb_960_clk}]", sdc)
+
+    def test_generated_clock_on_pin_requires_pll_name(self):
+        from litex.soc.cores.clock.gowin_gw5a import GW5APLL
+        platform = GowinPlatform("GW5A-LV25UG324C2/I1",
+            io=[("clk24", 0, Pins("A1"))], devicename="GW5A-25A")
+        cd  = ClockDomain("usb")
+        pll = GW5APLL(devicename=platform.devicename, device=platform.device)
+        pll.register_clkin(platform.request("clk24"), 24e6)
+        pll.create_clkout(cd, 60e6, with_reset=False)
+        with self.assertRaises(ValueError):
+            pll.add_generated_clock_constraints(platform)
+
     def test_apicula_uses_generated_system_clock_target(self):
         platform = _ApiculaPlatform()
         soc      = _ApiculaSoC(platform, sys_clk_freq=48e6)
