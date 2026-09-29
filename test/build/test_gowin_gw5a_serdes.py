@@ -11,7 +11,7 @@ from migen import *
 
 from litex.gen.fhdl import verilog
 
-from litex.build.io import SerDesInput, SerDesOutput, DifferentialTristate
+from litex.build.io import SerDesInput, SerDesOutput, SerDesTristate, DifferentialTristate
 from litex.build.gowin.common import Gw5AOSER, Gw5AIDES, Gw5AIODELAY
 from litex.build.gowin.common import gowin_special_overrides, gw5a_special_overrides
 
@@ -147,6 +147,43 @@ class TestGw5ASpecials(unittest.TestCase):
         self.assertEqual(c["Q0"], "o[0]")
         self.assertEqual(c["D"],  "i")
 
+    def test_serdes_tristate(self):
+        for ratio in [4, 8]:
+            with self.subTest(ratio=ratio):
+                io, oe        = Signal(name="io"), Signal(name="oe")
+                o, i          = Signal(ratio, name="o"), Signal(ratio, name="i")
+                clk, clk_fast = Signal(name="clk"), Signal(name="clk_fast")
+                ios = {io, o, oe, i, clk, clk_fast}
+                v   = _convert_special(SerDesTristate(io, o, oe, i, clk, clk_fast), ios)
+                ports_oser = _instance(v, f"OSER{ratio}")[1]
+                oser = _connections(ports_oser)
+                ides = _connections(_instance(v, f"IDES{ratio}")[1])
+                buf  = _connections(_instance(v, "IOBUF")[1])
+                # Serialized data/output enable to the IOBUF, IOBUF output deserialized.
+                self.assertEqual(oser["D0"],   "o[0]")
+                self.assertRegex(ports_oser, r"\.TX0\s*\(\(~oe\)\)")
+                self.assertEqual(oser["Q0"],   buf["I"])
+                self.assertEqual(oser["Q1"],   buf["OEN"])
+                self.assertEqual(buf["IO"],    "io")
+                self.assertEqual(ides["D"],    buf["O"])
+                self.assertEqual(ides["Q0"],   "i[0]")
+                self.assertEqual(ides["PCLK"], "clk")
+                self.assertEqual(ides["FCLK"], "clk_fast")
+                self.assertEqual(_instance_name(v, "IOBUF"), "gw5a_serdes_iobuf")
+
+    def test_serdes_tristate_output_only(self):
+        io, oe, o = Signal(name="io"), Signal(name="oe"), Signal(4, name="o")
+        clk, clk_fast = Signal(name="clk"), Signal(name="clk_fast")
+        v = _convert_special(SerDesTristate(io, o, oe, None, clk, clk_fast), {io, o, oe, clk, clk_fast})
+        self.assertIsNotNone(_instance(v, "OSER4"))
+        self.assertNotIn("IDES4", v)
+
+    def test_serdes_tristate_widths(self):
+        with self.assertRaises(ValueError):
+            SerDesTristate(Signal(), Signal(4), Signal(), Signal(8), Signal(), Signal())
+        with self.assertRaises(ValueError):
+            SerDesTristate(Signal(2), Signal(4), Signal(), Signal(4), Signal(), Signal())
+
     def test_differential_tristate(self):
         io_p, io_n = Signal(name="io_p"), Signal(name="io_n")
         o, oe, i   = Signal(name="o"), Signal(name="oe"), Signal(name="i")
@@ -163,4 +200,8 @@ class TestGw5ASpecials(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             m = Module()
             m.specials += SerDesOutput(Signal(4), Signal(), Signal(), Signal())
+            verilog.convert(m)
+        with self.assertRaises(NotImplementedError):
+            m = Module()
+            m.specials += SerDesTristate(Signal(), Signal(4), Signal(), Signal(4), Signal(), Signal())
             verilog.convert(m)
