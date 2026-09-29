@@ -175,6 +175,10 @@ $ ./litex_setup.py --init --install --user --config=standard
 $ ./litex_setup.py --update
 ```
 
+  To uninstall the Python packages, preview with `./litex_setup.py --uninstall --config=standard --dry-run`,
+  then rerun without `--dry-run`. Source checkouts are retained. See the [uninstall guide](doc/uninstall.md)
+  for environment selection, non-interactive use, and cleanup after older installations.
+
 > **Note:** On MacOS, make sure you have [HomeBrew](https://brew.sh) installed. Then do, ``brew install wget``.
 
 > **Note:** On Windows, it's possible you'll have to set `SHELL` environment variable to `SHELL=cmd.exe`.
