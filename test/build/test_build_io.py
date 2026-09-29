@@ -1,3 +1,4 @@
+import re
 import unittest
 
 from migen import *
@@ -15,6 +16,7 @@ from litex.build.io import (
     DDRTristate,
     DifferentialInput,
     DifferentialOutput,
+    DifferentialTristate,
     InferredDDRTristate,
     InferredSDRIO,
     InferredSDRTristate,
@@ -374,6 +376,23 @@ class TestBuildIO(unittest.TestCase):
     def test_clk_output_rejects_string_input(self):
         with self.assertRaisesRegex(ValueError, "ClkOutput input"):
             ClkOutput("sys", Signal())
+
+    def test_xilinx_differential_tristate(self):
+        io_p = Signal()
+        io_n = Signal()
+        o    = Signal()
+        oe   = Signal()
+        i    = Signal()
+
+        v = _convert_special(
+            DifferentialTristate(io_p, io_n, o, oe, i),
+            {io_p, io_n, o, oe, i},
+            _merge_overrides(xilinx_special_overrides, xilinx_s7_special_overrides),
+        )
+        v = re.sub(r"\s+", "", v)
+        self.assertIn("IOBUFDSIOBUFDS(", v)
+        for port in [".I(o)", ".T((~oe))", ".O(i)", ".IO(io_p)", ".IOB(io_n)"]:
+            self.assertIn(port, v)
 
     def test_io_primitive_override_matrix_converts(self):
         unsupported = {
