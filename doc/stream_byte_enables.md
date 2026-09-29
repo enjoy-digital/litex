@@ -46,9 +46,11 @@ payload is consumed, including while header words are emitted. By default the
 next beat after a packet starts another packet. With `with_first=True`, beats
 outside a packet are discarded until `first=1`.
 
-`Depacketizer` requires a header at least one word long and a nonempty payload.
-Its final mask must be nonzero. Short-header and header-only support in
-`Packetizer` does not change these receive-side restrictions.
+`Depacketizer` accepts any positive header length, including a header sharing the
+first word with payload. It drops truncated headers and header-only packets;
+output payloads remain nonempty. Its final input mask must be contiguous from
+byte zero. Header fields and byte errors remain attached to the corresponding
+payload while stalled, including when that payload fits in one input word.
 
 Applications should document any narrower contract. For example, LiteEth uses
 full intermediate words and a contiguous nonzero final mask. An AXI producer

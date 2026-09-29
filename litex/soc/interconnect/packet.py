@@ -314,7 +314,8 @@ class Depacketizer(LiteXModule):
     be, the tail of the last sink word is dropped, except for a single-word payload (whose
     tail is the whole payload), matching the Packetizer's whole-word transmission.
 
-    Packets ending within the header (truncated) are dropped.
+    Headers shorter than a word share the first beat with payload. Packets ending within the
+    header (truncated), including header-only packets, are dropped.
     """
     def __init__(self, sink_description, source_description, header):
         self.sink   = sink   = stream.Endpoint(sink_description)
@@ -335,8 +336,8 @@ class Depacketizer(LiteXModule):
         if (sink_be_name is None) != (source_be_name is None):
             raise ValueError("Packet helpers require byte qualifiers on both endpoints or neither.")
         with_error      = hasattr(sink, "error") and hasattr(source, "error")
-        if header_words == 0:
-            raise ValueError(f"Header length ({header.length} bytes) must be >= data width ({data_width} bits).")
+        if header.length <= 0:
+            raise ValueError("Depacketizer requires a nonempty header.")
 
         # Signals.
         sr                = Signal(header.length*8, reset_less=True)
@@ -346,7 +347,7 @@ class Depacketizer(LiteXModule):
         data_copy_first   = Signal()
 
         # Header Shift/Decode.
-        if (header_words) == 1 and (header_leftover == 0):
+        if header_words == 0 or (header_words == 1 and aligned):
             self.sync += If(sr_shift, sr.eq(sink.data))
         else:
             self.sync += [
@@ -367,21 +368,25 @@ class Depacketizer(LiteXModule):
         # FSM.
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm_from_idle = Signal()
+        # A short header may leave payload in the very first beat. Longer headers never do.
+        first_has_payload = (sink_be[header_leftover:] != 0) if with_be else 1
+        if header_words != 0:
+            first_has_payload = 0
         fsm.act("IDLE",
             sink.ready.eq(1),
             NextValue(count, 1),
             If(sink.valid,
                 sr_shift.eq(1),
-                NextValue(fsm_from_idle, 1),
+                NextValue(fsm_from_idle, header_words != 0),
                 NextValue(data_copy_first, 1),
-                If(header_words == 1,
+                If(header_words <= 1,
                     NextState("ALIGNED-DATA-COPY" if aligned else "UNALIGNED-DATA-COPY"),
                 ).Else(
                     NextState("HEADER-RECEIVE")
                 ),
                 # Drop packets that end within the header (header-only/truncated): falling through
                 # would emit the *next* packet's header as payload of the previous one.
-                If(sink.last, NextState("IDLE")),
+                If(sink.last & ~first_has_payload, NextState("IDLE")),
             )
         )
         fsm.act("HEADER-RECEIVE",
@@ -430,13 +435,14 @@ class Depacketizer(LiteXModule):
             if with_be:
                 self.comb += flush_needed.eq(sink_be[header_leftover:] != 0)
             else:
-                self.comb += flush_needed.eq(fsm_from_idle)
+                self.comb += flush_needed.eq(fsm_from_idle | (fsm.ongoing("IDLE") if header_words == 0 else 0))
 
             # Capture the accepted sink word (header words included, the flush is only recorded on
             # a payload word). The flush is cleared once the extra word has been accepted.
             sink_d_capture = [
                 sink_d_data.eq(sink.data),
-                flush.eq(sink.last & flush_needed & fsm.ongoing("UNALIGNED-DATA-COPY")),
+                flush.eq(sink.last & flush_needed &
+                    (fsm.ongoing("UNALIGNED-DATA-COPY") | (fsm.ongoing("IDLE") if header_words == 0 else 0))),
             ]
             be_shift = []
             from_idle_drop = []
