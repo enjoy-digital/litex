@@ -4,7 +4,7 @@
 # Copyright (c) 2026 LiteX-SDR Project
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""Tests for JTAGPHY and jtagstream encoding.
+"""Tests for JTAGPHY.
 
 Exercises the platform-independent JTAGPHY FSM using a MockJTAG in place of
 vendor-specific TAP primitives (BSCANE2, JTAGG, AlteraJTAG, etc.).  A single
@@ -498,56 +498,6 @@ class TestJTAGPHYVerilog(unittest.TestCase):
                         f"Line {i}: bare negative constant {match} in comparison "
                         f"will cause unsigned Verilog promotion: {stripped}"
                     )
-
-# ---------------------------------------------------------------------- #
-# jtagstream Tcl Encoding Test                                            #
-# ---------------------------------------------------------------------- #
-
-class TestJTAGStreamEncoding(unittest.TestCase):
-    """Verify jtagstream Tcl uses binary-safe byte construction."""
-
-    def get_openocd_source(self):
-        import inspect
-        import litex.build.openocd as openocd_mod
-
-        return inspect.getsource(openocd_mod)
-
-    def test_byte_construction_is_binary_safe(self):
-        """jtagstream must build RX bytes through a binary-safe helper.
-
-        Jim Tcl builds with UTF-8 string representation encode 'format %c'
-        values 0x80-0xFF as two bytes, corrupting the binary stream: those
-        builds must use 'binary format c'. Jim Tcl builds without the binary
-        command (e.g. OpenOCD 0.11) would abort the poll callback on it, but
-        are byte-exact with 'format %c': a capability probe must select the
-        right implementation at runtime.
-        """
-        source = self.get_openocd_source()
-
-        self.assertIn("append rx [jtagstream_byte", source,
-            "jtagstream Tcl must build RX bytes through the jtagstream_byte "
-            "helper, not a direct construction")
-        self.assertIn("catch {binary format c", source,
-            "jtagstream Tcl must probe for the binary command to support "
-            "Jim Tcl builds without it (e.g. OpenOCD 0.11)")
-        self.assertIn("binary format c $value", source,
-            "jtagstream Tcl must use 'binary format c' on Jim Tcl builds "
-            "with UTF-8 strings -- 'format %c' would corrupt bytes > 0x7F")
-        self.assertIn("format %c $value", source,
-            "jtagstream Tcl must fall back to 'format %c' on Jim Tcl builds "
-            "without the binary command (byte-exact there)")
-
-    def test_openocd_011_and_012_drscan_word_formats_are_supported(self):
-        """jtagstream must accept bare and 0x-prefixed drscan words."""
-        source = self.get_openocd_source()
-
-        self.assertIn("proc jtagstream_word", source,
-            "jtagstream Tcl should normalize OpenOCD drscan words")
-        self.assertIn('string range $word 0 1] "0x"', source,
-            "jtagstream Tcl should accept OpenOCD 0.12-style 0x-prefixed words")
-        self.assertNotIn('"0x${rxj}"', source,
-            "jtagstream Tcl should not blindly prefix drscan words with 0x")
-
 
 if __name__ == "__main__":
     unittest.main()

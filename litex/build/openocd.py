@@ -153,18 +153,12 @@ class OpenOCD(GenericProgrammer):
         ir       = self.get_ir(chain, config)
         endstate = self.get_endstate(config)
         cfg = """
-if {[catch {binary format c 0x41}]} {
-    # Jim Tcl builds without the binary command (e.g. OpenOCD 0.11): format %c is byte-exact
-    # there (strings have no UTF-8 representation), so it can build the byte stream directly.
-    proc jtagstream_byte {value} {
-        return [format %c $value]
-    }
-} else {
-    # Jim Tcl builds with UTF-8 string representation: format %c would encode bytes >= 0x80
-    # as two bytes, corrupting the stream; use the byte-exact binary command instead.
-    proc jtagstream_byte {value} {
-        return [binary format c $value]
-    }
+proc jtagstream_byte {value} {
+    # Jim's pack/unpack operate on bytes regardless of UTF-8 support and do
+    # not require the optional Tcl-compatible binary command.
+    set byte ""
+    pack byte $value -intbe 8
+    return $byte
 }
 
 proc jtagstream_word {word} {
@@ -177,19 +171,18 @@ proc jtagstream_word {word} {
 }
 
 proc jtagstream_poll {tap tx n} {
-    set m [string length $tx]
+    set m [string bytelength $tx]
     set n [expr ($m>$n)?$m:$n]
     # 11 bits per word: bit0=ready, bits1-8=data, bit9=valid, bit10=padding
     # We need 11 shift cycles to capture all 10 bits because JTAGG only
     # captures TDO on falling edge in Shift-DR, and the last falling edge
     # is in Exit1-DR (doesn't capture).
     set txi [lrepeat $n {11 0x001}]
-    set i 0
-    foreach txj [split $tx ""] {
-        # 0x401 = ready(1) + valid(1) = bit0 + bit9
-        lset txi $i 1 [format 0x%4.4X [expr { 0x201 | ([scan $txj %c] << 1) }]]
-        incr i
-        #echo tx[scan $txj %c]
+    for {set i 0} {$i < $m} {incr i} {
+        # split/scan %c would decode UTF-8 sequences instead of individual bytes.
+        set txj [unpack $tx -uintbe [expr {$i * 8}] 8]
+        # 0x201 = ready(1) + valid(1) = bit0 + bit9
+        lset txi $i 1 [format 0x%4.4X [expr { 0x201 | ($txj << 1) }]]
     }
     set txi [concat {*}$txi]
 """
@@ -220,7 +213,7 @@ proc jtagstream_poll {tap tx n} {
 
 proc jtagstream_drain {tap tx chunk_rx max_rx} {
     lassign [jtagstream_poll $tap $tx $chunk_rx] rx readable writable
-    while {[expr { $writable && ($readable > 0) && ([string length $rx] < $max_rx) }]} {
+    while {[expr { $writable && ($readable > 0) && ([string bytelength $rx] < $max_rx) }]} {
         lassign [jtagstream_poll $tap "" $chunk_rx] rxi readable writable
         append rx $rxi
     }
@@ -234,8 +227,7 @@ proc jtagstream_rxtx {tap client is_poll} {
     if {![$client eof]} {
         set tx [$client read 16]
         set rx [jtagstream_drain $tap $tx 128 4096]
-        if {[string length $rx]} {
-            #echo [string length $rx]
+        if {[string bytelength $rx]} {
             $client puts -nonewline $rx
         }
         if {$is_poll} {
