@@ -5,6 +5,8 @@
 # Copyright (c) 2022 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+from pathlib import Path
+
 from migen import *
 
 from litex.gen import *
@@ -15,7 +17,7 @@ from litex.soc.interconnect import axi
 # Cortex-M3 ----------------------------------------------------------------------------------------
 
 class CortexM3(CPU):
-    variants             = ["standard"]
+    variants             = ["standard", "generic"]
     category             = "softcore"
     family               = "arm"
     name                 = "cortex_m3"
@@ -31,6 +33,17 @@ class CortexM3(CPU):
         0x4000_0000 : 0x2000_0000,
         0xa000_0000 : 0x6000_0000,
     }
+
+    rtl_dir = None
+
+    @staticmethod
+    def args_fill(parser):
+        cpu_group = parser.add_argument_group(title="CPU options.")
+        cpu_group.add_argument("--cpu-rtl-dir", help="Directory containing the generic Cortex-M3 DesignStart RTL.")
+
+    @staticmethod
+    def args_read(args):
+        CortexM3.rtl_dir = args.cpu_rtl_dir
 
     # Memory Mapping.
     @property
@@ -50,10 +63,35 @@ class CortexM3(CPU):
         flags += f" -DUART_POLLING"
         return flags
 
-    def __init__(self, platform, variant="standard"):
+    def __init__(self, platform, variant="standard", rtl_dir=None):
+        if variant not in self.variants:
+            raise ValueError(f"Unsupported Cortex-M3 variant: {variant}")
         self.platform     = platform
+        self.variant      = variant
         self.reset        = Signal()
         self.interrupt    = Signal(2)
+        if variant == "generic":
+            from litex.soc.cores.cpu.cortex_m3.generic import CortexM3Generic
+
+            rtl_dir = rtl_dir if rtl_dir is not None else self.rtl_dir
+            if rtl_dir is None:
+                raise ValueError("Cortex-M3 generic requires --cpu-rtl-dir pointing to the "
+                    "directory containing CORTEXM3INTEGRATIONDS.v and cortexm3ds_logic.v.")
+            rtl_dir = Path(rtl_dir).expanduser().resolve()
+            sources = [rtl_dir / name for name in ["CORTEXM3INTEGRATIONDS.v", "cortexm3ds_logic.v"]]
+            for source in sources:
+                if not source.is_file():
+                    raise FileNotFoundError(f"Missing Cortex-M3 DesignStart RTL: {source}")
+            platform.add_verilog_include_path(str(rtl_dir))
+            for source in sources:
+                platform.add_source(str(source))
+
+            self.submodules.generic = CortexM3Generic(self.reset, self.interrupt)
+            self.cpu_params   = self.generic.cpu_params
+            self.periph_buses = self.generic.periph_buses
+            self.memory_buses = []
+            return
+
         ibus              = axi.AXIInterface(data_width=32, address_width=32)
         dbus              = axi.AXIInterface(data_width=32, address_width=32)
         self.periph_buses = [ibus, dbus]
@@ -159,6 +197,18 @@ class CortexM3(CPU):
         platform.add_source_dir("AT426-BU-98000-r0p1-00rel0/vivado/Arm_ipi_repository/CM3DbgAXI/rtl")
 
     def add_jtag(self, pads):
+        if self.variant == "generic":
+            self.cpu_params.update(
+                i_DBGEN    = 1,
+                i_NIDEN    = 1,
+                i_SWDITMS  = pads.tms,
+                i_TDI      = pads.tdi,
+                o_TDO      = pads.tdo,
+                o_nTDOEN   = Open(),
+                i_nTRST    = pads.ntrst,
+                i_SWCLKTCK = pads.tck,
+            )
+            return
         self.cpu_params.update(
             p_JTAG_PRESENT = 1,
             i_SWDITMS  = pads.tms,
@@ -174,4 +224,5 @@ class CortexM3(CPU):
         )
 
     def do_finalize(self):
-        self.specials += Instance("CortexM3DbgAXI", **self.cpu_params)
+        module = "CORTEXM3INTEGRATIONDS" if self.variant == "generic" else "CortexM3DbgAXI"
+        self.specials += Instance(module, **self.cpu_params)
