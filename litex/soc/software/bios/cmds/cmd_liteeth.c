@@ -8,6 +8,7 @@
 
 #include <libliteeth/mdio.h>
 #include <libliteeth/udp.h>
+#include <libliteeth/sfp.h>
 
 #include "../command.h"
 #include "../helpers.h"
@@ -226,4 +227,124 @@ static void eth_ping_handler(int nb_params, char **params)
 		printf("Error: failed to send ping request\n");
 }
 define_command(ping, eth_ping_handler, "Ping the given IP address", LITEETH_CMDS);
+#endif
+
+/**
+ * Command "sfp"
+ *
+ * Show each configured SFP+ cage, or set one to a host-side interface.
+ *
+ */
+#if defined(CONFIG_HAS_I2C) && (defined(CONFIG_SFP_0_I2C) || defined(CONFIG_SFP_ROLLBALL_I2C))
+
+static const struct sfp_cage *sfp_cage_arg(const char *s)
+{
+	char *c;
+	unsigned long n = strtoul(s, &c, 0);
+	if (*c != 0 || n >= sfp_cage_count) {
+		printf("Cage must be 0..%u\n", sfp_cage_count ? sfp_cage_count - 1 : 0);
+		return NULL;
+	}
+	return &sfp_cages[n];
+}
+
+static void sfp_handler(int nb_params, char **params)
+{
+	const struct sfp_cage *cage;
+	unsigned int c;
+	uint32_t id;
+	int family, mode;
+
+	if (nb_params < 1) {
+		for (c = 0; c < sfp_cage_count; c++) {
+			cage = &sfp_cages[c];
+			printf("%u: %-12s want %-9s ", c, cage->i2c_dev, cage->host_mode);
+			if (sfp_probe(cage, &id, &family))
+				printf("PHY 0x%08lx (%s)\n", (unsigned long)id,
+				       sfp_family_name(family));
+			else
+				printf("no module\n");
+		}
+		printf("usage: sfp <cage> <mode>   modes: 10GBASER 5GBASER 5000BASEX 2500BASEX 1000BASEX\n");
+		return;
+	}
+	cage = sfp_cage_arg(params[0]);
+	if (cage == NULL)
+		return;
+	if (nb_params < 2) {
+		printf("Specify a host mode\n");
+		return;
+	}
+	mode = sfp_host_mode_from_name(params[1]);
+	if (mode < 0) {
+		printf("Unknown mode %s\n", params[1]);
+		return;
+	}
+	printf("Setting %s to %s... ", cage->i2c_dev, sfp_host_mode_name(mode));
+	printf(sfp_set_host_mode(cage, mode) ? "done\n" : "failed\n");
+}
+define_command(sfp, sfp_handler, "Show/set SFP+ cage host interface", LITEETH_CMDS);
+
+/**
+ * Command "sfp_mdio_read"
+ *
+ * Read a Clause 45 register through an SFP+ module.
+ *
+ */
+static void sfp_mdio_read_handler(int nb_params, char **params)
+{
+	const struct sfp_cage *cage;
+	char *c;
+	unsigned int mmd, reg;
+	int v;
+
+	if (nb_params < 3) {
+		printf("sfp_mdio_read <cage> <mmd> <reg>");
+		return;
+	}
+	cage = sfp_cage_arg(params[0]);
+	if (cage == NULL)
+		return;
+	mmd = strtoul(params[1], &c, 0);
+	if (*c != 0) { printf("Incorrect mmd\n"); return; }
+	reg = strtoul(params[2], &c, 0);
+	if (*c != 0) { printf("Incorrect reg\n"); return; }
+	if (!sfp_probe(cage, NULL, NULL)) { printf("No module\n"); return; }
+	v = sfp_mdio_read(cage, mmd, reg);
+	if (v < 0)
+		printf("Read failed\n");
+	else
+		printf("%d.0x%04x = 0x%04x\n", mmd, reg, v);
+}
+define_command(sfp_mdio_read, sfp_mdio_read_handler, "Read Clause 45 register via SFP+", LITEETH_CMDS);
+
+/**
+ * Command "sfp_mdio_write"
+ *
+ * Write a Clause 45 register through an SFP+ module.
+ *
+ */
+static void sfp_mdio_write_handler(int nb_params, char **params)
+{
+	const struct sfp_cage *cage;
+	char *c;
+	unsigned int mmd, reg, val;
+
+	if (nb_params < 4) {
+		printf("sfp_mdio_write <cage> <mmd> <reg> <value>");
+		return;
+	}
+	cage = sfp_cage_arg(params[0]);
+	if (cage == NULL)
+		return;
+	mmd = strtoul(params[1], &c, 0);
+	if (*c != 0) { printf("Incorrect mmd\n"); return; }
+	reg = strtoul(params[2], &c, 0);
+	if (*c != 0) { printf("Incorrect reg\n"); return; }
+	val = strtoul(params[3], &c, 0);
+	if (*c != 0) { printf("Incorrect value\n"); return; }
+	if (!sfp_probe(cage, NULL, NULL)) { printf("No module\n"); return; }
+	printf(sfp_mdio_write(cage, mmd, reg, val) ? "OK\n" : "Write failed\n");
+}
+define_command(sfp_mdio_write, sfp_mdio_write_handler, "Write Clause 45 register via SFP+", LITEETH_CMDS);
 #endif
