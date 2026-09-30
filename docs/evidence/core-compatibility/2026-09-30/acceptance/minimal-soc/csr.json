@@ -1,0 +1,93 @@
+{
+    "csr_bases": {
+        "ctrl": 0,
+        "identifier_mem": 2048,
+        "timer0": 4096
+    },
+    "csr_registers": {
+        "ctrl_reset": {
+            "addr": 0,
+            "size": 1,
+            "type": "rw"
+        },
+        "ctrl_scratch": {
+            "addr": 4,
+            "size": 1,
+            "type": "rw"
+        },
+        "ctrl_bus_errors": {
+            "addr": 8,
+            "size": 1,
+            "type": "ro"
+        },
+        "timer0_load": {
+            "addr": 4096,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer0_reload": {
+            "addr": 4100,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer0_en": {
+            "addr": 4104,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer0_update_value": {
+            "addr": 4108,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer0_value": {
+            "addr": 4112,
+            "size": 1,
+            "type": "ro"
+        },
+        "timer0_ev_status": {
+            "addr": 4116,
+            "size": 1,
+            "type": "ro"
+        },
+        "timer0_ev_pending": {
+            "addr": 4120,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer0_ev_enable": {
+            "addr": 4124,
+            "size": 1,
+            "type": "rw"
+        }
+    },
+    "constants": {
+        "config_platform_name": "minimal_soc",
+        "config_clock_frequency": 1000000,
+        "config_cpu_type_none": null,
+        "config_cpu_variant_standard": null,
+        "config_cpu_family": null,
+        "config_cpu_name": "None",
+        "config_cpu_human_name": "Unknown",
+        "config_bios_no_build_time": null,
+        "config_identifier": "LiteX HarmonyOS PC baseline",
+        "config_csr_data_width": 32,
+        "config_csr_alignment": 32,
+        "config_csr_ordering_big": null,
+        "config_bus_standard": "wishbone",
+        "config_bus_data_width": 32,
+        "config_bus_address_width": 32,
+        "config_bus_bursting": 0
+    },
+    "memories": {
+        "csr": {
+            "base": 0,
+            "size": 65536,
+            "type": "io"
+        }
+    },
+    "cores": {
+        "ctrl": "SoCController",
+        "timer0": "Timer"
+    }
+}

@@ -1,0 +1,338 @@
+[
+  {
+    "raw_path": "acceptance/acceptance-report.json",
+    "raw_sha256": "4eef96eefd0ec6cc404eb4ff10cf1381f4584edb77de99433ffc370fca2b5cbc",
+    "public_path": "acceptance/acceptance-report.json",
+    "public_sha256": "863c9e3debf253a07244669f087fb243a8c9f1812d03b5694d0baa20d69b05f8"
+  },
+  {
+    "raw_path": "acceptance/environment.json",
+    "raw_sha256": "cb92d1d21e20bcb2f1b93c508bfb740983779817ca843a57ecdc3ead0a229b35",
+    "public_path": "acceptance/environment.json",
+    "public_sha256": "cb92d1d21e20bcb2f1b93c508bfb740983779817ca843a57ecdc3ead0a229b35"
+  },
+  {
+    "raw_path": "acceptance/logs/imports.log",
+    "raw_sha256": "6ed5e05fcfd906ebf3efd052132818dc5936db12df6f7a67e22f48d3d8eba61b",
+    "public_path": "acceptance/logs/imports.log.txt",
+    "public_sha256": "6ed5e05fcfd906ebf3efd052132818dc5936db12df6f7a67e22f48d3d8eba61b"
+  },
+  {
+    "raw_path": "acceptance/logs/litex-cli-help.log",
+    "raw_sha256": "4392029624502b29f404fd864ecafa0a3a38877b908586e391cd048a7f751f0e",
+    "public_path": "acceptance/logs/litex-cli-help.log.txt",
+    "public_sha256": "4392029624502b29f404fd864ecafa0a3a38877b908586e391cd048a7f751f0e"
+  },
+  {
+    "raw_path": "acceptance/logs/litex-sim-help.log",
+    "raw_sha256": "8af6513ee6b940861a577c425e6e9eee09debf03b56071d2bc25ea0ce81c5516",
+    "public_path": "acceptance/logs/litex-sim-help.log.txt",
+    "public_sha256": "7bba29163a4632030330870c286d349971c3e3ed48c144fe8178d7ab2d6d9899"
+  },
+  {
+    "raw_path": "acceptance/logs/minimal-soc.log",
+    "raw_sha256": "dfd94a5b16640c831723aa1baf7edcff5bd3dfbb6854ae95f6194f8cbf8d1c50",
+    "public_path": "acceptance/logs/minimal-soc.log.txt",
+    "public_sha256": "dfd94a5b16640c831723aa1baf7edcff5bd3dfbb6854ae95f6194f8cbf8d1c50"
+  },
+  {
+    "raw_path": "acceptance/logs/pip-check.log",
+    "raw_sha256": "7d88452f91d9489fc1785cc54c31e87ffe6c869e692b202ae5ad3253f1661961",
+    "public_path": "acceptance/logs/pip-check.log.txt",
+    "public_sha256": "fbe7af0701e1f0db2c9ecca00e9af0e687d2ab31880f4e6e704335c47ea737d3"
+  },
+  {
+    "raw_path": "acceptance/logs/portable-core-tests.log",
+    "raw_sha256": "44497e26bd613cb00d002e7a532e9c327147da540193ed1d11ae6c5ce3b09148",
+    "public_path": "acceptance/logs/portable-core-tests.log.txt",
+    "public_sha256": "44497e26bd613cb00d002e7a532e9c327147da540193ed1d11ae6c5ce3b09148"
+  },
+  {
+    "raw_path": "acceptance/minimal-soc/baseline-summary.json",
+    "raw_sha256": "b5f10fa00715d2104b65b61d9d8e236cdd0db1cba79d97ad48eb0d0ac997e36b",
+    "public_path": "acceptance/minimal-soc/baseline-summary.json",
+    "public_sha256": "b5f10fa00715d2104b65b61d9d8e236cdd0db1cba79d97ad48eb0d0ac997e36b"
+  },
+  {
+    "raw_path": "acceptance/minimal-soc/csr.csv",
+    "raw_sha256": "29518d62adb6b65beee9280680929284e54fb9cd34aa806e876c485e39486abe",
+    "public_path": "acceptance/minimal-soc/csr.csv",
+    "public_sha256": "29518d62adb6b65beee9280680929284e54fb9cd34aa806e876c485e39486abe"
+  },
+  {
+    "raw_path": "acceptance/minimal-soc/csr.json",
+    "raw_sha256": "9c70bff4cacfccf0acd723d1f707f719fba87dcbd11606ea2219a62755c58a40",
+    "public_path": "acceptance/minimal-soc/csr.json",
+    "public_sha256": "9c70bff4cacfccf0acd723d1f707f719fba87dcbd11606ea2219a62755c58a40"
+  },
+  {
+    "raw_path": "acceptance/minimal-soc/gateware/minimal_soc.v",
+    "raw_sha256": "231bdaa33b855185b0a9af29a7a63eb60b310d6b47bf177572f4c560e5047d16",
+    "public_path": "acceptance/minimal-soc/gateware/minimal_soc.v",
+    "public_sha256": "231bdaa33b855185b0a9af29a7a63eb60b310d6b47bf177572f4c560e5047d16"
+  },
+  {
+    "raw_path": "acceptance/minimal-soc/gateware/minimal_soc_mem.init",
+    "raw_sha256": "7f78d197eeb021d4cc51516fe765b6553e5a4992c41caaffe6f83aefc778251e",
+    "public_path": "acceptance/minimal-soc/gateware/minimal_soc_mem.init",
+    "public_sha256": "7f78d197eeb021d4cc51516fe765b6553e5a4992c41caaffe6f83aefc778251e"
+  },
+  {
+    "raw_path": "acceptance/minimal-soc/litex.log",
+    "raw_sha256": "c53a69b1bb027e90862c0016394d35d529f3e50282146d91b626ede6aad18b25",
+    "public_path": "acceptance/minimal-soc/litex.log.txt",
+    "public_sha256": "9cab5a33af0393ec523927649540fd89ce609efd58ee7addd779b78ebd3c27f7"
+  },
+  {
+    "raw_path": "acceptance/minimal-soc/software/include/generated/csr.h",
+    "raw_sha256": "e223b47b7fd00bc340a68087389795c412cc3b98f655e6c82209326e78bd4b54",
+    "public_path": "acceptance/minimal-soc/software/include/generated/csr.h",
+    "public_sha256": "e223b47b7fd00bc340a68087389795c412cc3b98f655e6c82209326e78bd4b54"
+  },
+  {
+    "raw_path": "acceptance/minimal-soc/software/include/generated/git.h",
+    "raw_sha256": "5c8e6eac84e9763364b03d883c80766b1483f105b423fc2a6c97adee6cd6a622",
+    "public_path": "acceptance/minimal-soc/software/include/generated/git.h",
+    "public_sha256": "5c8e6eac84e9763364b03d883c80766b1483f105b423fc2a6c97adee6cd6a622"
+  },
+  {
+    "raw_path": "acceptance/minimal-soc/software/include/generated/mem.h",
+    "raw_sha256": "67e6aba31fcdc771ba7e2ccb7657a48848ce5eb3c9be1cc13672d5fad911d1cc",
+    "public_path": "acceptance/minimal-soc/software/include/generated/mem.h",
+    "public_sha256": "67e6aba31fcdc771ba7e2ccb7657a48848ce5eb3c9be1cc13672d5fad911d1cc"
+  },
+  {
+    "raw_path": "acceptance/minimal-soc/software/include/generated/soc.h",
+    "raw_sha256": "067b899c366d2c489a72511733f63cfdf16448e2201da51036520af5c6dcf86a",
+    "public_path": "acceptance/minimal-soc/software/include/generated/soc.h",
+    "public_sha256": "067b899c366d2c489a72511733f63cfdf16448e2201da51036520af5c6dcf86a"
+  },
+  {
+    "raw_path": "example/baseline-summary.json",
+    "raw_sha256": "1f69c30aa4c9d6dc4f83e299ed00e6d73bbbde9d8b90b203d1a95a27fb82fa20",
+    "public_path": "example/baseline-summary.json",
+    "public_sha256": "1f69c30aa4c9d6dc4f83e299ed00e6d73bbbde9d8b90b203d1a95a27fb82fa20"
+  },
+  {
+    "raw_path": "example/csr.csv",
+    "raw_sha256": "4b132aa5fa97490d3ae8b46fb3cdf47b6389ffb1df7b037ce3c6fb7a4881e968",
+    "public_path": "example/csr.csv",
+    "public_sha256": "4b132aa5fa97490d3ae8b46fb3cdf47b6389ffb1df7b037ce3c6fb7a4881e968"
+  },
+  {
+    "raw_path": "example/csr.json",
+    "raw_sha256": "9c70bff4cacfccf0acd723d1f707f719fba87dcbd11606ea2219a62755c58a40",
+    "public_path": "example/csr.json",
+    "public_sha256": "9c70bff4cacfccf0acd723d1f707f719fba87dcbd11606ea2219a62755c58a40"
+  },
+  {
+    "raw_path": "example/gateware/minimal_soc.v",
+    "raw_sha256": "8a28aacdd1ab9922d32e45a2e1a7f8f34665cf511dcd357a39b05c9e09305a20",
+    "public_path": "example/gateware/minimal_soc.v",
+    "public_sha256": "8a28aacdd1ab9922d32e45a2e1a7f8f34665cf511dcd357a39b05c9e09305a20"
+  },
+  {
+    "raw_path": "example/gateware/minimal_soc_mem.init",
+    "raw_sha256": "7f78d197eeb021d4cc51516fe765b6553e5a4992c41caaffe6f83aefc778251e",
+    "public_path": "example/gateware/minimal_soc_mem.init",
+    "public_sha256": "7f78d197eeb021d4cc51516fe765b6553e5a4992c41caaffe6f83aefc778251e"
+  },
+  {
+    "raw_path": "example/litex.log",
+    "raw_sha256": "db25528f53b8681328a8d76a10f239d148194bbf834f209f24472a22abe7575b",
+    "public_path": "example/litex.log.txt",
+    "public_sha256": "e9645cfd55e2ce15145910034ab7c04b4e5792da85a733c8e0787a745fcffa39"
+  },
+  {
+    "raw_path": "example/software/include/generated/csr.h",
+    "raw_sha256": "eb2da9d65a352de986c46c2516307bfe09915126bf3703ee4f169af59dc2a3af",
+    "public_path": "example/software/include/generated/csr.h",
+    "public_sha256": "eb2da9d65a352de986c46c2516307bfe09915126bf3703ee4f169af59dc2a3af"
+  },
+  {
+    "raw_path": "example/software/include/generated/git.h",
+    "raw_sha256": "d3e5d6b57a8fc5ec018b7148193d6c809f353a6429bb913a299cc09410885f61",
+    "public_path": "example/software/include/generated/git.h",
+    "public_sha256": "d3e5d6b57a8fc5ec018b7148193d6c809f353a6429bb913a299cc09410885f61"
+  },
+  {
+    "raw_path": "example/software/include/generated/mem.h",
+    "raw_sha256": "4b27a001d154a0debec91bd8bd6d49c0e5f9ce58cb0d1b04f0b24de7ff6b543b",
+    "public_path": "example/software/include/generated/mem.h",
+    "public_sha256": "4b27a001d154a0debec91bd8bd6d49c0e5f9ce58cb0d1b04f0b24de7ff6b543b"
+  },
+  {
+    "raw_path": "example/software/include/generated/soc.h",
+    "raw_sha256": "039712558a28ea8ff5b0d8a332c44dd25ce5b5c5b21d0f8b855da2da15f18481",
+    "public_path": "example/software/include/generated/soc.h",
+    "public_sha256": "039712558a28ea8ff5b0d8a332c44dd25ce5b5c5b21d0f8b855da2da15f18481"
+  },
+  {
+    "raw_path": "review/ci-109755779730-excerpt.txt",
+    "raw_sha256": "266fe652369b9a457ccfd73ac0e6386ff2a54d62352197b00f24c46858e2e3f2",
+    "public_path": "review/ci-109755779730-excerpt.txt",
+    "public_sha256": "266fe652369b9a457ccfd73ac0e6386ff2a54d62352197b00f24c46858e2e3f2"
+  },
+  {
+    "raw_path": "review/ci-109755779738-excerpt.txt",
+    "raw_sha256": "01849d96dc8e264993afcc955eff640f6225c45586694beccfbece131ffccca8",
+    "public_path": "review/ci-109755779738-excerpt.txt",
+    "public_sha256": "01849d96dc8e264993afcc955eff640f6225c45586694beccfbece131ffccca8"
+  },
+  {
+    "raw_path": "review/cli-results.json",
+    "raw_sha256": "11d27cf8a99780237770aa6d8cd8f49d022130a0f5a8a123c6eb5d25263de439",
+    "public_path": "review/cli-results.json",
+    "public_sha256": "11d27cf8a99780237770aa6d8cd8f49d022130a0f5a8a123c6eb5d25263de439"
+  },
+  {
+    "raw_path": "review/host-probe.json",
+    "raw_sha256": "8f9f7d6531d5bbb30f467a619a67bbc3a1673a2b838d13825c065b9352dfc57b",
+    "public_path": "review/host-probe.json",
+    "public_sha256": "f46f2827c056e3be57d9df8e9bba49dc1952c9f74e15373cdbbdf6484c8de590"
+  },
+  {
+    "raw_path": "review/host_probe.py",
+    "raw_sha256": "f4bfa3d91a9a2598626da6003194455476f2fbd372a3a37af9df554e7860ada0",
+    "public_path": "review/host_probe.py",
+    "public_sha256": "f4bfa3d91a9a2598626da6003194455476f2fbd372a3a37af9df554e7860ada0"
+  },
+  {
+    "raw_path": "review/litex_client-help.txt",
+    "raw_sha256": "4392029624502b29f404fd864ecafa0a3a38877b908586e391cd048a7f751f0e",
+    "public_path": "review/litex_client-help.txt",
+    "public_sha256": "4392029624502b29f404fd864ecafa0a3a38877b908586e391cd048a7f751f0e"
+  },
+  {
+    "raw_path": "review/litex_periph_gen-help.txt",
+    "raw_sha256": "85e80d0a39a96d511a0d1f24e30429a0c983c028d7e8bb17bd52d6e956a34b30",
+    "public_path": "review/litex_periph_gen-help.txt",
+    "public_sha256": "85e80d0a39a96d511a0d1f24e30429a0c983c028d7e8bb17bd52d6e956a34b30"
+  },
+  {
+    "raw_path": "review/litex_soc_gen-help.txt",
+    "raw_sha256": "2b886b69050e5573f23e02072c015c111e56b42a7c138d6ee0e83cf2d729ee14",
+    "public_path": "review/litex_soc_gen-help.txt",
+    "public_sha256": "2b886b69050e5573f23e02072c015c111e56b42a7c138d6ee0e83cf2d729ee14"
+  },
+  {
+    "raw_path": "review/litex_term-help.txt",
+    "raw_sha256": "7fbafd8e19ef8040cccd5220d7ddb1d37264691aa3a1a6f90df0a9a97eecc2a5",
+    "public_path": "review/litex_term-help.txt",
+    "public_sha256": "7fbafd8e19ef8040cccd5220d7ddb1d37264691aa3a1a6f90df0a9a97eecc2a5"
+  },
+  {
+    "raw_path": "review/packages.txt",
+    "raw_sha256": "61831d34f0b586f35708a94820285554038c0c763ffe65ffdd977632946f284d",
+    "public_path": "review/packages.txt",
+    "public_sha256": "61831d34f0b586f35708a94820285554038c0c763ffe65ffdd977632946f284d"
+  },
+  {
+    "raw_path": "review/path-alias-reproduction.json",
+    "raw_sha256": "1fe9cda132b62a5340a6768493018caaadff217925fa11d2a3a32b1bfc3b2338",
+    "public_path": "review/path-alias-reproduction.json",
+    "public_sha256": "1556aa5e127dbc0a41c09a613c6aeafdbd8fb23415620b3b1065a5d02fcbbe2c"
+  },
+  {
+    "raw_path": "review/targeted-core-tests-after.txt",
+    "raw_sha256": "b4916dff9091f6a4896769e3bf6b8fbb9174ad14455c453753d50e8bb2c42dde",
+    "public_path": "review/targeted-core-tests-after.txt",
+    "public_sha256": "b4916dff9091f6a4896769e3bf6b8fbb9174ad14455c453753d50e8bb2c42dde"
+  },
+  {
+    "raw_path": "review/targeted-tests.txt",
+    "raw_sha256": "ffdea65fb85e3b792e9a5659eefeb83007f17df609f86e75593a0e730538af72",
+    "public_path": "review/targeted-tests.txt",
+    "public_sha256": "a4dc7a82f02197003ca6aac4f5310947965541279efa841ad2c739d6d570d8b2"
+  },
+  {
+    "raw_path": "review/unicode-example.txt",
+    "raw_sha256": "92aa08466cdccfd0028a8356c7217626d5125fc786855e3b8fd7fa99b695dfc0",
+    "public_path": "review/unicode-example.txt",
+    "public_sha256": "92aa08466cdccfd0028a8356c7217626d5125fc786855e3b8fd7fa99b695dfc0"
+  },
+  {
+    "raw_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/baseline-summary.json",
+    "raw_sha256": "03886a178b8ab58ce27184f7fd8517112093a00468bce22257e7876c27eb9191",
+    "public_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/baseline-summary.json",
+    "public_sha256": "03886a178b8ab58ce27184f7fd8517112093a00468bce22257e7876c27eb9191"
+  },
+  {
+    "raw_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/csr.csv",
+    "raw_sha256": "4b65dc2541644a508f5db20aaac7b0f1c7f7847daf4ba47f8fd11ece1e26a2d1",
+    "public_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/csr.csv",
+    "public_sha256": "4b65dc2541644a508f5db20aaac7b0f1c7f7847daf4ba47f8fd11ece1e26a2d1"
+  },
+  {
+    "raw_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/csr.json",
+    "raw_sha256": "9c70bff4cacfccf0acd723d1f707f719fba87dcbd11606ea2219a62755c58a40",
+    "public_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/csr.json",
+    "public_sha256": "9c70bff4cacfccf0acd723d1f707f719fba87dcbd11606ea2219a62755c58a40"
+  },
+  {
+    "raw_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/gateware/minimal_soc.v",
+    "raw_sha256": "598837b3c9b95d19fd1b39b48b04aeb12f3fc14faea347fcb6f8c28827d1d048",
+    "public_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/gateware/minimal_soc.v",
+    "public_sha256": "598837b3c9b95d19fd1b39b48b04aeb12f3fc14faea347fcb6f8c28827d1d048"
+  },
+  {
+    "raw_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/gateware/minimal_soc_mem.init",
+    "raw_sha256": "7f78d197eeb021d4cc51516fe765b6553e5a4992c41caaffe6f83aefc778251e",
+    "public_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/gateware/minimal_soc_mem.init",
+    "public_sha256": "7f78d197eeb021d4cc51516fe765b6553e5a4992c41caaffe6f83aefc778251e"
+  },
+  {
+    "raw_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/litex.log",
+    "raw_sha256": "0e10671143b79dfb313d8d6e28c6458f2efc3f5b5be7132fde59b25cbd66f102",
+    "public_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/litex.log.txt",
+    "public_sha256": "92818440e97181276f797a7faa378e6ccba80316293252d48392472148cb8362"
+  },
+  {
+    "raw_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/software/include/generated/csr.h",
+    "raw_sha256": "6554dcfc65e16eba0de783d369e85fb111be53ef5e3076fd9b6d62293db70d7c",
+    "public_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/software/include/generated/csr.h",
+    "public_sha256": "6554dcfc65e16eba0de783d369e85fb111be53ef5e3076fd9b6d62293db70d7c"
+  },
+  {
+    "raw_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/software/include/generated/git.h",
+    "raw_sha256": "45be1b6cf65bf3dc1a5d9e74920838807f77942b21f6d0f216ed483a503bc87f",
+    "public_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/software/include/generated/git.h",
+    "public_sha256": "45be1b6cf65bf3dc1a5d9e74920838807f77942b21f6d0f216ed483a503bc87f"
+  },
+  {
+    "raw_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/software/include/generated/mem.h",
+    "raw_sha256": "57b79ecf18b12192ec955fc8c16c932ab76f2be51f5ec3283fd4a420c2e8e693",
+    "public_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/software/include/generated/mem.h",
+    "public_sha256": "57b79ecf18b12192ec955fc8c16c932ab76f2be51f5ec3283fd4a420c2e8e693"
+  },
+  {
+    "raw_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/software/include/generated/soc.h",
+    "raw_sha256": "ca8dbfba2eb816d3846c39e6747d841797a0d260dc9dc1e6be82d9ba3fcf24fc",
+    "public_path": "review/\u4e2d\u6587 \u7a7a\u683c/minimal-soc/software/include/generated/soc.h",
+    "public_sha256": "ca8dbfba2eb816d3846c39e6747d841797a0d260dc9dc1e6be82d9ba3fcf24fc"
+  },
+  {
+    "raw_path": "source/test-path-fix.patch",
+    "raw_sha256": "71cc94fa5d36c8a6ada139616eca9948a2e84210108b0891dd5d08185a3f5630",
+    "public_path": "source/test-path-fix.patch",
+    "public_sha256": "71cc94fa5d36c8a6ada139616eca9948a2e84210108b0891dd5d08185a3f5630"
+  },
+  {
+    "raw_path": "source/source-sha256.json",
+    "raw_sha256": "8aa2fe050ed44175de2937b0174762f9e5c386693c12c57538bdd7faa95ef1ff",
+    "public_path": "source/source-sha256.json",
+    "public_sha256": "8aa2fe050ed44175de2937b0174762f9e5c386693c12c57538bdd7faa95ef1ff"
+  },
+  {
+    "raw_path": "source/migen-commit.txt",
+    "raw_sha256": "50690f1b36d45da648439005a751f4aa3ece4cf3cbde09bd1e4c5de696108907",
+    "public_path": "source/migen-commit.txt",
+    "public_sha256": "50690f1b36d45da648439005a751f4aa3ece4cf3cbde09bd1e4c5de696108907"
+  },
+  {
+    "raw_path": "source/core-diff-from-baseline.txt",
+    "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "public_path": "source/core-diff-from-baseline.txt",
+    "public_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

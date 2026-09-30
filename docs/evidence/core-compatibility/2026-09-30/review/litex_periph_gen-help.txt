@@ -1,0 +1,210 @@
+usage: litex_periph_gen.py [-h] [--log-filename LOG_FILENAME] [--log-level {debug,info,warning,error,critical}]
+                           [--name NAME] [--build] [--sys-clk-freq SYS_CLK_FREQ] [--output-dir OUTPUT_DIR]
+                           [--gateware-dir GATEWARE_DIR] [--software-dir SOFTWARE_DIR] [--include-dir INCLUDE_DIR]
+                           [--generated-dir GENERATED_DIR] [--build-backend {litex,edalize}] [--build-log [BUILD_LOG]]
+                           [--no-build-log] [--no-compile] [--no-compile-software] [--no-compile-gateware]
+                           [--soc-csv SOC_CSV] [--soc-json SOC_JSON] [--soc-svd SOC_SVD] [--memory-x MEMORY_X] [--doc]
+                           [--hierarchical-verilog] [--build-bundle [PATH]] [--no-build-bundle]
+                           [--bundle-root BUNDLE_ROOT] [--bundle-include BUNDLE_INCLUDE]
+                           [--bundle-pythonpath-root BUNDLE_PYTHONPATH_ROOT] [--bundle-auto-pythonpath]
+                           [--bundle-strict {warn,error}] [--bios-lto] [--bios-format {integer,float,double}]
+                           [--bios-console {full,no-history,no-autocomplete,lite,disable}] [--bios-no-ansi]
+                           [--bios-stack-margin BIOS_STACK_MARGIN] [--libc-mode {full,minimal}]
+                           [--no-integrated-rom-auto-size] [--bus-standard {wishbone,axi-lite,axi}]
+                           [--bus-data-width {32,64,128,256,512}] [--bus-address-width {32,64}]
+                           [--bus-addressing {word,byte}] [--bus-timeout BUS_TIMEOUT] [--bus-bursting]
+                           [--bus-interconnect {shared,crossbar}] [--bus-arbiter {default,transaction}]
+                           [--bus-low-latency] [--cpu-type CPU_TYPE] [--cpu-variant CPU_VARIANT]
+                           [--cpu-reset-address CPU_RESET_ADDRESS] [--no-ctrl]
+                           [--integrated-rom-size INTEGRATED_ROM_SIZE] [--integrated-rom-init INTEGRATED_ROM_INIT]
+                           [--integrated-sram-size INTEGRATED_SRAM_SIZE]
+                           [--integrated-main-ram-size INTEGRATED_MAIN_RAM_SIZE] [--csr-data-width {8,32}]
+                           [--csr-address-width {14,15,16,17,18}] [--csr-paging {1024,2048,4096,8192,16384}]
+                           [--csr-ordering {big,little}] [--ident IDENT] [--no-ident-version] [--no-uart]
+                           [--uart-name UART_NAME] [--uart-baudrate UART_BAUDRATE] [--uart-fifo-depth UART_FIFO_DEPTH]
+                           [--uart-with-dynamic-baudrate] [--uart-rx-fifo-rx-we] [--with-uartbone] [--with-jtagbone]
+                           [--jtagbone-chain JTAGBONE_CHAIN] [--with-cpu-jtag-debug]
+                           [--cpu-jtag-debug-transport {user,csr}] [--cpu-jtag-debug-chain CPU_JTAG_DEBUG_CHAIN]
+                           [--cpu-jtag-debug-clk-freq CPU_JTAG_DEBUG_CLK_FREQ] [--no-timer] [--timer-uptime]
+                           [--with-watchdog] [--watchdog-width WATCHDOG_WIDTH]
+                           [--watchdog-reset-delay WATCHDOG_RESET_DELAY] [--l2-size L2_SIZE]
+
+LiteX standalone SoC generator
+
+options:
+  -h, --help
+          show this help message and exit
+
+Logging options:
+  --log-filename LOG_FILENAME
+          Logging filename. (default: None)
+  --log-level {debug,info,warning,error,critical}
+          Logging level. (default: info)
+
+Generator options:
+  --name NAME
+          SoC Name. (default: litex_soc)
+  --build
+          Build SoC. (default: False)
+  --sys-clk-freq SYS_CLK_FREQ
+          System clock frequency. (default: 50000000)
+
+Builder options:
+  --output-dir OUTPUT_DIR
+          Base output directory. (default: None)
+  --gateware-dir GATEWARE_DIR
+          Output directory for gateware files. (default: None)
+  --software-dir SOFTWARE_DIR
+          Output directory for software files. (default: None)
+  --include-dir INCLUDE_DIR
+          Output directory for header files. (default: None)
+  --generated-dir GENERATED_DIR
+          Output directory for generated files. (default: None)
+  --build-backend {litex,edalize}
+          Select build backend. (default: litex)
+  --build-log [BUILD_LOG]
+          Write build log to file (default: output_dir/litex.log). (default: True)
+  --no-build-log
+          Disable build log generation. (default: True)
+  --no-compile
+          Disable software and gateware compilation. (default: False)
+  --no-compile-software
+          Disable software compilation only. (default: False)
+  --no-compile-gateware
+          Disable gateware compilation only. (default: False)
+  --soc-csv SOC_CSV, --csr-csv SOC_CSV
+          Write SoC mapping to the specified CSV file (always generated, default: <output-dir>/csr.csv). Generated when
+          the Builder build step runs; on board targets, use --build --no-compile for export only. (default: None)
+  --soc-json SOC_JSON, --csr-json SOC_JSON
+          Write SoC mapping to the specified JSON file (always generated, default: <output-dir>/csr.json). Generated
+          when the Builder build step runs; on board targets, use --build --no-compile for export only. (default: None)
+  --soc-svd SOC_SVD, --csr-svd SOC_SVD
+          Write SoC mapping to the specified SVD file. Generated when the Builder build step runs; on board targets, use
+          --build --no-compile for export only. (default: None)
+  --memory-x MEMORY_X
+          Write SoC memory regions to the specified Memory-X file. Generated when the Builder build step runs; on board
+          targets, use --build --no-compile for export only. (default: None)
+  --doc   Generate SoC documentation. (default: False)
+  --hierarchical-verilog
+          Enable hierarchical Verilog generation. (default: False)
+
+Build bundle options:
+  --build-bundle [PATH]
+          Generate build input bundle (optionally to PATH). (default: False)
+  --no-build-bundle
+          Disable build input bundle generation. (default: True)
+  --bundle-root BUNDLE_ROOT
+          Add directory root to bundle. (default: [])
+  --bundle-include BUNDLE_INCLUDE
+          Add extra file/directory to bundle. (default: [])
+  --bundle-pythonpath-root BUNDLE_PYTHONPATH_ROOT
+          Add Python import root to bundle. (default: [])
+  --bundle-auto-pythonpath
+          Auto-bundle LiteX Python import roots. (default: False)
+  --bundle-strict {warn,error}
+          Missing bundle input handling. (default: warn)
+
+BIOS options:
+  --bios-lto
+          Enable BIOS LTO (Link Time Optimization) compilation. (default: False)
+  --bios-format {integer,float,double}
+          Select BIOS printf format. (default: integer)
+  --bios-console {full,no-history,no-autocomplete,lite,disable}
+          Select BIOS console config. (default: full)
+  --bios-no-ansi
+          Disable ANSI escape sequences in BIOS output. (default: False)
+  --bios-stack-margin BIOS_STACK_MARGIN
+          Fail BIOS build when available stack space is below this byte count. (default: None)
+  --libc-mode {full,minimal}
+          Select LiteX libc build mode. (default: minimal)
+  --no-integrated-rom-auto-size
+          Keep integrated ROM at requested size instead of auto-resizing it to the BIOS size. (default: False)
+
+SoC options:
+  --bus-standard {wishbone,axi-lite,axi}
+          Select bus standard. (default: wishbone)
+  --bus-data-width {32,64,128,256,512}
+          Bus data-width. (default: 32)
+  --bus-address-width {32,64}
+          Bus address-width. (default: 32)
+  --bus-addressing {word,byte}
+          Bus addressing (default: word for wishbone, byte for axi/axi-lite). (default: None)
+  --bus-timeout BUS_TIMEOUT
+          Bus timeout in cycles. (default: 1000000)
+  --bus-bursting
+          Enable burst cycles on the bus if supported. (default: False)
+  --bus-interconnect {shared,crossbar}
+          Select bus interconnect. (default: shared)
+  --bus-arbiter {default,transaction}
+          Select bus arbiter. (default: default)
+  --bus-low-latency
+          Enable low-latency bus bridges when available. (default: False)
+  --cpu-type CPU_TYPE
+          Select CPU: None, None, cva5, blackparrot, fazyrv, cortex_m3, zynqmp, lm32, agilex_hps, cv32e41p, urv,
+          microwatt, veer_eh1, openc906, zynq7000, kianv, vexriscv_smp, sentinel, gs232, cva6, picorv32, femtorv, firev,
+          ibex, neorv32, qemu, serv, vexiiriscv, cv32e40p, eos_s3, minerva, cortex_m1, rocket, coreblocks, vexriscv,
+          gowin_emcu, cdim, gowin_ae350, naxriscv, marocchino, cyclonev_hps, mor1kx. (default: vexriscv)
+  --cpu-variant CPU_VARIANT
+          CPU variant. (default: None)
+  --cpu-reset-address CPU_RESET_ADDRESS
+          CPU reset address (Boot from Integrated ROM by default). (default: None)
+  --no-ctrl
+          Disable controller. (default: False)
+  --integrated-rom-size INTEGRATED_ROM_SIZE
+          Size/enable the integrated (BIOS) ROM (automatically resized to BIOS size when smaller). (default: 131072)
+  --integrated-rom-init INTEGRATED_ROM_INIT
+          Integrated ROM binary initialization file (override the BIOS when specified). (default: None)
+  --integrated-sram-size INTEGRATED_SRAM_SIZE
+          Size/enable the integrated SRAM. (default: 8192)
+  --integrated-main-ram-size INTEGRATED_MAIN_RAM_SIZE
+          Size/enable the integrated main RAM. (default: None)
+  --csr-data-width {8,32}
+          CSR bus data-width. (default: 32)
+  --csr-address-width {14,15,16,17,18}
+          CSR bus address-width. (default: 14)
+  --csr-paging {1024,2048,4096,8192,16384}
+          CSR bus paging. (default: 2048)
+  --csr-ordering {big,little}
+          CSR registers ordering. (default: big)
+  --ident IDENT
+          SoC identifier. (default: None)
+  --no-ident-version
+          Disable date/time in SoC identifier. (default: False)
+  --no-uart
+          Disable UART. (default: False)
+  --uart-name UART_NAME
+          UART type/name. (default: serial)
+  --uart-baudrate UART_BAUDRATE
+          UART baudrate. (default: 115200)
+  --uart-fifo-depth UART_FIFO_DEPTH
+          UART FIFO depth. (default: 16)
+  --uart-with-dynamic-baudrate
+          Enable dynamic UART baudrate (tuning CSR). (default: False)
+  --uart-rx-fifo-rx-we
+          Use FIFO RX We on UART RX path. (default: False)
+  --with-uartbone
+          Enable UARTBone. (default: False)
+  --with-jtagbone
+          Enable JTAGBone support. (default: False)
+  --jtagbone-chain JTAGBONE_CHAIN
+          JTAGBone chain index. (default: 1)
+  --with-cpu-jtag-debug
+          Enable CPU JTAG debug access. (default: False)
+  --cpu-jtag-debug-transport {user,csr}
+          CPU debug transport. (default: user)
+  --cpu-jtag-debug-chain CPU_JTAG_DEBUG_CHAIN
+          CPU debug USER chain index (1-4). (default: 4)
+  --cpu-jtag-debug-clk-freq CPU_JTAG_DEBUG_CLK_FREQ
+          Maximum CPU debug USER TCK frequency for timing analysis (Hz). (default: 10000000.0)
+  --no-timer
+          Disable timer. (default: False)
+  --timer-uptime
+          Add an uptime capability to timer. (default: False)
+  --with-watchdog
+          Enable Watchdog. (default: False)
+  --watchdog-width WATCHDOG_WIDTH
+          Watchdog width. (default: 32)
+  --watchdog-reset-delay WATCHDOG_RESET_DELAY
+          Watchdog reset delay. (default: None)
+  --l2-size L2_SIZE
+          L2 cache size. (default: 8192)

@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "<WORKTREE>/litex/tools/litex_sim.py", line 33, in <module>
+    from liteeth.common             import *
+ModuleNotFoundError: No module named 'liteeth'

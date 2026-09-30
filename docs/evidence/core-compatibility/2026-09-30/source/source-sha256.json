@@ -1,0 +1,17 @@
+{
+  "examples/minimal_soc_baseline.py": "c5ac890924e189ea85b893ba5b98c07a9bbce53b16ea279cf2712a1daa2aaad2",
+  "examples/harmonyos_minimal_soc.py": "be3c053a29bbd4593aef212730e1bf48beeb3c08c90f4797572e0b2e9b020674",
+  "scripts/run_acceptance.py": "2a654ca4c990844ded732424fa14e40154f1adb40db7938100aee0c18a05c3ac",
+  "test/build/test_generic_platform_toolchain.py": "a1ba7d3ca0f76a3110c48ebf91f2e9e6eb809ed9cb5546a6829973f0022eb6e9",
+  "test/soc/test_builder.py": "d3317f7675a27beba83c34cbafdbb0b3e628d0eaff637bfc99a45b22c29a97e3",
+  "test/hdl/test_migen_compat.py": "23f53c6309b797873947a1d6f897be60a8212e05b0368341bdd5fb3d261b584c",
+  "litex/__init__.py": "b32181eac8ac7127950b79bb019fac9e10d224101d3221abfcae737722c1e783",
+  "litex/gen/fhdl/hierarchy.py": "256df9932d59676630b32d5c11cfa1b2b7674ccc7e3a21a7ddaa50efb8e53b3a",
+  "litex/gen/sim/vcd.py": "c7efc2a557f0ced27a880d24b56723109af4fbe4bbd313d3cceeafbe32054f78",
+  "litex/build/tools.py": "4dd938819e117abe753ebe78ad481b688d92aab6faa98c3d39de219babe0b0fa",
+  "litex/build/generic_platform.py": "c4fbdd65b0b48d4e09dcd535e2d614f865e0af5368ef7618a194b48aead44f7e",
+  "litex/build/generic_toolchain.py": "8aee58f2ec9e5ebb23ad7b5c1bd638b5ebf551180e8e16baa259266dc2b63bce",
+  "litex/soc/integration/builder.py": "438260cbf4e7bf823124288b485ac660eab5763cad8ae52f97c9d4038af4988d",
+  "litex/tools/litex_term.py": "8667c8a4087ba145fb0322ba791dbbd959a8848391898ed565720736d79c1bb4",
+  "litex/tools/litex_build_bundle.py": "ccf1ab6196f9ead523fb8d4cd8acccf5cff7a9e432d21fcdbab313e4fbba3a90"
+}

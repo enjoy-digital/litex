@@ -1,0 +1,106 @@
+INFO:SoC:[1m        __   _ __      _  __  [0m
+INFO:SoC:[1m       / /  (_) /____ | |/_/  [0m
+INFO:SoC:[1m      / /__/ / __/ -_)>  <    [0m
+INFO:SoC:[1m     /____/_/\__/\__/_/|_|  [0m
+INFO:SoC:[1m  Build your hardware, easily![0m
+INFO:SoC:[1m--------------------------------------------------------------------------------[0m
+INFO:SoC:[1mCreating SoC... (2026-09-30 14:01:57)[0m
+INFO:SoC:[1m--------------------------------------------------------------------------------[0m
+INFO:SoC:FPGA device : baseline.
+INFO:SoC:System clock: 1.000MHz.
+INFO:SoCBusHandler:Creating Bus Handler...
+INFO:SoCBusHandler:[1m32[0m-bit [1mwishbone[0m Bus, [1m4.0[0mGiB Address Space.
+INFO:SoCBusHandler:Adding [36mreserved[0m Bus Regions...
+INFO:SoCBusHandler:Bus Handler [32mcreated[0m.
+INFO:SoCCSRHandler:Creating CSR Handler...
+INFO:SoCCSRHandler:[1m32[0m-bit CSR Bus, [1m32[0m-bit Aligned, [1m16.0[0mKiB Address Space, [1m2048[0mB Paging, [1mbig[0m Ordering (Up to [1m32[0m Locations).
+INFO:SoCCSRHandler:Adding [36mreserved[0m CSRs...
+INFO:SoCCSRHandler:CSR Handler [32mcreated[0m.
+INFO:SoCIRQHandler:Creating IRQ Handler...
+INFO:SoCIRQHandler:IRQ Handler (up to [1m32[0m Locations).
+INFO:SoCIRQHandler:Adding [36mreserved[0m IRQs...
+INFO:SoCIRQHandler:IRQ Handler [32mcreated[0m.
+INFO:SoC:[1m--------------------------------------------------------------------------------[0m
+INFO:SoC:[1mInitial SoC:[0m
+INFO:SoC:[1m--------------------------------------------------------------------------------[0m
+INFO:SoC:[1m32[0m-bit [1mwishbone[0m Bus, [1m4.0[0mGiB Address Space.
+INFO:SoC:[1m32[0m-bit CSR Bus, [1m32[0m-bit Aligned, [1m16.0[0mKiB Address Space, [1m2048[0mB Paging, [1mbig[0m Ordering (Up to [1m32[0m Locations).
+INFO:SoC:IRQ Handler (up to [1m32[0m Locations).
+INFO:SoC:[1m--------------------------------------------------------------------------------[0m
+INFO:SoC:Controller [4mctrl[0m [32madded[0m.
+INFO:SoC:CPU [4mNone[0m [32madded[0m.
+INFO:SoC:CPU [4mNone[0m [36madding[0m IO Region [1m0[0m at [1m0x00000000[0m (Size: [1m0x100000000[0m).
+INFO:SoCBusHandler:[4mio0[0m Region [32madded[0m at Origin: [1m0x00000000[0m, Size: [1m0x100000000[0m, Mode:  [1mRW[0m, Cached: [1mFalse[0m, Linker: [1mFalse[0m.
+INFO:SoC:CSR Bridge [4mcsr[0m [32madded[0m.
+INFO:SoCBusHandler:[4mcsr[0m Region [32madded[0m at Origin: [1m0x00000000[0m, Size: [1m0x00010000[0m, Mode:  [1mRW[0m, Cached: [1mFalse[0m, Linker: [1mFalse[0m.
+INFO:SoCBusHandler:[4mcsr[0m [32madded[0m as Bus Slave.
+INFO:SoCCSRHandler:[4mcsr[0m [32madded[0m as CSR Master.
+INFO:SoCCSRHandler:[4mctrl[0m CSR [36mallocated[0m at Location [1m0[0m.
+INFO:SoCCSRHandler:[4midentifier_mem[0m CSR [36mallocated[0m at Location [1m1[0m.
+INFO:SoCCSRHandler:[4mtimer0[0m CSR [36mallocated[0m at Location [1m2[0m.
+INFO:SoC:[1m--------------------------------------------------------------------------------[0m
+INFO:SoC:[1mFinalized SoC:[0m
+INFO:SoC:[1m--------------------------------------------------------------------------------[0m
+INFO:SoC:[1m32[0m-bit [1mwishbone[0m Bus, [1m4.0[0mGiB Address Space.
+IO Regions: (1)
+[4mio0[0m                 : Origin: [1m0x00000000[0m, Size: [1m0x100000000[0m, Mode:  [1mRW[0m, Cached: [1mFalse[0m, Linker: [1mFalse[0m
+Bus Regions: (1)
+[4mcsr[0m                 : Origin: [1m0x00000000[0m, Size: [1m0x00010000[0m, Mode:  [1mRW[0m, Cached: [1mFalse[0m, Linker: [1mFalse[0m
+Bus Slaves: (1)
+- [4mcsr[0m               : [1mrw[0m
+INFO:SoC:[1m32[0m-bit CSR Bus, [1m32[0m-bit Aligned, [1m16.0[0mKiB Address Space, [1m2048[0mB Paging, [1mbig[0m Ordering (Up to [1m32[0m Locations).
+CSR Locations: (3)
+- [4mctrl[0m           : [1m0[0m
+- [4midentifier_mem[0m : [1m1[0m
+- [4mtimer0[0m         : [1m2[0m
+INFO:SoC:IRQ Handler (up to [1m32[0m Locations).
+INFO:SoC:[1m--------------------------------------------------------------------------------[0m
+INFO:SoC:[1m--------------------------------------------------------------------------------[0m
+INFO:SoC:[1mSoC Hierarchy:[0m
+INFO:SoC:[1m--------------------------------------------------------------------------------[0m
+INFO:SoC:
+[4mMinimalSoC[0m
+├── [36mbus[0m (SoCBusHandler)
+├── [36mcsr[0m (SoCCSRHandler)
+├── [36mirq[0m (SoCIRQHandler)
+├── [36mctrl[0m (SoCController)
+├── [36mcpu[0m (CPUNone)
+├── [36midentifier[0m (Identifier)
+├── [36mtimer0[0m (Timer)
+│    └── [36mev[0m (EventManager)
+│         └── [36meventsourceprocess_0[0m (EventSourceProcess) [Gen]
+├── [36mcrg[0m (CRG)
+├── [36mcsr_bridge[0m (Wishbone2CSR)
+│    └── [36mfsm[0m (FSM)
+├── [36mcsr_bankarray[0m (CSRBankArray)
+│    ├── [36mcsrbank_0[0m (CSRBank) [Gen]
+│    │    ├── [36mcsrstorage_0[0m (CSRStorage) [Gen]
+│    │    ├── [36mcsrstorage_1[0m (CSRStorage) [Gen]
+│    │    └── [36mcsrstatus_0[0m (CSRStatus) [Gen]
+│    ├── [36msram_0[0m (SRAM) [Gen]
+│    └── [36mcsrbank_1[0m (CSRBank) [Gen]
+│         ├── [36mcsrstorage_0[0m (CSRStorage) [Gen]
+│         ├── [36mcsrstorage_1[0m (CSRStorage) [Gen]
+│         ├── [36mcsrstorage_2[0m (CSRStorage) [Gen]
+│         ├── [36mcsrstorage_3[0m (CSRStorage) [Gen]
+│         ├── [36mcsrstatus_0[0m (CSRStatus) [Gen]
+│         ├── [36mcsrstatus_1[0m (CSRStatus) [Gen]
+│         ├── [36mcsrstatus_2[0m (CSRStatus) [Gen]
+│         └── [36mcsrstorage_4[0m (CSRStorage) [Gen]
+└── [36mcsr_interconnect[0m (InterconnectShared)
+[1mLegend:[0m
+[36m  [Gen][0m: Auto-generated instance name.
+[33m  [BB:NAME][0m: Blackbox instance (verilog Instance).
+
+INFO:SoC:[1m--------------------------------------------------------------------------------[0m
+Generated 9 artifacts in /private/tmp/litex-core-week1-review/中文 空格/minimal-soc
+  csr.csv (1468 bytes)
+  csr.json (2252 bytes)
+  gateware/minimal_soc.v (23817 bytes)
+  gateware/minimal_soc_mem.init (84 bytes)
+  litex.log (5010 bytes)
+  software/include/generated/csr.h (4886 bytes)
+  software/include/generated/git.h (323 bytes)
+  software/include/generated/mem.h (616 bytes)
+  software/include/generated/soc.h (1786 bytes)
+Summary: /private/tmp/litex-core-week1-review/中文 空格/minimal-soc/baseline-summary.json

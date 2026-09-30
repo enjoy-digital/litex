@@ -1,0 +1,30 @@
+test_build_edalize_backend_generates_mixed_language_file_list (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_build_edalize_backend_generates_mixed_language_file_list) ... ok
+test_build_edalize_backend_restores_cwd_when_configure_fails (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_build_edalize_backend_restores_cwd_when_configure_fails) ... ok
+test_build_litex_backend_generates_verilog_project_and_script (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_build_litex_backend_generates_verilog_project_and_script) ... ok
+test_build_litex_backend_runs_script_when_requested (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_build_litex_backend_runs_script_when_requested) ... ok
+test_build_restores_cwd_when_backend_is_unsupported (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_build_restores_cwd_when_backend_is_unsupported) ... ok
+test_build_restores_cwd_when_finalize_fails (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_build_restores_cwd_when_finalize_fails) ... ok
+test_build_restores_cwd_when_io_constraints_fail (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_build_restores_cwd_when_io_constraints_fail) ... ok
+test_build_restores_cwd_when_project_generation_fails (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_build_restores_cwd_when_project_generation_fails) ... ok
+test_build_restores_cwd_when_run_script_fails (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_build_restores_cwd_when_run_script_fails) ... ok
+test_build_restores_cwd_when_script_generation_fails (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_build_restores_cwd_when_script_generation_fails) ... ok
+test_build_restores_cwd_when_timing_constraints_fail (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_build_restores_cwd_when_timing_constraints_fail) ... ok
+test_false_path_constraints_are_deduplicated_and_keep_signals (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_false_path_constraints_are_deduplicated_and_keep_signals) ... ok
+test_false_path_constraints_can_skip_keep (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_false_path_constraints_can_skip_keep) ... ok
+test_lattice_diamond_emits_false_path_constraints (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_lattice_diamond_emits_false_path_constraints) ... ok
+test_period_constraint_ignores_none_and_can_skip_keep (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_period_constraint_ignores_none_and_can_skip_keep) ... ok
+test_period_constraint_rounding_keep_and_conflict (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_period_constraint_rounding_keep_and_conflict) ... ok
+test_period_constraint_unwraps_proxied_signal (test.build.test_generic_platform_toolchain.TestGenericToolchain.test_period_constraint_unwraps_proxied_signal) ... ok
+test_build_log_filename_can_be_disabled_or_explicit (test.soc.test_builder.TestBuilderPaths.test_build_log_filename_can_be_disabled_or_explicit) ... ok
+test_default_directories_and_exports_are_under_output_dir (test.soc.test_builder.TestBuilderPaths.test_default_directories_and_exports_are_under_output_dir) ... ok
+test_output_filename_helpers (test.soc.test_builder.TestBuilderPaths.test_output_filename_helpers) ... ok
+test_generate_includes_without_bios_writes_runtime_headers_only (test.soc.test_builder.TestBuilderGeneratedFiles.test_generate_includes_without_bios_writes_runtime_headers_only) ... ok
+test_generate_csr_map_writes_default_csv_and_json_exports (test.soc.test_builder.TestBuilderGeneratedFiles.test_generate_csr_map_writes_default_csv_and_json_exports) ... ok
+test_variables_contents_remaps_replay_support_paths (test.soc.test_builder.TestBuilderGeneratedFiles.test_variables_contents_remaps_replay_support_paths) ... ok
+test_clock_domain_name_inference (test.hdl.test_migen_compat.TestMigenCompat.test_clock_domain_name_inference) ... ok
+test_python314_fast_local_opcodes (test.hdl.test_migen_compat.TestMigenCompat.test_python314_fast_local_opcodes) ... ok
+
+----------------------------------------------------------------------
+Ran 25 tests in 0.144s
+
+OK

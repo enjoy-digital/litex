@@ -1,0 +1,33 @@
+<frozen runpy>:128: RuntimeWarning: 'litex.tools.litex_client' found in sys.modules after import of package 'litex.tools', but prior to execution of 'litex.tools.litex_client'; this may result in unpredictable behaviour
+usage: litex_client.py [-h] [--csr-csv CSR_CSV] [--host HOST] [--port PORT]
+                       [--binary] [--file FILE] [--endianness {little,big}]
+                       [--timeout TIMEOUT] [--strict-timeout] [--ident]
+                       [--regs] [--filter FILTER] [--read READ]
+                       [--write [WRITE ...]] [--length LENGTH] [--gui]
+
+LiteX Client utility.
+
+options:
+  -h, --help            show this help message and exit
+  --csr-csv CSR_CSV     CSR configuration file (default: csr.csv)
+  --host HOST           Host ip address (default: localhost)
+  --port PORT           Host bind port. (default: 1234)
+  --binary              Use binary format for displayed values. (default:
+                        False)
+  --file FILE           File to read from or write to in binary mode.
+                        (default: None)
+  --endianness {little,big}
+                        Endianness for memory accesses (little or big).
+                        (default: little)
+  --timeout TIMEOUT     Socket timeout. (default: 2.0)
+  --strict-timeout      Raise on remote read timeout. (default: False)
+  --ident               Dump SoC identifier. (default: False)
+  --regs                Dump SoC registers. (default: False)
+  --filter FILTER       Registers filter (to be used with --regs). (default:
+                        None)
+  --read READ           Do a MMAP Read to SoC bus (--read addr/reg). (default:
+                        None)
+  --write [WRITE ...]   Do a MMAP Write to SoC bus (--write addr/reg [data]).
+                        (default: None)
+  --length LENGTH       MMAP access length. (default: 4)
+  --gui                 Run GUI. (default: False)

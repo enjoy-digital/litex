@@ -1,0 +1,14 @@
+{
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "system": "Darwin",
+  "release": "25.5.0",
+  "machine": "arm64",
+  "python": "3.11.3 (v3.11.3:f3909b8bc8, Apr  4 2023, 20:12:10) [Clang 13.0.0 (clang-1300.0.29.30)]",
+  "python_executable": "/private/tmp/litex-core-compat-venv/bin/python",
+  "default_encoding": "utf-8",
+  "filesystem_encoding": "utf-8",
+  "litex_version": "2026.4",
+  "migen_version": "0.9.2",
+  "git_branch": "feature/core-compatibility",
+  "git_commit": "6bd66c63f77e3c32452e8b5f7dbfb50df45ad501"
+}

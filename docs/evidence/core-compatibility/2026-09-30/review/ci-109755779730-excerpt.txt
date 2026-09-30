@@ -1,0 +1,193 @@
+Source: https://github.com/litex-harmonyos/litex-harmonyos-pc/actions/runs/36674290272/job/109755779730
+Excerpt only; full logs remain in GitHub Actions.
+2026-09-30T05:52:56.6073067Z =================================== FAILURES ===================================
+2026-09-30T05:52:56.6074309Z ___________ TestGowinAE350.test_ethernet_buffers_do_not_overlap_csrs ___________
+2026-09-30T05:52:56.6075569Z [gw2] linux -- Python 3.9.25 /opt/hostedtoolcache/Python/3.9.25/x64/bin/python3
+2026-09-30T05:52:56.6076152Z 
+2026-09-30T05:52:56.6076731Z self = <test.soc.test_cpu_gowin_ae350.TestGowinAE350 testMethod=test_ethernet_buffers_do_not_overlap_csrs>
+2026-09-30T05:52:56.6077523Z 
+2026-09-30T05:52:56.6077797Z     def test_ethernet_buffers_do_not_overlap_csrs(self):
+2026-09-30T05:52:56.6078489Z         from liteeth.phy.model import LiteEthPHYModel
+2026-09-30T05:52:56.6078895Z     
+2026-09-30T05:52:56.6079141Z         soc = self.make_soc()
+2026-09-30T05:52:56.6079432Z         pads = Record([
+2026-09-30T05:52:56.6079819Z             ("source_valid", 1), ("source_data", 8),
+2026-09-30T05:52:56.6080344Z             ("sink_valid",   1), ("sink_data",   8),
+2026-09-30T05:52:56.6080655Z         ])
+2026-09-30T05:52:56.6080895Z         soc.ethphy = LiteEthPHYModel(pads)
+2026-09-30T05:52:56.6081229Z >       soc.add_ethernet(phy=soc.ethphy)
+2026-09-30T05:52:56.6081443Z 
+2026-09-30T05:52:56.6081563Z test/soc/test_cpu_gowin_ae350.py:86: 
+2026-09-30T05:52:56.6081918Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+2026-09-30T05:52:56.6082338Z litex/soc/integration/soc.py:2655: in add_ethernet
+2026-09-30T05:52:56.6082684Z     ethmac = LiteEthMAC(
+2026-09-30T05:52:56.6083322Z ../liteeth/liteeth/mac/__init__.py:85: in __init__
+2026-09-30T05:52:56.6083684Z     self.core = LiteEthMACCore(
+2026-09-30T05:52:56.6084004Z ../liteeth/liteeth/mac/core.py:336: in __init__
+2026-09-30T05:52:56.6084351Z     rx_datapath.add_padding()
+2026-09-30T05:52:56.6084667Z ../liteeth/liteeth/mac/core.py:263: in add_padding
+2026-09-30T05:52:56.6085754Z     rx_padding = padding.LiteEthMACPaddingChecker(datapath_dw, (eth_min_frame_length - eth_fcs_length), eth_mtu=eth_mtu)
+2026-09-30T05:52:56.6086424Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+2026-09-30T05:52:56.6086704Z 
+2026-09-30T05:52:56.6086975Z self = <liteeth.mac.padding.LiteEthMACPaddingChecker object at 0x7ff69a3ad0a0>
+2026-09-30T05:52:56.6087462Z dw = 8, packet_min_length = 60, eth_mtu = 1530
+2026-09-30T05:52:56.6087684Z 
+2026-09-30T05:52:56.6087889Z     def __init__(self, dw, packet_min_length, eth_mtu=eth_mtu_default):
+2026-09-30T05:52:56.6088564Z         self.sink   = sink   = stream.Endpoint(eth_phy_description(dw))
+2026-09-30T05:52:56.6089041Z         self.source = source = stream.Endpoint(eth_phy_description(dw))
+2026-09-30T05:52:56.6089415Z     
+2026-09-30T05:52:56.6089610Z         # # #
+2026-09-30T05:52:56.6090029Z     
+2026-09-30T05:52:56.6090246Z         # drop the packet when
+2026-09-30T05:52:56.6090571Z         # payload size < minimum ethernet payload size
+2026-09-30T05:52:56.6090895Z     
+2026-09-30T05:52:56.6091106Z         length     = Signal(max=eth_mtu)
+2026-09-30T05:52:56.6091406Z         length_inc = Signal(4)
+2026-09-30T05:52:56.6091662Z     
+2026-09-30T05:52:56.6091865Z         # Count valid bytes.
+2026-09-30T05:52:56.6092215Z >       self.comb += length_inc.eq(stream.byte_count(sink.be))
+2026-09-30T05:52:56.6092756Z E       AttributeError: module 'litex.soc.interconnect.stream' has no attribute 'byte_count'
+2026-09-30T05:52:56.6093150Z 
+2026-09-30T05:52:56.6093305Z ../liteeth/liteeth/mac/padding.py:89: AttributeError
+2026-09-30T05:52:56.6093763Z _________________ test_linux_on_litex_rocket_ecpix5_generation _________________
+2026-09-30T05:52:56.6094311Z [gw2] linux -- Python 3.9.25 /opt/hostedtoolcache/Python/3.9.25/x64/bin/python3
+2026-09-30T05:52:56.6094633Z 
+2026-09-30T05:52:56.6094946Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/popen-gw2/test_linux_on_litex_rocket_ecp0')
+2026-09-30T05:52:56.6096331Z 
+2026-09-30T05:52:56.6096643Z     def test_linux_on_litex_rocket_ecpix5_generation(tmp_path):
+2026-09-30T05:52:56.6097277Z >       _run_linux_on_litex_rocket_generation(
+2026-09-30T05:52:56.6097619Z             "lambdaconcept_ecpix5.py",
+2026-09-30T05:52:56.6097916Z             tmp_path,
+2026-09-30T05:52:56.6098147Z             [
+2026-09-30T05:52:56.6098378Z                 "--cpu-type", "rocket",
+2026-09-30T05:52:56.6098680Z                 "--cpu-variant", "linux",
+2026-09-30T05:52:56.6098997Z                 "--cpu-num-cores", "1",
+2026-09-30T05:52:56.6099292Z                 "--cpu-mem-width", "2",
+2026-09-30T05:52:56.6099580Z                 "--sys-clk-freq", "50e6",
+2026-09-30T05:52:56.6099884Z                 "--with-ethernet",
+2026-09-30T05:52:56.6100177Z                 "--with-sdcard",
+2026-09-30T05:52:56.6100442Z                 "--yosys-flow3",
+2026-09-30T05:52:56.6100712Z                 "--nextpnr-seed", "1",
+2026-09-30T05:52:56.6100996Z             ],
+2026-09-30T05:52:56.6101211Z         )
+2026-09-30T05:52:56.6101336Z 
+2026-09-30T05:52:56.6101457Z test/soc/test_integration.py:212: 
+2026-09-30T05:52:56.6101803Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+2026-09-30T05:52:56.6102292Z test/soc/test_integration.py:209: in _run_linux_on_litex_rocket_generation
+2026-09-30T05:52:56.6102737Z     subprocess.check_call(cmd)
+2026-09-30T05:52:56.6103074Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+2026-09-30T05:52:56.6103336Z 
+2026-09-30T05:52:56.6104342Z popenargs = (['/opt/hostedtoolcache/Python/3.9.25/x64/bin/python3', '/home/runner/work/litex-harmonyos-pc/litex-boards/litex_boards/targets/lambdaconcept_ecpix5.py', '--build', '--no-compile-gateware', '--bios-stack-margin', '0x400', ...],)
+2026-09-30T05:52:56.6105742Z kwargs = {}, retcode = 1
+2026-09-30T05:52:56.6106693Z cmd = ['/opt/hostedtoolcache/Python/3.9.25/x64/bin/python3', '/home/runner/work/litex-harmonyos-pc/litex-boards/litex_boards/targets/lambdaconcept_ecpix5.py', '--build', '--no-compile-gateware', '--bios-stack-margin', '0x400', ...]
+2026-09-30T05:52:56.6107591Z 
+2026-09-30T05:52:56.6107710Z     def check_call(*popenargs, **kwargs):
+2026-09-30T05:52:56.6108097Z         """Run command with arguments.  Wait for command to complete.  If
+2026-09-30T05:52:56.6108552Z         the exit code was zero then return, otherwise raise
+2026-09-30T05:52:56.6109017Z         CalledProcessError.  The CalledProcessError object will have the
+2026-09-30T05:52:56.6109466Z         return code in the returncode attribute.
+2026-09-30T05:52:56.6109788Z     
+2026-09-30T05:52:56.6110085Z         The arguments are the same as for the call function.  Example:
+2026-09-30T05:52:56.6110455Z     
+2026-09-30T05:52:56.6110674Z         check_call(["ls", "-l"])
+2026-09-30T05:52:56.6110946Z         """
+2026-09-30T05:52:56.6111182Z         retcode = call(*popenargs, **kwargs)
+2026-09-30T05:52:56.6111645Z         if retcode:
+2026-09-30T05:52:56.6111883Z             cmd = kwargs.get("args")
+2026-09-30T05:52:56.6112170Z             if cmd is None:
+2026-09-30T05:52:56.6112433Z                 cmd = popenargs[0]
+2026-09-30T05:52:56.6112748Z >           raise CalledProcessError(retcode, cmd)
+2026-09-30T05:52:56.6114987Z E           subprocess.CalledProcessError: Command '['/opt/hostedtoolcache/Python/3.9.25/x64/bin/python3', '/home/runner/work/litex-harmonyos-pc/litex-boards/litex_boards/targets/lambdaconcept_ecpix5.py', '--build', '--no-compile-gateware', '--bios-stack-margin', '0x400', '--output-dir', '/tmp/pytest-of-runner/pytest-0/popen-gw2/test_linux_on_litex_rocket_ecp0', '--cpu-type', 'rocket', '--cpu-variant', 'linux', '--cpu-num-cores', '1', '--cpu-mem-width', '2', '--sys-clk-freq', '50e6', '--with-ethernet', '--with-sdcard', '--yosys-flow3', '--nextpnr-seed', '1']' returned non-zero exit status 1.
+2026-09-30T05:52:56.6117628Z 
+2026-09-30T05:52:56.6117932Z /opt/hostedtoolcache/Python/3.9.25/x64/lib/python3.9/subprocess.py:373: CalledProcessError
+2026-09-30T05:52:56.6118529Z ----------------------------- Captured stderr call -----------------------------
+2026-09-30T05:52:56.6119012Z INFO:ECP5PLL:Creating ECP5PLL.
+2026-09-30T05:52:56.6119367Z INFO:ECP5PLL:Registering Single Ended ClkIn of 100.00MHz.
+2026-09-30T05:52:56.6119820Z INFO:ECP5PLL:Creating ClkOut0 sys2x_i of 100.00MHz (+-10000.00ppm).
+2026-09-30T05:52:56.6120293Z INFO:ECP5PLL:Creating ClkOut1 init of 25.00MHz (+-10000.00ppm).
+2026-09-30T05:52:56.6120671Z INFO:SoC:        __   _ __      _  __  
+2026-09-30T05:52:56.6120970Z INFO:SoC:       / /  (_) /____ | |/_/  
+2026-09-30T05:52:56.6121259Z INFO:SoC:      / /__/ / __/ -_)>  <    
+2026-09-30T05:52:56.6121536Z INFO:SoC:     /____/_/\__/\__/_/|_|  
+2026-09-30T05:52:56.6121851Z INFO:SoC:  Build your hardware, easily!
+2026-09-30T05:52:56.6122254Z INFO:SoC:--------------------------------------------------------------------------------
+2026-09-30T05:52:56.6122697Z INFO:SoC:Creating SoC... (2026-09-30 05:44:01)
+2026-09-30T05:52:56.6123132Z INFO:SoC:--------------------------------------------------------------------------------
+2026-09-30T05:52:56.6123597Z INFO:SoC:FPGA device : LFE5UM5G-85F-8BG554I.
+2026-09-30T05:52:56.6123914Z INFO:SoC:System clock: 50.000MHz.
+2026-09-30T05:52:56.6124221Z INFO:SoCBusHandler:Creating Bus Handler...
+2026-09-30T05:52:56.6124618Z INFO:SoCBusHandler:32-bit wishbone Bus, 4.0GiB Address Space.
+2026-09-30T05:52:56.6125301Z INFO:SoCBusHandler:Adding reserved Bus Regions...
+2026-09-30T05:52:56.6125688Z INFO:SoCBusHandler:Bus Handler created.
+2026-09-30T05:52:56.6126006Z INFO:SoCCSRHandler:Creating CSR Handler...
+2026-09-30T05:52:56.6126596Z INFO:SoCCSRHandler:32-bit CSR Bus, 32-bit Aligned, 16.0KiB Address Space, 2048B Paging, big Ordering (Up to 32 Locations).
+2026-09-30T05:52:56.6127384Z INFO:SoCCSRHandler:Adding reserved CSRs...
+2026-09-30T05:52:56.6127742Z INFO:SoCCSRHandler:CSR Handler created.
+2026-09-30T05:52:56.6128072Z INFO:SoCIRQHandler:Creating IRQ Handler...
+2026-09-30T05:52:56.6128433Z INFO:SoCIRQHandler:IRQ Handler (up to 32 Locations).
+2026-09-30T05:52:56.6128808Z INFO:SoCIRQHandler:Adding reserved IRQs...
+2026-09-30T05:52:56.6129129Z INFO:SoCIRQHandler:IRQ Handler created.
+2026-09-30T05:52:56.6129533Z INFO:SoC:--------------------------------------------------------------------------------
+2026-09-30T05:52:56.6129939Z INFO:SoC:Initial SoC:
+2026-09-30T05:52:56.6130298Z INFO:SoC:--------------------------------------------------------------------------------
+2026-09-30T05:52:56.6130736Z INFO:SoC:32-bit wishbone Bus, 4.0GiB Address Space.
+2026-09-30T05:52:56.6131293Z INFO:SoC:32-bit CSR Bus, 32-bit Aligned, 16.0KiB Address Space, 2048B Paging, big Ordering (Up to 32 Locations).
+2026-09-30T05:52:56.6131834Z INFO:SoC:IRQ Handler (up to 32 Locations).
+2026-09-30T05:52:56.6132242Z INFO:SoC:--------------------------------------------------------------------------------
+2026-09-30T05:52:56.6132659Z INFO:SoC:Controller ctrl added.
+2026-09-30T05:52:56.6132935Z INFO:SoC:CPU rocket added.
+2026-09-30T05:52:56.6133438Z INFO:SoC:CPU rocket adding IO Region 0 at 0x12000000 (Size: 0x6e000000).
+2026-09-30T05:52:56.6133957Z INFO:SoCRegion:Region size rounded internally from 0x6e000000 to 0x80000000.
+2026-09-30T05:52:56.6134639Z INFO:SoCBusHandler:io0 Region added at Origin: 0x12000000, Size: 0x6e000000, Mode:  RW, Cached: False, Linker: False.
+2026-09-30T05:52:56.6135481Z INFO:SoC:CPU rocket overriding rom mapping from 0x00000000 to 0x10000000.
+2026-09-30T05:52:56.6135992Z INFO:SoC:CPU rocket overriding sram mapping from 0x01000000 to 0x11000000.
+2026-09-30T05:52:56.6136514Z INFO:SoC:CPU rocket overriding main_ram mapping from 0x40000000 to 0x80000000.
+2026-09-30T05:52:56.6136989Z INFO:SoC:CPU rocket setting reset address to 0x10000000.
+2026-09-30T05:52:56.6137359Z INFO:SoC:CPU rocket adding Bus Master(s).
+2026-09-30T05:52:56.6137809Z INFO:SoCBusHandler:cpu_bus0 Bus adapted from Wishbone 64-bit to Wishbone 32-bit.
+2026-09-30T05:52:56.6138282Z INFO:SoCBusHandler:cpu_bus0 added as Bus Master.
+2026-09-30T05:52:56.6138633Z INFO:SoC:CPU rocket adding Interrupt(s).
+2026-09-30T05:52:56.6138942Z INFO:SoC:CPU rocket adding DMA Bus.
+2026-09-30T05:52:56.6139264Z INFO:SoCDMABusHandler:Creating Bus Handler...
+2026-09-30T05:52:56.6139677Z INFO:SoCDMABusHandler:64-bit wishbone Bus, 4.0GiB Address Space.
+2026-09-30T05:52:56.6140119Z INFO:SoCDMABusHandler:Adding reserved Bus Regions...
+2026-09-30T05:52:56.6140481Z INFO:SoCDMABusHandler:Bus Handler created.
+2026-09-30T05:52:56.6141061Z INFO:SoCDMABusHandler:dma Region added at Origin: 0x00000000, Size: 0x100000000, Mode:  RW, Cached:  True, Linker: False.
+2026-09-30T05:52:56.6141670Z INFO:SoCDMABusHandler:dma added as Bus Slave.
+2026-09-30T05:52:56.6142011Z INFO:SoC:CPU rocket adding SoC components.
+2026-09-30T05:52:56.6142592Z INFO:SoCBusHandler:opensbi Region added at Origin: 0x80000000, Size: 0x00200000, Mode:  RW, Cached:  True, Linker:  True.
+2026-09-30T05:52:56.6143423Z INFO:SoCBusHandler:plic Region added at Origin: 0x0c000000, Size: 0x00400000, Mode:  RW, Cached:  True, Linker:  True.
+2026-09-30T05:52:56.6144247Z INFO:SoCBusHandler:clint Region added at Origin: 0x02000000, Size: 0x00010000, Mode:  RW, Cached:  True, Linker:  True.
+2026-09-30T05:52:56.6145203Z INFO:SoCBusHandler:rom Region added at Origin: 0x10000000, Size: 0x00020000, Mode:  RX, Cached:  True, Linker: False.
+2026-09-30T05:52:56.6145780Z INFO:SoCBusHandler:rom added as Bus Slave.
+2026-09-30T05:52:56.6146271Z INFO:SoC:RAM rom added Origin: 0x10000000, Size: 0x00020000, Mode:  RX, Cached:  True, Linker: False.
+2026-09-30T05:52:56.6147013Z INFO:SoCBusHandler:sram Region added at Origin: 0x11000000, Size: 0x00002000, Mode: RWX, Cached:  True, Linker: False.
+2026-09-30T05:52:56.6147585Z INFO:SoCBusHandler:sram added as Bus Slave.
+2026-09-30T05:52:56.6148229Z INFO:SoC:RAM sram added Origin: 0x11000000, Size: 0x00002000, Mode: RWX, Cached:  True, Linker: False.
+2026-09-30T05:52:56.6148780Z INFO:SoCIRQHandler:uart IRQ allocated at Location 0.
+2026-09-30T05:52:56.6149169Z INFO:SoCIRQHandler:timer0 IRQ allocated at Location 1.
+2026-09-30T05:52:56.6149790Z INFO:SoCBusHandler:main_ram Region added at Origin: 0x80000000, Size: 0x20000000, Mode: RWX, Cached:  True, Linker: False.
+2026-09-30T05:52:56.6150366Z Traceback (most recent call last):
+2026-09-30T05:52:56.6157438Z   File "/home/runner/work/litex-harmonyos-pc/litex-boards/litex_boards/targets/lambdaconcept_ecpix5.py", line 305, in <module>
+2026-09-30T05:52:56.6158128Z     main()
+2026-09-30T05:52:56.6158717Z   File "/home/runner/work/litex-harmonyos-pc/litex-boards/litex_boards/targets/lambdaconcept_ecpix5.py", line 276, in main
+2026-09-30T05:52:56.6159346Z     soc = BaseSoC(
+2026-09-30T05:52:56.6159939Z   File "/home/runner/work/litex-harmonyos-pc/litex-boards/litex_boards/targets/lambdaconcept_ecpix5.py", line 133, in __init__
+2026-09-30T05:52:56.6160792Z     self.add_ethernet(phy=self.ethphy, dynamic_ip=eth_dynamic_ip, local_ip=eth_ip, remote_ip=remote_ip)
+2026-09-30T05:52:56.6161653Z   File "/home/runner/work/litex-harmonyos-pc/litex-harmonyos-pc/litex/soc/integration/soc.py", line 2655, in add_ethernet
+2026-09-30T05:52:56.6162482Z     ethmac = LiteEthMAC(
+2026-09-30T05:52:56.6162981Z   File "/home/runner/work/litex-harmonyos-pc/liteeth/liteeth/mac/__init__.py", line 85, in __init__
+2026-09-30T05:52:56.6163506Z     self.core = LiteEthMACCore(
+2026-09-30T05:52:56.6164007Z   File "/home/runner/work/litex-harmonyos-pc/liteeth/liteeth/mac/core.py", line 336, in __init__
+2026-09-30T05:52:56.6164524Z     rx_datapath.add_padding()
+2026-09-30T05:52:56.6165253Z   File "/home/runner/work/litex-harmonyos-pc/liteeth/liteeth/mac/core.py", line 263, in add_padding
+2026-09-30T05:52:56.6166080Z     rx_padding = padding.LiteEthMACPaddingChecker(datapath_dw, (eth_min_frame_length - eth_fcs_length), eth_mtu=eth_mtu)
+2026-09-30T05:52:56.6166919Z   File "/home/runner/work/litex-harmonyos-pc/liteeth/liteeth/mac/padding.py", line 89, in __init__
+2026-09-30T05:52:56.6167496Z     self.comb += length_inc.eq(stream.byte_count(sink.be))
+2026-09-30T05:52:56.6168020Z AttributeError: module 'litex.soc.interconnect.stream' has no attribute 'byte_count'
+2026-09-30T05:52:56.6390952Z =========================== short test summary info ============================
+2026-09-30T05:52:56.6391850Z FAILED test/soc/test_cpu_gowin_ae350.py::TestGowinAE350::test_ethernet_buffers_do_not_overlap_csrs - AttributeError: module 'litex.soc.interconnect.stream' has no attribute 'byte_count'
+2026-09-30T05:52:56.6394886Z FAILED test/soc/test_integration.py::test_linux_on_litex_rocket_ecpix5_generation - subprocess.CalledProcessError: Command '['/opt/hostedtoolcache/Python/3.9.25/x64/bin/python3', '/home/runner/work/litex-harmonyos-pc/litex-boards/litex_boards/targets/lambdaconcept_ecpix5.py', '--build', '--no-compile-gateware', '--bios-stack-margin', '0x400', '--output-dir', '/tmp/pytest-of-runner/pytest-0/popen-gw2/test_linux_on_litex_rocket_ecp0', '--cpu-type', 'rocket', '--cpu-variant', 'linux', '--cpu-num-cores', '1', '--cpu-mem-width', '2', '--sys-clk-freq', '50e6', '--with-ethernet', '--with-sdcard', '--yosys-flow3', '--nextpnr-seed', '1']' returned non-zero exit status 1.
+2026-09-30T05:52:56.6397815Z ============= 2 failed, 374 passed, 1 skipped in 612.96s (0:10:12) =============
+2026-09-30T05:52:56.6659662Z ##[error]Process completed with exit code 1.
+

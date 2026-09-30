@@ -1,0 +1,38 @@
+[
+  {
+    "command": [
+      "/private/tmp/litex-core-compat-venv/bin/python",
+      "-m",
+      "litex.tools.litex_client",
+      "--help"
+    ],
+    "returncode": 0
+  },
+  {
+    "command": [
+      "/private/tmp/litex-core-compat-venv/bin/python",
+      "-m",
+      "litex.tools.litex_term",
+      "--help"
+    ],
+    "returncode": 0
+  },
+  {
+    "command": [
+      "/private/tmp/litex-core-compat-venv/bin/python",
+      "-m",
+      "litex.tools.litex_soc_gen",
+      "--help"
+    ],
+    "returncode": 0
+  },
+  {
+    "command": [
+      "/private/tmp/litex-core-compat-venv/bin/python",
+      "-m",
+      "litex.tools.litex_periph_gen",
+      "--help"
+    ],
+    "returncode": 0
+  }
+]

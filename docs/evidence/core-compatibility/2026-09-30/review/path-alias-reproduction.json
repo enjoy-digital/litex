@@ -1,0 +1,7 @@
+{
+  "expected_path": "<TMPDIR_ALIAS>/tmpsxmlhmgf/build/top.v",
+  "registered_path": "<REAL_TMPDIR>/tmpsxmlhmgf/build/top.v",
+  "string_equal": false,
+  "samefile": true,
+  "realpath_equal": true
+}
