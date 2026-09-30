@@ -912,9 +912,11 @@ class Cache(LiteXModule):
     consecutive cycles. Equal/narrower slave widths retain the normal hit path.
     With with_refill_bypass, read misses can acknowledge directly from an equal/wider slave's
     refill response; this adds a combinational path from slave data/ack to the master.
+    tag_mem_attrs supplies optional synthesis attributes for the tag RAM; it
+    does not change its synchronous read/write interface.
     """
     def __init__(self, cachesize, master, slave, reverse=True,
-        with_bursting=False, with_refill_bypass=False):
+        with_bursting=False, with_refill_bypass=False, tag_mem_attrs=None):
         self.master = master
         self.slave  = slave
 
@@ -1014,6 +1016,7 @@ class Cache(LiteXModule):
         # -----------
         tag_layout = [("tag", tagbits), ("dirty", 1)]
         tag_mem    = Memory(layout_len(tag_layout), 2**linebits)
+        tag_mem.attr = set(tag_mem_attrs or ())
         tag_port   = tag_mem.get_port(write_capable=True)
         self.specials += tag_mem, tag_port
         tag_do = Record(tag_layout)

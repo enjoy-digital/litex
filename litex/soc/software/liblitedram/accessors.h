@@ -47,6 +47,7 @@ void write_rst_dq_delay(int module);
 #if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE)
 
 void write_inc_dqs_delay(int module);
+int write_rst_dqs_delay_checked(int module);
 void write_rst_dqs_delay(int module);
 
 void write_inc_delay(int module);
