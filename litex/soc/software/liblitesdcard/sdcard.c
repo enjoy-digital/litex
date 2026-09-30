@@ -19,6 +19,7 @@
 #include <libfatfs/ff.h>
 #include <libfatfs/diskio.h>
 #include "sdcard.h"
+#include "sdcard_dma.h"
 
 #ifdef CSR_SDCARD_BASE
 
@@ -54,7 +55,22 @@ static unsigned int support_cmd23;
 static unsigned int sdcard_ccs = 1;
 
 #ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
+#if SDCARD_DMA_BOUNCE
+_Static_assert(MAIN_RAM_SIZE >= SDCARD_DMA_BUFFER_SIZE, "SDCard DMA needs 512 bytes of main RAM");
+#define sdcard_switch_status ((uint8_t *)(uintptr_t)SDCARD_DMA_BUFFER_BASE_VA)
+
+static bool sdcard_dma_direct(const uint8_t *buf, uint32_t count)
+{
+	uintptr_t addr = (uintptr_t)buf;
+	/* Keep the direct path for aligned physical main-RAM buffers. Other
+	 * destinations (including aliases) are copied through the scratch area. */
+	return !(addr & 63) && addr >= MAIN_RAM_BASE &&
+		addr - MAIN_RAM_BASE < SDCARD_DMA_BUFFER_OFFSET &&
+		count <= (SDCARD_DMA_BUFFER_OFFSET - (addr - MAIN_RAM_BASE)) / 512;
+}
+#else
 static uint8_t sdcard_switch_status[64] __attribute__((aligned(4)));
+#endif
 #endif
 
 static inline uint32_t sdcard_block_to_addr(uint32_t block) {
@@ -254,10 +270,14 @@ int sdcard_switch(unsigned int mode, unsigned int group, unsigned int value) {
 	sdcard_core_block_count_write(1);
 
 #ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
-	memset(sdcard_switch_status, 0, sizeof(sdcard_switch_status));
+	memset(sdcard_switch_status, 0, 64);
 	sdcard_block2mem_dma_enable_write(0);
+#if SDCARD_DMA_BOUNCE
+	sdcard_block2mem_dma_base_write(SDCARD_DMA_BUFFER_BASE);
+#else
 	sdcard_block2mem_dma_base_write((uint64_t)(uintptr_t)sdcard_switch_status);
-	sdcard_block2mem_dma_length_write(sizeof(sdcard_switch_status));
+#endif
+	sdcard_block2mem_dma_length_write(64);
 	sdcard_block2mem_dma_enable_write(1);
 #endif
 
@@ -508,16 +528,20 @@ static int sdcard_get_scr(uint32_t *buf, uint16_t rca)
 	unsigned int timeout;
 
 	sdcard_block2mem_dma_enable_write(0);
+#if SDCARD_DMA_BOUNCE
+	sdcard_block2mem_dma_base_write(SDCARD_DMA_BUFFER_BASE);
+#else
 	sdcard_block2mem_dma_base_write((uint64_t)(uintptr_t)buf);
+#endif
 	sdcard_block2mem_dma_length_write(8);
 	sdcard_block2mem_dma_enable_write(1);
 #endif
 
 	if (sdcard_app_cmd(rca) != SD_OK){
-		return 0;
+		goto error;
 	}
 	if (sdcard_app_send_scr() != SD_OK){
-		return 0;
+		goto error;
 	}
 
 #ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
@@ -530,6 +554,7 @@ static int sdcard_get_scr(uint32_t *buf, uint16_t rca)
 		}
 		busy_wait_us(1);
 	}
+	sdcard_block2mem_dma_enable_write(0);
 
 #ifndef CONFIG_CPU_HAS_DMA_BUS
 	/* Flush caches */
@@ -540,8 +565,17 @@ static int sdcard_get_scr(uint32_t *buf, uint16_t rca)
 	/* Compiler barrier */
 	__asm__ __volatile__("" ::: "memory");
 
+#if SDCARD_DMA_BOUNCE
+	memcpy(buf, (void *)(uintptr_t)SDCARD_DMA_BUFFER_BASE_VA, 8);
+#endif
 #endif
 	return 1;
+
+error:
+#ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
+	sdcard_block2mem_dma_enable_write(0);
+#endif
+	return 0;
 }
 
 /*-----------------------------------------------------------------------*/
@@ -553,6 +587,10 @@ int sdcard_init(void) {
 	uint32_t r[SD_CMD_RESPONSE_SIZE/4];
 	uint32_t scr_buf[2];
 	bool support_4bit;
+
+#if SDCARD_DMA_BOUNCE
+	printf("SDCard DMA bounce buffer: 0x%" PRIxPTR "\n", (uintptr_t)SDCARD_DMA_BUFFER_BASE);
+#endif
 
 	sdcard_phy_settings_write(SD_PHY_SPEED_1X);
 
@@ -668,9 +706,18 @@ int sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 #else
 		nblocks = 1;
 #endif
+#if SDCARD_DMA_BOUNCE
+		bool bounce = !sdcard_dma_direct(buf, nblocks);
+		if (bounce)
+			nblocks = 1;
+#endif
 		/* Initialize DMA Writer */
 		sdcard_block2mem_dma_enable_write(0);
+#if SDCARD_DMA_BOUNCE
+		sdcard_block2mem_dma_base_write(bounce ? SDCARD_DMA_BUFFER_BASE : (uintptr_t)buf);
+#else
 		sdcard_block2mem_dma_base_write((uint64_t)(uintptr_t) buf);
+#endif
 		sdcard_block2mem_dma_length_write(512*nblocks);
 		sdcard_block2mem_dma_enable_write(1);
 
@@ -709,6 +756,13 @@ int sdcard_read(uint32_t block, uint32_t count, uint8_t* buf)
 			}
 			busy_wait_us(1);
 		}
+
+		sdcard_block2mem_dma_enable_write(0);
+		__asm__ __volatile__("" ::: "memory");
+#if SDCARD_DMA_BOUNCE
+		if (bounce)
+			memmove(buf, (void *)(uintptr_t)SDCARD_DMA_BUFFER_BASE_VA, 512);
+#endif
 
 		/* Update Block/Buffer/Count */
 		block += nblocks;
