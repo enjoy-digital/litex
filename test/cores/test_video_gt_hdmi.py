@@ -8,7 +8,7 @@ import random
 import unittest
 import importlib.util
 
-from migen import Instance, Module, Record, Signal, passive, run_simulation
+from migen import ClockDomain, Instance, Module, Record, Signal, passive, run_simulation
 from migen.fhdl.structure import _Assign
 
 from litex.soc.cores.video import VideoGTHDMILane, VideoS7GTPHDMIPHY, VideoUSPGTHHDMIPHY
@@ -74,11 +74,75 @@ class TestVideoGTHDMI(unittest.TestCase):
                 )
                 self.assertEqual(dut.pll.config["linerate"], 10*pixel_clk_freq)
                 for color in ["r", "g", "b"]:
-                    self.assertEqual(getattr(dut, f"gtp{color}").gtp_params["i_TXPOLARITY"], polarity)
+                    gtp = getattr(dut, f"gtp{color}")
+                    self.assertEqual(gtp.gtp_params["i_TXPOLARITY"], polarity)
+                    self.assertIs(gtp.cd_tx.clk, dut.gtpb.cd_tx.clk)
+                    self.assertEqual(gtp.gtp_params["i_RXPD"], 0b11)
                 fragment = dut.get_fragment()
                 drivers = [stmt for stmt in fragment.comb
                     if isinstance(stmt, _Assign) and stmt.l is dut.pll.reset]
                 self.assertEqual(len(drivers), 1)
+
+    @unittest.skipUnless(importlib.util.find_spec("liteiclink"), "LiteICLink is required")
+    def test_gtp_raw_tmds_alignment(self):
+        # Observe the primitive TX ports, including the disparity bits, for all three lanes.
+        # Shared-clock startup must preserve complete TMDS words and RGB alignment. Hard GT
+        # serialization and TX-buffer latency still require hardware validation.
+        layout = [(f"{name}_{polarity}", 1)
+            for name in ["clk", "data0", "data1", "data2", "rx0", "rx1", "rx2"]
+            for polarity in ["p", "n"]]
+        prng = random.Random(763)
+        items = [(prng.randrange(256), int(n % 29 >= 4)) for n in range(256)]
+        expected = []
+        disparity = 0
+        for data, de in items:
+            symbol, disparity = tmds_encode(data, 0, de, disparity)
+            expected.append(symbol)
+
+        for phase, reset_cycles in [(1, 0), (7, 21), (13, 40), (19, 61)]:
+            with self.subTest(phase=phase, reset_cycles=reset_cycles):
+                dut = VideoS7GTPHDMIPHY(Record(layout), 148.5e6, clock_domain="video")
+                probe = Module()
+                probe.clock_domains.cd_gtpb_tx = ClockDomain("gtpb_tx")
+                probe.comb += dut._fragment.comb
+                for color in ["r", "g", "b"]:
+                    probe.submodules += getattr(dut, f"lane{color}")
+                received = {color: [] for color in ["r", "g", "b"]}
+
+                def send():
+                    for n, (data, de) in enumerate(items):
+                        yield probe.cd_gtpb_tx.rst.eq(n < reset_cycles)
+                        yield dut.sink.de.eq(de)
+                        for color in received:
+                            yield getattr(dut.sink, color).eq(data)
+                        yield
+                    for _ in range(40):
+                        yield
+
+                @passive
+                def receive():
+                    while True:
+                        for color in received:
+                            params = getattr(dut, f"gtp{color}").gtp_params
+                            data = yield params["i_TXDATA"]
+                            bit8 = yield params["i_TXCHARDISPVAL"]
+                            bit9 = yield params["i_TXCHARDISPMODE"]
+                            self.assertEqual(data >> 16, 0)
+                            self.assertEqual(bit8 >> 2, 0)
+                            self.assertEqual(bit9 >> 2, 0)
+                            for n in range(2):
+                                received[color].append(((data >> (8*n)) & 0xff)
+                                    | (((bit8 >> n) & 1) << 8) | (((bit9 >> n) & 1) << 9))
+                        yield
+
+                run_simulation(probe, {"video": send(), "gtpb_tx": receive()},
+                    clocks={"video": 10, "gtpb_tx": (20, phase)})
+                self.assertEqual(received["r"], received["g"])
+                self.assertEqual(received["r"], received["b"])
+                # Skip startup, which can drop pixels while the transmitter is held in reset.
+                words = received["b"]
+                start = next(n for n in range(len(words)-8) if words[n:n+8] == expected[100:108])
+                self.assertEqual(words[start:start+len(items)-100], expected[100:])
 
     @unittest.skipUnless(importlib.util.find_spec("liteiclink"), "LiteICLink is required")
     def test_gth_clock_lane(self):
