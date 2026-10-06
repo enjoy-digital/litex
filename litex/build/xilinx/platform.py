@@ -8,12 +8,18 @@
 
 import os
 
-from litex.build.generic_platform import GenericPlatform
+from litex.build.generic_platform import GenericPlatform, IOStandard, Misc
 from litex.build.xilinx import common, vivado, ise, yosys_nextpnr
 
 # XilinxPlatform -----------------------------------------------------------------------------------
 
 class XilinxPlatform(GenericPlatform):
+    io_attrs = {
+        "iostandard_3v3" : IOStandard("LVCMOS33"),
+        "pullup"         : Misc("PULLUP True"),
+        "slew_fast"      : Misc("SLEW=FAST"),
+    }
+
     _bitstream_ext = {
         "sram"  : ".bit",
         "flash" : ".bin"

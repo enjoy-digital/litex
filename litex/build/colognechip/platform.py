@@ -6,12 +6,18 @@
 
 import os
 
-from litex.build.generic_platform import GenericPlatform
+from litex.build.generic_platform import GenericPlatform, Misc
 from litex.build.colognechip import common, colognechip, peppercorn
 
 # CologneChipPlatform ------------------------------------------------------------------------------
 
 class CologneChipPlatform(GenericPlatform):
+    io_attrs = {
+        "iostandard_3v3" : None,
+        "pullup"         : Misc("PULLUP=true"),
+        "slew_fast"      : None,
+    }
+
     _bitstream_ext = "_00.cfg.bit"
     _jtag_support  = False
 
