@@ -36,12 +36,15 @@ class Extension:
     # Type of connector expected on each slot (informational, for documentation/checks): "pmod",...
     connector_type = None
 
-    def __init__(self, *args, number=None, iostandard=None, **bindings):
+    def __init__(self, *args, number=None, name=None, iostandard=None, misc=None, **bindings):
         """Bind slots to host connectors.
 
         Positional arguments are bound to slots in declaration order, keyword arguments by slot name.
-        number     : Override resources' number (to plug several identical extensions on a board).
+        number     : Offset added to resources' numbers (to plug several identical extensions).
+        name       : Rename resources: a string (extensions with a single resource name) or a dict
+                     {original_name: new_name}.
         iostandard : Override default IOStandard (constraint or string), else platform's default.
+        misc       : Additional constraint(s) applied to all resources (ex: Misc("DRIVE_STRENGTH=8")).
         """
         slots = list(self.slots.keys())
         if len(args) > len(slots):
@@ -57,6 +60,8 @@ class Extension:
             if conn is None:
                 raise ValueError(f"{type(self).__name__}: no connector bound to slot '{slot}'.")
         self.number = number
+        self.name   = name
+        self.misc   = [] if misc is None else (list(misc) if isinstance(misc, (list, tuple)) else [misc])
         if isinstance(iostandard, str):
             iostandard = IOStandard(iostandard)
         self._iostandard = iostandard
@@ -90,12 +95,14 @@ class Extension:
     # Public API -----------------------------------------------------------------------------------
 
     def get_io(self, platform):
+        resources = self.define_io(platform)
+        names     = self._get_names(resources)
         io = []
-        for resource in self.define_io(platform):
+        for resource in resources:
             name, number, *elements = resource
             if self.number is not None:
-                number = self.number
-            io.append((name, number, *[self._remap_constraint(e) for e in elements]))
+                number += self.number
+            io.append((names.get(name, name), number, *[self._remap_constraint(e) for e in elements], *self.misc))
         return io
 
     def get_connectors(self, platform):
@@ -108,6 +115,17 @@ class Extension:
         return connectors
 
     # Internals ------------------------------------------------------------------------------------
+
+    def _get_names(self, resources):
+        if self.name is None:
+            return {}
+        if isinstance(self.name, dict):
+            return dict(self.name)
+        names = sorted({resource[0] for resource in resources})
+        if len(names) != 1:
+            raise ValueError(f"{type(self).__name__}: name can only be a string with a single resource "
+                f"name ({', '.join(names)}), use a dict instead.")
+        return {names[0]: self.name}
 
     def _remap_identifier(self, identifier):
         if identifier is None or ":" not in identifier:
