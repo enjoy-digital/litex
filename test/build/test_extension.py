@@ -142,6 +142,56 @@ class TestExtension(unittest.TestCase):
         with self.assertRaises(ConstraintError):
             platform.constraint_manager.get_sig_constraints()
 
+class TestExtensionOptions(unittest.TestCase):
+    def test_name(self):
+        platform = xilinx_platform()
+        io = pmod.PmodUSBUART("pmoda", name="serial").get_io(platform)
+        self.assertEqual(io[0][0], "serial")
+        io = pmod.PmodSDCard("pmoda", name={"sdcard": "sdcard_pmod"}).get_io(platform)
+        self.assertEqual(sorted(r[0] for r in io), ["sdcard_pmod", "spisdcard"])
+        with self.assertRaises(ValueError):
+            pmod.PmodSDCard("pmoda", name="foo").get_io(platform) # Several resource names.
+
+    def test_number_offset(self):
+        io = pmod.PmodUSBHostDual("pmoda", number=2).get_io(xilinx_platform())
+        self.assertEqual([r[1] for r in io], [2, 3])
+
+    def test_misc(self):
+        io = pmod.PmodGPIO("pmoda", misc=Misc("DRIVE=8")).get_io(xilinx_platform())
+        self.assertEqual(misc(io[0][2:]), ["DRIVE=8"])
+
+class TestPmodModules(unittest.TestCase):
+    def test_uart(self):
+        platform = xilinx_platform()
+        platform.add_extension(pmod.PmodUART("pmoda", tx=1, rx=0))
+        platform.request("serial")
+        r = resolved(platform)
+        self.assertEqual((r[("serial", 0, "tx")][0], r[("serial", 0, "rx")][0]), (["B2"], ["B1"]))
+        self.assertEqual(pmod.PmodUSBUART("pmoda").get_io(platform)[0][0], "usb_uart")
+
+    def test_usb_host(self):
+        platform = xilinx_platform()
+        platform.add_extension(pmod.PmodUSBHostDual("pmoda", bundled=True))
+        platform.add_extension(pmod.PmodUSBHostQuad("pmodb", number=1))
+        platform.request("usb_host", 0)
+        platform.request("usb_host", 1)
+        r = resolved(platform)
+        self.assertEqual(r[("usb_host", 0, "dp")][0], ["B1", "B3"])
+        self.assertEqual(r[("usb_host", 1, "dm")][0], ["C5", "C6", "C7", "C8"])
+
+    def test_leds_buttons(self):
+        platform = xilinx_platform()
+        platform.add_extension(pmod.PmodLED("pmoda", order=[4, 5, 6, 7, 0, 1, 2, 3], name="user_led_n"))
+        platform.add_extension(pmod.Pmod1BitSquaredBreakOff("pmodb"))
+        platform.add_extension(pmod.PmodWS2812("pmodb", pin=7))
+        platform.request("user_led_n", 0)
+        platform.request("user_btn", 0)
+        platform.request("ws2812")
+        r = resolved(platform)
+        self.assertEqual(r[("user_led_n", 0, None)][0], ["B5"])
+        self.assertEqual(r[("user_btn", 0, None)][0], ["C7"])
+        self.assertEqual(r[("ws2812", 0, None)][0], ["C8"])
+
 class TestPmodCLI(unittest.TestCase):
     def test_parse(self):
         self.assertEqual(pmod.parse_pmod_args(["pmoda=gpio", "pmodb=sdcard"]), [("pmoda", "gpio"), ("pmodb", "sdcard")])
@@ -149,6 +199,11 @@ class TestPmodCLI(unittest.TestCase):
             pmod.parse_pmod_args(["pmoda"])
         with self.assertRaises(ValueError):
             pmod.parse_pmod_args(["pmoda=foo"])
+        self.assertEqual(pmod.parse_pmod_args(["pmoda+pmodb=dvi"]), [(("pmoda", "pmodb"), "dvi")])
+        with self.assertRaises(ValueError):
+            pmod.parse_pmod_args(["pmoda=dvi"])       # Missing connector.
+        with self.assertRaises(ValueError):
+            pmod.parse_pmod_args(["pmoda+pmodb=gpio"]) # Too many connectors.
 
     def test_args(self):
         import argparse
@@ -162,7 +217,9 @@ class TestPmodCLI(unittest.TestCase):
         from litex.soc.integration.soc_core import SoCCore
         platform = xilinx_platform()
         soc = SoCCore(platform, clk_freq=100e6, cpu_type=None, uart_name="stub", integrated_rom_size=0)
-        pmod.add_pmods(soc, ["pmoda=gpio", "pmodb=i2c"])
+        pmod.add_pmods(soc, ["pmoda=gpio", "pmodb=i2c", "pmoda+pmodb=dvi"])
+        self.assertEqual(platform.lookup_request("dvi", loose=True), None) # IOs only, not requested.
+        platform.request("dvi")
         self.assertTrue(hasattr(soc, "pmoda_gpio"))
         self.assertTrue(hasattr(soc, "pmodb_i2c"))
 

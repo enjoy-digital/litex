@@ -37,16 +37,27 @@ class PmodGPIO(PmodExtension):
 
 # USB-UART -----------------------------------------------------------------------------------------
 
-class PmodUSBUART(PmodExtension):
-    """Digilent PmodUSBUART: https://digilent.com/reference/pmod/pmodusbuart/start"""
+class PmodUART(PmodExtension):
+    """Generic UART on a Pmod (tx/rx: Pmod indexes, default: Digilent UART Pmod pinout)."""
+    resource = "serial"
+
+    def __init__(self, *args, tx=1, rx=2, **kwargs):
+        self.tx = tx
+        self.rx = rx
+        PmodExtension.__init__(self, *args, **kwargs)
+
     def define_io(self, platform):
         return [
-            ("usb_uart", 0,
-                Subsignal("tx", Pins("pmod:1")),
-                Subsignal("rx", Pins("pmod:2")),
+            (self.resource, 0,
+                Subsignal("tx", Pins(f"pmod:{self.tx}")),
+                Subsignal("rx", Pins(f"pmod:{self.rx}")),
                 *self.iostandard(platform),
             ),
         ]
+
+class PmodUSBUART(PmodUART):
+    """Digilent PmodUSBUART: https://digilent.com/reference/pmod/pmodusbuart/start"""
+    resource = "usb_uart"
 
 # SDCard -------------------------------------------------------------------------------------------
 
@@ -199,9 +210,23 @@ class PmodUSBHostDual(PmodExtension):
     """Machdyne USB host dual socket Pmod: https://github.com/machdyne/usb_host_dual_socket_pmod
 
     usb_host:0 is the top socket (USB1), usb_host:1 the bottom socket (USB2).
+    With bundled=True, both ports are described in a single usb_host:0 resource (as expected by
+    multi-port USB OHCI), port 0 being the bottom socket (USB2) and port 1 the top socket (USB1).
     """
+    def __init__(self, *args, bundled=False, **kwargs):
+        self.bundled = bundled
+        PmodExtension.__init__(self, *args, **kwargs)
+
     def define_io(self, platform):
         iostd = self.iostandard(platform)
+        if self.bundled:
+            return [
+                ("usb_host", 0,
+                    Subsignal("dp", Pins("pmod:0 pmod:2")),
+                    Subsignal("dm", Pins("pmod:1 pmod:3")),
+                    *iostd,
+                ),
+            ]
         return [
             ("usb_host", 0,
                 Subsignal("dp", Pins("pmod:2")),
@@ -214,6 +239,81 @@ class PmodUSBHostDual(PmodExtension):
                 *iostd,
             ),
         ]
+
+class PmodUSBHostQuad(PmodExtension):
+    """Quad USB host Pmod (4 ports in a single usb_host resource: dp on pins 1-4, dm on pins 7-10)."""
+    def define_io(self, platform):
+        return [
+            ("usb_host", 0,
+                Subsignal("dp", Pins("pmod:0 pmod:1 pmod:2 pmod:3")),
+                Subsignal("dm", Pins("pmod:4 pmod:5 pmod:6 pmod:7")),
+                *self.iostandard(platform),
+            ),
+        ]
+
+class PmodUSBDevice(PmodExtension):
+    """USB device Pmod with D+ pull-up control (pins: Pmod indexes of (d_p, d_n, pullup)).
+
+    Default pinout is the one of the iCEBreaker/1BitSquared USB Pmods.
+    """
+    def __init__(self, *args, pins=(2, 3, 0), **kwargs):
+        self.pins = pins
+        PmodExtension.__init__(self, *args, **kwargs)
+
+    def define_io(self, platform):
+        d_p, d_n, pullup = self.pins
+        return [
+            ("usb", 0,
+                Subsignal("d_p",    Pins(f"pmod:{d_p}")),
+                Subsignal("d_n",    Pins(f"pmod:{d_n}")),
+                Subsignal("pullup", Pins(f"pmod:{pullup}")),
+                *self.iostandard(platform),
+            ),
+        ]
+
+# LEDs / Buttons -----------------------------------------------------------------------------------
+
+class PmodLED(PmodExtension):
+    """8 LEDs Pmod, one user_led resource per LED (order: Pmod indexes of LED 0 to 7)."""
+    def __init__(self, *args, order=range(8), **kwargs):
+        self.order = list(order)
+        PmodExtension.__init__(self, *args, **kwargs)
+
+    def define_io(self, platform):
+        iostd = self.iostandard(platform)
+        return [("user_led", n, Pins(f"pmod:{i}"), *iostd) for n, i in enumerate(self.order)]
+
+class Pmod1BitSquaredBreakOff(PmodExtension):
+    """1BitSquared iCEBreaker break-off Pmod (3 buttons, 5 LEDs: 1 red, 4 green)."""
+    def define_io(self, platform):
+        iostd = self.iostandard(platform)
+        return [
+            ("user_btn", 0, Pins("pmod:6"), *iostd),
+            ("user_btn", 1, Pins("pmod:3"), *iostd),
+            ("user_btn", 2, Pins("pmod:7"), *iostd),
+
+            ("user_led", 0, Pins("pmod:4"), *iostd),
+            ("user_led", 1, Pins("pmod:0"), *iostd),
+            ("user_led", 2, Pins("pmod:1"), *iostd),
+            ("user_led", 3, Pins("pmod:5"), *iostd),
+            ("user_led", 4, Pins("pmod:2"), *iostd),
+
+            # Color-specific aliases.
+            ("user_ledr", 0, Pins("pmod:4"), *iostd),
+            ("user_ledg", 0, Pins("pmod:0"), *iostd),
+            ("user_ledg", 1, Pins("pmod:1"), *iostd),
+            ("user_ledg", 2, Pins("pmod:5"), *iostd),
+            ("user_ledg", 3, Pins("pmod:2"), *iostd),
+        ]
+
+class PmodWS2812(PmodExtension):
+    """WS2812/NeoPixel LED chain data line on a Pmod pin (pin: Pmod index)."""
+    def __init__(self, *args, pin=0, **kwargs):
+        self.pin = pin
+        PmodExtension.__init__(self, *args, **kwargs)
+
+    def define_io(self, platform):
+        return [("ws2812", 0, Pins(f"pmod:{self.pin}"), *self.iostandard(platform))]
 
 # Video --------------------------------------------------------------------------------------------
 
@@ -240,6 +340,7 @@ class PmodDVI(Extension):
 
 pmods = {
     "gpio"          : PmodGPIO,
+    "uart"          : PmodUART,
     "usb_uart"      : PmodUSBUART,
     "sdcard"        : PmodSDCard,
     "numato_sdcard" : PmodNumatoSDCard,
@@ -250,12 +351,22 @@ pmods = {
     "ps2"           : PmodPS2,
     "lan8720"       : PmodLAN8720,
     "usb_host_dual" : PmodUSBHostDual,
+    "usb_host_quad" : PmodUSBHostQuad,
+    "usb_device"    : PmodUSBDevice,
+    "led"           : PmodLED,
+    "breakoff"      : Pmod1BitSquaredBreakOff,
+    "ws2812"        : PmodWS2812,
+}
+
+# Modules plugged on several Pmods (connectors given in slot order, ex: pmod1a+pmod1b=dvi).
+multi_pmods = {
+    "dvi" : PmodDVI,
 }
 
 # Command line -------------------------------------------------------------------------------------
 
 # Pmods that can be plugged from the command line with the cores attached by add_pmods().
-_cli_pmods = ["gpio", "sdcard", "numato_sdcard", "i2c", "can"]
+_cli_pmods = ["gpio", "sdcard", "numato_sdcard", "i2c", "can", "dvi"]
 
 def _pmod_arg(arg):
     import argparse
@@ -269,10 +380,14 @@ def add_pmod_args(parser):
     """Add a repeatable --pmod CONNECTOR=MODULE argument to a target's parser."""
     group = parser.target_group if hasattr(parser, "target_group") else parser
     group.add_argument("--pmod", action="append", default=[], metavar="CONNECTOR=MODULE", type=_pmod_arg,
-        help=f"Plug a Pmod module on a connector (ex: pmoda=gpio). Modules: {', '.join(_cli_pmods)}.")
+        help=f"Plug a Pmod module on connector(s) (ex: pmoda=gpio, pmod1a+pmod1b=dvi). Modules: {', '.join(_cli_pmods)}.")
 
 def parse_pmod_args(pmod_args):
-    """Parse --pmod arguments into a list of (connector, module)."""
+    """Parse --pmod arguments into a list of (connector, module).
+
+    connector is a string for single Pmod modules, a tuple of strings for modules plugged on several
+    Pmods (CONNECTOR+CONNECTOR=MODULE).
+    """
     r = []
     for arg in pmod_args:
         if arg.count("=") != 1:
@@ -280,6 +395,14 @@ def parse_pmod_args(pmod_args):
         conn, module = arg.split("=")
         if module not in _cli_pmods:
             raise ValueError(f"Unsupported Pmod module '{module}', supported: {', '.join(_cli_pmods)}.")
+        conns = conn.split("+")
+        if module in multi_pmods:
+            nslots = len(multi_pmods[module].slots)
+            if len(conns) != nslots:
+                raise ValueError(f"Pmod module '{module}' requires {nslots} connectors (ex: pmod1a+pmod1b={module}).")
+            conn = tuple(conns)
+        elif len(conns) != 1:
+            raise ValueError(f"Pmod module '{module}' requires a single connector.")
         r.append((conn, module))
     return r
 
@@ -291,6 +414,7 @@ def add_pmods(soc, pmod_args):
                              --with-sdcard/--with-spi-sdcard.
     - i2c                  : I2CMaster core (named <connector>_i2c).
     - can                  : CTU-CAN-FD core (named <connector>_can).
+    - dvi                  : IOs only (taking precedence over board's ones), on two Pmods.
     """
     platform = soc.platform
     numbers  = {}
@@ -300,6 +424,9 @@ def add_pmods(soc, pmod_args):
         if module in ["sdcard", "numato_sdcard"] and number:
             raise ValueError("Only one SDCard Pmod is supported.")
         # Prepend so that explicitly plugged Pmods take precedence over board's default resources.
+        if module in multi_pmods:
+            platform.add_extension(multi_pmods[module](*conn, number=number), prepend=True)
+            continue
         platform.add_extension(pmods[module](conn, number=number), prepend=True)
         if module == "gpio":
             from litex.soc.cores.gpio import GPIOTristate
