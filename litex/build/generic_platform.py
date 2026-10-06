@@ -160,7 +160,7 @@ class ConnectorManager:
 
             self.connector_table[conn_name] = pin_list
 
-    def resolve_identifiers(self, identifiers):
+    def resolve_identifiers(self, identifiers, _visited=()):
         r = []
         for identifier in identifiers:
             if ":" in identifier:
@@ -185,7 +185,9 @@ class ConnectorManager:
                     r.append(conn_pn)
                     continue
                 if ":" in conn_pn:
-                    conn_pn = self.resolve_identifiers([conn_pn])[0]
+                    if identifier in _visited:
+                        raise ConstraintError(f"Connector loop detected while resolving '{identifier}'")
+                    conn_pn = self.resolve_identifiers([conn_pn], _visited + (identifier,))[0]
                 r.append(conn_pn)
             else:
                 r.append(identifier)
@@ -351,6 +353,14 @@ class GenericPlatform:
                           # be a string when same extension is used for sram and
                           # flash. A dict must be provided otherwise
 
+    # Vendor-specific IO attributes, used to describe IOs in a vendor-agnostic way (for example in
+    # litex.build.extension); overridden by vendor platforms. None when not supported/required.
+    io_attrs = {
+        "iostandard_3v3" : IOStandard("LVCMOS33"),
+        "pullup"         : None,
+        "slew_fast"      : None,
+    }
+
     def __init__(self, device, io, connectors=[], name=None):
         self.toolchain          = GenericToolchain()
         self.device             = device
@@ -405,8 +415,22 @@ class GenericPlatform:
     def add_platform_command(self, *args, **kwargs):
         return self.constraint_manager.add_platform_command(*args, **kwargs)
 
-    def add_extension(self, *args, **kwargs):
-        return self.constraint_manager.add_extension(*args, **kwargs)
+    @classmethod
+    def get_io_attr(cls, name):
+        """Return vendor-specific IO attribute as a list of constraints ([] if not supported)."""
+        if name not in cls.io_attrs:
+            raise ValueError(f"Unknown IO attribute '{name}', available: {', '.join(cls.io_attrs)}.")
+        attr = cls.io_attrs[name]
+        if attr is None:
+            return []
+        return list(attr) if isinstance(attr, (list, tuple)) else [attr]
+
+    def add_extension(self, io, *args, **kwargs):
+        # Extension objects (see litex.build.extension) also provide their own connectors.
+        if hasattr(io, "get_io"):
+            self.add_connector(io.get_connectors(self))
+            io = io.get_io(self)
+        return self.constraint_manager.add_extension(io, *args, **kwargs)
 
     def add_connector(self, *args, **kwargs):
         self.constraint_manager.add_connector(*args, **kwargs)

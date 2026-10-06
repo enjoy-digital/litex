@@ -7,12 +7,18 @@
 
 import os
 
-from litex.build.generic_platform import GenericPlatform, Pins
+from litex.build.generic_platform import GenericPlatform, Pins, IOStandard, Misc
 from litex.build.altera import common, quartus
 
 # AlteraPlatform -----------------------------------------------------------------------------------
 
 class AlteraPlatform(GenericPlatform):
+    io_attrs = {
+        "iostandard_3v3" : IOStandard("3.3-V LVTTL"),
+        "pullup"         : Misc("WEAK_PULL_UP_RESISTOR ON"),
+        "slew_fast"      : None,
+    }
+
     _bitstream_ext = {
         "sram"  : ".sof",
         "flash" : ".rbf"

@@ -7,7 +7,7 @@
 
 import os
 
-from litex.build.generic_platform import GenericPlatform
+from litex.build.generic_platform import GenericPlatform, IOStandard, Misc
 from litex.build.lattice import common, diamond, icestorm, trellis, radiant, oxide
 
 # LatticePlatform ----------------------------------------------------------------------------------
@@ -122,13 +122,28 @@ class LatticePlatform(GenericPlatform):
 
 class LatticeiCE40Platform(LatticePlatform):
     device_family = "ice40"
+    io_attrs = {
+        "iostandard_3v3" : IOStandard("LVCMOS33"),
+        "pullup"         : Misc("PULLUP"),
+        "slew_fast"      : None,
+    }
 
 # LatticeECP5Platform ------------------------------------------------------------------------------
 
 class LatticeECP5Platform(LatticePlatform):
     device_family = "ecp5"
+    io_attrs = {
+        "iostandard_3v3" : IOStandard("LVCMOS33"),
+        "pullup"         : Misc("PULLMODE=UP"),
+        "slew_fast"      : Misc("SLEWRATE=FAST"),
+    }
 
 # LatticeNexusPlatform -----------------------------------------------------------------------------
 
 class LatticeNexusPlatform(LatticePlatform):
     device_family = "nexus"
+    io_attrs = {
+        "iostandard_3v3" : IOStandard("LVCMOS33"),
+        "pullup"         : Misc("PULLMODE=UP"),
+        "slew_fast"      : Misc("SLEWRATE=FAST"),
+    }

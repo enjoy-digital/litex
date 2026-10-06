@@ -7,12 +7,18 @@
 
 import os
 
-from litex.build.generic_platform import GenericPlatform
+from litex.build.generic_platform import GenericPlatform, IOStandard, Misc
 from litex.build.gowin import common, gowin, apicula
 
 # GowinPlatform ------------------------------------------------------------------------------------
 
 class GowinPlatform(GenericPlatform):
+    io_attrs = {
+        "iostandard_3v3" : IOStandard("LVCMOS33"),
+        "pullup"         : Misc("PULL_MODE=UP"),
+        "slew_fast"      : None,
+    }
+
     _bitstream_ext = ".fs"
     _jtag_support  = False
 

@@ -17,6 +17,12 @@ from litex.build.efinix.toolchain import find_efinity_path
 # EfinixPlatform -----------------------------------------------------------------------------------
 
 class EfinixPlatform(GenericPlatform):
+    io_attrs = {
+        "iostandard_3v3" : IOStandard("3.3_V_LVTTL_/_LVCMOS"),
+        "pullup"         : Misc("WEAK_PULLUP"),
+        "slew_fast"      : None,
+    }
+
     _bitstream_ext = {
         "sram"  : ".bit",
         "flash" : ".hex"
