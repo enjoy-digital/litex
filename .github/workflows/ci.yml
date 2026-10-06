@@ -27,6 +27,7 @@ jobs:
       # Install Tools
       - name: Install Tools
         run: |
+          sudo apt-get update
           sudo apt-get install wget build-essential ninja-build help2man
           sudo apt-get install pkg-config python3-venv libglib2.0-dev libpixman-1-dev libfdt-dev device-tree-compiler
           sudo apt-get install libevent-dev libjson-c-dev flex bison
