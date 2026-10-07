@@ -38,10 +38,12 @@ jobs:
       # Install Tools
       - name: Install Tools
         run: |
-          sudo apt-get install wget build-essential ninja-build help2man
-          sudo apt-get install pkg-config python3-venv libglib2.0-dev libpixman-1-dev libfdt-dev device-tree-compiler
-          sudo apt-get install libevent-dev libjson-c-dev flex bison
-          sudo apt-get install libfl-dev libfl2 zlib1g-dev
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            wget build-essential ninja-build help2man \
+            pkg-config python3-venv libglib2.0-dev libpixman-1-dev libfdt-dev device-tree-compiler \
+            libevent-dev libjson-c-dev flex bison \
+            libfl-dev libfl2 zlib1g-dev
 
       # Coreblocks generation currently requires Python 3.13. Install it first
       # so python3.13 remains available to the pythondata wrapper, then restore
