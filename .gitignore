@@ -102,3 +102,6 @@ ENV/
 
 # VS Code settings
 .vscode
+
+# Windows reference environment probe reports are not deliverables.
+logs/check-environment-windows-reference.*
