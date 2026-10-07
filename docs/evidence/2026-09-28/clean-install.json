@@ -1,0 +1,249 @@
+{
+  "date": "2026-09-28",
+  "validation": "Independent native HarmonyOS clean-venv replay of unmodified PR #1",
+  "source": {
+    "litex_commit": "f6d66ae576baef2d3a29bb55be5cf40c7506e0ad",
+    "migen_expected_commit": "4c2ae8dfeea37f235b52acb8166f12acaaae4f7c",
+    "bootstrap_python": "/storage/Users/currentUser/.harmonybrew/opt/python@3.12/bin/python3.12",
+    "bootstrap_version": "3.12.14 (main, Sep 10 2026, 17:12:55) [Clang 15.0.4 (/srv/workspace/llvm-release/2026_0313_llvm15_release/toolchain/ll",
+    "venv_absent_before_setup": true,
+    "migen_absent_before_setup": true,
+    "installer_unmodified": true,
+    "installer": "sh scripts/setup_harmonyos.sh",
+    "source_transport": "SHA256-checked Git bundles through USB loopback",
+    "dependency_transport": "installer default pip index; dedicated empty pip cache",
+    "transfer_sha256": {
+      "litex.bundle": "018077c923e59325191a5df2a9d80a7ccca25a4b5e498e8866559bdb96b4e629",
+      "migen.bundle": "34ce3a13433c4a384e2b1d5d557088e0c1bf51ac09dde6b463632639aab656ce"
+    },
+    "PYTHONUTF8": "1"
+  },
+  "setup_exit": 0,
+  "acceptance_exit": 0,
+  "isolation": {
+    "executable": "/storage/Users/currentUser/projects/litex/qa-clean-20260928-r2/litex/.venv-litex/bin/python",
+    "prefix": "/storage/Users/currentUser/projects/litex/qa-clean-20260928-r2/litex/.venv-litex",
+    "base_prefix": "/storage/Users/currentUser/.harmonybrew/opt/python@3.12",
+    "path": [
+      "",
+      "/storage/Users/currentUser/.harmonybrew/opt/python@3.12/lib/python312.zip",
+      "/storage/Users/currentUser/.harmonybrew/opt/python@3.12/lib/python3.12",
+      "/storage/Users/currentUser/.harmonybrew/opt/python@3.12/lib/python3.12/lib-dynload",
+      "/storage/Users/currentUser/projects/litex/qa-clean-20260928-r2/litex/.venv-litex/lib/python3.12/site-packages"
+    ],
+    "migen": "/storage/Users/currentUser/projects/litex/qa-clean-20260928-r2/litex/.venv-litex/lib/python3.12/site-packages/migen/__init__.py",
+    "litex": "/storage/Users/currentUser/projects/litex/qa-clean-20260928-r2/litex/litex/__init__.py"
+  },
+  "include_system_site_packages": false,
+  "migen_actual_commit": "4c2ae8dfeea37f235b52acb8166f12acaaae4f7c",
+  "environment_probes": {
+    "before": {
+      "mode": "full",
+      "blockers": []
+    },
+    "after": {
+      "mode": "fast",
+      "blockers": []
+    }
+  },
+  "network_warnings": [
+    {
+      "section": "网络连通性",
+      "name": "raw.githubusercontent.com",
+      "status": "WARN",
+      "detail": "<urlopen error _ssl.c:993: The handshake operation timed out>",
+      "required": false
+    }
+  ],
+  "external_tools": [
+    {
+      "section": "外部工具",
+      "name": "C/C++ 编译器/cc",
+      "status": "SKIP",
+      "detail": "未安装（构建依赖无预编译 wheel 时需要）",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "C/C++ 编译器/gcc",
+      "status": "SKIP",
+      "detail": "未安装（构建依赖无预编译 wheel 时需要）",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "C/C++ 编译器/clang",
+      "status": "OK",
+      "detail": "/storage/Users/currentUser/.harmonybrew/opt/ohos-sdk-native/llvm/bin/clang | clang version 15.0.4 (/srv/workspace/llvm-release/2026_0313_llvm15_release/toolchain/llvm-project/clang 0e01a01d567b9acfce8edfdadb66a7b69f088fb0)",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "构建系统/make",
+      "status": "OK",
+      "detail": "/storage/Users/currentUser/.harmonybrew/bin/make | GNU Make 4.4.1",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "构建系统/ninja",
+      "status": "OK",
+      "detail": "/storage/Users/currentUser/.harmonybrew/bin/ninja | 1.13.2",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "构建系统/meson",
+      "status": "SKIP",
+      "detail": "未安装（扩展验收（litex_sim / 固件））",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "构建系统/cmake",
+      "status": "OK",
+      "detail": "/storage/Users/currentUser/.harmonybrew/bin/cmake | cmake version 4.4.3",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "仿真 / HDL 工具/verilator",
+      "status": "SKIP",
+      "detail": "未安装（扩展验收（litex_sim））",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "仿真 / HDL 工具/iverilog",
+      "status": "SKIP",
+      "detail": "未安装（扩展验收（可选仿真））",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "仿真 / HDL 工具/yosys",
+      "status": "SKIP",
+      "detail": "未安装（扩展验收（FPGA 综合，非首期））",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "RISC-V 交叉工具链/riscv64-unknown-elf-gcc",
+      "status": "SKIP",
+      "detail": "未安装（扩展验收（BIOS/固件编译））",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "RISC-V 交叉工具链/riscv64-elf-gcc",
+      "status": "SKIP",
+      "detail": "未安装（扩展验收（BIOS/固件编译））",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "RISC-V 交叉工具链/riscv32-unknown-elf-gcc",
+      "status": "SKIP",
+      "detail": "未安装（扩展验收（BIOS/固件编译））",
+      "required": false
+    }
+  ],
+  "status": "PASS",
+  "required_passed": 5,
+  "required_total": 5,
+  "portable_tests": 24,
+  "portable_test_log_seconds": 31.447,
+  "steps": [
+    {
+      "name": "pip-check",
+      "status": "PASS",
+      "returncode": 0,
+      "required": true,
+      "duration_seconds": 0.37
+    },
+    {
+      "name": "imports",
+      "status": "PASS",
+      "returncode": 0,
+      "required": true,
+      "duration_seconds": 0.176
+    },
+    {
+      "name": "litex-cli-help",
+      "status": "PASS",
+      "returncode": 0,
+      "required": true,
+      "duration_seconds": 0.168
+    },
+    {
+      "name": "litex-sim-help",
+      "status": "OPTIONAL_FAIL",
+      "returncode": 1,
+      "required": false,
+      "duration_seconds": 0.327
+    },
+    {
+      "name": "portable-core-tests",
+      "status": "PASS",
+      "returncode": 0,
+      "required": true,
+      "duration_seconds": 31.817
+    },
+    {
+      "name": "minimal-soc",
+      "status": "PASS",
+      "returncode": 0,
+      "required": true,
+      "duration_seconds": 0.934
+    }
+  ],
+  "comparison": {
+    "reference_commit": "6bd66c63f77e3c32452e8b5f7dbfb50df45ad501",
+    "candidate_commit": "f6d66ae576baef2d3a29bb55be5cf40c7506e0ad",
+    "status": "DIFFERENT",
+    "exact_files": [
+      "csr.json",
+      "gateware/minimal_soc_mem.init"
+    ],
+    "remaining_differences": "Only recorded LiteX Git revision in generated banners and git.h; retained in comparison report"
+  },
+  "scope_limits": [
+    "Source clones used Git bundles; direct Internet cloning was not exercised",
+    "Native HarmonyBrew Python and Git were already installed",
+    "No firmware compilation or Verilator simulation",
+    "Final integrated revision and group lead replay still pending"
+  ],
+  "raw_files_sha256": {
+    "acceptance/acceptance-report.json": "9ded31b074b6630d88ba5a98cdc26b458488a2607b957d08a7116522378a659c",
+    "acceptance/environment.json": "fc76bd76a7a155af524dd7873a7027585ae0f28c8e8d0224e08e1613af53ab39",
+    "acceptance/logs/imports.log": "6ed5e05fcfd906ebf3efd052132818dc5936db12df6f7a67e22f48d3d8eba61b",
+    "acceptance/logs/litex-cli-help.log": "4392029624502b29f404fd864ecafa0a3a38877b908586e391cd048a7f751f0e",
+    "acceptance/logs/litex-sim-help.log": "840de2ae68797a9d8abac53c2ec9a1d04a0245ba92c129a2db08a4ef2bd1dcae",
+    "acceptance/logs/minimal-soc.log": "b5352a559389ae08254b0f4dc17e98e0bfc614d5c171078f40214e2519a36b6b",
+    "acceptance/logs/pip-check.log": "9261363b733079a641c2e4cc9bc46ffa1d8336945a87f807b6cf68847dbc9b09",
+    "acceptance/logs/portable-core-tests.log": "6907382506e11dea54e0b6604fefcadb713de1570608f19389d1246c85eaecec",
+    "acceptance/minimal-soc/baseline-summary.json": "bc82c9ff5038e781f892b6df3d2a93be84b549573387533ea9c84d1c5e09f791",
+    "acceptance/minimal-soc/csr.csv": "a157cdb758d8a6f401b393d3d357abb266ab1cd1a559c2cba92a5cfb6d645704",
+    "acceptance/minimal-soc/csr.json": "9c70bff4cacfccf0acd723d1f707f719fba87dcbd11606ea2219a62755c58a40",
+    "acceptance/minimal-soc/gateware/minimal_soc.v": "c35b7614fe9a24036ed34c7cf061104f0d0cd2aeef935a7033dabd288981a4c1",
+    "acceptance/minimal-soc/gateware/minimal_soc_mem.init": "7f78d197eeb021d4cc51516fe765b6553e5a4992c41caaffe6f83aefc778251e",
+    "acceptance/minimal-soc/litex.log": "570c49399338d4221d028c25b5917a747a48938ad4d02e696402f7afeb65c4bd",
+    "acceptance/minimal-soc/software/include/generated/csr.h": "afa98c8163d52f35710b6e2921929141c2f1cd42614a4c1dbeab11b3d20ff53f",
+    "acceptance/minimal-soc/software/include/generated/git.h": "8213d54813c38b5124968ebe5b91751ae8203c87833dedeea42969153661c8f8",
+    "acceptance/minimal-soc/software/include/generated/mem.h": "102f32eac8e9aada0e47b92a98e26d3ca4e5188a814428cc0cfb1177356756d8",
+    "acceptance/minimal-soc/software/include/generated/soc.h": "166cc102f2f8e20b32181d30a2193086d6294c29ec829dcee4f260573e26d160",
+    "acceptance-console.log": "c6147da29bcbeddbed80b74e798f8a6863f99220b1c610d0afc785ca2bc2b9d9",
+    "check-environment-20260928-171039.json": "7de158ca8694b564a60c3a390c3600a074a8fbecbbeeedaa3ea9aab9f66b6afc",
+    "environment-isolation.json": "1cdbb7161fee2e044830e652c9f0ddc160ae14f28a3ee45c50d984e95488932f",
+    "installer.log": "688c9ef096e17169b943557a0c43e46d4da71efe6752cac24c85685b81fdd671",
+    "migen-commit.txt": "50690f1b36d45da648439005a751f4aa3ece4cf3cbde09bd1e4c5de696108907",
+    "post-install-check.json": "5a64c92b9f76983f7a061b38db69c38c726debee5a397450347e71f6c13f295a",
+    "post-install-check.log": "f913f97a7b8b47ce187e00ade0c5e3615e9ecc3b9ff73a29f99f8fe67974eb69",
+    "provenance.json": "a348d6d8302d57ed38e3d1bb9826ee7efde344a8081c7c23ce15a41a0da078a1",
+    "pyvenv.cfg": "d6a5022473c8bb278ee2d721583608fb1fdc1a8b0f51afda0ca98b550fd3ac53",
+    "requirements.txt": "a804189822e113d5b5b090b4c691611ec46ae5c79bec383fbb60f211a53b2c78",
+    "source-checkout.log": "fa81b59d49f22962f380708e0999a1f3295c4cbac5cbbec8f42250edd5588ea4",
+    "source-fetch.log": "4d3709d83785ab08ef876360befc28dceaa30984145d39feaea60af71a221fed",
+    "source-init.log": "4022d0e75a633ebce0ad66d6d729a855beef66025368576a7340ce464083ec87"
+  }
+}

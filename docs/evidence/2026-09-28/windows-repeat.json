@@ -1,0 +1,60 @@
+{
+  "status": "MATCH",
+  "reference": "build\\acceptance-windows-20260928\\minimal-soc",
+  "candidate": "build\\minimal-soc-repeat-20260928",
+  "excluded": [
+    "baseline-summary.json",
+    "litex.log"
+  ],
+  "files": [
+    {
+      "path": "csr.csv",
+      "reference_sha256": "aa62c30c3d5a54022cc3f22334219dd5df8741b5a03c1bdb49db2942958e7a4b",
+      "candidate_sha256": "c848ca6db07cdf25b955e0a1f1ca5e3c3fbf8e8236d17e008e22b05031466084",
+      "status": "NORMALIZED_EQUAL"
+    },
+    {
+      "path": "csr.json",
+      "reference_sha256": "71a922c4350c79dcad2aa4a1b23e6fad9a1d893ed8a13f301e96dbfafe16cab0",
+      "candidate_sha256": "71a922c4350c79dcad2aa4a1b23e6fad9a1d893ed8a13f301e96dbfafe16cab0",
+      "status": "EXACT"
+    },
+    {
+      "path": "gateware/minimal_soc.v",
+      "reference_sha256": "f7602c925e142ab1217b77dbdfa6bad4e53486569349918ff219a1900654466f",
+      "candidate_sha256": "e617bb4fac51803a491248ceff60f09af0377244090e8a72dfaf216e0101f685",
+      "status": "NORMALIZED_EQUAL"
+    },
+    {
+      "path": "gateware/minimal_soc_mem.init",
+      "reference_sha256": "fd64866669d92a19efb85b6e6585c05913cf955880dae989961e41b6bbf3a51e",
+      "candidate_sha256": "fd64866669d92a19efb85b6e6585c05913cf955880dae989961e41b6bbf3a51e",
+      "status": "EXACT"
+    },
+    {
+      "path": "software/include/generated/csr.h",
+      "reference_sha256": "d4959c94870895e0e87faa1c9a6055a77717fc530cca1449e27835fba64ba86d",
+      "candidate_sha256": "4f1508fdfa9d8094588c3531084b15b11eba4bd2ac299bc7223885e5f811cedc",
+      "status": "NORMALIZED_EQUAL"
+    },
+    {
+      "path": "software/include/generated/git.h",
+      "reference_sha256": "33a10563d32bc3558d68311673aa0223c42fa280c07e81ce6168b1c10733e3c9",
+      "candidate_sha256": "679847c04968548fe93d5bda95f30103415d3c22d592e8607402ebdf875eacc0",
+      "status": "NORMALIZED_EQUAL"
+    },
+    {
+      "path": "software/include/generated/mem.h",
+      "reference_sha256": "c052d0482b74966ae3f139f9d4b6015e230dadab8b3ead1616c56c84e6c694a1",
+      "candidate_sha256": "edc907b3ac0e0a2a5b538d955f9b04c3d329bbbeb2584b7b0260764ab0103abf",
+      "status": "NORMALIZED_EQUAL"
+    },
+    {
+      "path": "software/include/generated/soc.h",
+      "reference_sha256": "69f9e00f291a2e2472cf118c621a27330b7189b224b3e0c3f4e076b6aa1b7110",
+      "candidate_sha256": "78bbddf755eed9635f20037175f3ce3427495c73946a1013b3ae16b8e2d5880c",
+      "status": "NORMALIZED_EQUAL"
+    }
+  ],
+  "errors": []
+}
