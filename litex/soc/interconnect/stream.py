@@ -95,6 +95,9 @@ def pack_layout(l, n):
 def byte_count(be):
     return sum(be[i] for i in range(len(be)))
 
+def byte_mask(count, width):
+    return Cat(count > i for i in range(width))
+
 def get_endpoints(obj, filt=Endpoint):
     if hasattr(obj, "get_endpoints") and callable(obj.get_endpoints):
         return obj.get_endpoints(filt)

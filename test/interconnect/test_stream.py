@@ -86,6 +86,25 @@ class TestStream(unittest.TestCase):
 
                 run_simulation(dut, generator())
 
+    def test_byte_mask(self):
+        class DUT(Module):
+            def __init__(self, width):
+                self.count = Signal(max=width + 1)
+                self.mask  = Signal(width)
+                self.comb += self.mask.eq(byte_mask(self.count, width))
+
+        for width in [1, 2, 4, 8]:
+            with self.subTest(width=width):
+                dut = DUT(width)
+
+                def generator():
+                    for count in range(width + 1):
+                        yield dut.count.eq(count)
+                        yield
+                        self.assertEqual((yield dut.mask), (1 << count) - 1)
+
+                run_simulation(dut, generator())
+
     def packetized_flow_test(self, dut, packets):
         prng = random.Random(42)
 
