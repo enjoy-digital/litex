@@ -1,0 +1,49 @@
+{
+  "date": "2026-09-30",
+  "scope": "Member 3, week 1; local macOS supplemental evidence",
+  "baseline_commit": "6bd66c63f77e3c32452e8b5f7dbfb50df45ad501",
+  "supplemental_parent_commit": "75c85fd66618332a637f0382e9c100b0e3755437",
+  "supplemental_patch": "source/test-path-fix.patch",
+  "migen_commit": "4c2ae8dfeea37f235b52acb8166f12acaaae4f7c",
+  "acceptance": {
+    "required_passed": 5,
+    "required_total": 5,
+    "core_tests_passed": 24,
+    "optional_failure": "liteeth missing"
+  },
+  "initial_targeted": {
+    "total": 27,
+    "passed": 24,
+    "failures": 1,
+    "errors": 2
+  },
+  "final_targeted": {
+    "total": 25,
+    "passed": 25,
+    "excluded": "Two BIOS-related tests require missing pythondata-software-picolibc"
+  },
+  "host_probe": {
+    "total": 5,
+    "passed": 5,
+    "serial_port_opened": false
+  },
+  "cli_help": {
+    "total": 4,
+    "passed": 4
+  },
+  "native_harmonyos_run_by_member3": false,
+  "raw_archive": {
+    "filename": "core-compatibility-2026-09-30.zip",
+    "sha256": "4a45f69aaf59332fd2a77a1498608686ef6e029bdcfd7f1db2e77c629113a1fd",
+    "files": 56,
+    "storage": "Primary checkout build/; ignored by Git; contains unredacted local paths"
+  },
+  "historical_ci": {
+    "run_id": 36674290272,
+    "conclusion": "failure",
+    "failed_tests": 3,
+    "reason": "LiteEth calls missing stream.byte_count",
+    "full_regression_passed": false
+  },
+  "peer_review": "pending"
+}

@@ -528,7 +528,9 @@ class TestGenericToolchain(unittest.TestCase):
             self.assertEqual(toolchain.project_calls,  1)
             self.assertEqual(toolchain.script_calls,   1)
             self.assertEqual(toolchain.run_calls,      [])
-            self.assertTrue(any(source[0] == os.path.join(build_dir, "top.v") for source in platform.sources))
+            # getcwd() can resolve a symlink in the temporary directory path.
+            expected_source = os.path.realpath(os.path.join(build_dir, "top.v"))
+            self.assertTrue(any(os.path.realpath(source[0]) == expected_source for source in platform.sources))
 
     def test_build_litex_backend_runs_script_when_requested(self):
         platform = _make_platform(io=[])

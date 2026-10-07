@@ -1,0 +1,13 @@
+certifi==2026.7.22
+charset-normalizer==3.5.2
+colorama==0.4.6
+idna==3.20
+-e git+https://github.com/litex-harmonyos/litex-harmonyos-pc.git@75c85fd66618332a637f0382e9c100b0e3755437#egg=litex&subdirectory=../../../../../.codex/worktrees/core-compatibility/litex-harmonyos-pc
+migen @ file:///private/tmp/litex-core-compat-migen
+packaging==26.3
+pip==26.2.1
+pyserial==3.5
+requests==2.34.2
+setuptools==84.0.0
+urllib3==2.8.0
+wheel==0.48.0

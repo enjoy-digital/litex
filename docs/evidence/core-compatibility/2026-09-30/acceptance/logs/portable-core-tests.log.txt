@@ -1,0 +1,29 @@
+test_coding (test.cores.test_code_8b10b.TestCode8B10B.test_coding) ... ok
+test_comma (test.cores.test_code_8b10b.TestCode8B10B.test_comma) ... ok
+test_no_spurious_commas (test.cores.test_code_8b10b.TestCode8B10B.test_no_spurious_commas) ... ok
+test_roundtrip (test.cores.test_code_8b10b.TestCode8B10B.test_roundtrip) ... ok
+test_running_disparity (test.cores.test_code_8b10b.TestCode8B10B.test_running_disparity) ... ok
+test_stream (test.cores.test_code_8b10b.TestCode8B10B.test_stream) ... ok
+test_all_single_bits_and_small_double_bit_pairs (test.cores.test_ecc.TestECC.test_all_single_bits_and_small_double_bit_pairs) ... ok
+test_cover_positions (test.cores.test_ecc.TestECC.test_cover_positions) ... ok
+test_data_positions (test.cores.test_ecc.TestECC.test_data_positions) ... ok
+test_ecc (test.cores.test_ecc.TestECC.test_ecc) ... ok
+test_m_n (test.cores.test_ecc.TestECC.test_m_n) ... ok
+test_syndrome_positions (test.cores.test_ecc.TestECC.test_syndrome_positions) ... ok
+test_cpu_bios_map_exports_virtual_csr_accessors (test.soc.test_export.TestCSRExport.test_cpu_bios_map_exports_virtual_csr_accessors) ... ok
+test_cpu_bios_map_exports_virtual_memory_aliases (test.soc.test_export.TestCSRExport.test_cpu_bios_map_exports_virtual_memory_aliases) ... ok
+test_csr_field_accessors_keep_uint32_for_32_bit_csr (test.soc.test_export.TestCSRExport.test_csr_field_accessors_keep_uint32_for_32_bit_csr) ... ok
+test_csr_field_accessors_skip_csr_wider_than_uint64 (test.soc.test_export.TestCSRExport.test_csr_field_accessors_skip_csr_wider_than_uint64) ... ok
+test_csr_field_accessors_use_uint64_for_wide_csr (test.soc.test_export.TestCSRExport.test_csr_field_accessors_use_uint64_for_wide_csr) ... ok
+test_csr_header_omits_virtual_aliases_for_identity_map (test.soc.test_export.TestCSRExport.test_csr_header_omits_virtual_aliases_for_identity_map) ... ok
+test_relative_csr_header_omits_virtual_aliases_for_identity_map (test.soc.test_export.TestCSRExport.test_relative_csr_header_omits_virtual_aliases_for_identity_map) ... ok
+test_soc_header_formats_int_constants (test.soc.test_export.TestCSRExport.test_soc_header_formats_int_constants) ... ok
+test_svd_clips_field_crossing_split_csr_boundary (test.soc.test_export.TestCSRExport.test_svd_clips_field_crossing_split_csr_boundary) ... ok
+test_svd_exports_csr_field_enumerated_values (test.soc.test_export.TestCSRExport.test_svd_exports_csr_field_enumerated_values) ... ok
+test_svd_sanitizes_and_filters_csr_field_enums (test.soc.test_export.TestCSRExport.test_svd_sanitizes_and_filters_csr_field_enums) ... ok
+test_svd_splits_wide_csr_fields_per_bus_word (test.soc.test_export.TestCSRExport.test_svd_splits_wide_csr_fields_per_bus_word) ... ok
+
+----------------------------------------------------------------------
+Ran 24 tests in 13.827s
+
+OK

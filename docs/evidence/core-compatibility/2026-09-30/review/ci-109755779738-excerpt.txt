@@ -1,0 +1,152 @@
+Source: https://github.com/litex-harmonyos/litex-harmonyos-pc/actions/runs/36674290272/job/109755779738
+Excerpt only; full logs remain in GitHub Actions.
+2026-09-30T05:54:38.1106649Z =================================== FAILURES ===================================
+2026-09-30T05:54:38.1107444Z ______________ test_linux_on_litex_rocket_nexys_video_generation _______________
+2026-09-30T05:54:38.1108181Z [gw2] linux -- Python 3.9.25 /opt/hostedtoolcache/Python/3.9.25/x64/bin/python3
+2026-09-30T05:54:38.1108623Z 
+2026-09-30T05:54:38.1109045Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-1/popen-gw2/test_linux_on_litex_rocket_nex0')
+2026-09-30T05:54:38.1109580Z 
+2026-09-30T05:54:38.1109853Z     def test_linux_on_litex_rocket_nexys_video_generation(tmp_path):
+2026-09-30T05:54:38.1110403Z >       _run_linux_on_litex_rocket_generation(
+2026-09-30T05:54:38.1110847Z             "digilent_nexys_video.py",
+2026-09-30T05:54:38.1111235Z             tmp_path,
+2026-09-30T05:54:38.1111493Z             [
+2026-09-30T05:54:38.1111776Z                 "--cpu-type", "rocket",
+2026-09-30T05:54:38.1112123Z                 "--cpu-variant", "linux",
+2026-09-30T05:54:38.1112472Z                 "--cpu-num-cores", "4",
+2026-09-30T05:54:38.1112808Z                 "--cpu-mem-width", "2",
+2026-09-30T05:54:38.1113162Z                 "--sys-clk-freq", "50e6",
+2026-09-30T05:54:38.1113558Z                 "--with-ethernet",
+2026-09-30T05:54:38.1113937Z                 "--with-sdcard",
+2026-09-30T05:54:38.1114365Z                 "--with-sata",
+2026-09-30T05:54:38.1115028Z                 "--sata-gen", "1",
+2026-09-30T05:54:38.1115367Z             ],
+2026-09-30T05:54:38.1115615Z         )
+2026-09-30T05:54:38.1115751Z 
+2026-09-30T05:54:38.1115901Z test/soc/test_integration.py:229: 
+2026-09-30T05:54:38.1116315Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+2026-09-30T05:54:38.1116874Z test/soc/test_integration.py:209: in _run_linux_on_litex_rocket_generation
+2026-09-30T05:54:38.1117527Z     subprocess.check_call(cmd)
+2026-09-30T05:54:38.1117950Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+2026-09-30T05:54:38.1118241Z 
+2026-09-30T05:54:38.1119249Z popenargs = (['/opt/hostedtoolcache/Python/3.9.25/x64/bin/python3', '/home/runner/work/litex-harmonyos-pc/litex-boards/litex_boards/targets/digilent_nexys_video.py', '--build', '--no-compile-gateware', '--bios-stack-margin', '0x400', ...],)
+2026-09-30T05:54:38.1120457Z kwargs = {}, retcode = 1
+2026-09-30T05:54:38.1121519Z cmd = ['/opt/hostedtoolcache/Python/3.9.25/x64/bin/python3', '/home/runner/work/litex-harmonyos-pc/litex-boards/litex_boards/targets/digilent_nexys_video.py', '--build', '--no-compile-gateware', '--bios-stack-margin', '0x400', ...]
+2026-09-30T05:54:38.1122679Z 
+2026-09-30T05:54:38.1122849Z     def check_call(*popenargs, **kwargs):
+2026-09-30T05:54:38.1123390Z         """Run command with arguments.  Wait for command to complete.  If
+2026-09-30T05:54:38.1124014Z         the exit code was zero then return, otherwise raise
+2026-09-30T05:54:38.1124663Z         CalledProcessError.  The CalledProcessError object will have the
+2026-09-30T05:54:38.1125287Z         return code in the returncode attribute.
+2026-09-30T05:54:38.1125711Z     
+2026-09-30T05:54:38.1126122Z         The arguments are the same as for the call function.  Example:
+2026-09-30T05:54:38.1126623Z     
+2026-09-30T05:54:38.1126927Z         check_call(["ls", "-l"])
+2026-09-30T05:54:38.1127295Z         """
+2026-09-30T05:54:38.1127798Z         retcode = call(*popenargs, **kwargs)
+2026-09-30T05:54:38.1128230Z         if retcode:
+2026-09-30T05:54:38.1128571Z             cmd = kwargs.get("args")
+2026-09-30T05:54:38.1128998Z             if cmd is None:
+2026-09-30T05:54:38.1129385Z                 cmd = popenargs[0]
+2026-09-30T05:54:38.1129832Z >           raise CalledProcessError(retcode, cmd)
+2026-09-30T05:54:38.1133019Z E           subprocess.CalledProcessError: Command '['/opt/hostedtoolcache/Python/3.9.25/x64/bin/python3', '/home/runner/work/litex-harmonyos-pc/litex-boards/litex_boards/targets/digilent_nexys_video.py', '--build', '--no-compile-gateware', '--bios-stack-margin', '0x400', '--output-dir', '/tmp/pytest-of-runner/pytest-1/popen-gw2/test_linux_on_litex_rocket_nex0', '--cpu-type', 'rocket', '--cpu-variant', 'linux', '--cpu-num-cores', '4', '--cpu-mem-width', '2', '--sys-clk-freq', '50e6', '--with-ethernet', '--with-sdcard', '--with-sata', '--sata-gen', '1']' returned non-zero exit status 1.
+2026-09-30T05:54:38.1135778Z 
+2026-09-30T05:54:38.1136196Z /opt/hostedtoolcache/Python/3.9.25/x64/lib/python3.9/subprocess.py:373: CalledProcessError
+2026-09-30T05:54:38.1137018Z ----------------------------- Captured stderr call -----------------------------
+2026-09-30T05:54:38.1139310Z INFO:S7MMCM:Creating S7MMCM, speedgrade -1.
+2026-09-30T05:54:38.1139834Z INFO:S7MMCM:Registering Single Ended ClkIn of 100.00MHz.
+2026-09-30T05:54:38.1140453Z INFO:S7MMCM:Creating ClkOut0 sys of 50.00MHz (+-10000.00ppm).
+2026-09-30T05:54:38.1141115Z INFO:S7MMCM:Creating ClkOut1 sys4x of 200.00MHz (+-10000.00ppm).
+2026-09-30T05:54:38.1141760Z INFO:S7MMCM:Creating ClkOut2 sys4x_dqs of 200.00MHz (+-10000.00ppm).
+2026-09-30T05:54:38.1142412Z INFO:S7MMCM:Creating ClkOut3 idelay of 200.00MHz (+-10000.00ppm).
+2026-09-30T05:54:38.1143005Z INFO:S7MMCM:Creating ClkOut4 clk100 of 100.00MHz (+-10000.00ppm).
+2026-09-30T05:54:38.1143497Z INFO:SoC:        __   _ __      _  __  
+2026-09-30T05:54:38.1143898Z INFO:SoC:       / /  (_) /____ | |/_/  
+2026-09-30T05:54:38.1144330Z INFO:SoC:      / /__/ / __/ -_)>  <    
+2026-09-30T05:54:38.1144913Z INFO:SoC:     /____/_/\__/\__/_/|_|  
+2026-09-30T05:54:38.1145358Z INFO:SoC:  Build your hardware, easily!
+2026-09-30T05:54:38.1145987Z INFO:SoC:--------------------------------------------------------------------------------
+2026-09-30T05:54:38.1146593Z INFO:SoC:Creating SoC... (2026-09-30 05:47:27)
+2026-09-30T05:54:38.1147236Z INFO:SoC:--------------------------------------------------------------------------------
+2026-09-30T05:54:38.1148087Z INFO:SoC:FPGA device : xc7a200t-sbg484-1.
+2026-09-30T05:54:38.1148611Z INFO:SoC:System clock: 50.000MHz.
+2026-09-30T05:54:38.1149093Z INFO:SoCBusHandler:Creating Bus Handler...
+2026-09-30T05:54:38.1149771Z INFO:SoCBusHandler:32-bit wishbone Bus, 4.0GiB Address Space.
+2026-09-30T05:54:38.1150609Z INFO:SoCBusHandler:Adding reserved Bus Regions...
+2026-09-30T05:54:38.1151234Z INFO:SoCBusHandler:Bus Handler created.
+2026-09-30T05:54:38.1151811Z INFO:SoCCSRHandler:Creating CSR Handler...
+2026-09-30T05:54:38.1152813Z INFO:SoCCSRHandler:32-bit CSR Bus, 32-bit Aligned, 16.0KiB Address Space, 2048B Paging, big Ordering (Up to 32 Locations).
+2026-09-30T05:54:38.1153482Z INFO:SoCCSRHandler:Adding reserved CSRs...
+2026-09-30T05:54:38.1153846Z INFO:SoCCSRHandler:CSR Handler created.
+2026-09-30T05:54:38.1154222Z INFO:SoCIRQHandler:Creating IRQ Handler...
+2026-09-30T05:54:38.1154630Z INFO:SoCIRQHandler:IRQ Handler (up to 32 Locations).
+2026-09-30T05:54:38.1155047Z INFO:SoCIRQHandler:Adding reserved IRQs...
+2026-09-30T05:54:38.1155419Z INFO:SoCIRQHandler:IRQ Handler created.
+2026-09-30T05:54:38.1155876Z INFO:SoC:--------------------------------------------------------------------------------
+2026-09-30T05:54:38.1156343Z INFO:SoC:Initial SoC:
+2026-09-30T05:54:38.1156783Z INFO:SoC:--------------------------------------------------------------------------------
+2026-09-30T05:54:38.1157310Z INFO:SoC:32-bit wishbone Bus, 4.0GiB Address Space.
+2026-09-30T05:54:38.1158409Z INFO:SoC:32-bit CSR Bus, 32-bit Aligned, 16.0KiB Address Space, 2048B Paging, big Ordering (Up to 32 Locations).
+2026-09-30T05:54:38.1159005Z INFO:SoC:IRQ Handler (up to 32 Locations).
+2026-09-30T05:54:38.1159421Z INFO:SoC:--------------------------------------------------------------------------------
+2026-09-30T05:54:38.1159845Z INFO:SoC:Controller ctrl added.
+2026-09-30T05:54:38.1160160Z INFO:SoC:CPU rocket added.
+2026-09-30T05:54:38.1160558Z INFO:SoC:CPU rocket adding IO Region 0 at 0x12000000 (Size: 0x6e000000).
+2026-09-30T05:54:38.1161290Z INFO:SoCRegion:Region size rounded internally from 0x6e000000 to 0x80000000.
+2026-09-30T05:54:38.1161998Z INFO:SoCBusHandler:io0 Region added at Origin: 0x12000000, Size: 0x6e000000, Mode:  RW, Cached: False, Linker: False.
+2026-09-30T05:54:38.1162701Z INFO:SoC:CPU rocket overriding rom mapping from 0x00000000 to 0x10000000.
+2026-09-30T05:54:38.1163251Z INFO:SoC:CPU rocket overriding sram mapping from 0x01000000 to 0x11000000.
+2026-09-30T05:54:38.1163825Z INFO:SoC:CPU rocket overriding main_ram mapping from 0x40000000 to 0x80000000.
+2026-09-30T05:54:38.1164378Z INFO:SoC:CPU rocket setting reset address to 0x10000000.
+2026-09-30T05:54:38.1164787Z INFO:SoC:CPU rocket adding Bus Master(s).
+2026-09-30T05:54:38.1165257Z INFO:SoCBusHandler:cpu_bus0 Bus adapted from Wishbone 64-bit to Wishbone 32-bit.
+2026-09-30T05:54:38.1165793Z INFO:SoCBusHandler:cpu_bus0 added as Bus Master.
+2026-09-30T05:54:38.1166193Z INFO:SoC:CPU rocket adding Interrupt(s).
+2026-09-30T05:54:38.1166555Z INFO:SoC:CPU rocket adding DMA Bus.
+2026-09-30T05:54:38.1166934Z INFO:SoCDMABusHandler:Creating Bus Handler...
+2026-09-30T05:54:38.1167537Z INFO:SoCDMABusHandler:64-bit wishbone Bus, 4.0GiB Address Space.
+2026-09-30T05:54:38.1168031Z INFO:SoCDMABusHandler:Adding reserved Bus Regions...
+2026-09-30T05:54:38.1168432Z INFO:SoCDMABusHandler:Bus Handler created.
+2026-09-30T05:54:38.1169046Z INFO:SoCDMABusHandler:dma Region added at Origin: 0x00000000, Size: 0x100000000, Mode:  RW, Cached:  True, Linker: False.
+2026-09-30T05:54:38.1169706Z INFO:SoCDMABusHandler:dma added as Bus Slave.
+2026-09-30T05:54:38.1170275Z INFO:SoC:CPU rocket adding SoC components.
+2026-09-30T05:54:38.1170886Z INFO:SoCBusHandler:opensbi Region added at Origin: 0x80000000, Size: 0x00200000, Mode:  RW, Cached:  True, Linker:  True.
+2026-09-30T05:54:38.1171746Z INFO:SoCBusHandler:plic Region added at Origin: 0x0c000000, Size: 0x00400000, Mode:  RW, Cached:  True, Linker:  True.
+2026-09-30T05:54:38.1172587Z INFO:SoCBusHandler:clint Region added at Origin: 0x02000000, Size: 0x00010000, Mode:  RW, Cached:  True, Linker:  True.
+2026-09-30T05:54:38.1173416Z INFO:SoCBusHandler:rom Region added at Origin: 0x10000000, Size: 0x00020000, Mode:  RX, Cached:  True, Linker: False.
+2026-09-30T05:54:38.1174021Z INFO:SoCBusHandler:rom added as Bus Slave.
+2026-09-30T05:54:38.1174569Z INFO:SoC:RAM rom added Origin: 0x10000000, Size: 0x00020000, Mode:  RX, Cached:  True, Linker: False.
+2026-09-30T05:54:38.1175360Z INFO:SoCBusHandler:sram Region added at Origin: 0x11000000, Size: 0x00002000, Mode: RWX, Cached:  True, Linker: False.
+2026-09-30T05:54:38.1176003Z INFO:SoCBusHandler:sram added as Bus Slave.
+2026-09-30T05:54:38.1176561Z INFO:SoC:RAM sram added Origin: 0x11000000, Size: 0x00002000, Mode: RWX, Cached:  True, Linker: False.
+2026-09-30T05:54:38.1177150Z INFO:SoCIRQHandler:uart IRQ allocated at Location 0.
+2026-09-30T05:54:38.1177774Z INFO:SoCIRQHandler:timer0 IRQ allocated at Location 1.
+2026-09-30T05:54:38.1178442Z INFO:SoCBusHandler:main_ram Region added at Origin: 0x80000000, Size: 0x20000000, Mode: RWX, Cached:  True, Linker: False.
+2026-09-30T05:54:38.1179070Z INFO:S7PLL:Creating S7PLL, speedgrade -1.
+2026-09-30T05:54:38.1179468Z INFO:S7PLL:Registering Single Ended ClkIn of 125.00MHz.
+2026-09-30T05:54:38.1179932Z INFO:S7PLL:Creating ClkOut0 eth_tx of 125.00MHz (+-10000.00ppm).
+2026-09-30T05:54:38.1180447Z INFO:S7PLL:Creating ClkOut1 eth_tx_delayed of 125.00MHz (+-10000.00ppm).
+2026-09-30T05:54:38.1180905Z Traceback (most recent call last):
+2026-09-30T05:54:38.1188197Z   File "/home/runner/work/litex-harmonyos-pc/litex-boards/litex_boards/targets/digilent_nexys_video.py", line 258, in <module>
+2026-09-30T05:54:38.1189031Z     main()
+2026-09-30T05:54:38.1189681Z   File "/home/runner/work/litex-harmonyos-pc/litex-boards/litex_boards/targets/digilent_nexys_video.py", line 228, in main
+2026-09-30T05:54:38.1190358Z     soc = BaseSoC(
+2026-09-30T05:54:38.1191028Z   File "/home/runner/work/litex-harmonyos-pc/litex-boards/litex_boards/targets/digilent_nexys_video.py", line 116, in __init__
+2026-09-30T05:54:38.1192194Z     self.add_ethernet(phy=self.ethphy, dynamic_ip=eth_dynamic_ip, local_ip=eth_ip, remote_ip=remote_ip)
+2026-09-30T05:54:38.1193186Z   File "/home/runner/work/litex-harmonyos-pc/litex-harmonyos-pc/litex/soc/integration/soc.py", line 2655, in add_ethernet
+2026-09-30T05:54:38.1193932Z     ethmac = LiteEthMAC(
+2026-09-30T05:54:38.1194507Z   File "/home/runner/work/litex-harmonyos-pc/liteeth/liteeth/mac/__init__.py", line 85, in __init__
+2026-09-30T05:54:38.1195091Z     self.core = LiteEthMACCore(
+2026-09-30T05:54:38.1195667Z   File "/home/runner/work/litex-harmonyos-pc/liteeth/liteeth/mac/core.py", line 336, in __init__
+2026-09-30T05:54:38.1196243Z     rx_datapath.add_padding()
+2026-09-30T05:54:38.1196810Z   File "/home/runner/work/litex-harmonyos-pc/liteeth/liteeth/mac/core.py", line 263, in add_padding
+2026-09-30T05:54:38.1197867Z     rx_padding = padding.LiteEthMACPaddingChecker(datapath_dw, (eth_min_frame_length - eth_fcs_length), eth_mtu=eth_mtu)
+2026-09-30T05:54:38.1198768Z   File "/home/runner/work/litex-harmonyos-pc/liteeth/liteeth/mac/padding.py", line 89, in __init__
+2026-09-30T05:54:38.1199424Z     self.comb += length_inc.eq(stream.byte_count(sink.be))
+2026-09-30T05:54:38.1200015Z AttributeError: module 'litex.soc.interconnect.stream' has no attribute 'byte_count'
+2026-09-30T05:54:38.1466586Z =========================== short test summary info ============================
+2026-09-30T05:54:38.1468540Z FAILED test/soc/test_integration.py::test_linux_on_litex_rocket_nexys_video_generation - subprocess.CalledProcessError: Command '['/opt/hostedtoolcache/Python/3.9.25/x64/bin/python3', '/home/runner/work/litex-harmonyos-pc/litex-boards/litex_boards/targets/digilent_nexys_video.py', '--build', '--no-compile-gateware', '--bios-stack-margin', '0x400', '--output-dir', '/tmp/pytest-of-runner/pytest-1/popen-gw2/test_linux_on_litex_rocket_nex0', '--cpu-type', 'rocket', '--cpu-variant', 'linux', '--cpu-num-cores', '4', '--cpu-mem-width', '2', '--sys-clk-freq', '50e6', '--with-ethernet', '--with-sdcard', '--with-sata', '--sata-gen', '1']' returned non-zero exit status 1.
+2026-09-30T05:54:38.1470471Z ============= 1 failed, 365 passed, 1 skipped in 463.26s (0:07:43) =============
+2026-09-30T05:54:38.1714174Z ##[error]Process completed with exit code 1.
+2026-09-30T05:54:38.1794800Z Post job cleanup.
+
