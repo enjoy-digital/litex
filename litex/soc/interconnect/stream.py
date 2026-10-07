@@ -92,6 +92,9 @@ def _rawbits_layout(l):
 def pack_layout(l, n):
     return [("chunk"+str(i), l) for i in range(n)]
 
+def byte_count(be):
+    return sum(be[i] for i in range(len(be)))
+
 def get_endpoints(obj, filt=Endpoint):
     if hasattr(obj, "get_endpoints") and callable(obj.get_endpoints):
         return obj.get_endpoints(filt)

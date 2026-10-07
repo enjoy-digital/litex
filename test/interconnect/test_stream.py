@@ -67,6 +67,25 @@ class TestStream(unittest.TestCase):
         with self.assertRaises(ValueError):
             get_single_ep(MultiEP(), Endpoint)
 
+    def test_byte_count(self):
+        class DUT(Module):
+            def __init__(self, width):
+                self.be    = Signal(width)
+                self.count = Signal(max=width + 1)
+                self.comb += self.count.eq(byte_count(self.be))
+
+        for width in [1, 2, 4, 8]:
+            with self.subTest(width=width):
+                dut = DUT(width)
+
+                def generator():
+                    for value in range(2**width):
+                        yield dut.be.eq(value)
+                        yield
+                        self.assertEqual((yield dut.count), bin(value).count("1"))
+
+                run_simulation(dut, generator())
+
     def packetized_flow_test(self, dut, packets):
         prng = random.Random(42)
 
