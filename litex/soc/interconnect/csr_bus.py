@@ -206,6 +206,10 @@ class CSRBank(csr.GenericBank):
             ordering    = ordering,
         )
 
+        # Ensure Bank's CSRs fit in one page.
+        if len(self.simple_csrs) > aligned_paging:
+            raise ValueError(f"CSRBank has {len(self.simple_csrs)} CSRs but paging only supports {aligned_paging} CSRs/page. Increase paging or reduce the number of CSRs.")
+
         sel = Signal()
         self.comb += sel.eq(self.bus.adr[log2_int(aligned_paging):] == address)
 
