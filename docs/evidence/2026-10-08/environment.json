@@ -1,0 +1,597 @@
+{
+  "tool": "litex-harmonyos-check_environment",
+  "generated": "2026-10-08 13:45:32",
+  "mode": "full",
+  "elapsed_s": 11.04,
+  "entries": [
+    {
+      "section": "系统",
+      "name": "platform.system",
+      "status": "INFO",
+      "detail": "Linux",
+      "required": false
+    },
+    {
+      "section": "系统",
+      "name": "platform.release",
+      "status": "INFO",
+      "detail": "HongMeng Kernel 1.12.0",
+      "required": false
+    },
+    {
+      "section": "系统",
+      "name": "platform.version",
+      "status": "INFO",
+      "detail": "#1 SMP Wed Apr 29 10:16:03 UTC 2026",
+      "required": false
+    },
+    {
+      "section": "系统",
+      "name": "platform.machine",
+      "status": "INFO",
+      "detail": "aarch64",
+      "required": false
+    },
+    {
+      "section": "系统",
+      "name": "platform.processor",
+      "status": "INFO",
+      "detail": "N/A",
+      "required": false
+    },
+    {
+      "section": "系统",
+      "name": "sys.platform",
+      "status": "INFO",
+      "detail": "linux",
+      "required": false
+    },
+    {
+      "section": "系统",
+      "name": "/etc/os-release",
+      "status": "INFO",
+      "detail": "不存在（非标准 Linux/OpenHarmony 布局）",
+      "required": false
+    },
+    {
+      "section": "系统",
+      "name": "鸿蒙特征识别",
+      "status": "OK",
+      "detail": "命中关键字: hongmeng",
+      "required": false
+    },
+    {
+      "section": "系统",
+      "name": "SHELL 环境变量",
+      "status": "INFO",
+      "detail": "/bin/sh",
+      "required": false
+    },
+    {
+      "section": "系统",
+      "name": "TERM 环境变量",
+      "status": "INFO",
+      "detail": "xterm-256color",
+      "required": false
+    },
+    {
+      "section": "系统",
+      "name": "TERM_PROGRAM",
+      "status": "INFO",
+      "detail": "未设置",
+      "required": false
+    },
+    {
+      "section": "系统",
+      "name": "终端 isatty(stdin/stdout)",
+      "status": "INFO",
+      "detail": "stdin=True stdout=False",
+      "required": false
+    },
+    {
+      "section": "系统",
+      "name": "终端尺寸",
+      "status": "INFO",
+      "detail": "无法获取（非交互终端）",
+      "required": false
+    },
+    {
+      "section": "Python",
+      "name": "解释器版本 (需 >=3.7)",
+      "status": "OK",
+      "detail": "3.12.14 (CPython)",
+      "required": true
+    },
+    {
+      "section": "Python",
+      "name": "sys.executable",
+      "status": "INFO",
+      "detail": "/storage/Users/currentUser/.harmonybrew/opt/python@3.12/bin/python3.12",
+      "required": false
+    },
+    {
+      "section": "Python",
+      "name": "是否虚拟环境",
+      "status": "INFO",
+      "detail": "否（系统环境）",
+      "required": false
+    },
+    {
+      "section": "Python",
+      "name": "PEP 668 外部管理标记",
+      "status": "WARN",
+      "detail": "存在 /storage/Users/currentUser/.harmonybrew/opt/python@3.12/lib/python3.12/EXTERNALLY-MANAGED：系统 pip 受保护，必须使用 venv（litex_setup.py 会直接拒绝安装）",
+      "required": false
+    },
+    {
+      "section": "Python",
+      "name": "pip 可用性",
+      "status": "OK",
+      "detail": "pip 26.2.1 from /storage/Users/currentUser/.harmonybrew/opt/python@3.12/lib/python3.12/site-packages/pip (python 3.12)",
+      "required": true
+    },
+    {
+      "section": "Python",
+      "name": "venv 模块可导入",
+      "status": "OK",
+      "detail": "已内置",
+      "required": false
+    },
+    {
+      "section": "Python",
+      "name": "site-packages 路径",
+      "status": "INFO",
+      "detail": "/storage/Users/currentUser/.harmonybrew/lib/python3.12/site-packages",
+      "required": false
+    },
+    {
+      "section": "Python",
+      "name": "可执行脚本目录",
+      "status": "INFO",
+      "detail": "/storage/Users/currentUser/.harmonybrew/bin",
+      "required": false
+    },
+    {
+      "section": "venv 实测",
+      "name": "python -m venv 创建",
+      "status": "OK",
+      "detail": "耗时 3.9s",
+      "required": false
+    },
+    {
+      "section": "venv 实测",
+      "name": "venv 内解释器",
+      "status": "OK",
+      "detail": "3.12.14 (main, Sep 10 2026, 17:12:55) [Clang 15.0.4 (/srv/workspace/llvm-release/2026_0313_llvm15_release/toolchain/ll",
+      "required": false
+    },
+    {
+      "section": "venv 实测",
+      "name": "venv 内 pip (ensurepip)",
+      "status": "OK",
+      "detail": "pip 26.2.1 from /storage/Users/currentUser/.cache/development-tmp/litex-env-check-wh00yqrn/venvtest/lib/python3.12/site-packages/pip (python 3.12)",
+      "required": false
+    },
+    {
+      "section": "编码与字符集",
+      "name": "文件系统编码",
+      "status": "INFO",
+      "detail": "utf-8",
+      "required": false
+    },
+    {
+      "section": "编码与字符集",
+      "name": "区域首选编码",
+      "status": "INFO",
+      "detail": "utf-8",
+      "required": false
+    },
+    {
+      "section": "编码与字符集",
+      "name": "stdout 编码",
+      "status": "INFO",
+      "detail": "utf-8",
+      "required": false
+    },
+    {
+      "section": "编码与字符集",
+      "name": "控制台中文输出",
+      "status": "OK",
+      "detail": "stdout 编码可表示中文与全角符号（未直接打印，避免污染报告）",
+      "required": false
+    },
+    {
+      "section": "编码与字符集",
+      "name": "UTF-8 文件名读写",
+      "status": "OK",
+      "detail": "创建/读取中文名文件成功",
+      "required": false
+    },
+    {
+      "section": "文件系统能力",
+      "name": "路径分隔符",
+      "status": "INFO",
+      "detail": "os.sep='/' os.pathsep=':'",
+      "required": false
+    },
+    {
+      "section": "文件系统能力",
+      "name": "临时目录",
+      "status": "INFO",
+      "detail": "/storage/Users/currentUser/.cache/development-tmp",
+      "required": false
+    },
+    {
+      "section": "文件系统能力",
+      "name": "HOME",
+      "status": "INFO",
+      "detail": "/storage/Users/currentUser",
+      "required": false
+    },
+    {
+      "section": "文件系统能力",
+      "name": "临时目录写入",
+      "status": "OK",
+      "detail": "/storage/Users/currentUser/.cache/development-tmp",
+      "required": true
+    },
+    {
+      "section": "文件系统能力",
+      "name": "文件名大小写",
+      "status": "INFO",
+      "detail": "不敏感（Windows 行为）",
+      "required": false
+    },
+    {
+      "section": "文件系统能力",
+      "name": "符号链接",
+      "status": "OK",
+      "detail": "可用",
+      "required": false
+    },
+    {
+      "section": "文件系统能力",
+      "name": "硬链接",
+      "status": "INFO",
+      "detail": "不可用: [Errno 1] Operation not permitted: '/storage/Users/currentUser/.cache/development-tmp/litex-fs-pozur6hp/target.txt' -> '/storage/Users/currentUser/.cache/development-tmp/litex-fs-pozur6hp/hard.txt'",
+      "required": false
+    },
+    {
+      "section": "文件系统能力",
+      "name": "可执行位 (chmod +x 后可直接运行)",
+      "status": "OK",
+      "detail": "LXEXEC-OK",
+      "required": true
+    },
+    {
+      "section": "文件系统能力",
+      "name": "255 字节文件名",
+      "status": "OK",
+      "detail": "255 字节 ASCII 组件名可创建",
+      "required": false
+    },
+    {
+      "section": "文件系统能力",
+      "name": "长路径（嵌套 8 层 + 180 字符文件名）",
+      "status": "OK",
+      "detail": "总长 302 字符",
+      "required": false
+    },
+    {
+      "section": "文件系统能力",
+      "name": "HOME 目录可写",
+      "status": "OK",
+      "detail": "/storage/Users/currentUser",
+      "required": false
+    },
+    {
+      "section": "子进程能力",
+      "name": "基本子进程 (python -c)",
+      "status": "OK",
+      "detail": "LXSUB-OK",
+      "required": true
+    },
+    {
+      "section": "子进程能力",
+      "name": "环境变量继承",
+      "status": "OK",
+      "detail": "1",
+      "required": false
+    },
+    {
+      "section": "子进程能力",
+      "name": "工作目录指定 (cwd 参数)",
+      "status": "OK",
+      "detail": "/storage/Users/currentUser/.cache/development-tmp",
+      "required": false
+    },
+    {
+      "section": "子进程能力",
+      "name": "shell 子进程 (sh -c)",
+      "status": "OK",
+      "detail": "LXSH-OK",
+      "required": false
+    },
+    {
+      "section": "Git",
+      "name": "git 可执行文件",
+      "status": "OK",
+      "detail": "git version 2.55.0 (/storage/Users/currentUser/.harmonybrew/bin/git)",
+      "required": true
+    },
+    {
+      "section": "Git",
+      "name": "M-Labs 连通 (git ls-remote)",
+      "status": "OK",
+      "detail": "beffe831bf1a691eaebf9ddbb4660f8b3e7fd964\trefs/heads/master",
+      "required": true
+    },
+    {
+      "section": "Git",
+      "name": "GitHub 连通 (git ls-remote)",
+      "status": "OK",
+      "detail": "78c584930fb4467835dd4927f4e2132fee147ce0\trefs/heads/2024.12_release",
+      "required": false
+    },
+    {
+      "section": "网络连通性",
+      "name": "pypi.org (pip 索引)",
+      "status": "OK",
+      "detail": "HTTP 200，耗时 0.7s",
+      "required": true
+    },
+    {
+      "section": "网络连通性",
+      "name": "files.pythonhosted.org (wheel)",
+      "status": "OK",
+      "detail": "HTTP 404（服务端可达；该路径无内容，不影响连通判定）",
+      "required": true
+    },
+    {
+      "section": "网络连通性",
+      "name": "git.m-labs.hk (Migen 源仓库)",
+      "status": "OK",
+      "detail": "HTTP 200，耗时 0.3s",
+      "required": true
+    },
+    {
+      "section": "网络连通性",
+      "name": "github.com (LiteX 仓库)",
+      "status": "OK",
+      "detail": "HTTP 200，耗时 0.3s",
+      "required": false
+    },
+    {
+      "section": "网络连通性",
+      "name": "raw.githubusercontent.com",
+      "status": "OK",
+      "detail": "HTTP 200，耗时 0.8s",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "C/C++ 编译器/cc",
+      "status": "SKIP",
+      "detail": "未安装（构建依赖无预编译 wheel 时需要）",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "C/C++ 编译器/gcc",
+      "status": "SKIP",
+      "detail": "未安装（构建依赖无预编译 wheel 时需要）",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "C/C++ 编译器/clang",
+      "status": "OK",
+      "detail": "/storage/Users/currentUser/.harmonybrew/opt/ohos-sdk-native/llvm/bin/clang | clang version 15.0.4 (/srv/workspace/llvm-release/2026_0313_llvm15_release/toolchain/llvm-project/clang 0e01a01d567b9acfce8edfdadb66a7b69f088fb0)",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "构建系统/make",
+      "status": "OK",
+      "detail": "/storage/Users/currentUser/.harmonybrew/bin/make | GNU Make 4.4.1",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "构建系统/ninja",
+      "status": "OK",
+      "detail": "/storage/Users/currentUser/.harmonybrew/bin/ninja | 1.13.2",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "构建系统/meson",
+      "status": "SKIP",
+      "detail": "未安装（扩展验收（litex_sim / 固件））",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "构建系统/cmake",
+      "status": "OK",
+      "detail": "/storage/Users/currentUser/.harmonybrew/bin/cmake | cmake version 4.4.3",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "仿真 / HDL 工具/verilator",
+      "status": "SKIP",
+      "detail": "未安装（扩展验收（litex_sim））",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "仿真 / HDL 工具/iverilog",
+      "status": "SKIP",
+      "detail": "未安装（扩展验收（可选仿真））",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "仿真 / HDL 工具/yosys",
+      "status": "SKIP",
+      "detail": "未安装（扩展验收（FPGA 综合，非首期））",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "RISC-V 交叉工具链/riscv64-unknown-elf-gcc",
+      "status": "SKIP",
+      "detail": "未安装（扩展验收（BIOS/固件编译））",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "RISC-V 交叉工具链/riscv64-elf-gcc",
+      "status": "SKIP",
+      "detail": "未安装（扩展验收（BIOS/固件编译））",
+      "required": false
+    },
+    {
+      "section": "外部工具",
+      "name": "RISC-V 交叉工具链/riscv32-unknown-elf-gcc",
+      "status": "SKIP",
+      "detail": "未安装（扩展验收（BIOS/固件编译））",
+      "required": false
+    },
+    {
+      "section": "Python 依赖",
+      "name": "migen",
+      "status": "WARN",
+      "detail": "未安装（核心必达：HDL 生成引擎（litex/gen 全面依赖）；安装流程完成后本项应变为 OK）",
+      "required": false
+    },
+    {
+      "section": "Python 依赖",
+      "name": "packaging",
+      "status": "WARN",
+      "detail": "未安装（核心必达：builder.py 版本比较（litex/soc/integration/builder.py:22）；安装流程完成后本项应变为 OK）",
+      "required": false
+    },
+    {
+      "section": "Python 依赖",
+      "name": "pyserial",
+      "status": "WARN",
+      "detail": "未安装（核心必达：litex_term / UART 远程（litex/tools/litex_term.py:16）；安装流程完成后本项应变为 OK）",
+      "required": false
+    },
+    {
+      "section": "Python 依赖",
+      "name": "requests",
+      "status": "WARN",
+      "detail": "未安装（核心必达：远程烧写懒加载（litex/build/generic_programmer.py:52）；安装流程完成后本项应变为 OK）",
+      "required": false
+    },
+    {
+      "section": "Python 依赖",
+      "name": "setuptools",
+      "status": "WARN",
+      "detail": "未安装（构建/扩展：安装/构建（litex_setup.py:628）；安装流程完成后本项应变为 OK）",
+      "required": false
+    },
+    {
+      "section": "Python 依赖",
+      "name": "wheel",
+      "status": "OK",
+      "detail": "0.48.0 —— 安装/构建（litex_setup.py:630）",
+      "required": false
+    },
+    {
+      "section": "Python 依赖",
+      "name": "pexpect",
+      "status": "WARN",
+      "detail": "未安装（构建/扩展：交互式终端自动化（extras: develop）；安装流程完成后本项应变为 OK）",
+      "required": false
+    },
+    {
+      "section": "Python 依赖",
+      "name": "meson",
+      "status": "WARN",
+      "detail": "未安装（构建/扩展：litex_sim C 仿真构建（扩展验收）；安装流程完成后本项应变为 OK）",
+      "required": false
+    },
+    {
+      "section": "Python 依赖",
+      "name": "POSIX 模块 termios",
+      "status": "OK",
+      "detail": "可导入（影响 litex_term/litex_server，扩展验收）",
+      "required": false
+    },
+    {
+      "section": "Python 依赖",
+      "name": "POSIX 模块 pty",
+      "status": "OK",
+      "detail": "可导入（影响 litex_term/litex_server，扩展验收）",
+      "required": false
+    },
+    {
+      "section": "Python 依赖",
+      "name": "POSIX 模块 select",
+      "status": "OK",
+      "detail": "可导入（影响 litex_term/litex_server，扩展验收）",
+      "required": false
+    },
+    {
+      "section": "Python 依赖",
+      "name": "POSIX 模块 fcntl",
+      "status": "OK",
+      "detail": "可导入（影响 litex_term/litex_server，扩展验收）",
+      "required": false
+    },
+    {
+      "section": "Python 依赖",
+      "name": "POSIX 模块 signal",
+      "status": "OK",
+      "detail": "可导入（影响 litex_term/litex_server，扩展验收）",
+      "required": false
+    },
+    {
+      "section": "Python 依赖",
+      "name": "串口枚举 (pyserial)",
+      "status": "WARN",
+      "detail": "pyserial 未安装，无法枚举",
+      "required": false
+    },
+    {
+      "section": "仓库基线",
+      "name": "仓库根目录",
+      "status": "INFO",
+      "detail": "/storage/Users/currentUser/projects/litex/qa-final-20261008-online-r2/litex",
+      "required": false
+    },
+    {
+      "section": "仓库基线",
+      "name": "当前 commit",
+      "status": "INFO",
+      "detail": "ed0c556c32c0f52a82730dfabd40aea08a192a19 (HEAD)",
+      "required": false
+    },
+    {
+      "section": "仓库基线",
+      "name": "工作区状态",
+      "status": "INFO",
+      "detail": "干净",
+      "required": false
+    },
+    {
+      "section": "仓库基线",
+      "name": "LiteX 版本 (setup.py)",
+      "status": "INFO",
+      "detail": "2026.04",
+      "required": false
+    },
+    {
+      "section": "仓库基线",
+      "name": "Migen 基线 SHA1 (litex_repos.py)",
+      "status": "INFO",
+      "detail": "4c2ae8dfeea37f235b52acb8166f12acaaae4f7c",
+      "required": false
+    }
+  ],
+  "blockers": []
+}

@@ -1,0 +1,31 @@
+{
+  "focused_exit": 0,
+  "cli": {
+    "litex_soc_gen": 0,
+    "litex_periph_gen": 0,
+    "litex_term": 0
+  },
+  "repeat_exit": 0,
+  "repeat_compare_exit": 0,
+  "invalid_clock": [
+    {
+      "value": "0",
+      "exit_code": 1,
+      "output_absent": true
+    },
+    {
+      "value": "-1",
+      "exit_code": 1,
+      "output_absent": true
+    },
+    {
+      "value": "nonnumeric",
+      "exit_code": 2,
+      "output_absent": true
+    }
+  ],
+  "clean_safety": {
+    "exit_code": 1,
+    "sentinel_preserved": true
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "date": "2026-10-08",
+  "litex_commit": "ed0c556c32c0f52a82730dfabd40aea08a192a19",
+  "migen_commit": "4c2ae8dfeea37f235b52acb8166f12acaaae4f7c",
+  "configuration": {
+    "cpu": null,
+    "sys_clk_freq": 1000000,
+    "PYTHONUTF8": "1"
+  },
+  "runs": {
+    "windows": {
+      "status": "PASS",
+      "required_passed": 5,
+      "required_total": 5,
+      "environment": {
+        "platform": "Windows-11-10.0.26200-SP0",
+        "system": "Windows",
+        "release": "11",
+        "machine": "AMD64",
+        "python": "3.12.10 (main, May 30 2025, 05:39:07) [MSC v.1943 64 bit (AMD64)]",
+        "python_executable": "F:\\codes\\LiteX_trans\\litex-harmonyos-pc\\.venv\\Scripts\\python.exe",
+        "default_encoding": "utf-8",
+        "filesystem_encoding": "utf-8",
+        "litex_version": "2026.4",
+        "migen_version": "0.9.2",
+        "git_branch": "feature/final-acceptance",
+        "git_commit": "ed0c556c32c0f52a82730dfabd40aea08a192a19"
+      },
+      "portable_tests": 24,
+      "portable_tests_seconds": 16.704,
+      "focused_tests": 6,
+      "focused_seconds": 0.065,
+      "steps": [
+        {
+          "name": "pip-check",
+          "status": "PASS",
+          "required": true,
+          "returncode": 0
+        },
+        {
+          "name": "imports",
+          "status": "PASS",
+          "required": true,
+          "returncode": 0
+        },
+        {
+          "name": "litex-cli-help",
+          "status": "PASS",
+          "required": true,
+          "returncode": 0
+        },
+        {
+          "name": "litex-sim-help",
+          "status": "OPTIONAL_FAIL",
+          "required": false,
+          "returncode": 1
+        },
+        {
+          "name": "portable-core-tests",
+          "status": "PASS",
+          "required": true,
+          "returncode": 0
+        },
+        {
+          "name": "minimal-soc",
+          "status": "PASS",
+          "required": true,
+          "returncode": 0
+        }
+      ]
+    },
+    "harmonyos": {
+      "status": "PASS",
+      "required_passed": 5,
+      "required_total": 5,
+      "environment": {
+        "platform": "HarmonyOS-HongMeng_Kernel_1.12.0-aarch64-64bit-ELF",
+        "system": "Linux",
+        "release": "HongMeng Kernel 1.12.0",
+        "machine": "aarch64",
+        "python": "3.12.14 (main, Sep 10 2026, 17:12:55) [Clang 15.0.4 (/srv/workspace/llvm-release/2026_0313_llvm15_release/toolchain/ll",
+        "python_executable": "/storage/Users/currentUser/projects/litex/qa-final-20261008-online-r2/litex/.venv-litex/bin/python",
+        "default_encoding": "utf-8",
+        "filesystem_encoding": "utf-8",
+        "litex_version": "2026.4",
+        "migen_version": "0.9.2",
+        "git_branch": "",
+        "git_commit": "ed0c556c32c0f52a82730dfabd40aea08a192a19"
+      },
+      "portable_tests": 24,
+      "portable_tests_seconds": 31.577,
+      "focused_tests": 6,
+      "focused_seconds": 0.072,
+      "steps": [
+        {
+          "name": "pip-check",
+          "status": "PASS",
+          "required": true,
+          "returncode": 0
+        },
+        {
+          "name": "imports",
+          "status": "PASS",
+          "required": true,
+          "returncode": 0
+        },
+        {
+          "name": "litex-cli-help",
+          "status": "PASS",
+          "required": true,
+          "returncode": 0
+        },
+        {
+          "name": "litex-sim-help",
+          "status": "OPTIONAL_FAIL",
+          "required": false,
+          "returncode": 1
+        },
+        {
+          "name": "portable-core-tests",
+          "status": "PASS",
+          "required": true,
+          "returncode": 0
+        },
+        {
+          "name": "minimal-soc",
+          "status": "PASS",
+          "required": true,
+          "returncode": 0
+        }
+      ]
+    }
+  },
+  "clean_install": {
+    "status": "PASS",
+    "setup_exit": 0,
+    "source_transport": "SHA256-checked Git bundles",
+    "dependencies": "Online PyPI with fixed PIP_CONSTRAINT; initially empty dedicated cache",
+    "original_installer_unchanged": true,
+    "full_probe_fail_count": 0
+  },
+  "comparison": {
+    "status": "DIFFERENT",
+    "normalized_equal": 7,
+    "total": 8,
+    "remaining_difference": "Verilog hierarchy block comment connector glyphs",
+    "team_exception_acceptance": "PENDING"
+  },
+  "supplement": {
+    "focused_exit": 0,
+    "cli": {
+      "litex_soc_gen": 0,
+      "litex_periph_gen": 0,
+      "litex_term": 0
+    },
+    "repeat_exit": 0,
+    "repeat_compare_exit": 0,
+    "invalid_clock": [
+      {
+        "value": "0",
+        "exit_code": 1,
+        "output_absent": true
+      },
+      {
+        "value": "-1",
+        "exit_code": 1,
+        "output_absent": true
+      },
+      {
+        "value": "nonnumeric",
+        "exit_code": 2,
+        "output_absent": true
+      }
+    ],
+    "clean_safety": {
+      "exit_code": 1,
+      "sentinel_preserved": true
+    }
+  },
+  "serial": {
+    "sys_platform": "linux",
+    "ports": []
+  },
+  "ci": {
+    "head": "ed0c556c32c0f52a82730dfabd40aea08a192a19",
+    "conclusion": "success",
+    "url": "https://github.com/litex-harmonyos/litex-harmonyos-pc/actions/runs/37606624203"
+  },
+  "not_run": [
+    "BIOS build",
+    "Verilator full simulation",
+    "serial communication",
+    "physical FPGA"
+  ],
+  "pending": [
+    "lead acceptance of Python patch-version and hierarchy-comment differences",
+    "lead personal clean replay",
+    "peer review and lead merge",
+    "final course submission"
+  ]
+}

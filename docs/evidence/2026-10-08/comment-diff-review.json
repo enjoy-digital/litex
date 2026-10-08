@@ -1,0 +1,11 @@
+{
+  "scope": "Only the generated MinimalSoC block comment; ordinary comparator unchanged",
+  "mapping": {
+    "├──": "|--",
+    "└──": "`--",
+    "│": "|"
+  },
+  "normalized_files_equal_after_block_mapping": true,
+  "machine_comparison_status": "DIFFERENT",
+  "team_exception_acceptance": "PENDING"
+}
