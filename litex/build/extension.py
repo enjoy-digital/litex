@@ -22,6 +22,9 @@ can then be plugged: LiteX resolves chained connectors at build time.
 
 Vendor-specific IO attributes (IOStandard, pull-up, slew-rate) are obtained from the platform with
 GenericPlatform.get_io_attr() so that extensions remain vendor-agnostic.
+
+LiteX only provides the mechanism: Extensions describing actual hardware (Pmod modules, carriers,
+daughterboards, docks) are provided by LiteX-Boards (litex_boards.extensions).
 """
 
 from litex.build.generic_platform import Pins, Subsignal, IOStandard
