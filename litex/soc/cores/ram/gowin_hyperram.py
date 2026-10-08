@@ -60,5 +60,13 @@ class GowinHyperRAM(LiteXModule):
             ),
         ]
 
-        self.hyperram = HyperRAM(split_pads, sys_clk_freq=sys_clk_freq, **kwargs)
-        self.bus = self.hyperram.bus
+        self.core = core = HyperRAM(split_pads, sys_clk_freq=sys_clk_freq, **kwargs)
+        self.bus  = core.bus
+
+        # Removes core naming in csr to avoid breaking software
+        # CSR_HYPERRAM_CONFIG_ADDR instead of
+        # CSR_HYPERRAM_HYPERRAM_CONFIG_ADDR
+        # where the first HYPERRAM may be the name of the instance in the upper level
+        self.autocsr_exclude = {"core"}
+        for csr in core.get_csrs():
+            setattr(self, csr.name, csr)
