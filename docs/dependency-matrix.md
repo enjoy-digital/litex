@@ -51,7 +51,7 @@
 
 ### 本次 Python 依赖实测
 
-固定版本：Packaging 26.3、PySerial 3.5、Requests 2.34.2、Setuptools 84.0.0、Wheel 0.48.0、Colorama 0.4.6；Requests 依赖为 certifi 2026.7.22、charset-normalizer 3.5.1、idna 3.20、urllib3 2.8.0。全部通用 wheel 安装成功，pip check 通过，没有为这些包构建 C 扩展。分类为①（所列版本可安装），本次固定版本用于结果比较，未证明其他版本一定不可用。
+固定版本：Packaging 26.3、PySerial 3.5、Requests 2.34.2、Setuptools 84.0.0、Wheel 0.48.0、Colorama 0.4.6；Requests 依赖为 certifi 2026.7.22、charset-normalizer 3.5.1、idna 3.20、urllib3 2.8.0。均由 wheel 安装成功，pip check 通过；其中 charset-normalizer 使用 `cp312-cp312-musllinux_1_2_aarch64` wheel，其余为通用 Python wheel，没有现场编译这些包的 C 扩展。分类为①（所列版本可安装），固定版本用于结果比较，不表示两端包的二进制构建完全相同，也未证明其他版本一定不可用。
 
 PySerial 可导入，`sys.platform=linux`，枚举正常但无设备；term 帮助通过，不代表串口收发通过。上方仍保留安装前的静态预判，最终以这些原生记录为准。
 
