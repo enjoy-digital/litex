@@ -1019,8 +1019,12 @@ class AXIConverter(LiteXModule):
 # AXI Clock Domain Crossing ------------------------------------------------------------------------
 
 class AXIClockDomainCrossing(LiteXModule):
-    """AXI Clock Domain Crossing"""
-    def __init__(self, master, slave, cd_from="sys", cd_to="sys"):
+    """AXI Clock Domain Crossing
+
+    One stream.ClockDomainCrossing (AsyncFIFO) per AXI channel; depth (FIFO depth per channel,
+    None: AsyncFIFO default) and buffered (registered FIFO outputs) are passed to each of them.
+    """
+    def __init__(self, master, slave, cd_from="sys", cd_to="sys", depth=None, buffered=False):
         # Same Clock Domain, direct connection.
         if cd_from == cd_to:
             self.comb += [
@@ -1034,10 +1038,11 @@ class AXIClockDomainCrossing(LiteXModule):
             ]
         # Clock Domain Crossing.
         else:
+            cdc_params = dict(depth=depth, buffered=buffered)
             # Write.
-            aw_cdc = stream.ClockDomainCrossing(master.aw.description, cd_from,   cd_to)
-            w_cdc  = stream.ClockDomainCrossing(master.w.description,  cd_from,   cd_to)
-            b_cdc  = stream.ClockDomainCrossing(master.b.description,    cd_to, cd_from)
+            aw_cdc = stream.ClockDomainCrossing(master.aw.description, cd_from,   cd_to, **cdc_params)
+            w_cdc  = stream.ClockDomainCrossing(master.w.description,  cd_from,   cd_to, **cdc_params)
+            b_cdc  = stream.ClockDomainCrossing(master.b.description,    cd_to, cd_from, **cdc_params)
             self.submodules += aw_cdc, w_cdc, b_cdc
             self.comb += [
                 master.aw.connect(aw_cdc.sink),
@@ -1048,8 +1053,8 @@ class AXIClockDomainCrossing(LiteXModule):
                 b_cdc.source.connect(master.b),
             ]
             # Read.
-            ar_cdc = stream.ClockDomainCrossing(master.ar.description, cd_from,   cd_to)
-            r_cdc  = stream.ClockDomainCrossing(master.r.description,    cd_to, cd_from)
+            ar_cdc = stream.ClockDomainCrossing(master.ar.description, cd_from,   cd_to, **cdc_params)
+            r_cdc  = stream.ClockDomainCrossing(master.r.description,    cd_to, cd_from, **cdc_params)
             self.submodules += ar_cdc, r_cdc
             self.comb += [
                 master.ar.connect(ar_cdc.sink),

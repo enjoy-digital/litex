@@ -333,7 +333,7 @@ class TestBusClockDomainCrossing(unittest.TestCase):
         run_simulation(dut, {"sys": [generator(dut)]}, self.clocks)
         self.assertEqual(dut.errors, 0)
 
-    def test_axi_cdc_sram_read_write(self):
+    def test_axi_cdc_sram_read_write(self, **kwargs):
         class DUT(LiteXModule):
             def __init__(self):
                 self.clock_domains.cd_periph = ClockDomain("periph")
@@ -344,6 +344,7 @@ class TestBusClockDomainCrossing(unittest.TestCase):
                     slave   = self.slave,
                     cd_from = "sys",
                     cd_to   = "periph",
+                    **kwargs
                 )
                 self.sram   = ClockDomainsRenamer("periph")(axi.AXISRAM(256,
                     bus  = self.slave,
@@ -369,6 +370,45 @@ class TestBusClockDomainCrossing(unittest.TestCase):
         dut = DUT()
         run_simulation(dut, {"sys": [generator(dut)]}, self.clocks)
         self.assertEqual(dut.errors, 0)
+
+    def test_axi_cdc_sram_read_write_depth_buffered(self):
+        for depth in [4, 16]:
+            for buffered in [False, True]:
+                with self.subTest(depth=depth, buffered=buffered):
+                    self.test_axi_cdc_sram_read_write(depth=depth, buffered=buffered)
+
+    def test_axi_cdc_depth(self):
+        # AR commands accepted while the slave does not accept any: the AR FIFO depth.
+        def ar_capacity(**kwargs):
+            class DUT(LiteXModule):
+                def __init__(self):
+                    self.clock_domains.cd_periph = ClockDomain("periph")
+                    self.master = axi.AXIInterface(data_width=32, address_width=32)
+                    self.slave  = axi.AXIInterface(data_width=32, address_width=32)
+                    self.cdc    = axi.AXIClockDomainCrossing(
+                        master  = self.master,
+                        slave   = self.slave,
+                        cd_from = "sys",
+                        cd_to   = "periph",
+                        **kwargs
+                    )
+                    self.accepted = 0
+
+            def generator(dut):
+                yield dut.master.ar.valid.eq(1)
+                for _ in range(128):
+                    yield
+                    if (yield dut.master.ar.ready):
+                        dut.accepted += 1
+                yield dut.master.ar.valid.eq(0)
+
+            dut = DUT()
+            run_simulation(dut, {"sys": [generator(dut)]}, self.clocks)
+            return dut.accepted
+
+        self.assertEqual(ar_capacity(), 4)
+        self.assertEqual(ar_capacity(depth=16), 16)
+        self.assertEqual(ar_capacity(depth=32), 32)
 
     def test_axi_cdc_response_backpressure(self):
         class DUT(LiteXModule):
