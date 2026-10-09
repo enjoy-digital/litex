@@ -4,12 +4,16 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
 import unittest
 from types import SimpleNamespace
 
 from migen import Module
 
+from litex.build.xilinx.vivado import XilinxVivadoCommands
+
 from litex.soc.cores.ram.xilinx_usp_hbm2 import (
+    USPHBM2,
     USPHBM2_HIGH_BASE,
     USPHBM2_CHANNEL_SIZE,
     add_usphbm2_pseudochannels,
@@ -42,6 +46,16 @@ class _FakeSoC(Module):
 
     def add_constant(self, name, value):
         self.constants[name] = value
+
+
+class _FakePlatform:
+    def __init__(self, device="xcvu33p-fsvh2104-2L-e"):
+        self.device    = device
+        self.ips       = []
+        self.toolchain = SimpleNamespace(pre_synthesis_commands=XilinxVivadoCommands())
+
+    def add_ip(self, filename):
+        self.ips.append(filename)
 
 
 def _fake_hbm():
@@ -104,6 +118,53 @@ class TestUSPHBM2Helpers(unittest.TestCase):
                 channels     = "0,1",
                 main_channel = 4,
             )
+
+class TestUSPHBM2IP(unittest.TestCase):
+    def test_default_xci_path(self):
+        platform = _FakePlatform()
+        hbm      = USPHBM2(platform)
+        hbm.add_sources(platform)
+        self.assertEqual(platform.ips, [os.path.join(os.getcwd(), "ip", "hbm", "hbm_0.xci")])
+        self.assertEqual(len(hbm.axi), 32)
+
+    def test_custom_xci_path(self):
+        platform = _FakePlatform()
+        hbm      = USPHBM2(platform, hbm_ip_name="hbm_1", xci_path="/tmp/hbm/hbm_1.xci")
+        hbm.add_sources(platform)
+        self.assertEqual(platform.ips, ["/tmp/hbm/hbm_1.xci"])
+        self.assertEqual(list(platform.toolchain.pre_synthesis_commands), [])
+
+    def test_generated_ip(self):
+        platform = _FakePlatform()
+        hbm      = USPHBM2(platform, generate_ip=True, hbm_clk_freq=800e6, axi_clk_freq=400e6)
+        hbm.add_sources(platform)
+        tcl = "\n".join(platform.toolchain.pre_synthesis_commands).format(build_name="top")
+        self.assertEqual(platform.ips, [])
+        self.assertIn("create_ip -vendor xilinx.com -library ip -name hbm -module_name hbm_0", tcl)
+        for config in [
+            "CONFIG.USER_HBM_STACK {2}",
+            "CONFIG.USER_HBM_DENSITY {8GB}",
+            "CONFIG.USER_HBM_TCK_0 {800}",
+            "CONFIG.USER_HBM_TCK_1 {800}",
+            "CONFIG.USER_HBM_REF_CLK_0 {100}",
+            "CONFIG.USER_APB_PCLK_1 {100}",
+            "CONFIG.USER_AXI_CLK_FREQ {400}",
+            "CONFIG.USER_AXI_CLK1_FREQ {400}"]:
+            self.assertIn(config, tcl)
+
+    def test_generated_ip_single_stack(self):
+        platform = _FakePlatform()
+        hbm      = USPHBM2(platform, generate_ip=True, stacks=1,
+            ip_config={"USER_SINGLE_STACK_SELECTION": "RIGHT"})
+        hbm.add_sources(platform)
+        tcl = "\n".join(platform.toolchain.pre_synthesis_commands).format(build_name="top")
+        self.assertIn("CONFIG.USER_HBM_STACK {1}", tcl)
+        self.assertIn("CONFIG.USER_HBM_DENSITY {4GB}", tcl)
+        self.assertIn("CONFIG.USER_SINGLE_STACK_SELECTION {RIGHT}", tcl)
+        self.assertNotIn("USER_HBM_TCK_1", tcl)
+        self.assertEqual(len(hbm.axi), 16)
+        self.assertNotIn("i_HBM_REF_CLK_1", hbm.hbm_params)
+        self.assertNotIn("i_AXI_16_ACLK", hbm.hbm_params)
 
 
 if __name__ == "__main__":
