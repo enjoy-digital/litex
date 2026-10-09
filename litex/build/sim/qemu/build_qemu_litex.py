@@ -65,15 +65,22 @@ def download_file(url, path):
 
     try:
         if shutil.which("curl"):
+            # Avoid HTTP/2 errors from archive mirrors, and retry interrupted
+            # transfers as well as HTTP errors. Bound attempts and retries so
+            # a stalled mirror cannot hold up the build indefinitely.
             run([
                 "curl",
+                "--http1.1",
                 "--silent",
                 "--show-error",
                 "--fail",
                 "--location",
                 "--retry", "5",
+                "--retry-all-errors",
                 "--retry-delay", "5",
+                "--retry-max-time", "600",
                 "--connect-timeout", "20",
+                "--max-time", "300",
                 "--output", tmp_path,
                 url,
             ])
