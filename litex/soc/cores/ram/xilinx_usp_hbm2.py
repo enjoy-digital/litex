@@ -120,11 +120,37 @@ def add_usphbm2_pseudochannels(soc, hbm, channels, main_channel,
 
 # Ultrascale + HBM2 IP Wrapper ---------------------------------------------------------------------
 
+# Devices with 8-high HBM2 stacks (8GB/stack), others have 4-high stacks (4GB/stack).
+USPHBM2_8H_DEVICES = ["xcvu45p", "xcvu47p", "xcvu57p", "xcu55c"]
+
 class USPHBM2(LiteXModule):
-    """Xilinx Virtex US+ High Bandwidth Memory 2 IP wrapper"""
-    def __init__(self, platform, hbm_ip_name="hbm_0"):
-        self.platform = platform
-        self.hbm_name = hbm_ip_name
+    """Xilinx Virtex US+ High Bandwidth Memory 2 IP wrapper
+
+    By default, the HBM IP is read from <cwd>/ip/hbm/<hbm_ip_name>.xci. Another .xci can be
+    provided with xci_path, or the IP can be generated from parameters with generate_ip=True
+    (HBM/AXI/Ref/APB clock frequencies, number of stacks, and optional raw CONFIG.* overrides
+    through ip_config).
+    """
+    def __init__(self, platform, hbm_ip_name="hbm_0", xci_path=None,
+        generate_ip  = False,
+        stacks       = 2,
+        hbm_clk_freq = 900e6,
+        axi_clk_freq = 450e6,
+        ref_clk_freq = 100e6,
+        apb_clk_freq = 100e6,
+        ip_config    = {}):
+        assert stacks in [1, 2]
+        assert not (generate_ip and xci_path is not None)
+        self.platform     = platform
+        self.hbm_name     = hbm_ip_name
+        self.xci_path     = xci_path
+        self.generate_ip  = generate_ip
+        self.stacks       = stacks
+        self.hbm_clk_freq = hbm_clk_freq
+        self.axi_clk_freq = axi_clk_freq
+        self.ref_clk_freq = ref_clk_freq
+        self.apb_clk_freq = apb_clk_freq
+        self.ip_config    = ip_config
 
         self.axi = []
         self.apb = []
@@ -137,21 +163,21 @@ class USPHBM2(LiteXModule):
 
         # Clocks -----------------------------------------------------------------------------------
         # Ref = 100 MHz (HBM: 900 (225-900) MHz), drives internal PLL (1 per stack).
-        for i in range(2):
+        for i in range(stacks):
             self.hbm_params[f"i_HBM_REF_CLK_{i:1d}"] = ClockSignal("hbm_ref")
 
         # APB: 100 (50-100) MHz
-        for i in range(2):
+        for i in range(stacks):
             self.hbm_params[f"i_APB_{i:1d}_PCLK"]     = ClockSignal("apb")
             self.hbm_params[f"i_APB_{i:1d}_PRESET_N"] = ~ResetSignal("apb")
 
         # AXI: 450 (225-450) MHz
-        for i in range(32):
+        for i in range(16*stacks):
             self.hbm_params[f"i_AXI_{i:02d}_ACLK"]     = ClockSignal("axi")
             self.hbm_params[f"i_AXI_{i:02d}_ARESET_N"] = ~ResetSignal("apb")
 
         # AXI --------------------------------------------------------------------------------------
-        for i in range(32):
+        for i in range(16*stacks):
             axi = AXIInterface(data_width=256, address_width=33, id_width=6)
             self.axi.append(axi)
 
@@ -198,8 +224,8 @@ class USPHBM2(LiteXModule):
 
         # APB --------------------------------------------------------------------------------------
         # FIXME: Connect to CSR or Wishbone.
-        apb_complete = Signal(2)
-        for i in range(2):
+        apb_complete = Signal(stacks)
+        for i in range(stacks):
             self.hbm_params[f"i_APB_{i:1d}_PWDATA"]  = 0
             self.hbm_params[f"i_APB_{i:1d}_PADDR"]   = 0
             self.hbm_params[f"i_APB_{i:1d}_PENABLE"] = 0
@@ -211,15 +237,59 @@ class USPHBM2(LiteXModule):
             self.hbm_params[f"o_APB_{i:1d}_PSLVERR"] = Open()
 
             self.hbm_params[f"o_apb_complete_{i:1d}"] = apb_complete[i]
-        self.comb += self.init_done.status.eq(apb_complete == 0b11)
+        self.comb += self.init_done.status.eq(apb_complete == (2**stacks - 1))
 
         # Temperature ------------------------------------------------------------------------------
-        for i in range(2):
+        for i in range(stacks):
             self.hbm_params[f"o_DRAM_{i:1d}_STAT_CATTRIP"] = Open()
             self.hbm_params[f"o_DRAM_{i:1d}_STAT_TEMP"]    = Open()
 
+    def get_ip_config(self):
+        def mhz(freq):
+            return f"{freq/1e6:g}"
+        device     = self.platform.device.lower()
+        stack_size = 8 if any(device.startswith(d) for d in USPHBM2_8H_DEVICES) else 4
+        config = {
+            # Stacks.
+            "USER_HBM_STACK"   : self.stacks,
+            "USER_HBM_DENSITY" : f"{stack_size*self.stacks}GB",
+        }
+        for i in range(self.stacks):
+            config.update({
+                # HBM / Ref Clks (1 PLL per stack).
+                f"USER_HBM_TCK_{i}"     : mhz(self.hbm_clk_freq),
+                f"USER_HBM_REF_CLK_{i}" : mhz(self.ref_clk_freq),
+                # APB Clk.
+                f"USER_APB_PCLK_{i}"    : mhz(self.apb_clk_freq),
+            })
+        # AXI Clk.
+        config["USER_AXI_CLK_FREQ"] = mhz(self.axi_clk_freq)
+        if self.stacks == 2:
+            config["USER_AXI_CLK1_FREQ"] = mhz(self.axi_clk_freq)
+
+        # User/Custom config.
+        config.update(self.ip_config)
+        return config
+
     def add_sources(self, platform):
-        platform.add_ip(os.path.join(os.getcwd(), "ip", "hbm", self.hbm_name + ".xci"))
+        # Generate IP from parameters.
+        if self.generate_ip:
+            ip_tcl = []
+            ip_tcl.append(f"create_ip -vendor xilinx.com -library ip -name hbm -module_name {self.hbm_name}")
+            ip_tcl.append(f"set obj [get_ips {self.hbm_name}]")
+            ip_tcl.append("set_property -dict [list \\")
+            for config, value in self.get_ip_config().items():
+                ip_tcl.append("CONFIG.{} {} \\".format(config, "{{" + str(value) + "}}"))
+            ip_tcl.append("] $obj")
+            ip_tcl.append("generate_target all $obj")
+            ip_tcl.append("synth_ip $obj")
+            platform.toolchain.pre_synthesis_commands += ip_tcl
+        # Use provided/default .xci.
+        else:
+            xci_path = self.xci_path
+            if xci_path is None:
+                xci_path = os.path.join(os.getcwd(), "ip", "hbm", self.hbm_name + ".xci")
+            platform.add_ip(os.path.abspath(xci_path))
 
     def do_finalize(self):
         self.add_sources(self.platform)
