@@ -22,7 +22,8 @@ requests      # 核心代码中仅懒加载（generic_programmer.py:52），但�
 # --- 明确不在此清单、需单独处理的项 --------------------------------------------
 # migen        : 主路径源码安装，git.m-labs.hk/M-Labs/migen.git，基线 SHA1
 #                4c2ae8dfeea37f235b52acb8166f12acaaae4f7c（litex_repos.py:23-28）；
-#                备用 pip install migen==0.9.2（sdist，见矩阵 §2/§7）
+#                备用 pip install migen==0.9.2（sdist=0.9.2 tag 点内容，实测与基线 SHA1
+#                不等价、含 fhdl 差异，仅限应急并报备，见矩阵 §2/§7）
 # litex        : 本仓库，pip install -e <仓库根目录>
 # meson/ninja  : 扩展验收（litex_sim / 固件构建），真机确认后再加入
 #                （meson 纯 Python 可直接装；ninja pip 包为平台二进制 wheel，需平台匹配）

@@ -69,7 +69,7 @@ log "升级 pip 并安装构建/运行依赖（requirements-harmonyos.txt）..."
 "${VENV_PY}" -m pip install ${PIP_INDEX_OPT} -r "${REPO_ROOT}/requirements-harmonyos.txt" \
     || die "PyPI 依赖安装失败：检查 pypi.org / files.pythonhosted.org 连通性（见检测报告），或设置 LITEX_PIP_INDEX 镜像后重试。"
 
-# --- 3. Migen（主路径：源码 + 固定 SHA1，可审计；备用：pip install migen==0.9.2，见矩阵 §2/§7） ---
+# --- 3. Migen（主路径：源码+固定SHA1；备用 pip migen==0.9.2 为 tag 点旧内容、不等价，仅限应急，见矩阵 §2/§7） ---
 log "获取 Migen 源码（${MIGEN_URL} @ ${MIGEN_SHA1}）..."
 if [ ! -d "${MIGEN_DIR}/.git" ]; then
     git clone --recursive "${MIGEN_URL}" "${MIGEN_DIR}" \
