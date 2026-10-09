@@ -14,7 +14,9 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import time
+import heapq
 import datetime
+import itertools
 import collections
 import re
 import warnings
@@ -360,7 +362,7 @@ def _use_wire(stmts):
 
 def _list_comb_wires(f):
     r = set()
-    groups = group_by_targets(f.comb)
+    groups = _group_by_targets(f.comb)
     for g in groups:
         if _use_wire(g[1]):
             r |= g[0]
@@ -493,6 +495,48 @@ _comb_cycle_policies = {
     "error"   : "error",
 }
 
+def _group_by_targets(statements):
+    """Group statements sharing targets (connected components), as Migen's group_by_targets.
+
+    Union-find version (Migen's one rescans all groups for each statement, quadratic on large
+    designs), returning the same groups in the same order: groups ordered by their last
+    statement, statements in source order.
+    """
+    statements = list(flat_iteration(statements))
+    parent     = list(range(len(statements)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    # Union statements sharing a target.
+    targets = []
+    owner   = {}
+    for i, statement in enumerate(statements):
+        statement_targets = set(list_targets(statement))
+        targets.append(statement_targets)
+        for target in statement_targets:
+            if target in owner:
+                a, b = find(owner[target]), find(i)
+                if a != b:
+                    parent[b] = a
+            else:
+                owner[target] = i
+
+    # Collect groups.
+    groups = collections.defaultdict(list)
+    for i in range(len(statements)):
+        groups[find(i)].append(i)
+    r = []
+    for indexes in sorted(groups.values(), key=lambda indexes: indexes[-1]):
+        group_targets = set()
+        for i in indexes:
+            group_targets |= targets[i]
+        r.append((group_targets, [statements[i] for i in indexes]))
+    return r
+
 def _normalize_comb_cycle_policy(policy):
     if isinstance(policy, str):
         policy = policy.lower()
@@ -537,18 +581,39 @@ def _build_target_dependency_graph(statements, targets):
     return deps
 
 def _topological_sort_targets(targets, deps, ns):
-    remaining = set(targets)
-    ordered   = []
-    while remaining:
-        ready = [
-            target for target in remaining
-            if deps.get(target, set()).isdisjoint(remaining)
-        ]
-        if not ready:
-            return None
-        ready = sorted(ready, key=lambda x: ns.get_name(x))
-        ordered.append(ready[0])
-        remaining.remove(ready[0])
+    """Dependency-first order of targets (None on a cycle), smallest ready name first.
+
+    Kahn's algorithm with a heap on names (the previous version rescanned all remaining targets
+    for each target, quadratic on large groups); same order.
+    """
+    targets  = set(targets)
+    users    = collections.defaultdict(list)
+    indegree = {}
+    for target in targets:
+        target_deps      = deps.get(target, set()) & targets
+        indegree[target] = len(target_deps)
+        for dep in target_deps:
+            users[dep].append(target)
+
+    ready = []
+    count = itertools.count() # Tie-breaker (avoids comparing Signals).
+    def push(target):
+        heapq.heappush(ready, (ns.get_name(target), next(count), target))
+
+    for target in targets:
+        if indegree[target] == 0:
+            push(target)
+
+    ordered = []
+    while ready:
+        _, _, target = heapq.heappop(ready)
+        ordered.append(target)
+        for user in users[target]:
+            indegree[user] -= 1
+            if indegree[user] == 0:
+                push(user)
+    if len(ordered) != len(targets):
+        return None
     return ordered
 
 def _find_target_dependency_cycle(deps, ns):
@@ -606,7 +671,7 @@ def _generate_combinatorial_logic(f, ns, comb_cycle_policy="warn"):
     r = ""
     if f.comb:
         _handle_comb_cycles(f, ns, comb_cycle_policy)
-        groups = group_by_targets(f.comb)
+        groups = _group_by_targets(f.comb)
 
         for n, g in enumerate(groups):
             if _use_wire(g[1]):

@@ -1,9 +1,13 @@
 import re
+import random
 import unittest
 
 from migen import *
+from migen.fhdl.tools import group_by_targets
+from migen.fhdl.namer import build_namespace
 
 from litex.gen.fhdl.verilog import VerilogTime, convert
+from litex.gen.fhdl.verilog import _group_by_targets, _topological_sort_targets
 
 
 class _SlicedCombTarget(Module):
@@ -154,6 +158,51 @@ class TestVerilog(unittest.TestCase):
         self.assertIn("assign count = 8'd42;", v)
         self.assertIn("assign address = 32'h80000000;", v)
         self.assertIn("assign mask = 16'hffff;", v)
+
+    def test_group_by_targets_matches_migen(self):
+        # Same groups (targets/statements) in the same order as Migen's group_by_targets.
+        prng = random.Random(42)
+        sigs = [Signal(name=f"s{i}") for i in range(32)]
+        statements = []
+        for i in range(200):
+            a, b, c = prng.sample(sigs, 3)
+            statements.append(prng.choice([
+                a.eq(b),
+                If(c, a.eq(b)),
+                If(c, a.eq(1), b.eq(0)),
+                [a.eq(c), b.eq(c)],
+            ]))
+            sigs.append(Signal(name=f"s{len(sigs)}")) # Keep some groups disjoint.
+        expected = group_by_targets(statements)
+        actual   = _group_by_targets(statements)
+        self.assertEqual(len(actual), len(expected))
+        for (actual_targets, actual_stmts), (expected_targets, expected_stmts) in zip(actual, expected):
+            self.assertEqual(actual_targets, expected_targets)
+            self.assertEqual([id(s) for s in actual_stmts], [id(s) for s in expected_stmts])
+
+    def test_topological_sort_targets(self):
+        def reference_sort(targets, deps, ns):
+            remaining = set(targets)
+            ordered   = []
+            while remaining:
+                ready = [t for t in remaining if deps.get(t, set()).isdisjoint(remaining)]
+                if not ready:
+                    return None
+                ready = sorted(ready, key=lambda x: ns.get_name(x))
+                ordered.append(ready[0])
+                remaining.remove(ready[0])
+            return ordered
+
+        prng = random.Random(42)
+        sigs = [Signal(name=f"t{i}") for i in range(64)]
+        ns   = build_namespace(sigs)
+        # Random DAG (deps only on lower indexes): same order as the reference.
+        deps = {s: set(prng.sample(sigs[:i], min(i, prng.randrange(4)))) for i, s in enumerate(sigs)}
+        self.assertEqual(_topological_sort_targets(sigs, deps, ns), reference_sort(sigs, deps, ns))
+        # Cycle: None.
+        deps[sigs[0]] = {sigs[-1]}
+        deps[sigs[-1]] |= {sigs[0]}
+        self.assertIsNone(_topological_sort_targets(sigs, deps, ns))
 
 
 if __name__ == "__main__":
