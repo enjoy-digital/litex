@@ -89,7 +89,10 @@ git_repos = {
     "pythondata-cpu-veer_eh1":     GitRepo(url="https://github.com/litex-hub/", branch="main"),
     "pythondata-cpu-vexiiriscv":   GitRepo(url="https://github.com/litex-hub/", branch="main"),
     "pythondata-cpu-vexriscv":     GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-vexriscv-smp": GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
+    # Newer VexRiscv revisions disable CounterPlugin by default and leave the
+    # SMP cluster's legacy utime input undriven. Keep the working generator.
+    "pythondata-cpu-vexriscv-smp": GitRepo(url="https://github.com/litex-hub/", clone="recursive",
+        sha1=0x217d23d7e9ad5556c17a73dc6ffc1971765f3d7c),
 }
 
 # Installs -----------------------------------------------------------------------------------------
