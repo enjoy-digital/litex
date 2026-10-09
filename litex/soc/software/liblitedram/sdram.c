@@ -141,6 +141,20 @@
 #define DQ_COUNT 1
 #endif
 
+/* DDR4 MPR read leveling (see sdram_read_leveling_mpr). Not used with RDIMMs or clamshell
+ * layouts: B-side inversion / address mirroring changes BA[1:0], which selects the MPR
+ * location. Can be disabled by defining SDRAM_MPR_READ_LEVELING_DISABLE. */
+#if defined(SDRAM_PHY_DDR4) && defined(SDRAM_PHY_READ_LEVELING_CAPABLE) && \
+	!defined(SDRAM_PHY_DDR4_RDIMM) && !defined(SDRAM_PHY_CLAM_SHELL) && \
+	((SDRAM_PHY_PHASES*SDRAM_PHY_XDR) == 8) && !defined(SDRAM_MPR_READ_LEVELING_DISABLE)
+#define SDRAM_MPR_READ_LEVELING
+#endif
+
+/* DDR4 MR3 value written by the LiteDRAM init sequence (1x fine granularity refresh). */
+#ifndef SDRAM_DDR4_MR3
+#define SDRAM_DDR4_MR3 0x0000
+#endif
+
 #if SDRAM_PHY_DELAYS > 32
 #define MODULO (SDRAM_PHY_DELAYS/32)
 #else
@@ -446,6 +460,54 @@ static void print_scan_errors(unsigned int errors) {
 #define READ_CHECK_TEST_PATTERN_MAX_ERRORS (8*SDRAM_PHY_PHASES*DFII_PIX_DATA_BYTES/SDRAM_PHY_MODULES)
 #define MODULE_BITMASK ((1<<SDRAM_PHY_DQ_DQS_RATIO)-1)
 
+#ifdef SDRAM_MPR_READ_LEVELING
+/*
+ * DDR4 Multi-Purpose Register (MPR) reads: with MR3[2] set, a READ returns the predefined
+ * serial patterns of MPR page 0 (MPR0: 01010101, MPR1: 00110011, MPR2: 00001111, MSB first,
+ * identical on all DQs) through the normal read path and latency, without any prior write.
+ */
+static int _sdram_mpr_mode = 0;
+static const unsigned char _sdram_mpr_patterns[3] = {0x55, 0x33, 0x0f};
+
+static void sdram_mpr_set(int enable) {
+	/* MR3: A2 = MPR operation, A[1:0] = page 0, A[12:11] = serial readout. */
+	sdram_mode_register_write(3, SDRAM_DDR4_MR3 | (enable ? (1 << 2) : 0));
+	cdelay(200);
+}
+
+static unsigned int sdram_mpr_check_module(int module, int dq_line) {
+	int p, mpr;
+	unsigned int errors = 0;
+	unsigned char tst[DFII_PIX_DATA_BYTES];
+	int pebo = (module * SDRAM_PHY_DQ_DQS_RATIO)/8;
+	int nebo = pebo + (DFII_PIX_DATA_BYTES / SDRAM_PHY_XDR);
+	int ibo  = (module * SDRAM_PHY_DQ_DQS_RATIO)%8;
+	int mask = MODULE_BITMASK;
+
+#ifdef SDRAM_DELAY_PER_DQ
+	mask = 1 << dq_line;
+#endif // SDRAM_DELAY_PER_DQ
+
+	for (mpr = 0; mpr < 3; mpr++) {
+		/* Read MPR location (BA[1:0]), no activate needed. */
+		sdram_dfii_pird_address_write(0);
+		sdram_dfii_pird_baddress_write(mpr);
+		command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
+		cdelay(15);
+
+		/* Check expected pattern (2 bits per phase: positive edge then negative edge). */
+		for (p = 0; p < SDRAM_PHY_PHASES; p++) {
+			unsigned char pos = ((_sdram_mpr_patterns[mpr] >> (7 - 2*p - 0)) & 1) ? 0xff : 0x00;
+			unsigned char neg = ((_sdram_mpr_patterns[mpr] >> (7 - 2*p - 1)) & 1) ? 0xff : 0x00;
+			csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr(p), tst, DFII_PIX_DATA_BYTES);
+			errors += popcount(((pos ^ tst[pebo]) >> ibo) & mask);
+			errors += popcount(((neg ^ tst[nebo]) >> ibo) & mask);
+		}
+	}
+	return errors;
+}
+#endif // SDRAM_MPR_READ_LEVELING
+
 /*
  * Core calibration probe used by read leveling, write latency calibration and
  * write DQ-DQS training. It generates deterministic LFSR data for every DFI
@@ -460,6 +522,12 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 	unsigned char value;
 	unsigned char tst[DFII_PIX_DATA_BYTES];
 	unsigned char prs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
+
+#ifdef SDRAM_MPR_READ_LEVELING
+	/* In MPR mode, check the DRAM's predefined patterns instead (read-only). */
+	if (_sdram_mpr_mode)
+		return sdram_mpr_check_module(module, dq_line);
+#endif // SDRAM_MPR_READ_LEVELING
 
 	/* Generate pseudo-random sequence */
 	prv = seed;
@@ -576,6 +644,10 @@ static int run_test_pattern(int module, int dq_line) {
 	return run_test_pattern_seeds(module, dq_line, _seed_array_length);
 }
 
+#ifdef SDRAM_MPR_READ_LEVELING
+static int _sdram_leveling_center_delay = -1;
+#endif // SDRAM_MPR_READ_LEVELING
+
 /* Locate the largest passing delay window for the current bitslip and program
  * the delay to its center. Two consecutive passing taps are required before a
  * window is trusted, since single-edge taps can be unstable. */
@@ -652,6 +724,9 @@ static int sdram_leveling_center_module(
 
 	delay_mid   = (delay_min+delay_max)/2 % SDRAM_PHY_DELAYS;
 	delay_range = (delay_max-delay_min)/2;
+#ifdef SDRAM_MPR_READ_LEVELING
+	_sdram_leveling_center_delay = (delay_min >= 0) ? delay_mid : -1;
+#endif // SDRAM_MPR_READ_LEVELING
 	if (show_short) {
 		if (delay_min < 0)
 			printf("delays: -");
@@ -1321,7 +1396,37 @@ static int sdram_read_leveling_fast_bitslip(int module, int dq_line) {
 }
 #endif // SDRAM_READ_LEVELING_FAST
 
+#ifdef SDRAM_MPR_READ_LEVELING
+static int _sdram_mpr_valid = 0;
+static int _sdram_mpr_bitslip[SDRAM_PHY_MODULES][DQ_COUNT];
+static int _sdram_mpr_delay[SDRAM_PHY_MODULES][DQ_COUNT];
+
+static void sdram_read_leveling_mpr_update(int module, int dq_line, int bitslip, int ok) {
+	/* MPR pass: save read setting. */
+	if (_sdram_mpr_mode) {
+		_sdram_mpr_bitslip[module][dq_line] = ok ? bitslip : -1;
+		_sdram_mpr_delay[module][dq_line]   = ok ? _sdram_leveling_center_delay : -1;
+		return;
+	}
+
+	/* No read window on written data while the MPR pass found one: the write side of this
+	 * module is not working, keep the read setting from the MPR pass. */
+	if (!ok && _sdram_mpr_valid && (_sdram_mpr_bitslip[module][dq_line] >= 0)) {
+		sdram_leveling_action(module, dq_line, read_rst_dq_bitslip);
+		for(int i=0; i<_sdram_mpr_bitslip[module][dq_line]; i++)
+			sdram_leveling_action(module, dq_line, read_inc_dq_bitslip);
+		sdram_leveling_action(module, dq_line, read_rst_dq_delay);
+		for(int i=0; i<_sdram_mpr_delay[module][dq_line]; i++)
+			sdram_leveling_action(module, dq_line, read_inc_dq_delay);
+		printf(" (kept MPR b%02d delay %02d)",
+			_sdram_mpr_bitslip[module][dq_line],
+			_sdram_mpr_delay[module][dq_line]);
+	}
+}
+#endif // SDRAM_MPR_READ_LEVELING
+
 void sdram_read_leveling(void) {
+	int ok;
 	int module;
 	int bitslip;
 	int dq_line;
@@ -1377,12 +1482,41 @@ void sdram_read_leveling(void) {
 #endif // SDRAM_READ_LEVELING_FAST
 
 			/* Re-do leveling on best read window*/
-			sdram_leveling_center_module(module, 1, 0,
+			ok = sdram_leveling_center_module(module, 1, 0,
 				read_rst_dq_delay, read_inc_dq_delay, dq_line);
+#ifdef SDRAM_MPR_READ_LEVELING
+			sdram_read_leveling_mpr_update(module, dq_line, best_bitslip, ok);
+#else
+			(void)ok;
+#endif // SDRAM_MPR_READ_LEVELING
 			printf("\n");
 		}
 	}
 }
+
+#ifdef SDRAM_MPR_READ_LEVELING
+/*
+ * Read leveling on the DDR4 MPR patterns: sets the read side (bitslip/delay) independently of
+ * the write side, before write latency calibration and write DQ-DQS training which read back
+ * what they write and can't distinguish a read error from a write error. The read settings
+ * are saved and kept by the final read leveling for modules where it finds no window.
+ */
+static void sdram_read_leveling_mpr(void) {
+	int module;
+	int dq_line;
+
+	for(module=0; module<SDRAM_PHY_MODULES; module++)
+		for (dq_line = 0; dq_line < DQ_COUNT; dq_line++)
+			_sdram_mpr_bitslip[module][dq_line] = -1;
+
+	sdram_mpr_set(1);
+	_sdram_mpr_mode = 1;
+	sdram_read_leveling();
+	_sdram_mpr_mode = 0;
+	sdram_mpr_set(0);
+	_sdram_mpr_valid = 1;
+}
+#endif // SDRAM_MPR_READ_LEVELING
 
 #endif // SDRAM_PHY_READ_LEVELING_CAPABLE
 
@@ -1667,6 +1801,11 @@ int sdram_leveling(void) {
 	printf("Write leveling:\n");
 	sdram_write_leveling();
 #endif // SDRAM_PHY_WRITE_LEVELING_CAPABLE
+
+#ifdef SDRAM_MPR_READ_LEVELING
+	printf("Read leveling (MPR):\n");
+	sdram_read_leveling_mpr();
+#endif // SDRAM_MPR_READ_LEVELING
 
 #ifdef SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE
 	printf("Write latency calibration:\n");
