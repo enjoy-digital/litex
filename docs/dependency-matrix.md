@@ -6,6 +6,7 @@
 - **本表"真机实测"列只填真机验证结果，未验证的一律标注"待测"**。"静态分析"列是从源码与 PyPI 分发形态得出的预判，供真机测试聚焦。
 - 检测工具：`scripts/check_environment.py`（对应各项探测点）。
 - 按组内决定（2026-09-25）：**Windows 参考环境探测报告不作为交付物**（不代表鸿蒙环境）；本矩阵所有分级最终一律以鸿蒙真机实测回填为准，参考环境仅用于复现与调试安装流程（方法见 `docs/harmonyos-environment-setup.md` §6）。
+- **参考环境一致性备案（2 号，2026-10-09）**：1 号 Windows/Python 3.12.10；4 号 Windows/3.12.10 与鸿蒙原生/3.12.14；**3 号 2026-09-30 核心兼容性证据产自 macOS/Python 3.11.3**。分工文档 §1 要求"参考环境 Python 版本与鸿蒙 PC 端可用版本保持一致"——3 号结果可作功能旁证，**不宜作为两端生成对比的"参考环境"基准**；涉及 Python 小版本敏感行为（风险 R2：Migen 名称推断）的结论，以 3.12.x 环境记录为准。
 
 ## 1. 前置运行时（核心必达门槛，决定第 5 天 A/B/C 分类）
 
@@ -26,12 +27,13 @@
 | github.com | `litex_setup.py --init` standard/full 配置；手动 minimal 不需要 | 扩展 | 待测 |
 | raw.githubusercontent.com | `litex_setup.py:25-26` 自更新 + `litex_repos.py` 下载；仓库内已有该文件且失败被 `except: pass` 吞掉（`litex_setup.py:187-197`） | 不阻塞（用 `--dev` 或在仓库内运行） | 待测 |
 
-## 2. Migen —— ③ 需源码构建（预判）
+## 2. Migen —— ② 需指定版本（主路径源码 / 备用 PyPI sdist；2026-10-09 修订）
 
 | 要点 | 依据 |
 |---|---|
-| 不在 PyPI 分发，必须从 `git.m-labs.hk/M-Labs/migen.git` 克隆安装 | `litex_repos.py:23-28`；`pip install migen` 不可作为安装途径 |
-| 基线为固定 SHA1，克隆后 `git checkout` 到 40 位哈希 | `litex_setup.py:406` 逻辑；`scripts/setup_harmonyos.sh` 已固化同一 SHA1 |
+| **修订**：矩阵旧版"不在 PyPI 分发、`pip install migen` 不可作为安装途径"**有误**。实测 PyPI 存在 migen 0.9 / 0.9.1 / **0.9.2**，分发形态为 **sdist 源码包**（无预成 wheel），故仍记 **② 需指定版本**（纯 Python 源码构建，需 setuptools/wheel 就绪），而非 ① 直接安装 | 参考环境 `pip index versions migen`、`pip download migen==0.9.2` 实测（得 migen-0.9.2.tar.gz）；`litex_repos.py:23-28` |
+| 主路径不变：从 `git.m-labs.hk/M-Labs/migen.git` 克隆并 checkout 固定 SHA1——litex_setup 与 2 号脚本默认走此路线（来源可审计、与基线严格一致）；PyPI `migen==0.9.2` 仅作 m-labs 不可达时的备用（版本选择须记录，分工文档 §9"所有版本选择必须记录"） | `litex_repos.py:23-28`；`litex_setup.py:406`；§7 兜底 |
+| 1 号基线 `pip install -e .` 成功且 venv 内 migen 为 0.9.2，与"PyPI 解析依赖"路线一致；但 **PyPI 0.9.2 与基线 SHA1 是否内容等价未做审计**，两端比较仍以 SHA1 为准 | `PORT_BASELINE.md` 第 4 步与版本表；本矩阵待办 |
 | recursive 克隆（含子模块） | `GitRepo(clone="recursive")`，`git submodule sync/update --recursive`（`litex_setup.py:240-252`） |
 | Migen 本体为纯 Python（预判①安装无障碍，但分发形态是源码）→ 需要 setuptools/wheel 在 venv 内就绪（`--no-build-isolation` 路线避免再联网） | `setup_harmonyos.sh` 第 3 步 |
 | 风险：git.m-labs.hk 为自托管 Gitea，境外站点，连通性需真机确认 | §1 网络表 |
@@ -93,3 +95,4 @@
 - [ ] `python3 scripts/check_environment.py --full --json logs/check-environment-harmonyos.json`（真机终端执行）
 - [ ] `sh scripts/setup_harmonyos.sh` 全流程日志
 - [ ] 回填 §1–§6 所有"待测"列；给出第 5 天 A/B/C 分类结论及证据链接
+- [ ] 审计 PyPI `migen==0.9.2` sdist 与基线 SHA1 `4c2ae8df…` 的内容等价性（§2；比对文件清单与关键模块哈希）
