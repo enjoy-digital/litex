@@ -6,6 +6,7 @@
 - **本表"真机实测"列只填真机验证结果，未验证的一律标注"待测"**。"静态分析"列是从源码与 PyPI 分发形态得出的预判，供真机测试聚焦。
 - 检测工具：`scripts/check_environment.py`（对应各项探测点）。
 - 按组内决定（2026-09-25）：**Windows 参考环境探测报告不作为交付物**（不代表鸿蒙环境）；本矩阵所有分级最终一律以鸿蒙真机实测回填为准，参考环境仅用于复现与调试安装流程（方法见 `docs/harmonyos-environment-setup.md` §6）。
+- **参考环境一致性备案（2 号，2026-10-09）**：1 号 Windows/Python 3.12.10；4 号 Windows/3.12.10 与鸿蒙原生/3.12.14；**3 号 2026-09-30 核心兼容性证据产自 macOS/Python 3.11.3**。分工文档 §1 要求"参考环境 Python 版本与鸿蒙 PC 端可用版本保持一致"——3 号结果可作功能旁证，**不宜作为两端生成对比的"参考环境"基准**；涉及 Python 小版本敏感行为（风险 R2：Migen 名称推断）的结论，以 3.12.x 环境记录为准。
 
 2026-10-08 回填（4 号采集，供 2 号复核）：受测集成提交 `ed0c556c32c0f52a82730dfabd40aea08a192a19`。原生证据见[本次目录](evidence/2026-10-08/)，正式记录采用网络正常后的全新在线安装；完整探测为 0 FAIL。下表的“未在 PATH 发现”不代表鸿蒙平台不可移植或不可安装。
 
@@ -28,17 +29,20 @@
 | github.com | `litex_setup.py --init` standard/full 配置；手动 minimal 不需要 | 扩展 | HTTPS / git ls-remote OK |
 | raw.githubusercontent.com | `litex_setup.py:25-26` 自更新 + `litex_repos.py` 下载；仓库内已有该文件且失败被 `except: pass` 吞掉（`litex_setup.py:187-197`） | 不阻塞（用 `--dev` 或在仓库内运行） | HTTP 200 |
 
-## 2. Migen —— ③ 从固定源码安装（已实测）
+## 2. Migen —— ③ 固定源码安装（主路径，已实测）；PyPI sdist 仅备用
 
-本次固定提交构建/安装成功，版本 0.9.2；依赖 Colorama 0.4.6。使用本地 Git bundle，不把远端连通探测当成完整递归克隆的证明。
+本次固定提交构建/安装成功，版本 0.9.2；依赖 Colorama 0.4.6。使用本地 Git bundle，不把远端连通探测当成完整递归克隆的证明。2026-10-09 的补充审计确认 PyPI 0.9.2 与固定 SHA1 不等价，因此项目验收继续按固定源码主路径归为 ③。
 
 | 要点 | 依据 |
 |---|---|
-| 不在 PyPI 分发，必须从 `git.m-labs.hk/M-Labs/migen.git` 克隆安装 | `litex_repos.py:23-28`；`pip install migen` 不可作为安装途径 |
-| 基线为固定 SHA1，克隆后 `git checkout` 到 40 位哈希 | `litex_setup.py:406` 逻辑；`scripts/setup_harmonyos.sh` 已固化同一 SHA1 |
-| recursive 克隆（含子模块） | `GitRepo(clone="recursive")`，`git submodule sync/update --recursive`（`litex_setup.py:240-252`） |
-| Migen 本体为纯 Python（预判①安装无障碍，但分发形态是源码）→ 需要 setuptools/wheel 在 venv 内就绪（`--no-build-isolation` 路线避免再联网） | `setup_harmonyos.sh` 第 3 步 |
-| 风险：git.m-labs.hk 为自托管 Gitea，境外站点，连通性需真机确认 | §1 网络表 |
+| **修订**：矩阵旧版"不在 PyPI 分发、`pip install migen` 不可作为安装途径"**有误**。实测 PyPI 存在 migen 0.9 / 0.9.1 / **0.9.2**，分发形态为 **sdist 源码包**（无预成 wheel）；它需要 setuptools/wheel 在本地构建，且与固定 SHA1 不等价，所以不能作为 ① 直接安装，也不改变主路径的 ③ 分类 | 参考环境 `pip index versions migen`、`pip download migen==0.9.2` 实测（得 migen-0.9.2.tar.gz）；`litex_repos.py:23-28` |
+| 主路径不变：从 `git.m-labs.hk/M-Labs/migen.git` 克隆并 checkout 固定 SHA1——litex_setup 与 2 号脚本默认走此路线（来源可审计、与基线严格一致）；PyPI `migen==0.9.2` 仅作 m-labs 不可达时的备用（版本选择须记录，分工文档 §9"所有版本选择必须记录"） | `litex_repos.py:23-28`；`litex_setup.py:406`；§7 兜底 |
+| 1 号基线 `pip install -e .` 成功且 venv 内 migen 为 0.9.2，与"PyPI 解析依赖"路线一致 | `PORT_BASELINE.md` 第 4 步与版本表 |
+| recursive 克隆对 migen 本体冗余：基线提交 `4c2ae8df`（2024-12-02）经实测**无 `.gitmodules`/子模块**（175 个跟踪文件） | 2026-10-09 参考环境 m-labs 克隆实测；`litex_setup.py:240-252` |
+| **等价性审计结论（2 号，2026-10-09，离线完成）：不等价**。PyPI `migen-0.9.2` sdist = **0.9.2 tag 点内容**；基线 SHA1 `4c2ae8df`（2024-12-02，"Add support for more call opcodes"）为 tag 之后的 master。实测 `diff -r --strip-trailing-cr`：migen 包 26 个 `.py` 内容不同，**其中含代码生成相关模块** `migen/fhdl/verilog.py、tracer.py、simplify.py、visit.py、specials.py`、`migen/build/generic_platform.py、tools.py`、`xilinx/*`、`lattice/*`、`sim/*`；基线另有 12 个 PyPI 不存在的文件（`build/quicklogic/`、`xilinx/symbiflow.py`、`test/test_vcd.py`、新平台文件）。含义：**备用途径存在生成行为漂移风险，仅限 m-labs 完全不可达时应急启用，启用即向 1 号报备并记入矩阵**；两端 Verilog 比较必须两端同用 SHA1 源码路线才严格成立 | 比对物：`pip download migen==0.9.2` vs `git.m-labs.hk/M-Labs/migen.git @ 4c2ae8df`；差异文件清单见本节 |
+| **组长复核处理**：`PORT_BASELINE.md` 已区分历史 Windows 基线的 PyPI 0.9.2 与集成验收的固定 SHA1；后续两端生成比较统一使用固定 SHA1 | `PORT_BASELINE.md`；本节审计 |
+| Migen 本体为纯 Python，平台兼容风险低，但分发形态仍是源码，需要 setuptools/wheel 在 venv 内就绪（`--no-build-isolation` 路线避免再联网） | `setup_harmonyos.sh` 第 3 步 |
+| git.m-labs.hk 为自托管 Gitea；真机 HTTPS 与 `git ls-remote` 已通过，完整递归克隆仍未验证 | §1 网络表；2026-10-08 原生证据 |
 
 ## 3. PyPI Python 依赖 —— 预判 ① 可直接安装
 
@@ -91,7 +95,7 @@ PySerial 可导入，`sys.platform=linux`，枚举正常但无设备；term 帮�
 ## 7. 真机前风险预案（不改变验收口径，仅提高成功率）
 
 1. **平台标签风险**（§3 setuptools/wheel 行）：若真机 pip 无法命中 wheel 且无 C 编译器，可在参考环境对纯 Python 依赖执行 `pip download --no-deps --only-binary=:all: <pkg>` 生成 wheel，连同 Migen 源码包（纯 Python，跨平台）经可信渠道拷入真机离线安装。**所有版本选择记录到本矩阵"真机实测"列。**
-2. **Migen 单源风险**：git.m-labs.hk 不通时，由已在参考环境克隆好的基线 SHA1 仓库整体拷贝/打包传递（版本以 SHA1 为准，来源可审计）。
+2. **Migen 单源风险**：git.m-labs.hk 不通时，由已在参考环境克隆好的基线 SHA1 仓库整体拷贝/打包传递（版本以 SHA1 为准，来源可审计）。**优先于 PyPI 备用途径**——审计（§2）已证 PyPI 0.9.2 为 tag 点旧内容、与基线不等价，仅在 SHA1 源码确实无法传递时启用并报备。
 3. 以上两条均不满足时，按分工文档提交 C 类阻塞报告（模板见 `docs/harmonyos-environment-setup.md`），**不得改用虚拟机/容器/兼容层达成验收**。
 
 ## 8. 参考环境（Windows 11）——不入库说明
@@ -105,3 +109,4 @@ PySerial 可导入，`sys.platform=linux`，枚举正常但无设备；term 帮�
 - [x] 原生完整探测已执行，原始 JSON 随本次证据提交。
 - [x] 未修改安装器的全新在线安装流程日志已保存。
 - [x] §1–§6 按实测回填；技术分类建议为 B（核心可用，仿真/固件扩展条件不足），待 1/2 号签收确认。
+- [x] 审计 PyPI `migen==0.9.2` sdist 与基线 SHA1 `4c2ae8df…` 的内容等价性（§2）——**2026-10-09 已完成，结论：不等价**（0.9.2 为 tag 点，基线为其后 master；fhdl 生成模块有差异，详见 §2 审计行）

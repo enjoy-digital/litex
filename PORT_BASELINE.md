@@ -23,7 +23,7 @@
 | 集成分支 | `port/harmonyos-pc` |
 | 基线 commit | `db643c5f29d588df1e844e8a53267e1e48553ee5` |
 | LiteX 版本 | `2026.4` |
-| Migen 版本 | `0.9.2` |
+| Migen 版本 | `0.9.2`（本次 Windows 历史基线由 PyPI 解析；集成验收改用固定 SHA1 `4c2ae8dfeea37f235b52acb8166f12acaaae4f7c`，两者内容不等价） |
 | 记录日期 | `2026-09-21` |
 
 在开始鸿蒙 PC 对比验证前，不应随意改变上述 commit 和依赖版本。若必须更新，应新增一条基线记录并说明原因。

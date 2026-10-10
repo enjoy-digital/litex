@@ -4,8 +4,10 @@
 # 适用：鸿蒙 PC 原生 CPython 虚拟环境内执行
 #     python3 -m pip install -r requirements-harmonyos.txt
 # 版本下限与 litex_setup.py:626-631 及 setup.py install_requires 保持一致。
-# 注意：Migen 不在 PyPI 上，本文件无法覆盖，必须按
-#       docs/dependency-matrix.md 第 2 节从源码安装（scripts/setup_harmonyos.sh 已内置该流程）。
+# 注意：Migen 主路径按 docs/dependency-matrix.md 第 2 节从源码安装
+#       （scripts/setup_harmonyos.sh 已内置；固定 SHA1，来源可审计）。
+#       PyPI 有 migen sdist（实测 0.9.2 可得，无预成 wheel），仅在 m-labs 不可达时作备用，
+#       版本选择需记入矩阵；因此本文件仍不包含 migen。
 # 各项在鸿蒙真机上的分级结论以 docs/dependency-matrix.md 实测记录为准。
 
 # --- 构建/安装依赖（litex_setup.py pip_install_build_dependencies 同款） ------
@@ -18,8 +20,10 @@ pyserial      # 纯 Python；serial 工具链能力需真机确认串口节点�
 requests      # 核心代码中仅懒加载（generic_programmer.py:52），但为安装声明依赖
 
 # --- 明确不在此清单、需单独处理的项 --------------------------------------------
-# migen        : 源码安装，git.m-labs.hk/M-Labs/migen.git，
-#                基线 SHA1 4c2ae8dfeea37f235b52acb8166f12acaaae4f7c（litex_repos.py:23-28）
+# migen        : 主路径源码安装，git.m-labs.hk/M-Labs/migen.git，基线 SHA1
+#                4c2ae8dfeea37f235b52acb8166f12acaaae4f7c（litex_repos.py:23-28）；
+#                备用 pip install migen==0.9.2（sdist=0.9.2 tag 点内容，实测与基线 SHA1
+#                不等价、含 fhdl 差异，仅限应急并报备，见矩阵 §2/§7）
 # litex        : 本仓库，pip install -e <仓库根目录>
 # meson/ninja  : 扩展验收（litex_sim / 固件构建），真机确认后再加入
 #                （meson 纯 Python 可直接装；ninja pip 包为平台二进制 wheel，需平台匹配）
