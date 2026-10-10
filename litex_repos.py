@@ -49,7 +49,15 @@ git_repos = {
 
     # LiteX Boards.
     # -------------
-    "litex-boards": GitRepo(url="https://github.com/litex-hub/", clone="regular", tag=True),
+    # CI baseline from the last fully green run (2026-10-07). Newer
+    # litex-boards revisions require litex.build.extension, which is not
+    # available in this port's LiteX baseline.
+    "litex-boards": GitRepo(
+        url="https://github.com/litex-hub/",
+        clone="regular",
+        sha1="8215d8d9b4b23ed138b7e634bbf87ff2920c4221",
+        tag=True,
+    ),
 
     # LiteX pythondata.
     # -----------------
@@ -89,7 +97,13 @@ git_repos = {
     "pythondata-cpu-veer_eh1":     GitRepo(url="https://github.com/litex-hub/", branch="main"),
     "pythondata-cpu-vexiiriscv":   GitRepo(url="https://github.com/litex-hub/", branch="main"),
     "pythondata-cpu-vexriscv":     GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-vexriscv-smp": GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
+    # Keep the recursive SpinalHDL/VexRiscv revisions used by the same green
+    # baseline. The next upstream revision leaves CsrPlugin.utime undriven.
+    "pythondata-cpu-vexriscv-smp": GitRepo(
+        url="https://github.com/litex-hub/",
+        clone="recursive",
+        sha1="217d23d7e9ad5556c17a73dc6ffc1971765f3d7c",
+    ),
 }
 
 # Installs -----------------------------------------------------------------------------------------
