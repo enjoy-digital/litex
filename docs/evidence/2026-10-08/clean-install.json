@@ -1,0 +1,18 @@
+{
+  "litex_commit": "ed0c556c32c0f52a82730dfabd40aea08a192a19",
+  "migen_expected_commit": "4c2ae8dfeea37f235b52acb8166f12acaaae4f7c",
+  "bootstrap_python": "/storage/Users/currentUser/.harmonybrew/opt/python@3.12/bin/python3.12",
+  "bootstrap_version": "3.12.14 (main, Sep 10 2026, 17:12:55) [Clang 15.0.4 (/srv/workspace/llvm-release/2026_0313_llvm15_release/toolchain/ll",
+  "venv_absent_before_setup": true,
+  "migen_absent_before_setup": true,
+  "installer_unmodified": true,
+  "installer": "sh scripts/setup_harmonyos.sh",
+  "source_transport": "SHA256-checked Git bundles through USB loopback",
+  "dependency_transport": "installer default pip index; dedicated empty pip cache; fixed PIP_CONSTRAINT",
+  "transfer_sha256": {
+    "litex.bundle": "f05b2a51f5d462cf4013f806c16866ad5a09484940ccf11ad5a7c57d93b52367",
+    "migen.bundle": "34ce3a13433c4a384e2b1d5d557088e0c1bf51ac09dde6b463632639aab656ce",
+    "constraints.txt": "29b2f55a1528855b5b80443bf2b99046269ef872902675f1a3827dfbc8bbaf0e"
+  },
+  "PYTHONUTF8": "1"
+}

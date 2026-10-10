@@ -1,4 +1,43 @@
-# LiteX 鸿蒙 PC 第一周验证报告
+# LiteX 鸿蒙 PC 验证报告
+
+## 2026-10-08 集成版本回归
+
+4 号已在 Windows 与原生鸿蒙 PC 上验证集成提交 `ed0c556c32c0f52a82730dfabd40aea08a192a19`，两端均通过 **5/5 必达步骤、24/24 核心测试及 6/6 定向回归**。本次只更新文档和证据；受测集成代码已有 `stream.byte_count`、`stream.byte_mask`、Pmod 辅助代码及路径测试修正，不应沿用旧版“核心未改动”的描述。
+
+| 项目 | 本次结果 |
+| --- | --- |
+| 固定输入 | LiteX `ed0c556c32c0f52a82730dfabd40aea08a192a19`；Migen `4c2ae8dfeea37f235b52acb8166f12acaaae4f7c`；CPU=None、1 MHz、PYTHONUTF8=1 |
+| 解释器 | Windows 3.12.10 / AMD64；HarmonyBrew 3.12.14 / aarch64，补丁及构建差异保留 |
+| 必达验收 | 两端均无 skip：pip check、导入、client 帮助、24 项核心测试、最小 SoC 生成通过 |
+| 定向回归 | 两端各 6 项：byte_count、byte_mask、3 项 Pmod、生成工具链路径回归通过 |
+| 鸿蒙 CLI | client、term、soc_gen、periph_gen 帮助均返回 0 |
+| 两端产物 | 8 个文件，7 个按原规则一致；Verilog 仅层级注释字符差异，机器状态 `DIFFERENT` |
+| 鸿蒙重复性 | 第二次生成使用 `重复生成 空格` 目录，8 个文件比较 `MATCH` |
+| 异常输入 | 时钟 0、-1、非数字分别退出 1、1、2，均未生成输出目录 |
+| 清理保护 | 在专用临时目录以 `--output-dir . --clean` 调用，退出 1，原有标记文件保留 |
+| 可选仿真 | 两端 `litex_sim --help` 缺 LiteEth；未进入 Verilator |
+
+6 项回归及异常检查使用本次独立在线安装环境。运行后确认设备仓库受版本控制的文件无差异，仅有新建 venv 和日志目录；`include-system-site-packages=false`，导入路径没有旧项目 venv。完整版本、命令和安装方式见[复现说明](docs/harmonyos-pc.md)。
+
+两端比较没有扩大忽略规则。对生成的 `MinimalSoC` 块注释单独将三个 Unicode 树连接符映射为对应 ASCII 字符后，规范化文件全文相同；该核查与机器比较分别保存在[比较报告](docs/evidence/2026-10-08/comparison.json)及[注释差异核查](docs/evidence/2026-10-08/comment-diff-review.json)。是否接受例外仍由组长确认。
+
+PR #1/#3/#4 已于 10 月 7 日合并。受测提交的[四组 Ubuntu CI](https://github.com/litex-harmonyos/litex-harmonyos-pc/actions/runs/37606624203)已成功；主要测试解释器为 Python 3.9，不能替代本次原生验收。比较工具未变化，继续复用已有 8 项测试及 CI 证据。当前没有新增鸿蒙专属补丁依据。
+
+### 安装与扩展边界
+
+在全新目录 `~/projects/litex/qa-final-20261008-online-r2/` 使用空缓存和固定依赖约束，调用未修改的 `sh scripts/setup_harmonyos.sh`。PyPI 公共依赖下载、安装和核心验收全部通过；安装前完整探测为 **0 FAIL**，M-Labs/GitHub 的 git ls-remote 与 5 个 HTTPS 端点均可达。源码通过 SHA-256 校验的 Git bundle 提供，没有把连通性检查写成完整远端递归克隆验证。已有原生 HarmonyBrew Python/Git 和可写 TMPDIR 是前提，未重装基础工具。
+
+Clang 15.0.4、Make 4.4.1、Ninja 1.13.2、CMake 4.4.3 可启动；Meson、Verilator 和三个 RISC-V GCC 名称未在 PATH 发现，不能据此判定平台不支持。PySerial 枚举正常但无设备，未验证真实通信。BIOS、完整仿真和 FPGA 板级结果均不在本次通过结论内。[阻塞记录](docs/evidence/2026-10-08/blockers.md)列出完整错误、负责人及后续条件。
+
+### 交付与剩余团队事项
+
+[证据目录](docs/evidence/2026-10-08/)提供摘要、原生探测、两端比较和重复性记录；[完整证据包](docs/evidence/2026-10-08/full-evidence.zip)包含原始日志、产物、安装约束、实际执行器、原生截图和逐文件 SHA-256，可随收尾 PR 下载。原设备结果及本地 `build/acceptance-*-20261008/` 分别保留，没有覆盖 9 月证据。[演示流程](docs/week1-demo.md)已更新，第二次生成兼作执行流程演练；截图明确标注为保存结果展示，未录制视频。
+
+四号技术交付已形成可审阅证据。仍需一号确认 Python 补丁版本和注释例外、决定扩展范围、亲自完成最终空目录复现，并由另一成员复核收尾 PR、一号合并和完成课程提交。Issues 当前关闭，是否使用 PR 跟踪替代由一号决定；没有代写团队通过意见。
+
+---
+
+## 2026-09-28 历史验证记录
 
 日期：2026-09-28；责任范围：4 号测试、结果比较与交付。
 

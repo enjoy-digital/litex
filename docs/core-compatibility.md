@@ -1,5 +1,7 @@
 # LiteX 核心鸿蒙 PC 兼容性核查（3 号，第一周）
 
+> 2026-10-08 状态更新：PR #1/#3/#4 已合并。集成提交 `ed0c556c32c0f52a82730dfabd40aea08a192a19` 的[四组 Ubuntu CI](https://github.com/litex-harmonyos/litex-harmonyos-pc/actions/runs/37606624203)均成功。集成新增了 `stream.byte_count`、`stream.byte_mask` 和 Pmod 兼容辅助代码；它们用于生态兼容，并非鸿蒙专属补丁。最新原生回归见[移植报告](../PORTING_REPORT.md)。下文保留 9 月 30 日的审计与当时失败记录，“CI 未通过”“待合并”和“核心未改动”均限于该历史版本。
+
 核查日期：2026-09-30。范围对应四人分工文件中三号第一周六项要求。
 LiteX 基线：`6bd66c63f77e3c32452e8b5f7dbfb50df45ad501`；Migen：`4c2ae8dfeea37f235b52acb8166f12acaaae4f7c`。
 

@@ -1,5 +1,33 @@
 # 鸿蒙 PC 核心验证与复现
 
+## 2026-10-08 集成版本入口
+
+当前候选提交为 `ed0c556c32c0f52a82730dfabd40aea08a192a19`，Migen 仍固定为 `4c2ae8dfeea37f235b52acb8166f12acaaae4f7c`。最新结果、完整证据及未决事项见[移植报告](../PORTING_REPORT.md)；下方 9 月记录保留原日期和版本，不作为本次提交的验证。
+
+本次使用新的 `~/projects/litex/qa-final-20261008-online-r2/`，预装原生 HarmonyBrew Python 3.12.14、Git 和可写 TMPDIR。源码通过 SHA-256 校验的 Git bundle 传入；Windows 参考 Python 为 3.12.10。在新目录内检出指定提交、确保项目 venv、Migen 目录与 pip 缓存不存在后，执行：
+
+```sh
+cd ~/projects/litex/qa-final-20261008-online-r2/litex
+export PYTHONUTF8=1
+export PIP_CACHE_DIR="$(cd .. && pwd)/pip-cache"
+unset PIP_NO_INDEX PIP_FIND_LINKS
+export PIP_CONSTRAINT="$(cd .. && pwd)/constraints.txt"
+export LITEX_MIGEN_URL="$(cd .. && pwd)/migen.bundle"
+sh scripts/setup_harmonyos.sh
+.venv-litex/bin/python scripts/run_acceptance.py --output-dir ../results/acceptance
+.venv-litex/bin/python -m unittest -v \
+  test.interconnect.test_stream.TestStream.test_byte_count \
+  test.interconnect.test_stream.TestStream.test_byte_mask \
+  test.build.test_pmod.TestPmod \
+  test.build.test_generic_platform_toolchain.TestGenericToolchain.test_build_litex_backend_generates_verilog_project_and_script
+```
+
+`constraints.txt` 随[完整证据包](evidence/2026-10-08/full-evidence.zip)提供，固定下表公共依赖，避免安装日期造成版本漂移。安装器未修改，公共依赖由设备在线从 PyPI 获取；Migen 使用安装器已有本地 URL 选项。完整证据包同时包含实际执行器和输入哈希。复现时使用新目录；Git bundle 可由可信仓库按指定提交重新生成，未验证完整远端递归克隆或 `--with-litex-setup` 模式。
+
+全部本次鸿蒙核心验收、6 项补充、CLI、异常参数、重复生成和截图使用同一在线安装环境。正式记录不含校园网未配置期间的尝试。
+
+## 2026-09-28 历史记录
+
 2026-09-28：4 号在 Windows 与鸿蒙 PC 原生 HiShell 中分别运行了现有 `scripts/run_acceptance.py`，两端均为 5/5 必达步骤通过、24/24 核心测试通过。详细结果见 [移植报告](../PORTING_REPORT.md) 和 [证据摘要](evidence/2026-09-28/summary.json)；交接时可使用 [五分钟演示流程及组长确认清单](week1-demo.md)。
 
 ## 固定输入

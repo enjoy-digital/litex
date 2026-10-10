@@ -8,6 +8,11 @@
 
 # Welcome to LiteX!
 
+**HarmonyOS PC port:** [installation and reproduction](docs/harmonyos-pc.md),
+[validation report](PORTING_REPORT.md), [dependency matrix](docs/dependency-matrix.md),
+and [five-minute demonstration](docs/week1-demo.md). Native core generation and
+external simulation/FPGA toolchains have separate acceptance scopes.
+
 
 The LiteX framework provides a convenient and efficient infrastructure to create FPGA Cores/SoCs, to explore various digital design architectures and create [full FPGA based  systems](https://github.com/enjoy-digital/litex/wiki/Projects).
 

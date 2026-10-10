@@ -30,13 +30,18 @@ portable core tests, and export-only minimal SoC generation on HarmonyOS PC.
 
 | Owner | Branch | First-week output | Status |
 |---|---|---|---|
-| 1 - lead/integration | `feature/baseline-integration` | baseline, core flow, minimal SoC, acceptance runner | Local work complete |
-| 2 - environment/dependencies | `feature/harmony-environment` | environment probe, dependency matrix, setup instructions | Assigned |
-| 3 - core compatibility | `feature/core-compatibility` | platform audit, minimal fixes, compatibility notes | Assigned |
-| 4 - tests/documentation | `feature/tests-docs` | HarmonyOS test results, comparisons, report structure | Assigned |
+| 1 - lead/integration | `feature/baseline-integration` | baseline, core flow, minimal SoC, acceptance runner | PR #2 merged; final acceptance remains with lead |
+| 2 - environment/dependencies | `feature/harmony-environment` | environment probe, dependency matrix, setup instructions | PR #1 merged 2026-10-07 |
+| 3 - core compatibility | `feature/core-compatibility` | platform audit, minimal fixes, compatibility notes | PR #4 merged 2026-10-07 |
+| 4 - tests/documentation | `feature/tests-docs`; `feature/final-acceptance` | HarmonyOS test results, comparisons, report structure | PR #3 merged; integrated native/Windows validation complete 2026-10-08; follow-up evidence awaits review |
 
 All feature branches submit pull requests to `port/harmonyos-pc`. The `master`
 branch remains close to upstream LiteX.
+
+Integrated candidate `ed0c556c3` passed 5/5 required steps, 24 portable tests,
+and 6 focused regressions on both Windows and native HarmonyOS PC. The native
+clean online install also passed. See the [report](PORTING_REPORT.md) for
+artifact differences, extension limits, and outstanding lead acceptance.
 
 ## Risk Register
 
@@ -71,6 +76,7 @@ acceptance or only a toolchain extension.
 - [x] Export-only minimal SoC example is implemented and verified.
 - [x] Automated acceptance runner is implemented and verified.
 - [x] Four GitHub Issue templates are ready for the project members.
-- [ ] HarmonyOS environment owner submits the first environment report.
-- [ ] All four work items exist as GitHub Issues with owners.
-- [ ] Baseline pull request is reviewed and merged into `port/harmonyos-pc`.
+- [x] Environment setup and matrix submitted in merged PR #1; native evidence linked from the validation report.
+- [ ] All four work items exist as GitHub Issues with owners (Issues disabled; lead must decide whether PR tracking is sufficient).
+- [x] Baseline pull request is merged into `port/harmonyos-pc` (PR #2).
+- [ ] Lead records personal clean-directory replay, accepts comparison exceptions and final scope, and reviews the follow-up validation PR.

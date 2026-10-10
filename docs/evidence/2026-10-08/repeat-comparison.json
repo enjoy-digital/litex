@@ -1,0 +1,60 @@
+{
+  "status": "MATCH",
+  "reference": "/storage/Users/currentUser/projects/litex/qa-final-20261008-online-r2/results/acceptance/minimal-soc",
+  "candidate": "/storage/Users/currentUser/projects/litex/qa-final-20261008-online-r2/results/重复生成 空格",
+  "excluded": [
+    "baseline-summary.json",
+    "litex.log"
+  ],
+  "files": [
+    {
+      "path": "csr.csv",
+      "reference_sha256": "4e0c69f088ae58439116911d4b934e5b199d06295a0557781e95626c0db5bd28",
+      "candidate_sha256": "2ebd3b3f13451cc92f5654ec9f06307fda8925e35872a3ec628e066ca0da47be",
+      "status": "NORMALIZED_EQUAL"
+    },
+    {
+      "path": "csr.json",
+      "reference_sha256": "9c70bff4cacfccf0acd723d1f707f719fba87dcbd11606ea2219a62755c58a40",
+      "candidate_sha256": "9c70bff4cacfccf0acd723d1f707f719fba87dcbd11606ea2219a62755c58a40",
+      "status": "EXACT"
+    },
+    {
+      "path": "gateware/minimal_soc.v",
+      "reference_sha256": "ac53f6f4d6bc8d395e6fe4830499640c3a640f8ef4743d4223969f16f48ea839",
+      "candidate_sha256": "3ce20816165b51edbd8c0a5d243bc62903a9a103bd467f949add3294bb0f1ce7",
+      "status": "NORMALIZED_EQUAL"
+    },
+    {
+      "path": "gateware/minimal_soc_mem.init",
+      "reference_sha256": "7f78d197eeb021d4cc51516fe765b6553e5a4992c41caaffe6f83aefc778251e",
+      "candidate_sha256": "7f78d197eeb021d4cc51516fe765b6553e5a4992c41caaffe6f83aefc778251e",
+      "status": "EXACT"
+    },
+    {
+      "path": "software/include/generated/csr.h",
+      "reference_sha256": "ac5778c11b51ef4415075b19430bf6d517a3b6e422b1e2e518f4c4f0beb59dc8",
+      "candidate_sha256": "f5a49cbf6d9fc45bdcd038d3eef16d34b82144ee291a884ae692eb70177af45c",
+      "status": "NORMALIZED_EQUAL"
+    },
+    {
+      "path": "software/include/generated/git.h",
+      "reference_sha256": "5a912d2cd7965e9de477b8ac1705b3083842555f44e30e6500284dff391be9a5",
+      "candidate_sha256": "b8a75238e2717103d6a1b55297f228e069e57b993c9fe36c57a1c0ed59c3b438",
+      "status": "NORMALIZED_EQUAL"
+    },
+    {
+      "path": "software/include/generated/mem.h",
+      "reference_sha256": "804727e4d5b28737f43411e0cef167774781b66128990aa3a1ab2ad1052cfcd6",
+      "candidate_sha256": "47cd5594392dea9b907bd08deedf8b47de020b243acc8427f54dc454e703c412",
+      "status": "NORMALIZED_EQUAL"
+    },
+    {
+      "path": "software/include/generated/soc.h",
+      "reference_sha256": "ab1089ebba12a834aeec300f4347c4c8ec3d365d841c87dc7f9c667a000788df",
+      "candidate_sha256": "569c79f954d7cfab5b847ec8110fc8c49952cfeda4daced8d852af6a3d9d366d",
+      "status": "NORMALIZED_EQUAL"
+    }
+  ],
+  "errors": []
+}
