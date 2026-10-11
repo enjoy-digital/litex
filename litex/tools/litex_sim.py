@@ -133,6 +133,14 @@ _io = [
         Subsignal("ntrst", Pins(1)),
     ),
 
+    # SWD (three-wire SWDIO: the sim drives the wires directly, no IOBUF).
+    ("swd", 0,
+        Subsignal("swclk",    Pins(1)),
+        Subsignal("swdio_i",  Pins(1)),
+        Subsignal("swdio_o",  Pins(1)),
+        Subsignal("swdio_oe", Pins(1)),
+    ),
+
     # Video (VGA).
     ("vga", 0,
         Subsignal("hsync", Pins(1)),
@@ -180,6 +188,7 @@ class SimSoC(SoCCore):
         sim_debug              = False,
         trace_reset_on         = False,
         with_jtag              = False,
+        with_swd               = False,
         min_l2_data_width      = 128,
         l2_bursting            = False,
         l2_refill_bypass       = False,
@@ -323,6 +332,11 @@ class SimSoC(SoCCore):
         if with_jtag:
             jtag_pads = platform.request("jtag")
             self.cpu.add_jtag(jtag_pads)
+
+        # SWD --------------------------------------------------------------------------------------
+        if with_swd:
+            swd_pads = platform.request("swd")
+            self.cpu.add_swd(swd_pads)
 
         # SDCard -----------------------------------------------------------------------------------
         if with_sdcard:
@@ -479,6 +493,9 @@ def sim_args(parser):
     # JTAG
     parser.add_argument("--with-jtagremote",      action="store_true", help="Enable jtagremote support")
 
+    # SWD
+    parser.add_argument("--with-swdremote",       action="store_true", help="Enable swdremote support (SWD over remote_bitbang)")
+
     # QEMU co-simulation.
     qemu_add_args(parser)
 
@@ -614,6 +631,10 @@ def main():
     if args.with_jtagremote:
         sim_config.add_module("jtagremote", "jtag", args={'port': 44853})
 
+    # SWD
+    if args.with_swdremote:
+        sim_config.add_module("swdremote", "swd", args={'port': 44854})
+
     # Video.
     if args.with_video_framebuffer or args.with_video_terminal or args.with_video_colorbars:
         sim_config.add_module("video", "vga", args={"render_on_vsync": args.video_vsync})
@@ -638,6 +659,7 @@ def main():
         with_analyzer          = args.with_analyzer,
         with_i2c               = args.with_i2c,
         with_jtag              = args.with_jtagremote,
+        with_swd               = args.with_swdremote,
         with_sdcard            = args.with_sdcard,
         with_spi_flash         = args.with_spi_flash,
         with_gpio              = args.with_gpio,
