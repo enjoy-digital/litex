@@ -57,6 +57,7 @@ class VexRiscvSMP(CPU):
     cpu_per_fpu          = 4
     with_rvc             = False
     jtag_tap             = False
+    with_swd             = False
     dtlb_size            = 4
     itlb_size            = 4
     csr_base             = 0xf000_0000
@@ -93,6 +94,7 @@ class VexRiscvSMP(CPU):
         cpu_group.add_argument("--clint-base",                   default="0xf0010000", help="CLINT base address.")
         cpu_group.add_argument("--plic-base",                    default="0xf0c00000", help="PLIC base address.")
         cpu_group.add_argument("--jtag-tap",                     action="store_true", help="Add the jtag tap instead of jtag instruction interface")
+        cpu_group.add_argument("--with-swd-debug",               action="store_true", help="Use the SWD (SWCLK/SWDIO) debug transport instead of JTAG. Implies --with-privileged-debug.")
 
     @staticmethod
     def args_read(args):
@@ -134,6 +136,13 @@ class VexRiscvSMP(CPU):
         if(args.clint_base): VexRiscvSMP.clint_base = int(args.clint_base, 16)
         if(args.plic_base):  VexRiscvSMP.plic_base  = int(args.plic_base, 16)
         if(args.jtag_tap):  VexRiscvSMP.jtag_tap = int(args.jtag_tap)
+        if(args.with_swd_debug):
+            VexRiscvSMP.with_swd = True
+            # SWD only exists on the official RISC-V DM path; the cluster generator
+            # asserts on swd without privileged debug.
+            VexRiscvSMP.privileged_debug = True
+            if VexRiscvSMP.jtag_tap:
+                raise ValueError("--with-swd-debug and --jtag-tap are mutually exclusive (single DebugBus, no transport arbitration).")
 
     # ABI.
     @staticmethod
@@ -207,7 +216,8 @@ class VexRiscvSMP(CPU):
         f"{'_Pd'   if VexRiscvSMP.privileged_debug else ''}" \
         f"{'_Hb' + str(VexRiscvSMP.hardware_breakpoints) if VexRiscvSMP.hardware_breakpoints > 0 else ''}" \
         f"{'_Rvc'  if VexRiscvSMP.with_rvc else ''}" \
-        f"{'_JtagT'  if VexRiscvSMP.jtag_tap else ''}"
+        f"{'_JtagT'  if VexRiscvSMP.jtag_tap else ''}" \
+        f"{'_Swd'  if VexRiscvSMP.with_swd else ''}"
 
     # Default Configs Generation.
     @staticmethod
@@ -317,6 +327,9 @@ class VexRiscvSMP(CPU):
         gen_args.append(f"--dtlb-size={VexRiscvSMP.dtlb_size}")
         gen_args.append(f"--itlb-size={VexRiscvSMP.itlb_size}")
         gen_args.append(f"--jtag-tap={VexRiscvSMP.jtag_tap}")
+        if VexRiscvSMP.with_swd:
+            # Only passed when used: generators that predate the SWD transport reject the option.
+            gen_args.append("--swd=True")
 
         cmd = 'cd {path} && sbt "runMain vexriscv.demo.smp.VexRiscvLitexSmpClusterCmdGen {args}"'.format(path=os.path.join(vdir, "ext", "VexRiscv"), args=" ".join(gen_args))
         subprocess.check_call(cmd, shell=True)
@@ -328,7 +341,13 @@ class VexRiscvSMP(CPU):
         self.human_name       = self.human_name + "-" + self.variant.upper()
         self.reset            = Signal()
 
-        if VexRiscvSMP.jtag_tap:
+        if VexRiscvSMP.with_swd:
+            # Three-wire SWDIO: the IOBUF/tristate belongs to the platform, not the black box.
+            self.swd_clk      = Signal()
+            self.swdio_i      = Signal()
+            self.swdio_o      = Signal()
+            self.swdio_oe     = Signal()
+        elif VexRiscvSMP.jtag_tap:
             self.jtag_clk = Signal()
             self.jtag_tdo = Signal()
             self.jtag_tdi = Signal()
@@ -377,7 +396,14 @@ class VexRiscvSMP(CPU):
             o_peripheral_BTE      = pbus.bte
         )
 
-        if VexRiscvSMP.jtag_tap:
+        if VexRiscvSMP.with_swd:
+            self.cpu_params.update(
+                i_debugPort_swclk    = self.swd_clk,
+                i_debugPort_swdio_i  = self.swdio_i,
+                o_debugPort_swdio_o  = self.swdio_o,
+                o_debugPort_swdio_oe = self.swdio_oe,
+            )
+        elif VexRiscvSMP.jtag_tap:
             self.cpu_params.update(
                 i_debugPort_tck     = self.jtag_clk,
                 i_debugPort_tms     = self.jtag_tms,
@@ -475,6 +501,16 @@ class VexRiscvSMP(CPU):
             self.jtag_clk.eq(pads.tck),
             self.jtag_tdi.eq(pads.tdi),
             pads.tdo.eq(self.jtag_tdo),
+        ]
+
+    def add_swd(self, pads):
+        # pads carry the three-wire form (swclk, swdio_i, swdio_o, swdio_oe); a real board
+        # collapses swdio_* into one bidirectional pin via an IOBUF at platform level.
+        self.comb += [
+            self.swd_clk.eq(pads.swclk),
+            self.swdio_i.eq(pads.swdio_i),
+            pads.swdio_o.eq(self.swdio_o),
+            pads.swdio_oe.eq(self.swdio_oe),
         ]
 
     def add_soc_components(self, soc):
