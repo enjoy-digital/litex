@@ -213,12 +213,27 @@ define_command(sdram_test, sdram_test_handler, "Test SDRAM", LITEDRAM_CMDS);
 /**
  * Command "sdram_cal"
  *
- * Calibrate SDRAM
+ * Calibrate SDRAM ([controller]: with CK phase leveling, another controller than main_ram's)
  *
  */
 #if defined(CSR_DDRPHY_BASE)
 static void sdram_cal_handler(int nb_params, char **params)
 {
+#ifdef SDRAM_PHY_CKPHASE_STEPS
+	char *c;
+	int controller = 0;
+	if (nb_params > 0) {
+		controller = strtoul(params[0], &c, 0);
+		if (*c != 0) {
+			printf("Incorrect controller");
+			return;
+		}
+	}
+	if (controller != 0) {
+		sdram_ckphase_leveling(controller);
+		return;
+	}
+#endif // SDRAM_PHY_CKPHASE_STEPS
 	sdram_software_control_on();
 	sdram_leveling();
 	sdram_software_control_off();
