@@ -4,7 +4,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 /*
- * DDR3 calibration for LiteDRAM's S7HRDDRPHY (Series-7 HR banks, write leveling by CK phase).
+ * DDR3 calibration for LiteDRAM's S7DDRPHY with CK phase shift (with_ck_phase_shift: Series-7 HR
+ * banks, write leveling by CK phase).
  *
  * The PHY has no write leveling (no ODELAYE2 on HR banks): CK moves against DQ/DQS instead.
  *

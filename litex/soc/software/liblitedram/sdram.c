@@ -1853,7 +1853,7 @@ int sdram_init(void) {
 #ifdef CONFIG_SDRAM_CUSTOM_INIT
 	if (!sdram_custom_init()) {
 #else
-	/* S7HRDDRPHY: CK phase scan + per-lane write latency + per-bit read leveling. */
+	/* S7DDRPHY with CK phase shift: CK phase scan + per-lane write latency + per-bit read leveling. */
 	if (!sdram_s7hr_init(0)) {
 #endif
 		sdram_software_control_off();

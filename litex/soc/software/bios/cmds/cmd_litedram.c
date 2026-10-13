@@ -233,7 +233,7 @@ define_command(sdram_cal, sdram_cal_handler, "Calibrate SDRAM", LITEDRAM_CMDS);
 /**
  * Command "sdram_s7hr_init"
  *
- * Calibrate an S7HRDDRPHY controller (default: 0)
+ * Calibrate a controller of an S7DDRPHY with CK phase shift (default: 0)
  *
  */
 #ifdef SDRAM_S7HR_CALIBRATION
@@ -250,7 +250,7 @@ static void sdram_s7hr_init_handler(int nb_params, char **params)
 	}
 	sdram_s7hr_init(controller);
 }
-define_command(sdram_s7hr_init, sdram_s7hr_init_handler, "Calibrate an S7HRDDRPHY controller", LITEDRAM_CMDS);
+define_command(sdram_s7hr_init, sdram_s7hr_init_handler, "Calibrate an S7DDRPHY controller (CK phase shift)", LITEDRAM_CMDS);
 #endif
 
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
