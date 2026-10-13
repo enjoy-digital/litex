@@ -9,6 +9,18 @@
 // This file is Copyright (c) 2021 Antmicro <www.antmicro.com>
 // License: BSD
 
+#include <generated/soc.h>
+#ifdef SDRAM_CSR_STRIDE
+/* Several SDRAM controllers: the CSR accesses of this file are relative to a variable CSR base,
+ * so controller k is leveled at controller 0's CSRs + k*SDRAM_CSR_STRIDE (the SoC keeps each
+ * controller's sdram/ddrphy/sdram_generator/sdram_checker CSR groups at that stride). */
+#include <generated/mem.h>
+static const unsigned long sdram_csr_base0 = CSR_BASE;
+static unsigned long sdram_csr_base = CSR_BASE;
+#undef CSR_BASE
+#define CSR_BASE sdram_csr_base
+#endif // SDRAM_CSR_STRIDE
+
 #include <generated/csr.h>
 #ifdef CSR_SDRAM_BASE
 #include <generated/mem.h>
@@ -24,7 +36,6 @@
 #include <system.h>
 
 #include <liblitedram/sdram.h>
-#include <liblitedram/sdram_s7hr.h>
 #include <liblitedram/sdram_dbg.h>
 #include <liblitedram/accessors.h>
 
@@ -1756,6 +1767,474 @@ static void sdram_write_dq_dqs_training(void) {
 #endif /* SDRAM_PHY_WRITE_DQ_DQS_TRAINING_CAPABLE */
 
 /*-----------------------------------------------------------------------*/
+/* CK Phase Leveling                                                     */
+/*-----------------------------------------------------------------------*/
+
+#ifdef SDRAM_PHY_CKPHASE_STEPS
+
+/*
+ * DDR3 leveling for PHYs without write leveling that move CK against DQ/DQS instead (LiteDRAM's
+ * S7DDRPHY with_ck_phase_shift, e.g. Series-7 HR banks): CK and the commands run on an MMCM fine
+ * phase shift (ckphase CSRs), DQ/DQS/read capture stay on static clocks.
+ *
+ *   for each CK phase over one tCK (fine MMCM steps):
+ *       JEDEC init (DLL reset), then for each write latency (bitslip 0/2/4/6, all lanes):
+ *           read scan of every DQ bit at once: read bitslips x IDELAY taps, a DFI write/read
+ *           check per point (fresh random data each time)
+ *       each lane takes the write latency where all its bits have the widest read window;
+ *       each bit its own read bitslip and the centre of its window (per-bit framing, dq_dly_sel);
+ *       a DFI check of the result, then a LiteDRAM BIST write/read under traffic;
+ *   the CK phase goes to the middle of the longest (circular) run of phases where every lane
+ *   and the BIST pass, and the PHY is calibrated there once more and BIST-checked.
+ *
+ * A single-burst DFI check is not enough to pick the phase: a lane can pass it and fail under
+ * traffic near its tDQSS crossing, hence the BIST at every step (when the SoC has the LiteDRAM
+ * BIST: add_sdram(..., with_bist=True)).
+ */
+
+#define CKPHASE_LANES    SDRAM_PHY_MODULES        // x8 byte lanes.
+#define CKPHASE_BITS     SDRAM_PHY_DATABITS       // DQ bits (8 per lane).
+#define CKPHASE_STEPS    SDRAM_PHY_CKPHASE_STEPS  // Fine CK phase steps per tCK.
+#define CKPHASE_WLS      4                        // Write latencies tried: bitslip 0/2/4/6.
+#define CKPHASE_BURSTS   2                        // DFI bursts per check.
+#define CKPHASE_ALL_LANES ((1u << CKPHASE_LANES) - 1)
+
+#ifndef SDRAM_CKPHASE_SCAN_STRIDE
+#define SDRAM_CKPHASE_SCAN_STRIDE      2             // CK phase scan stride (fine steps).
+#endif
+#ifndef SDRAM_CKPHASE_MIN_WINDOW
+#define SDRAM_CKPHASE_MIN_WINDOW       4             // Narrowest passing read window (taps).
+#endif
+#ifndef SDRAM_CKPHASE_BIST_STEP_BYTES
+#define SDRAM_CKPHASE_BIST_STEP_BYTES  (16u << 20)   // Traffic test per scan step.
+#endif
+#ifndef SDRAM_CKPHASE_BIST_FINAL_BYTES
+#define SDRAM_CKPHASE_BIST_FINAL_BYTES (256u << 20)  // Traffic test at the chosen phase.
+#endif
+
+#if (CKPHASE_BITS != 64) || (DFII_PIX_DATA_SIZE != 4) || (CKPHASE_STEPS > 256)
+#error "CK phase leveling: 64-bit channels only (two 64-bit beats per DFII phase, 4 CSR words)"
+#endif
+
+struct ckphase_bit {
+	uint8_t bitslip; // Read bitslip (increments after reset).
+	uint8_t tap;     // IDELAY tap.
+	uint8_t window;  // Read window (taps).
+};
+
+// Per-bit summary of one write latency's scan: the widest window over the read bitslips.
+struct ckphase_best {
+	uint8_t len, start, bitslip;
+};
+
+// The leveling's state (~3.5 KB, .bss). Not zeroed: everything is written before it is read.
+static struct {
+	int      ckphase;                                        // Chosen CK phase (fine steps).
+	int      run;                                            // Common passing run (fine steps).
+	uint8_t  wl[CKPHASE_LANES];                              // Write bitslip per lane.
+	struct ckphase_bit bit[CKPHASE_BITS];
+	uint8_t  lane_pass[CKPHASE_STEPS];                       // Per step: lanes that passed.
+	uint8_t  bist_ok[CKPHASE_STEPS];
+	uint32_t scan[SDRAM_PHY_BITSLIPS][CKPHASE_BITS];         // Passing taps per (bitslip, bit).
+	struct ckphase_best wl_best[CKPHASE_WLS][CKPHASE_BITS];  // Per write latency, per bit.
+} ckphase;
+
+/* PHY controls of the selected lanes/bits (dly_sel/dq_dly_sel): reset, then n steps. */
+
+static void ckphase_select(uint32_t lanes, uint32_t bits) {
+	ddrphy_dly_sel_write(lanes);
+	ddrphy_dq_dly_sel_write(bits);
+}
+
+static void ckphase_set_wl(uint32_t lanes, int n) {
+	ckphase_select(lanes, 0);
+	ddrphy_wdly_dq_bitslip_rst_write(1);
+	for (int i = 0; i < n; i++)
+		ddrphy_wdly_dq_bitslip_write(1);
+	ckphase_select(0, 0);
+}
+
+static void ckphase_set_rb(uint32_t lanes, uint32_t bits, int n) {
+	ckphase_select(lanes, bits);
+	ddrphy_rdly_dq_bitslip_rst_write(1);
+	for (int i = 0; i < n; i++)
+		ddrphy_rdly_dq_bitslip_write(1);
+	ckphase_select(0, 0);
+}
+
+static void ckphase_set_tap(uint32_t lanes, uint32_t bits, int n) {
+	ckphase_select(lanes, bits);
+	ddrphy_rdly_dq_rst_write(1);
+	for (int i = 0; i < n; i++)
+		ddrphy_rdly_dq_inc_write(1);
+	ckphase_select(0, 0);
+}
+
+/* CK phase (MMCM fine phase shift, signed steps from its reset phase). */
+
+static int ckphase_value(void) {
+	return (int16_t)(ddrphy_ckphase_status_read() & 0xffff);
+}
+
+static int ckphase_status(int offset) {
+	return (ddrphy_ckphase_status_read() >> offset) & 1;
+}
+
+static int ckphase_set(int target) {
+	int v;
+	while ((v = ckphase_value()) != target) {
+		int i;
+		if (target > v)
+			ddrphy_ckphase_inc_write(1);
+		else
+			ddrphy_ckphase_dec_write(1);
+		for (i = 0; i < 100000; i++)
+			if (!ckphase_status(CSR_DDRPHY_CKPHASE_STATUS_BUSY_OFFSET))
+				break;
+		if (i == 100000)
+			return 0;
+	}
+	return 1;
+}
+
+/* DFI check: one write/read round trip of CKPHASE_BURSTS bursts (row 0, bank 0), returning the
+ * failing DQ bits. A DFII phase carries two beats: CSR words, most significant first, {odd beat
+ * [63:32], odd [31:0], even [63:32], even [31:0]}. */
+
+static uint32_t ckphase_rand_state = 0x2545F491;
+
+static uint32_t ckphase_rand(void) {
+	// xorshift32: fresh data at every check, so stale data never reads back as a pass.
+	uint32_t x = ckphase_rand_state;
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+	return ckphase_rand_state = x;
+}
+
+static uint64_t ckphase_dfi_check(void) {
+	uint32_t data[CKPHASE_BURSTS][SDRAM_PHY_PHASES][DFII_PIX_DATA_SIZE];
+	uint64_t errors = 0;
+	int wrphase = sdram_dfii_get_wrphase();
+	int rdphase = sdram_dfii_get_rdphase();
+
+	sdram_activate_test_row();
+
+	// Write.
+	for (int b = 0; b < CKPHASE_BURSTS; b++) {
+		for (int p = 0; p < SDRAM_PHY_PHASES; p++)
+			for (int w = 0; w < DFII_PIX_DATA_SIZE; w++) {
+				data[b][p][w] = ckphase_rand();
+				csr_write_simple(data[b][p][w], sdram_dfii_pix_wrdata_addr(p) + 4*w);
+			}
+		sdram_dfii_pix_address_write(wrphase, 8*b);
+		sdram_dfii_pix_baddress_write(wrphase, 0);
+		command_px(wrphase, DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
+		cdelay(15);
+	}
+
+	// Read back.
+	for (int b = 0; b < CKPHASE_BURSTS; b++) {
+		sdram_dfii_pix_address_write(rdphase, 8*b);
+		sdram_dfii_pix_baddress_write(rdphase, 0);
+		command_px(rdphase, DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
+		cdelay(15);
+		for (int p = 0; p < SDRAM_PHY_PHASES; p++)
+			for (int w = 0; w < DFII_PIX_DATA_SIZE; w++) {
+				uint32_t addr = sdram_dfii_pix_rddata_addr(p) + 4*w;
+				uint32_t diff = csr_read_simple(addr) ^ data[b][p][w];
+				errors |= (w & 1) ? (uint64_t)diff : (uint64_t)diff << 32;
+			}
+	}
+
+	sdram_precharge_test_row();
+	return errors;
+}
+
+/* BIST: a LiteDRAM generator/checker run under traffic (controller-local addresses). */
+
+#ifdef CSR_SDRAM_GENERATOR_BASE
+static uint32_t ckphase_bist(uint32_t length) {
+	uint32_t errors = 0xffffffff;
+	int i;
+
+	sdram_dfii_control_write(DFII_CONTROL_SEL);
+	sdram_generator_reset_write(1);
+	sdram_generator_random_write(1);
+	sdram_generator_base_write(0);
+	sdram_generator_end_write(length);
+	sdram_generator_length_write(length);
+	sdram_generator_start_write(1);
+	for (i = 0; (sdram_generator_done_read() == 0) && (i < 10000000); i++);
+	if (i < 10000000) {
+		sdram_checker_reset_write(1);
+		sdram_checker_random_write(1);
+		sdram_checker_base_write(0);
+		sdram_checker_end_write(length);
+		sdram_checker_length_write(length);
+		sdram_checker_start_write(1);
+		for (i = 0; (sdram_checker_done_read() == 0) && (i < 10000000); i++);
+		if (i < 10000000)
+			errors = sdram_checker_errors_read();
+	}
+	sdram_dfii_control_write(DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N);
+	return errors;
+}
+#else
+// No LiteDRAM BIST in the SoC: the DFI checks alone pick the phase.
+static uint32_t ckphase_bist(uint32_t length) {
+	(void)length;
+	return 0;
+}
+#endif // CSR_SDRAM_GENERATOR_BASE
+
+/* Leveling at the current CK phase; returns the lanes that pass the DFI check. */
+
+// Longest run of ones in a tap mask.
+static int ckphase_window(uint32_t mask, int *start) {
+	int best = 0, run = 0;
+	*start = 0;
+	for (int t = 0; t < SDRAM_PHY_DELAYS; t++) {
+		if (mask & (1u << t)) {
+			if (++run > best) {
+				best   = run;
+				*start = t - run + 1;
+			}
+		} else
+			run = 0;
+	}
+	return best;
+}
+
+static void ckphase_read_scan(void) {
+	for (int rb = 0; rb < SDRAM_PHY_BITSLIPS; rb++) {
+		ckphase_set_rb(CKPHASE_ALL_LANES, 0, rb);
+		ckphase_set_tap(CKPHASE_ALL_LANES, 0, 0);
+		for (int b = 0; b < CKPHASE_BITS; b++)
+			ckphase.scan[rb][b] = 0;
+		for (int t = 0; t < SDRAM_PHY_DELAYS; t++) {
+			uint64_t err = ckphase_dfi_check();
+			for (int b = 0; b < CKPHASE_BITS; b++)
+				if (!((err >> b) & 1))
+					ckphase.scan[rb][b] |= 1u << t;
+			if (t != SDRAM_PHY_DELAYS - 1) {
+				ckphase_select(CKPHASE_ALL_LANES, 0);
+				ddrphy_rdly_dq_inc_write(1);
+				ckphase_select(0, 0);
+			}
+		}
+	}
+}
+
+static uint32_t ckphase_calibrate_point(void) {
+	uint32_t lanes = 0;
+
+	// Read scan at every write latency.
+	for (int w = 0; w < CKPHASE_WLS; w++) {
+		ckphase_set_wl(CKPHASE_ALL_LANES, 2*w);
+		ckphase_read_scan();
+		for (int b = 0; b < CKPHASE_BITS; b++) {
+			struct ckphase_best *best = &ckphase.wl_best[w][b];
+			best->len = 0;
+			for (int rb = 0; rb < SDRAM_PHY_BITSLIPS; rb++) {
+				int start, len = ckphase_window(ckphase.scan[rb][b], &start);
+				if (len > best->len) {
+					best->len     = len;
+					best->start   = start;
+					best->bitslip = rb;
+				}
+			}
+		}
+	}
+
+	// Per lane: the write latency whose narrowest bit window is the widest.
+	for (int l = 0; l < CKPHASE_LANES; l++) {
+		int best_w = -1, best_min = 0;
+		for (int w = 0; w < CKPHASE_WLS; w++) {
+			int min = SDRAM_PHY_DELAYS;
+			for (int i = 0; i < 8; i++)
+				if (ckphase.wl_best[w][8*l + i].len < min)
+					min = ckphase.wl_best[w][8*l + i].len;
+			if (min > best_min) {
+				best_min = min;
+				best_w   = w;
+			}
+		}
+		if (best_w < 0)
+			best_w = 0;
+		ckphase.wl[l] = 2*best_w;
+		ckphase_set_wl(1u << l, 2*best_w);
+		for (int i = 0; i < 8; i++) {
+			struct ckphase_best *best = &ckphase.wl_best[best_w][8*l + i];
+			struct ckphase_bit *bit   = &ckphase.bit[8*l + i];
+			bit->bitslip = best->bitslip;
+			bit->tap     = best->start + best->len/2;
+			bit->window  = best->len;
+			ckphase_set_rb(1u << l, 1u << i, bit->bitslip);
+			ckphase_set_tap(1u << l, 1u << i, bit->tap);
+		}
+		if (best_min >= SDRAM_CKPHASE_MIN_WINDOW)
+			lanes |= 1u << l;
+	}
+
+	// Check the result (a few rounds of fresh data).
+	for (int n = 0; n < 4; n++) {
+		uint64_t err = ckphase_dfi_check();
+		for (int l = 0; l < CKPHASE_LANES; l++)
+			if ((err >> (8*l)) & 0xff)
+				lanes &= ~(1u << l);
+	}
+	return lanes;
+}
+
+static void ckphase_init_dram(void) {
+	// Close the test row (precharge all), then JEDEC init: DLL reset at the new CK phase.
+	sdram_dfii_control_write(DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N);
+	sdram_dfii_pi0_address_write(0x400);
+	sdram_dfii_pi0_baddress_write(0);
+	command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+	cdelay(15);
+	init_sequence();
+	sdram_dfii_control_write(DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N);
+}
+
+static void ckphase_print_point(int ck, uint32_t lanes, uint32_t bist) {
+	printf("  ck %+4d:", ck);
+	for (int l = 0; l < CKPHASE_LANES; l++) {
+		int min = SDRAM_PHY_DELAYS;
+		for (int i = 0; i < 8; i++)
+			if (ckphase.bit[8*l + i].window < min)
+				min = ckphase.bit[8*l + i].window;
+		printf(" %c%d/%02d", (lanes >> l) & 1 ? ' ' : '!', ckphase.wl[l], min);
+	}
+	if (bist == 0xfffffffe)
+		printf("  bist -\n");
+	else
+		printf("  bist %lu\n", (unsigned long)bist);
+}
+
+// Index of a CK phase in the scan arrays ([-steps/2, steps/2) -> [0, steps)).
+static int ckphase_index(int ck) {
+	return (ck + CKPHASE_STEPS/2 + CKPHASE_STEPS) % CKPHASE_STEPS;
+}
+
+/* CK phase leveling of the PHY at the current CSR base; returns 1 on success. */
+static int sdram_ckphase_calibrate(void) {
+	const int half = CKPHASE_STEPS/2;
+	int best_len = 0, best_start = 0;
+	uint32_t lanes, bist_errors;
+	int ok;
+
+	printf("  ddrphy CSRs at %08lx, CK phase over one tCK: %d steps of %d\n",
+		(unsigned long)CSR_DDRPHY_BASE, CKPHASE_STEPS/SDRAM_CKPHASE_SCAN_STRIDE,
+		SDRAM_CKPHASE_SCAN_STRIDE);
+
+	// PHY reset, MMCM lock.
+	sdram_dfii_control_write(DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N);
+	ddrphy_rst_write(1);
+	cdelay(1000);
+	ddrphy_rst_write(0);
+	cdelay(1000);
+	for (int i = 0; !ckphase_status(CSR_DDRPHY_CKPHASE_STATUS_LOCKED_OFFSET); i++) {
+		if (i > 1000000) {
+			printf("  PHY MMCM not locked\n");
+			return 0;
+		}
+	}
+
+	// Scan.
+	for (int i = 0; i < CKPHASE_STEPS; i++)
+		ckphase.lane_pass[i] = ckphase.bist_ok[i] = 0;
+	for (int ck = -half; ck < half; ck += SDRAM_CKPHASE_SCAN_STRIDE) {
+		uint32_t bist = 0xfffffffe;
+		if (!ckphase_set(ck)) {
+			printf("  CK phase step timeout\n");
+			return 0;
+		}
+		ckphase_init_dram();
+		lanes = ckphase_calibrate_point();
+		if (lanes == CKPHASE_ALL_LANES)
+			bist = ckphase_bist(SDRAM_CKPHASE_BIST_STEP_BYTES);
+		ckphase_print_point(ck, lanes, bist);
+		for (int j = 0; j < SDRAM_CKPHASE_SCAN_STRIDE; j++) {
+			ckphase.lane_pass[ckphase_index(ck + j)] = lanes;
+			ckphase.bist_ok[ckphase_index(ck + j)]   = (bist == 0);
+		}
+	}
+
+	// Longest circular run of phases where every lane and the BIST pass.
+	for (int start = 0; start < CKPHASE_STEPS; start++) {
+		int len = 0;
+		while (len < CKPHASE_STEPS) {
+			int i = (start + len) % CKPHASE_STEPS;
+			if (ckphase.lane_pass[i] != CKPHASE_ALL_LANES || !ckphase.bist_ok[i])
+				break;
+			len++;
+		}
+		if (len > best_len) {
+			best_len   = len;
+			best_start = start;
+		}
+	}
+	ckphase.run = best_len;
+	if (best_len == 0) {
+		printf("  no CK phase where every lane passes\n");
+		return 0;
+	}
+	ckphase.ckphase = (best_start + best_len/2) % CKPHASE_STEPS - half;
+
+	// Level at the centre of the run.
+	ckphase_set(ckphase.ckphase);
+	ckphase_init_dram();
+	lanes = ckphase_calibrate_point();
+	bist_errors = (lanes == CKPHASE_ALL_LANES) ?
+		ckphase_bist(SDRAM_CKPHASE_BIST_FINAL_BYTES) : 0xffffffff;
+	ok = (lanes == CKPHASE_ALL_LANES) && (bist_errors == 0);
+	ckphase_print_point(ckphase.ckphase, lanes, bist_errors);
+	printf("  CK phase %+d (run %d steps), write bitslips", ckphase.ckphase, ckphase.run);
+	for (int l = 0; l < CKPHASE_LANES; l++)
+		printf(" %d", ckphase.wl[l]);
+	printf(", read bitslip/tap/window per bit:\n");
+	for (int l = 0; l < CKPHASE_LANES; l++) {
+		printf("  m%d:", l);
+		for (int i = 0; i < 8; i++)
+			printf(" %d/%02d/%02d", ckphase.bit[8*l + i].bitslip, ckphase.bit[8*l + i].tap,
+				ckphase.bit[8*l + i].window);
+		printf("\n");
+	}
+	printf("  %s (BIST %lu KB, %lu errors)\n", ok ? "OK" : "FAILED",
+		(unsigned long)(SDRAM_CKPHASE_BIST_FINAL_BYTES >> 10), (unsigned long)bist_errors);
+	return ok;
+}
+
+/* CK phase leveling of controller `controller` (0: main_ram's, also run by sdram_leveling()).
+ * Controller k > 0 is leveled at controller 0's CSRs + k*SDRAM_CSR_STRIDE and handed back to
+ * its controller on success. */
+int sdram_ckphase_leveling(int controller) {
+	int ok;
+	if (controller != 0) {
+#ifdef SDRAM_CSR_STRIDE
+		sdram_csr_base = sdram_csr_base0 + (unsigned long)controller*SDRAM_CSR_STRIDE;
+#else
+		printf("Controller %d: no SDRAM_CSR_STRIDE\n", controller);
+		return 0;
+#endif // SDRAM_CSR_STRIDE
+	}
+	printf("CK phase leveling (controller %d):\n", controller);
+	ok = sdram_ckphase_calibrate();
+#ifdef SDRAM_CSR_STRIDE
+	if (controller != 0) {
+		if (ok)
+			sdram_software_control_off();
+		sdram_csr_base = sdram_csr_base0;
+	}
+#endif // SDRAM_CSR_STRIDE
+	return ok;
+}
+
+#endif // SDRAM_PHY_CKPHASE_STEPS
+
+/*-----------------------------------------------------------------------*/
 /* Leveling                                                              */
 /*-----------------------------------------------------------------------*/
 
@@ -1769,6 +2248,8 @@ static void sdram_write_dq_dqs_training(void) {
  * - Optional write DQ-DQS training centers write data delays using the already
  *   usable read path as the measurement reference.
  * - Read leveling then selects read bitslip and centers read delay windows.
+ * - PHYs moving CK against DQ/DQS (SDRAM_PHY_CKPHASE_STEPS) run CK phase leveling
+ *   instead: CK phase scan, write latency and per-bit read leveling at each step.
  *
  * Each stage leaves its programmed PHY state in place for the next stage.
  */
@@ -1818,10 +2299,13 @@ int sdram_leveling(void) {
 	sdram_write_dq_dqs_training();
 #endif // SDRAM_PHY_WRITE_DQ_DQS_TRAINING_CAPABLE
 
-#ifdef SDRAM_PHY_READ_LEVELING_CAPABLE
+#if defined(SDRAM_PHY_CKPHASE_STEPS)
+	/* Includes the write latency calibration and a per-bit read leveling. */
+	sdram_ckphase_leveling(0);
+#elif defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
 	printf("Read leveling:\n");
 	sdram_read_leveling();
-#endif // SDRAM_PHY_READ_LEVELING_CAPABLE
+#endif // SDRAM_PHY_CKPHASE_STEPS / SDRAM_PHY_READ_LEVELING_CAPABLE
 
 	sdram_software_control_off();
 
@@ -1847,15 +2331,10 @@ int sdram_init(void) {
 	ddrctrl_init_error_write(0);
 #endif // CSR_DDRCTRL_BASE
 
-#if defined(CONFIG_SDRAM_CUSTOM_INIT) || defined(SDRAM_S7HR_CALIBRATION)
+#ifdef CONFIG_SDRAM_CUSTOM_INIT
 	/* Some memories require board-level power or a device-specific training
 	 * flow that cannot be represented by the generated generic sequence. */
-#ifdef CONFIG_SDRAM_CUSTOM_INIT
 	if (!sdram_custom_init()) {
-#else
-	/* S7DDRPHY with CK phase shift: CK phase scan + per-lane write latency + per-bit read leveling. */
-	if (!sdram_s7hr_init(0)) {
-#endif
 		sdram_software_control_off();
 #ifdef CSR_DDRCTRL_BASE
 		ddrctrl_init_error_write(1);
@@ -1902,7 +2381,7 @@ int sdram_init(void) {
 #if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
 	sdram_leveling();
 #endif // defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
-#endif // CONFIG_SDRAM_CUSTOM_INIT || SDRAM_S7HR_CALIBRATION
+#endif // CONFIG_SDRAM_CUSTOM_INIT
 
 	/* Release the DFI bus to the hardware controller; subsequent accesses use
 	 * normal LiteX memory paths instead of direct DFII command CSRs. */

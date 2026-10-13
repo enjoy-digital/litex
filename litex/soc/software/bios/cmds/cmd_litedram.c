@@ -12,10 +12,6 @@
 #include <libbase/i2c.h>
 
 #include <liblitedram/sdram.h>
-#ifdef CSR_SDRAM_BASE
-#include <generated/sdram_phy.h>
-#endif
-#include <liblitedram/sdram_s7hr.h>
 #include <liblitedram/sdram_spd.h>
 #include <liblitedram/bist.h>
 #include <liblitedram/accessors.h>
@@ -217,28 +213,13 @@ define_command(sdram_test, sdram_test_handler, "Test SDRAM", LITEDRAM_CMDS);
 /**
  * Command "sdram_cal"
  *
- * Calibrate SDRAM
+ * Calibrate SDRAM ([controller]: with CK phase leveling, another controller than main_ram's)
  *
  */
 #if defined(CSR_DDRPHY_BASE)
 static void sdram_cal_handler(int nb_params, char **params)
 {
-	sdram_software_control_on();
-	sdram_leveling();
-	sdram_software_control_off();
-}
-define_command(sdram_cal, sdram_cal_handler, "Calibrate SDRAM", LITEDRAM_CMDS);
-#endif
-
-/**
- * Command "sdram_s7hr_init"
- *
- * Calibrate a controller of an S7DDRPHY with CK phase shift (default: 0)
- *
- */
-#ifdef SDRAM_S7HR_CALIBRATION
-static void sdram_s7hr_init_handler(int nb_params, char **params)
-{
+#ifdef SDRAM_PHY_CKPHASE_STEPS
 	char *c;
 	int controller = 0;
 	if (nb_params > 0) {
@@ -248,9 +229,16 @@ static void sdram_s7hr_init_handler(int nb_params, char **params)
 			return;
 		}
 	}
-	sdram_s7hr_init(controller);
+	if (controller != 0) {
+		sdram_ckphase_leveling(controller);
+		return;
+	}
+#endif // SDRAM_PHY_CKPHASE_STEPS
+	sdram_software_control_on();
+	sdram_leveling();
+	sdram_software_control_off();
 }
-define_command(sdram_s7hr_init, sdram_s7hr_init_handler, "Calibrate an S7DDRPHY controller (CK phase shift)", LITEDRAM_CMDS);
+define_command(sdram_cal, sdram_cal_handler, "Calibrate SDRAM", LITEDRAM_CMDS);
 #endif
 
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
