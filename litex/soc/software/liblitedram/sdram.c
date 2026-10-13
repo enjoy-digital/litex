@@ -13,7 +13,8 @@
 #ifdef SDRAM_CSR_STRIDE
 /* Several SDRAM controllers: the CSR accesses of this file are relative to a variable CSR base,
  * so controller k is leveled at controller 0's CSRs + k*SDRAM_CSR_STRIDE (the SoC keeps each
- * controller's sdram/ddrphy/sdram_generator/sdram_checker CSR groups at that stride). */
+ * controller's sdram/ddrphy/sdram_generator/sdram_checker CSR groups at that stride). With
+ * SDRAM_CONTROLLERS, sdram_init() also levels controllers 1..SDRAM_CONTROLLERS-1. */
 #include <generated/mem.h>
 static const unsigned long sdram_csr_base0 = CSR_BASE;
 static unsigned long sdram_csr_base = CSR_BASE;
@@ -2397,6 +2398,12 @@ int sdram_init(void) {
 	}
 	memspeed((unsigned int *) MAIN_RAM_BASE_VA, MEMTEST_DATA_SIZE, false, 0);
 #endif // SDRAM_TEST_DISABLE
+#if defined(SDRAM_PHY_CKPHASE_STEPS) && defined(SDRAM_CONTROLLERS)
+	/* Other controllers of the SoC (SDRAM_CSR_STRIDE): leveled once main_ram is up, so they
+	 * are ready for user logic after boot (their result does not change main_ram's init). */
+	for (int controller = 1; controller < SDRAM_CONTROLLERS; controller++)
+		sdram_ckphase_leveling(controller);
+#endif // defined(SDRAM_PHY_CKPHASE_STEPS) && defined(SDRAM_CONTROLLERS)
 #ifdef CSR_DDRCTRL_BASE
 	ddrctrl_init_done_write(1);
 #endif // CSR_DDRCTRL_BASE
