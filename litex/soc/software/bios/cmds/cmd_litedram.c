@@ -12,6 +12,10 @@
 #include <libbase/i2c.h>
 
 #include <liblitedram/sdram.h>
+#ifdef CSR_SDRAM_BASE
+#include <generated/sdram_phy.h>
+#endif
+#include <liblitedram/sdram_s7hr.h>
 #include <liblitedram/sdram_spd.h>
 #include <liblitedram/bist.h>
 #include <liblitedram/accessors.h>
@@ -224,6 +228,29 @@ static void sdram_cal_handler(int nb_params, char **params)
 	sdram_software_control_off();
 }
 define_command(sdram_cal, sdram_cal_handler, "Calibrate SDRAM", LITEDRAM_CMDS);
+#endif
+
+/**
+ * Command "sdram_s7hr_init"
+ *
+ * Calibrate an S7HRDDRPHY controller (default: 0)
+ *
+ */
+#ifdef SDRAM_S7HR_CALIBRATION
+static void sdram_s7hr_init_handler(int nb_params, char **params)
+{
+	char *c;
+	int controller = 0;
+	if (nb_params > 0) {
+		controller = strtoul(params[0], &c, 0);
+		if (*c != 0) {
+			printf("Incorrect controller");
+			return;
+		}
+	}
+	sdram_s7hr_init(controller);
+}
+define_command(sdram_s7hr_init, sdram_s7hr_init_handler, "Calibrate an S7HRDDRPHY controller", LITEDRAM_CMDS);
 #endif
 
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE

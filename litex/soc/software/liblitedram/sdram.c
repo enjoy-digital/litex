@@ -24,6 +24,7 @@
 #include <system.h>
 
 #include <liblitedram/sdram.h>
+#include <liblitedram/sdram_s7hr.h>
 #include <liblitedram/sdram_dbg.h>
 #include <liblitedram/accessors.h>
 
@@ -1846,10 +1847,15 @@ int sdram_init(void) {
 	ddrctrl_init_error_write(0);
 #endif // CSR_DDRCTRL_BASE
 
-#ifdef CONFIG_SDRAM_CUSTOM_INIT
+#if defined(CONFIG_SDRAM_CUSTOM_INIT) || defined(SDRAM_S7HR_CALIBRATION)
 	/* Some memories require board-level power or a device-specific training
 	 * flow that cannot be represented by the generated generic sequence. */
+#ifdef CONFIG_SDRAM_CUSTOM_INIT
 	if (!sdram_custom_init()) {
+#else
+	/* S7HRDDRPHY: CK phase scan + per-lane write latency + per-bit read leveling. */
+	if (!sdram_s7hr_init(0)) {
+#endif
 		sdram_software_control_off();
 #ifdef CSR_DDRCTRL_BASE
 		ddrctrl_init_error_write(1);
@@ -1896,7 +1902,7 @@ int sdram_init(void) {
 #if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
 	sdram_leveling();
 #endif // defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
-#endif // CONFIG_SDRAM_CUSTOM_INIT
+#endif // CONFIG_SDRAM_CUSTOM_INIT || SDRAM_S7HR_CALIBRATION
 
 	/* Release the DFI bus to the hardware controller; subsequent accesses use
 	 * normal LiteX memory paths instead of direct DFII command CSRs. */
