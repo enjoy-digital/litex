@@ -67,14 +67,12 @@ class OpenOCD(GenericProgrammer):
             if chain != 1:
                 print(f"Warning: chain={chain} ignored on {family} (hardcoded IR 0x{ir:x}).")
 
-        # Gowin GW1N/GW2A.
-        if "gw1n" in cfg_str or "gw2a" in cfg_str:
-            chain = {
-                1: 0x42, # USER1.
-                2: 0x43, # USER2.
-            }[chain]
-            warn_ignored("Gowin GW1N/GW2A", chain)
-            return chain
+        # Gowin GW1N/GW2A/GW5A.
+        if "gw1n" in cfg_str or "gw2a" in cfg_str or "gw5a" in cfg_str:
+            return lookup_ir("Gowin GW1N/GW2A/GW5A", {
+                1: 0x42, # USER1 (ER1).
+                2: 0x43, # USER2 (ER2).
+            })
         # Lattice ECP5.
         elif "ecp5" in cfg_str:
             warn_ignored("Lattice ECP5", 0x32)
