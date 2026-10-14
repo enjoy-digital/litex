@@ -343,6 +343,10 @@ class CSRStatus(_CompoundCSR):
     reset : string
         Value of the register after reset.
 
+    reset_less : bool
+        If `True`, a ``status`` driven from synchronous logic is not reset (the reset value is then
+        only its initial value). For data mirrors whose value is only read after logic sets it.
+
     name : string
         Provide (or override the name) of the ``CSRStatus`` register.
 
@@ -352,7 +356,7 @@ class CSRStatus(_CompoundCSR):
         The value of the CSRStatus register.
     """
 
-    def __init__(self, size=1, reset=0, fields=[], name=None, description=None, read_only=True, n=None):
+    def __init__(self, size=1, reset=0, fields=[], name=None, description=None, read_only=True, n=None, reset_less=False):
         if fields != []:
             self.fields = CSRFieldAggregate(fields, CSRAccess.ReadOnly)
             size  = self.fields.get_size()
@@ -360,7 +364,7 @@ class CSRStatus(_CompoundCSR):
         _CompoundCSR.__init__(self, size, name, n)
         self.description = description
         self.read_only   = read_only
-        self.status      = Signal(self.size, reset=reset)
+        self.status      = Signal(self.size, reset=reset, reset_less=reset_less)
         self.rd_stb      = Signal()
         self.wr_stb      = Signal()
         self.we          = self.rd_stb
