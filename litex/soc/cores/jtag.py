@@ -589,7 +589,7 @@ class JTAGPHY(LiteXModule):
                     pads      = platform.get_reserved_jtag_pads()
                 )
             # Gowin
-            elif device[:4] in ["GW1N", "GW2A"]:
+            elif device[:4] in ["GW1N", "GW2A", "GW5A"]:
                 jtag = GowinJTAG(platform)
             else:
                 print(device)
