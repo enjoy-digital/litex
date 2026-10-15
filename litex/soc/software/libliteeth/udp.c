@@ -222,6 +222,11 @@ static uint8_t cached_mac[6];
 static uint32_t cached_ip;
 static int arp_pending;
 
+/* Source of the last received UDP packet, used by udp_reply function */
+static uint8_t rx_peer_mac[6];
+static uint32_t rx_peer_ip;
+static int rx_peer_valid;
+
 #ifdef ETH_UDP_BROADCAST
 void udp_set_broadcast(void)
 {
@@ -384,15 +389,12 @@ struct pseudo_header {
 	uint16_t length;
 } __attribute__((packed));
 
-int udp_send(uint16_t src_port, uint16_t dst_port, uint32_t length)
+static int udp_send_to(uint32_t dst_ip, const uint8_t *dst_mac,
+	uint16_t src_port, uint16_t dst_port, uint32_t length)
 {
 	struct pseudo_header h;
 	uint32_t r;
 	uint32_t max_payload;
-
-	if((cached_mac[0] == 0) && (cached_mac[1] == 0) && (cached_mac[2] == 0)
-		&& (cached_mac[3] == 0) && (cached_mac[4] == 0) && (cached_mac[5] == 0))
-		return 0;
 
 	if ((sizeof(struct ethernet_header) + sizeof(struct udp_frame) + ETH_TX_CRC_SIZE) > ETHMAC_SLOT_SIZE)
 		return 0;
@@ -404,7 +406,7 @@ int udp_send(uint16_t src_port, uint16_t dst_port, uint32_t length)
 	if(txlen < ARP_PACKET_LENGTH) txlen = ARP_PACKET_LENGTH;
 
 	fill_eth_header(&txbuffer->frame.eth_header,
-		cached_mac,
+		dst_mac,
 		my_mac,
 		ETHERTYPE_IP);
 
@@ -417,7 +419,7 @@ int udp_send(uint16_t src_port, uint16_t dst_port, uint32_t length)
 	h.proto = txbuffer->frame.contents.udp.ip.proto = IP_PROTO_UDP;
 	txbuffer->frame.contents.udp.ip.checksum = 0;
 	h.src_ip = txbuffer->frame.contents.udp.ip.src_ip = htonl(my_ip);
-	h.dst_ip = txbuffer->frame.contents.udp.ip.dst_ip = htonl(cached_ip);
+	h.dst_ip = txbuffer->frame.contents.udp.ip.dst_ip = htonl(dst_ip);
 	txbuffer->frame.contents.udp.ip.checksum = htons(ip_checksum(0, &txbuffer->frame.contents.udp.ip,
 		sizeof(struct ip_header), 1));
 
@@ -433,6 +435,23 @@ int udp_send(uint16_t src_port, uint16_t dst_port, uint32_t length)
 	txbuffer->frame.contents.udp.udp.checksum = htons(r);
 
 	return send_packet();
+}
+
+int udp_send(uint16_t src_port, uint16_t dst_port, uint32_t length)
+{
+	if((cached_mac[0] == 0) && (cached_mac[1] == 0) && (cached_mac[2] == 0)
+		&& (cached_mac[3] == 0) && (cached_mac[4] == 0) && (cached_mac[5] == 0))
+		return 0;
+
+	return udp_send_to(cached_ip, cached_mac, src_port, dst_port, length);
+}
+
+int udp_reply(uint16_t src_port, uint16_t dst_port, uint32_t length)
+{
+	if(!rx_peer_valid)
+		return 0;
+
+	return udp_send_to(rx_peer_ip, rx_peer_mac, src_port, dst_port, length);
 }
 
 static unsigned ping_seq_number = 0;
@@ -609,6 +628,7 @@ static void process_udp(void)
 	struct udp_frame *udp_ip = &rxbuffer->frame.contents.udp;
 	unsigned int ip_total_length;
 	unsigned int udp_length;
+	int i;
 
 	/* We don't verify UDP and IP checksums and rely on the Ethernet checksum solely */
 	// check disabled for QEMU compatibility
@@ -622,6 +642,13 @@ static void process_udp(void)
 	udp_length = ntohs(udp_ip->udp.length);
 	if(udp_length < sizeof(struct udp_header)) return;
 	if(udp_length > (ip_total_length - sizeof(struct ip_header))) return;
+
+	/* Remember the sender so that callbacks can answer with udp_reply */
+	rx_peer_ip = ntohl(udp_ip->ip.src_ip);
+	for(i=0;i<6;i++)
+		rx_peer_mac[i] = rxbuffer->frame.eth_header.srcmac[i];
+	rx_peer_valid = 1;
+
 	if(ntohl(udp_ip->ip.dst_ip) != my_ip) {
 #ifdef ETH_UDP_BROADCAST
 		/* If the destination IP is not mine, check if it is a broadcast */
@@ -725,6 +752,8 @@ void udp_start(const uint8_t *macaddr, uint32_t ip)
 		cached_mac[i] = 0;
 	arp_pending = 0;
 
+	rx_peer_valid = 0;
+
 	txslot = 0;
 	ethmac_sram_reader_slot_write(txslot);
 	txbuffer = (ethernet_buffer *)(ETHMAC_BASE + ETHMAC_SLOT_SIZE * (ETHMAC_RX_SLOTS + txslot));
@@ -744,6 +773,7 @@ void udp_service(void)
 		rxbuffer = (ethernet_buffer *)(ETHMAC_BASE + ETHMAC_SLOT_SIZE * rxslot);
 		rxlen = ethmac_sram_writer_length_read();
 		process_frame();
+		rx_peer_valid = 0; /* Peer is only valid during the callbacks */
 		ethmac_sram_writer_ev_pending_write(ETHMAC_EV_SRAM_WRITER);
 	}
 }

@@ -23,6 +23,8 @@ void udp_start(const uint8_t *macaddr, uint32_t ip);
 int udp_arp_resolve(uint32_t ip);
 void *udp_get_tx_buffer(void);
 int udp_send(uint16_t src_port, uint16_t dst_port, uint32_t length);
+/* Reply to the sender of the UDP packet being processed (only valid from a UDP callback). */
+int udp_reply(uint16_t src_port, uint16_t dst_port, uint32_t length);
 void udp_set_callback(udp_callback callback);
 #ifdef ETH_UDP_BROADCAST
 void udp_set_broadcast_callback(udp_callback callback);
