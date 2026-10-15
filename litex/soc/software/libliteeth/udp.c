@@ -643,7 +643,7 @@ static void process_udp(void)
 	if(udp_length < sizeof(struct udp_header)) return;
 	if(udp_length > (ip_total_length - sizeof(struct ip_header))) return;
 
-	// Remember the sender so that callbacks can answer with udp_reply function
+	/* Remember the sender so that callbacks can answer with udp_reply */
 	rx_peer_ip = ntohl(udp_ip->ip.src_ip);
 	for(i=0;i<6;i++)
 		rx_peer_mac[i] = rxbuffer->frame.eth_header.srcmac[i];
@@ -752,9 +752,6 @@ void udp_start(const uint8_t *macaddr, uint32_t ip)
 		cached_mac[i] = 0;
 	arp_pending = 0;
 
-	rx_peer_ip = 0;
-	for(i=0;i<6;i++)
-		rx_peer_mac[i] = 0;
 	rx_peer_valid = 0;
 
 	txslot = 0;
@@ -776,7 +773,7 @@ void udp_service(void)
 		rxbuffer = (ethernet_buffer *)(ETHMAC_BASE + ETHMAC_SLOT_SIZE * rxslot);
 		rxlen = ethmac_sram_writer_length_read();
 		process_frame();
-		rx_peer_valid = 0; // validity is cleared reply transmission
+		rx_peer_valid = 0; /* Peer is only valid during the callbacks */
 		ethmac_sram_writer_ev_pending_write(ETHMAC_EV_SRAM_WRITER);
 	}
 }
