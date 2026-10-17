@@ -164,15 +164,15 @@ Provides definitions/modules to build cores (bus, bank, flow), cores and tools t
 1. Install Python 3.7+ and FPGA vendor's development tools and/or [Verilator](http://www.veripool.org/).
 2. Install Migen/LiteX and the LiteX's cores:
 
-```sh
-$ wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
-$ chmod +x litex_setup.py
-$ ./litex_setup.py --init --install --user --config=standard
+```bash
+wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
+chmod +x litex_setup.py
+./litex_setup.py --init --install --user --config=standard
 ```
   `litex_setup.py` downloads the repository definitions it needs automatically. Use `--config=minimal` or `--config=full` for a smaller or larger set of cores; omit `--user` for an environment-managed installation.
   Later, if you need to update all repositories:
-```sh
-$ ./litex_setup.py --update
+```bash
+./litex_setup.py --update
 ```
 
 > **Note:** On MacOS, make sure you have [HomeBrew](https://brew.sh) installed. Then do, ``brew install wget``.
@@ -180,9 +180,9 @@ $ ./litex_setup.py --update
 > **Note:** On Windows, it's possible you'll have to set `SHELL` environment variable to `SHELL=cmd.exe`.
 
 3. Install a CPU GCC toolchain (Only if you want to test/create a SoC with a CPU):
-```sh
-$ pip3 install meson ninja
-$ ./litex_setup.py --gcc=riscv # Or lm32/openrisc/powerpc.
+```bash
+pip3 install meson ninja
+./litex_setup.py --gcc=riscv # Or lm32/openrisc/powerpc.
 ```
 
 4. Build the target of your board...:
@@ -192,21 +192,21 @@ Go to litex-boards/litex_boards/targets and execute the target you want to build
 5. ... and/or install [Verilator](http://www.veripool.org/) and test LiteX directly on your computer without any FPGA board:
 
 On Linux (Ubuntu/Debian):
-```sh
-$ sudo apt install libevent-dev libjson-c-dev verilator
-$ litex_sim --cpu-type=vexriscv
+```bash
+sudo apt install libevent-dev libjson-c-dev verilator
+litex_sim --cpu-type=vexriscv
 ```
 
 On Linux (Fedora):
-```sh
-$ sudo dnf install libevent-devel json-c-devel verilator
-$ litex_sim --cpu-type=vexriscv
+```bash
+sudo dnf install libevent-devel json-c-devel verilator
+litex_sim --cpu-type=vexriscv
 ```
 
 On MacOS:
-```sh
-$ brew install json-c verilator libevent
-$ litex_sim --cpu-type=vexriscv
+```bash
+brew install json-c verilator libevent
+litex_sim --cpu-type=vexriscv
 ```
 
 Ethernet/TAP simulation requires a host TAP interface. The old
