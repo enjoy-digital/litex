@@ -710,6 +710,213 @@ class TestAXI(unittest.TestCase):
                 run_simulation(dut, gen(dut))
                 self.assertEqual(dut.errors, 0)
 
+    # AXIUpConverter burst merging: random narrow bursts (INCR with unaligned starts/odd lengths,
+    # and FIXED/WRAP/narrow-size bursts going through the per-beat path), random strobes and random
+    # valid/ready on both sides. Checks the memory contents, read data, IDs and B/R ordering, and
+    # for full-width INCR bursts that the wide side only sees the merged wide beats.
+    def _axi_up_converter_merge_run(self, dw_narrow, dw_wide, n_bursts, kinds, seed, mem_bytes=8192):
+        nb        = dw_narrow//8
+        wb        = dw_wide//8
+        ratio     = dw_wide//dw_narrow
+        beat_size = log2_int(nb)
+        word_size = log2_int(wb)
+        prng      = random.Random(seed)
+
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.axi_narrow = AXIInterface(data_width=dw_narrow, address_width=32, id_width=4)
+                self.axi_wide   = AXIInterface(data_width=dw_wide,   address_width=32, id_width=4)
+                axi_sram        = AXIInterface(data_width=dw_wide,   address_width=32, id_width=4)
+                self.converter  = AXIUpConverter(self.axi_narrow, self.axi_wide, merge_bursts=True)
+                self.sram       = AXISRAM(mem_bytes, bus=axi_sram, init=[0]*(mem_bytes//wb))
+
+                # Random backpressure between the converter and the SRAM (1 stall bit per channel).
+                self.stall = Signal(5)
+                for i, ch in enumerate(["aw", "w", "b", "ar", "r"]):
+                    src, dst = getattr(self.axi_wide, ch), getattr(axi_sram, ch)
+                    if ch in ["b", "r"]:
+                        src, dst = dst, src
+                    self.comb += [
+                        src.connect(dst, omit={"valid", "ready"}),
+                        dst.valid.eq(src.valid & ~self.stall[i]),
+                        src.ready.eq(dst.ready & ~self.stall[i]),
+                    ]
+
+        # Burst generation (within 4KB pages, AXI4 lengths).
+        def gen_burst():
+            kind = prng.choice(kinds)
+            id   = prng.randrange(16)
+            if kind == "incr":
+                burst, size = BURST_INCR, beat_size
+                length      = prng.choice([prng.randrange(1, 9), prng.randrange(1, 33)])
+                if prng.random() < 0.1:
+                    length = prng.randrange(1, 257)
+            elif kind == "incr_narrow":
+                burst, size = BURST_INCR, prng.randrange(beat_size)
+                length      = prng.randrange(1, 33)
+            elif kind == "fixed":
+                burst, size = BURST_FIXED, prng.randrange(beat_size + 1)
+                length      = prng.randrange(1, 17)
+            else:
+                burst, size = BURST_WRAP, prng.randrange(beat_size + 1)
+                length      = prng.choice([2, 4, 8, 16])
+            n     = 2**size
+            total = length*n if burst == BURST_INCR else n
+            addr  = prng.randrange(0, mem_bytes - 4096 + 1, 4096) + prng.randrange(0, 4096 - total + 1)
+            addr &= ~(n - 1)
+            if burst != BURST_WRAP and prng.random() < 0.2:
+                addr += prng.randrange(n) # Unaligned start.
+            return dict(addr=addr, len=length - 1, burst=burst, size=size, id=id)
+
+        def beat_bytes(b):
+            # Byte ranges [lo, hi) of each beat of a burst.
+            n       = 2**b["size"]
+            aligned = b["addr"] & ~(n - 1)
+            r       = []
+            for i in range(b["len"] + 1):
+                if b["burst"] == BURST_FIXED or i == 0:
+                    lo = b["addr"]
+                elif b["burst"] == BURST_INCR:
+                    lo = aligned + i*n
+                else:
+                    wrap = n*(b["len"] + 1)
+                    base = b["addr"] & ~(wrap - 1)
+                    lo   = base + (b["addr"] - base + i*n) % wrap
+                r.append((lo, (lo & ~(n - 1)) + n))
+            return r
+
+        def merged_beats(b):
+            return ((b["addr"]//nb) % ratio + b["len"])//ratio + 1
+
+        # Write bursts: random data/strobes (only within the active byte lanes), reference model.
+        mem    = bytearray(mem_bytes)
+        writes = [gen_burst() for _ in range(n_bursts)]
+        for b in writes:
+            b["beats"] = []
+            for lo, hi in beat_bytes(b):
+                data = prng.randrange(2**dw_narrow)
+                strb = 0
+                for x in range(lo, hi):
+                    if prng.random() < 0.8:
+                        strb |= 1 << (x % nb)
+                        mem[x] = (data >> (8*(x % nb))) & 0xff
+                b["beats"].append((data, strb))
+        reads = [gen_burst() for _ in range(n_bursts)]
+
+        dut = DUT()
+        res = dict(b=[], r=[], mem=[], writes_done=False, wide_w=0, wide_r=0, wide_ax=[])
+
+        def send(ep, p=0.6, **fields):
+            while prng.random() > p:
+                yield
+            for k, v in fields.items():
+                yield getattr(ep, k).eq(v)
+            yield ep.valid.eq(1)
+            yield
+            while (yield ep.ready) == 0:
+                yield
+            yield ep.valid.eq(0)
+
+        def recv(ep, n, out, fields, p=0.6):
+            while len(out) < n:
+                yield ep.ready.eq(prng.random() < p)
+                yield
+                if (yield ep.valid) and (yield ep.ready):
+                    values = []
+                    for f in fields:
+                        values.append((yield getattr(ep, f)))
+                    out.append(tuple(values))
+            yield ep.ready.eq(0)
+
+        def ax_gen(ep, bursts, wait_writes=False):
+            while wait_writes and not res["writes_done"]:
+                yield
+            for b in bursts:
+                yield from send(ep, addr=b["addr"], len=b["len"], burst=b["burst"], size=b["size"], id=b["id"])
+
+        def w_gen():
+            for b in writes:
+                for i, (data, strb) in enumerate(b["beats"]):
+                    yield from send(dut.axi_narrow.w, data=data, strb=strb, last=int(i == b["len"]))
+
+        def b_gen():
+            yield from recv(dut.axi_narrow.b, len(writes), res["b"], ["id", "resp"])
+            for x in range(mem_bytes//wb):
+                res["mem"].append((yield dut.sram.mem[x]))
+            res["writes_done"] = True
+
+        def r_gen():
+            n = sum(b["len"] + 1 for b in reads)
+            yield from recv(dut.axi_narrow.r, n, res["r"], ["data", "id", "last", "resp"])
+
+        @passive
+        def stall_gen(timeout=20000):
+            for _ in range(timeout):
+                yield dut.stall.eq(prng.randrange(32) & prng.randrange(32))
+                yield
+            raise TimeoutError("AXIUpConverter merge test timed out (deadlock?)")
+
+        @passive
+        def wide_monitor():
+            axi = dut.axi_wide
+            while True:
+                yield
+                for ax in [axi.aw, axi.ar]:
+                    if (yield ax.valid) and (yield ax.ready):
+                        res["wide_ax"].append(((yield ax.burst), (yield ax.size), (yield ax.len)))
+                if (yield axi.w.valid) and (yield axi.w.ready):
+                    res["wide_w"] += 1
+                if (yield axi.r.valid) and (yield axi.r.ready):
+                    res["wide_r"] += 1
+
+        generators = [
+            ax_gen(dut.axi_narrow.aw, writes), w_gen(), b_gen(),
+            ax_gen(dut.axi_narrow.ar, reads, wait_writes=True), r_gen(),
+            stall_gen(), wide_monitor(),
+        ]
+        run_simulation(dut, generators)
+
+        # Writes: B IDs/responses in order, memory contents.
+        self.assertEqual(res["b"], [(b["id"], RESP_OKAY) for b in writes])
+        self.assertEqual(len(res["mem"]), mem_bytes//wb)
+        for x, word in enumerate(res["mem"]):
+            self.assertEqual(word.to_bytes(wb, "little"), bytes(mem[x*wb:(x + 1)*wb]), f"word {x}")
+
+        # Reads: R data (active byte lanes), IDs, last and responses in order.
+        r = iter(res["r"])
+        for b in reads:
+            ranges = beat_bytes(b)
+            for i, (lo, hi) in enumerate(ranges):
+                data, id, last, resp = next(r)
+                self.assertEqual((id, last, resp), (b["id"], int(i == len(ranges) - 1), RESP_OKAY))
+                for x in range(lo, hi):
+                    self.assertEqual((data >> (8*(x % nb))) & 0xff, mem[x], f"byte 0x{x:x}")
+
+        # Wide side: INCR bursts only, AXI4 lengths (full-width when merged).
+        for burst, size, length in res["wide_ax"]:
+            self.assertEqual(burst, BURST_INCR)
+            self.assertLessEqual(size, word_size)
+            self.assertLess(length, 256)
+        return writes, reads, res, merged_beats
+
+    def test_axi_up_converter_merge_incr(self):
+        # Full-width INCR bursts only: one wide burst per narrow burst, merged wide beats.
+        for dw_narrow, dw_wide in [(32, 64), (64, 256)]:
+            with self.subTest(dw_narrow=dw_narrow, dw_wide=dw_wide):
+                writes, reads, res, merged_beats = self._axi_up_converter_merge_run(
+                    dw_narrow, dw_wide, n_bursts=12, kinds=["incr"], seed=dw_narrow)
+                self.assertEqual(len(res["wide_ax"]), len(writes) + len(reads))
+                self.assertTrue(all(size == log2_int(dw_wide//8) for _, size, _ in res["wide_ax"]))
+                self.assertEqual(res["wide_w"], sum(merged_beats(b) for b in writes))
+                self.assertEqual(res["wide_r"], sum(merged_beats(b) for b in reads))
+
+    def test_axi_up_converter_merge_mixed(self):
+        # Mixed bursts: FIXED/WRAP/narrow-size bursts go through the per-beat path.
+        for dw_narrow, dw_wide in [(32, 64), (64, 256)]:
+            with self.subTest(dw_narrow=dw_narrow, dw_wide=dw_wide):
+                self._axi_up_converter_merge_run(dw_narrow, dw_wide, n_bursts=16,
+                    kinds=["incr", "incr", "incr_narrow", "fixed", "wrap"], seed=dw_wide)
+
     def test_axi_down_converter_burst(self):
         # Exercises AXIDownConverter (now also used by SoC.add_sdram for the
         # CPU.mem_axi.data_width > LiteDRAM.port.data_width case) on real bursts:
