@@ -1793,8 +1793,16 @@ static void sdram_write_dq_dqs_training(void) {
  * BIST: add_sdram(..., with_bist=True)).
  */
 
+#ifdef SDRAM_PHY_ECC
+// DFI ECC (LiteDRAM core/ecc.py): the PHY's raw width, ECC lanes included - leveled like the
+// data lanes (the DFI injector sits below the ECC, on the raw beats).
+#define CKPHASE_LANES    SDRAM_PHY_ECC_MODULES    // x8 byte lanes.
+#define CKPHASE_BITS     SDRAM_PHY_ECC_DATABITS   // DQ bits (8 per lane).
+#else
 #define CKPHASE_LANES    SDRAM_PHY_MODULES        // x8 byte lanes.
 #define CKPHASE_BITS     SDRAM_PHY_DATABITS       // DQ bits (8 per lane).
+#endif
+#define CKPHASE_MASK_WORDS ((CKPHASE_BITS + 31)/32) // Failing-bit mask words.
 #define CKPHASE_STEPS    SDRAM_PHY_CKPHASE_STEPS  // Fine CK phase steps per tCK.
 #define CKPHASE_WLS      4                        // Write latencies tried: bitslip 0/2/4/6.
 #define CKPHASE_BURSTS   2                        // DFI bursts per check.
@@ -1813,8 +1821,9 @@ static void sdram_write_dq_dqs_training(void) {
 #define SDRAM_CKPHASE_BIST_FINAL_BYTES (256u << 20)  // Traffic test at the chosen phase.
 #endif
 
-#if (CKPHASE_BITS != 64) || (DFII_PIX_DATA_SIZE != 4) || (CKPHASE_STEPS > 256)
-#error "CK phase leveling: 64-bit channels only (two 64-bit beats per DFII phase, 4 CSR words)"
+#if ((CKPHASE_BITS != 64) && (CKPHASE_BITS != 72)) || \
+    (DFII_PIX_DATA_SIZE != (2*CKPHASE_BITS + 31)/32) || (CKPHASE_STEPS > 256)
+#error "CK phase leveling: 64-bit channels (72 with ECC lanes), two beats per DFII phase"
 #endif
 
 struct ckphase_bit {
@@ -1834,7 +1843,7 @@ static struct {
 	int      run;                                            // Common passing run (fine steps).
 	uint8_t  wl[CKPHASE_LANES];                              // Write bitslip per lane.
 	struct ckphase_bit bit[CKPHASE_BITS];
-	uint8_t  lane_pass[CKPHASE_STEPS];                       // Per step: lanes that passed.
+	uint16_t lane_pass[CKPHASE_STEPS];                       // Per step: lanes that passed.
 	uint8_t  bist_ok[CKPHASE_STEPS];
 	uint32_t scan[SDRAM_PHY_BITSLIPS][CKPHASE_BITS];         // Passing taps per (bitslip, bit).
 	struct ckphase_best wl_best[CKPHASE_WLS][CKPHASE_BITS];  // Per write latency, per bit.
@@ -1899,8 +1908,8 @@ static int ckphase_set(int target) {
 }
 
 /* DFI check: one write/read round trip of CKPHASE_BURSTS bursts (row 0, bank 0), returning the
- * failing DQ bits. A DFII phase carries two beats: CSR words, most significant first, {odd beat
- * [63:32], odd [31:0], even [63:32], even [31:0]}. */
+ * failing DQ bits (a CKPHASE_MASK_WORDS mask, bit b = DQ b). A DFII phase carries two beats of
+ * CKPHASE_BITS bits, {odd, even}, in DFII_PIX_DATA_SIZE CSR words, most significant first. */
 
 static uint32_t ckphase_rand_state = 0x2545F491;
 
@@ -1913,9 +1922,14 @@ static uint32_t ckphase_rand(void) {
 	return ckphase_rand_state = x;
 }
 
-static uint64_t ckphase_dfi_check(void) {
+static int ckphase_err(const uint32_t *errors, int b) {
+	return (errors[b/32] >> (b%32)) & 1;
+}
+
+static void ckphase_dfi_check(uint32_t *errors) {
 	uint32_t data[CKPHASE_BURSTS][SDRAM_PHY_PHASES][DFII_PIX_DATA_SIZE];
-	uint64_t errors = 0;
+	for (int i = 0; i < CKPHASE_MASK_WORDS; i++)
+		errors[i] = 0;
 	int wrphase = sdram_dfii_get_wrphase();
 	int rdphase = sdram_dfii_get_rdphase();
 
@@ -1944,12 +1958,17 @@ static uint64_t ckphase_dfi_check(void) {
 			for (int w = 0; w < DFII_PIX_DATA_SIZE; w++) {
 				uint32_t addr = sdram_dfii_pix_rddata_addr(p) + 4*w;
 				uint32_t diff = csr_read_simple(addr) ^ data[b][p][w];
-				errors |= (w & 1) ? (uint64_t)diff : (uint64_t)diff << 32;
+				// Word w holds phase bits [(N-1-w)*32, (N-w)*32): beat x/CKPHASE_BITS,
+				// DQ x%CKPHASE_BITS (the top word's bits past 2*CKPHASE_BITS do not exist).
+				for (int j = 0; diff && j < 32; j++, diff >>= 1) {
+					int x = (DFII_PIX_DATA_SIZE - 1 - w)*32 + j;
+					if ((diff & 1) && x < 2*CKPHASE_BITS)
+						errors[(x % CKPHASE_BITS)/32] |= 1u << ((x % CKPHASE_BITS) % 32);
+				}
 			}
 	}
 
 	sdram_precharge_test_row();
-	return errors;
 }
 
 /* BIST: a LiteDRAM generator/checker run under traffic (controller-local addresses). */
@@ -2014,9 +2033,10 @@ static void ckphase_read_scan(void) {
 		for (int b = 0; b < CKPHASE_BITS; b++)
 			ckphase.scan[rb][b] = 0;
 		for (int t = 0; t < SDRAM_PHY_DELAYS; t++) {
-			uint64_t err = ckphase_dfi_check();
+			uint32_t err[CKPHASE_MASK_WORDS];
+			ckphase_dfi_check(err);
 			for (int b = 0; b < CKPHASE_BITS; b++)
-				if (!((err >> b) & 1))
+				if (!ckphase_err(err, b))
 					ckphase.scan[rb][b] |= 1u << t;
 			if (t != SDRAM_PHY_DELAYS - 1) {
 				ckphase_select(CKPHASE_ALL_LANES, 0);
@@ -2080,10 +2100,12 @@ static uint32_t ckphase_calibrate_point(void) {
 
 	// Check the result (a few rounds of fresh data).
 	for (int n = 0; n < 4; n++) {
-		uint64_t err = ckphase_dfi_check();
+		uint32_t err[CKPHASE_MASK_WORDS];
+		ckphase_dfi_check(err);
 		for (int l = 0; l < CKPHASE_LANES; l++)
-			if ((err >> (8*l)) & 0xff)
-				lanes &= ~(1u << l);
+			for (int i = 0; i < 8; i++)
+				if (ckphase_err(err, 8*l + i))
+					lanes &= ~(1u << l);
 	}
 	return lanes;
 }
@@ -2222,7 +2244,15 @@ int sdram_ckphase_leveling(int controller) {
 #endif // SDRAM_CSR_STRIDE
 	}
 	printf("CK phase leveling (controller %d):\n", controller);
+#ifdef CSR_SDRAM_ECC_ENABLE_ADDR
+	// The BIST traffic tests judge the raw beats: no correction while leveling.
+	sdram_ecc_enable_write(0);
+#endif
 	ok = sdram_ckphase_calibrate();
+#ifdef CSR_SDRAM_ECC_ENABLE_ADDR
+	sdram_ecc_enable_write(1);
+	sdram_ecc_clear_write(1);
+#endif
 #ifdef SDRAM_CSR_STRIDE
 	if (controller != 0) {
 		if (ok)
