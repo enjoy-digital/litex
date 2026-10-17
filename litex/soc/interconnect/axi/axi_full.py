@@ -263,11 +263,35 @@ class AXIBurst2Beat(LiteXModule):
 # AXI Data-Width Converter -------------------------------------------------------------------------
 
 class AXIUpConverter(LiteXModule):
-    def __init__(self, axi_from, axi_to):
+    """AXI4-Full data-width up-converter.
+
+    Increases the data width of an AXI master from `dw_from` to `dw_to` (with `dw_to > dw_from`,
+    power-of-2 multiple).
+
+    By default, each narrow beat is converted into its own wide single-beat transfer. This supports
+    every burst type/size, but a wide word is accessed per narrow beat: a narrow INCR burst reads
+    `ratio` times more data than needed and writes partial-strobe wide words.
+
+    With `merge_bursts=True`, full-width INCR bursts are instead merged into one wide INCR burst
+    covering the wide words they touch: each wide read word returns up to `ratio` narrow beats, and
+    the narrow write beats of a wide word are combined into a single wide beat (full strobes except
+    at an unaligned start/end of the burst). This reduces the traffic on the wide side and avoids
+    read-modify-write cycles on slaves without byte enables (ex: DRAM without DM pins or with ECC).
+    Other bursts (FIXED, WRAP, narrow transfers, or a wide length not fitting the slave's AXI
+    version) use the per-beat path; switching between the two paths waits for the outstanding
+    bursts of the other path to complete. As with the per-beat path, the slave must return its
+    responses in request order.
+    """
+    def __init__(self, axi_from, axi_to, merge_bursts=False):
         dw_from  = len(axi_from.r.data)
         dw_to    = len(axi_to.r.data)
         ratio    = int(dw_to//dw_from)
         assert dw_from*ratio == dw_to
+
+        # Optional burst merging (INCR bursts merged, others through a per-beat converter).
+        if merge_bursts:
+            self.add_burst_merging(axi_from, axi_to)
+            return
 
         # # #
 
@@ -477,6 +501,216 @@ class AXIUpConverter(LiteXModule):
             axi_from.r.dest.eq(r_fifo.source.dest),
             axi_from.r.user.eq(r_fifo.source.user),
             r_fifo.source.ready.eq(axi_from.r.ready),
+        ]
+
+    def add_burst_merging(self, axi_from, axi_to):
+        dw_from   = len(axi_from.r.data)
+        dw_to     = len(axi_to.r.data)
+        ratio     = dw_to//dw_from
+        lane_bits = log2_int(ratio)
+        beat_size = log2_int(dw_from//8)
+        word_size = log2_int(dw_to//8)
+
+        def axi_like(axi, data_width):
+            return AXIInterface(
+                data_width    = data_width,
+                address_width = axi.address_width,
+                id_width      = axi.id_width,
+                version       = axi.version,
+                aw_user_width = len(axi.aw.user),
+                w_user_width  = len(axi.w.user),
+                b_user_width  = len(axi.b.user),
+                ar_user_width = len(axi.ar.user),
+                r_user_width  = len(axi.r.user),
+            )
+
+        # # #
+
+        # Merge path (full-width INCR bursts) and per-beat path (others).
+        merge_from = axi_like(axi_from, dw_from)
+        merge_to   = axi_like(axi_to,   dw_to)
+        beat_from  = axi_like(axi_from, dw_from)
+        beat_to    = axi_like(axi_to,   dw_to)
+        self.beat_converter = AXIUpConverter(beat_from, beat_to)
+
+        # Merge path: AW/AR Channels.
+        # One wide INCR burst per narrow burst, over the wide words touched by the narrow beats:
+        # starting at the wide word of the first beat, with (lane + len) >> lane_bits + 1 beats.
+        def add_ax_merging(ax_from, ax_to, info):
+            lane   = Signal(lane_bits)
+            length = Signal(len(ax_from.len) + 1)
+            self.comb += [
+                lane.eq(ax_from.addr[beat_size:word_size]),
+                length.eq(lane + ax_from.len),
+                ax_to.valid.eq(ax_from.valid & info.sink.ready),
+                ax_to.addr[word_size:].eq(ax_from.addr[word_size:]),
+                ax_to.burst.eq(BURST_INCR),
+                ax_to.len.eq(length[lane_bits:]),
+                ax_to.size.eq(word_size),
+                ax_to.lock.eq(ax_from.lock),
+                ax_to.prot.eq(ax_from.prot),
+                ax_to.cache.eq(ax_from.cache),
+                ax_to.qos.eq(ax_from.qos),
+                ax_to.region.eq(ax_from.region),
+                ax_to.id.eq(ax_from.id),
+                ax_to.dest.eq(ax_from.dest),
+                ax_to.user.eq(ax_from.user),
+                ax_from.ready.eq(ax_to.ready & info.sink.ready),
+
+                info.sink.valid.eq(ax_from.valid & ax_to.ready),
+                info.sink.lane.eq(lane),
+            ]
+            # Mergeable burst: full-width INCR with a wide length supported by the slave.
+            mergeable = Signal()
+            self.comb += mergeable.eq((ax_from.burst == BURST_INCR) & (ax_from.size == beat_size))
+            if ((2**len(ax_from.len) - 1 + ratio - 1) >> lane_bits) >= 2**len(ax_to.len):
+                self.comb += If(length[lane_bits:] >= 2**len(ax_to.len), mergeable.eq(0))
+            return mergeable
+
+        aw_info  = stream.SyncFIFO([("lane", lane_bits)], 16)
+        r_info   = stream.SyncFIFO([("lane", lane_bits), ("len", len(axi_from.ar.len))], 16)
+        self.submodules += aw_info, r_info
+        aw_merge = add_ax_merging(merge_from.aw, merge_to.aw, aw_info)
+        ar_merge = add_ax_merging(merge_from.ar, merge_to.ar, r_info)
+        self.comb += r_info.sink.len.eq(merge_from.ar.len)
+
+        # Merge path: W Channel.
+        # Narrow beats are buffered until the last lane of the wide word or the last beat of the
+        # burst, then emitted as a single wide beat with the combined strobes.
+        w_first    = Signal(reset=1)
+        w_lane     = Signal(lane_bits)
+        w_cur      = Signal(lane_bits)
+        w_emit     = Signal()
+        w_buf_data = [Signal(dw_from, reset_less=True) for _ in range(ratio)]
+        w_buf_strb = [Signal(dw_from//8)               for _ in range(ratio)]
+        self.comb += [
+            w_cur.eq(Mux(w_first, aw_info.source.lane, w_lane)),
+            w_emit.eq((w_cur == (ratio - 1)) | merge_from.w.last),
+            merge_to.w.valid.eq(merge_from.w.valid & aw_info.source.valid & w_emit),
+            merge_to.w.last.eq(merge_from.w.last),
+            merge_to.w.id.eq(merge_from.w.id),
+            merge_to.w.dest.eq(merge_from.w.dest),
+            merge_to.w.user.eq(merge_from.w.user),
+            merge_from.w.ready.eq(aw_info.source.valid & (~w_emit | merge_to.w.ready)),
+            aw_info.source.ready.eq(merge_from.w.valid & merge_from.w.ready & merge_from.w.last),
+        ]
+        for i in range(ratio):
+            self.comb += [
+                merge_to.w.data[i*dw_from:(i + 1)*dw_from].eq(
+                    Mux(w_cur == i, merge_from.w.data, w_buf_data[i])),
+                merge_to.w.strb[i*(dw_from//8):(i + 1)*(dw_from//8)].eq(
+                    Mux(w_cur == i, merge_from.w.strb, w_buf_strb[i])),
+            ]
+            self.sync += If(merge_from.w.valid & merge_from.w.ready,
+                If(w_emit,
+                    w_buf_strb[i].eq(0)
+                ).Elif(w_cur == i,
+                    w_buf_data[i].eq(merge_from.w.data),
+                    w_buf_strb[i].eq(merge_from.w.strb)
+                )
+            )
+        self.sync += If(merge_from.w.valid & merge_from.w.ready,
+            If(merge_from.w.last,
+                w_first.eq(1)
+            ).Else(
+                w_first.eq(0),
+                w_lane.eq(w_cur + 1)
+            )
+        )
+
+        # Merge path: B Channel (One wide burst per narrow burst).
+        self.comb += merge_to.b.connect(merge_from.b)
+
+        # Merge path: R Channel.
+        # Each wide word returns its lanes from the current one, up to the last lane or the last
+        # beat of the burst.
+        r_first = Signal(reset=1)
+        r_lane  = Signal(lane_bits)
+        r_cur   = Signal(lane_bits)
+        r_count = Signal(len(axi_from.ar.len))
+        r_data  = Signal(dw_from)
+        self.comb += r_cur.eq(Mux(r_first, r_info.source.lane, r_lane))
+        for i in range(ratio):
+            self.comb += If(r_cur == i,
+                r_data.eq(merge_to.r.data[i*dw_from:(i + 1)*dw_from])
+            )
+        self.comb += [
+            merge_from.r.valid.eq(merge_to.r.valid & r_info.source.valid),
+            merge_from.r.data.eq(r_data),
+            merge_from.r.resp.eq(merge_to.r.resp),
+            merge_from.r.last.eq(r_count == r_info.source.len),
+            merge_from.r.id.eq(merge_to.r.id),
+            merge_from.r.dest.eq(merge_to.r.dest),
+            merge_from.r.user.eq(merge_to.r.user),
+            merge_to.r.ready.eq(merge_from.r.ready & r_info.source.valid &
+                ((r_cur == (ratio - 1)) | merge_from.r.last)),
+            r_info.source.ready.eq(merge_from.r.valid & merge_from.r.ready & merge_from.r.last),
+        ]
+        self.sync += If(merge_from.r.valid & merge_from.r.ready,
+            If(merge_from.r.last,
+                r_first.eq(1),
+                r_count.eq(0)
+            ).Else(
+                r_first.eq(0),
+                r_count.eq(r_count + 1),
+                r_lane.eq(r_cur + 1)
+            )
+        )
+
+        # Path selection.
+        # A burst is routed to its path once the outstanding bursts of the other path (if any) have
+        # completed; the data/response channels then follow the path of the outstanding bursts.
+        def add_path_selection(ax_from, ax_merge, ax_beat, mergeable, done):
+            path    = Signal() # Path of the outstanding bursts (1: Merge path).
+            pending = Signal(8)
+            ax_ok   = Signal()
+            self.comb += [
+                ax_ok.eq((mergeable == path) & (pending != (2**len(pending) - 1))),
+                ax_from.connect(ax_merge, omit={"valid", "ready"}),
+                ax_from.connect(ax_beat,  omit={"valid", "ready"}),
+                ax_merge.valid.eq(ax_from.valid & ax_ok &  mergeable),
+                ax_beat.valid.eq( ax_from.valid & ax_ok & ~mergeable),
+                ax_from.ready.eq(ax_ok & Mux(mergeable, ax_merge.ready, ax_beat.ready)),
+            ]
+            self.sync += [
+                If((pending == 0) & ax_from.valid,
+                    path.eq(mergeable)
+                ),
+                If(ax_from.valid & ax_from.ready & ~done,
+                    pending.eq(pending + 1)
+                ).Elif(done & ~(ax_from.valid & ax_from.ready),
+                    pending.eq(pending - 1)
+                )
+            ]
+            return path
+
+        w_path = add_path_selection(axi_from.aw, merge_from.aw, beat_from.aw, aw_merge,
+            done = axi_from.b.valid & axi_from.b.ready)
+        r_path = add_path_selection(axi_from.ar, merge_from.ar, beat_from.ar, ar_merge,
+            done = axi_from.r.valid & axi_from.r.ready & axi_from.r.last)
+        self.comb += [
+            If(w_path,
+                axi_from.w.connect(merge_from.w),
+                merge_from.b.connect(axi_from.b),
+                merge_to.aw.connect(axi_to.aw),
+                merge_to.w.connect(axi_to.w),
+                axi_to.b.connect(merge_to.b),
+            ).Else(
+                axi_from.w.connect(beat_from.w),
+                beat_from.b.connect(axi_from.b),
+                beat_to.aw.connect(axi_to.aw),
+                beat_to.w.connect(axi_to.w),
+                axi_to.b.connect(beat_to.b),
+            ),
+            If(r_path,
+                merge_from.r.connect(axi_from.r),
+                merge_to.ar.connect(axi_to.ar),
+                axi_to.r.connect(merge_to.r),
+            ).Else(
+                beat_from.r.connect(axi_from.r),
+                beat_to.ar.connect(axi_to.ar),
+                axi_to.r.connect(beat_to.r),
+            ),
         ]
 
 class AXIDownConverter(LiteXModule):
@@ -999,7 +1233,7 @@ class AXIDownConverter(LiteXModule):
 
 class AXIConverter(LiteXModule):
     """AXI data width converter"""
-    def __init__(self, master, slave):
+    def __init__(self, master, slave, merge_bursts=False):
         self.master = master
         self.slave  = slave
 
@@ -1012,7 +1246,7 @@ class AXIConverter(LiteXModule):
         if ratio > 1:
             self.submodules += AXIDownConverter(master, slave)
         elif ratio < 1:
-            self.submodules += AXIUpConverter(master, slave)
+            self.submodules += AXIUpConverter(master, slave, merge_bursts=merge_bursts)
         else:
             self.comb += master.connect(slave)
 
