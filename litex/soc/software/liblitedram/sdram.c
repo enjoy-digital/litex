@@ -1786,11 +1786,21 @@ static void sdram_write_dq_dqs_training(void) {
  *       each bit its own read bitslip and the centre of its window (per-bit framing, dq_dly_sel);
  *       a DFI check of the result, then a LiteDRAM BIST write/read under traffic;
  *   the CK phase goes to the middle of the longest (circular) run of phases where every lane
- *   and the BIST pass, and the PHY is calibrated there once more and BIST-checked.
+ *   and the BIST pass, and the PHY is calibrated there once more, every bit's read tap is
+ *   re-centred in its eye under BIST traffic (below), and the result is BIST-checked.
  *
  * A single-burst DFI check is not enough to pick the phase: a lane can pass it and fail under
  * traffic near its tDQSS crossing, hence the BIST at every step (when the SoC has the LiteDRAM
  * BIST: add_sdram(..., with_bist=True)).
+ *
+ * Nor is it enough to centre a bit: its read window from the DFI scan (a few isolated bursts) is
+ * wider than its eye under back-to-back reads with every lane toggling, and the window's centre
+ * can sit at the edge of that eye - a passing DFI check, rare read errors under traffic. So, at
+ * the chosen phase, every bit's tap is moved by -range..+range from its centre and a BIST region
+ * is read at each offset; each bit then goes to the middle of its longest run of clean offsets.
+ * The DFI ECC's per-DQ corrected-error counters (LiteDRAM core/ecc.py, with_bit_stats) tell
+ * which bits fail at an offset; without them a passing read clears every bit and a failing one
+ * is retried one bit at a time. SDRAM_CKPHASE_EYE_RANGE 0 leaves this step out.
  */
 
 #ifdef SDRAM_PHY_ECC
@@ -1819,6 +1829,12 @@ static void sdram_write_dq_dqs_training(void) {
 #endif
 #ifndef SDRAM_CKPHASE_BIST_FINAL_BYTES
 #define SDRAM_CKPHASE_BIST_FINAL_BYTES (256u << 20)  // Traffic test at the chosen phase.
+#endif
+#ifndef SDRAM_CKPHASE_EYE_RANGE
+#define SDRAM_CKPHASE_EYE_RANGE        4             // Read eye under traffic: tap offsets tried.
+#endif
+#ifndef SDRAM_CKPHASE_EYE_BYTES
+#define SDRAM_CKPHASE_EYE_BYTES        (8u << 20)    // Traffic test per tap offset.
 #endif
 
 #if ((CKPHASE_BITS != 64) && (CKPHASE_BITS != 72)) || \
@@ -1974,11 +1990,19 @@ static void ckphase_dfi_check(uint32_t *errors) {
 /* BIST: a LiteDRAM generator/checker run under traffic (controller-local addresses). */
 
 #ifdef CSR_SDRAM_GENERATOR_BASE
-static uint32_t ckphase_bist(uint32_t length) {
-	uint32_t errors = 0xffffffff;
-	int i;
-
+// The BIST runs under the controller (DFII_CONTROL_SEL), the leveling's own commands under
+// software control: begin/end switch between the two.
+static void ckphase_bist_begin(void) {
 	sdram_dfii_control_write(DFII_CONTROL_SEL);
+}
+
+static void ckphase_bist_end(void) {
+	sdram_dfii_control_write(DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N);
+}
+
+// Random data over [0, length); 1 when written.
+static int ckphase_bist_write(uint32_t length) {
+	int i;
 	sdram_generator_reset_write(1);
 	sdram_generator_random_write(1);
 	sdram_generator_base_write(0);
@@ -1986,18 +2010,28 @@ static uint32_t ckphase_bist(uint32_t length) {
 	sdram_generator_length_write(length);
 	sdram_generator_start_write(1);
 	for (i = 0; (sdram_generator_done_read() == 0) && (i < 10000000); i++);
-	if (i < 10000000) {
-		sdram_checker_reset_write(1);
-		sdram_checker_random_write(1);
-		sdram_checker_base_write(0);
-		sdram_checker_end_write(length);
-		sdram_checker_length_write(length);
-		sdram_checker_start_write(1);
-		for (i = 0; (sdram_checker_done_read() == 0) && (i < 10000000); i++);
-		if (i < 10000000)
-			errors = sdram_checker_errors_read();
-	}
-	sdram_dfii_control_write(DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N);
+	return i < 10000000;
+}
+
+// [0, length) against the generator's data: the error count (0xffffffff: timeout).
+static uint32_t ckphase_bist_read(uint32_t length) {
+	int i;
+	sdram_checker_reset_write(1);
+	sdram_checker_random_write(1);
+	sdram_checker_base_write(0);
+	sdram_checker_end_write(length);
+	sdram_checker_length_write(length);
+	sdram_checker_start_write(1);
+	for (i = 0; (sdram_checker_done_read() == 0) && (i < 10000000); i++);
+	return i < 10000000 ? sdram_checker_errors_read() : 0xffffffff;
+}
+
+static uint32_t ckphase_bist(uint32_t length) {
+	uint32_t errors = 0xffffffff;
+	ckphase_bist_begin();
+	if (ckphase_bist_write(length))
+		errors = ckphase_bist_read(length);
+	ckphase_bist_end();
 	return errors;
 }
 #else
@@ -2110,6 +2144,142 @@ static uint32_t ckphase_calibrate_point(void) {
 	return lanes;
 }
 
+/* Read eye under traffic (see the top): each bit's tap re-centred between the offsets where a
+ * BIST read of SDRAM_CKPHASE_EYE_BYTES has no error on it. Returns the bits moved, -1 when the
+ * BIST did not run. */
+
+#if defined(CSR_SDRAM_GENERATOR_BASE) && (SDRAM_CKPHASE_EYE_RANGE > 0)
+
+#define CKPHASE_EYE_RANGE SDRAM_CKPHASE_EYE_RANGE
+#if CKPHASE_EYE_RANGE > 15
+#error "SDRAM_CKPHASE_EYE_RANGE: at most 15 (a 32-bit mask of offsets)"
+#endif
+
+// Is offset o of a bit's mask clean? Offsets past the IDELAY's range are not tested: not clean.
+static int ckphase_eye_clean(uint32_t mask, int o) {
+	return (mask >> (o + CKPHASE_EYE_RANGE)) & 1;
+}
+
+// The longest run of clean offsets; on a tie, the one holding the DFI scan's centre (offset 0).
+// Returns its length and its middle (toward 0 on a half) in *centre.
+static int ckphase_eye_run(uint32_t mask, int *centre) {
+	int best = 0, best_lo = 0, best_hi = -1;
+	for (int o = -CKPHASE_EYE_RANGE; o <= CKPHASE_EYE_RANGE; o++) {
+		if (!ckphase_eye_clean(mask, o))
+			continue;
+		int lo = o;
+		while (o < CKPHASE_EYE_RANGE && ckphase_eye_clean(mask, o + 1))
+			o++;
+		int len = o - lo + 1;
+		if (len > best || (len == best && lo <= 0 && o >= 0)) {
+			best    = len;
+			best_lo = lo;
+			best_hi = o;
+		}
+	}
+	*centre = best ? (best_lo + best_hi)/2 : 0;
+	return best;
+}
+
+// Bit b's tap at offset o from its centre; 0 when that tap does not exist.
+static int ckphase_eye_tap(int b, int o, int *tap) {
+	*tap = ckphase.bit[b].tap + o;
+	return *tap >= 0 && *tap < SDRAM_PHY_DELAYS;
+}
+
+static void ckphase_eye_set(int b, int tap) {
+	ckphase_set_tap(1u << (b/8), 1u << (b%8), tap);
+}
+
+static int ckphase_eye_refine(void) {
+	uint32_t clean[CKPHASE_BITS];  // Bit (o + range): no read error on DQ b at tap offset o.
+	int moved = 0;
+
+	ckphase_bist_begin();
+	if (!ckphase_bist_write(SDRAM_CKPHASE_EYE_BYTES)) {
+		ckphase_bist_end();
+		return -1;
+	}
+#ifdef CSR_SDRAM_ECC_BITSEL_ADDR
+	// The per-DQ counters attribute the errors (the decoder's syndrome: correction on).
+	sdram_ecc_enable_write(1);
+#endif
+	for (int b = 0; b < CKPHASE_BITS; b++)
+		clean[b] = 0;
+	for (int o = -CKPHASE_EYE_RANGE; o <= CKPHASE_EYE_RANGE; o++) {
+		uint32_t mark = 1u << (o + CKPHASE_EYE_RANGE);
+		uint32_t tested[CKPHASE_MASK_WORDS] = {0};  // Bits with a tap at this offset.
+		int tap;
+		for (int b = 0; b < CKPHASE_BITS; b++)
+			if (ckphase_eye_tap(b, o, &tap)) {
+				ckphase_eye_set(b, tap);
+				tested[b/32] |= 1u << (b%32);
+			} else
+				ckphase_eye_set(b, ckphase.bit[b].tap);
+#ifdef CSR_SDRAM_ECC_BITSEL_ADDR
+		sdram_ecc_clear_write(1);
+		ckphase_bist_read(SDRAM_CKPHASE_EYE_BYTES);
+		for (int b = 0; b < CKPHASE_BITS; b++) {
+			sdram_ecc_bitsel_write(b);
+			(void)sdram_ecc_bitcnt_read();  // The counter mux is registered: read it twice.
+			if (sdram_ecc_bitcnt_read() == 0)
+				clean[b] |= mark;
+		}
+#else
+		if (ckphase_bist_read(SDRAM_CKPHASE_EYE_BYTES) == 0) {
+			for (int b = 0; b < CKPHASE_BITS; b++)
+				clean[b] |= mark;
+		} else {
+			// Which bits: every bit back at its centre, then one at a time at the offset.
+			for (int b = 0; b < CKPHASE_BITS; b++)
+				ckphase_eye_set(b, ckphase.bit[b].tap);
+			for (int b = 0; b < CKPHASE_BITS; b++) {
+				if (!ckphase_eye_tap(b, o, &tap))
+					continue;
+				ckphase_eye_set(b, tap);
+				if (ckphase_bist_read(SDRAM_CKPHASE_EYE_BYTES) == 0)
+					clean[b] |= mark;
+				ckphase_eye_set(b, ckphase.bit[b].tap);
+			}
+		}
+#endif
+		for (int b = 0; b < CKPHASE_BITS; b++)
+			if (!ckphase_err(tested, b))  // Not tested (past the IDELAY's range): not clean.
+				clean[b] &= ~mark;
+	}
+#ifdef CSR_SDRAM_ECC_BITSEL_ADDR
+	sdram_ecc_clear_write(1);
+	sdram_ecc_enable_write(0);
+#endif
+	ckphase_bist_end();
+
+	// Re-centre, and show each bit's clean offsets (#) and its move.
+	printf("  read eye under traffic (%lu KB per offset, %+d..%+d from the scan's centre):\n",
+		(unsigned long)(SDRAM_CKPHASE_EYE_BYTES >> 10), -CKPHASE_EYE_RANGE, CKPHASE_EYE_RANGE);
+	for (int l = 0; l < CKPHASE_LANES; l++) {
+		printf("  m%d:", l);
+		for (int i = 0; i < 8; i++) {
+			int b = 8*l + i, centre;
+			struct ckphase_bit *bit = &ckphase.bit[b];
+			ckphase_eye_run(clean[b], &centre);  // No clean offset: the scan's centre stays.
+			if (centre) {
+				bit->tap += centre;
+				moved++;
+			}
+			ckphase_eye_set(b, bit->tap);
+			printf(" ");
+			for (int o = -CKPHASE_EYE_RANGE; o <= CKPHASE_EYE_RANGE; o++)
+				printf("%c", ckphase_eye_clean(clean[b], o) ? '#' : '.');
+			printf("%+d", centre);
+		}
+		printf("\n");
+	}
+	printf("  %d of %d bits moved\n", moved, CKPHASE_BITS);
+	return moved;
+}
+
+#endif // CSR_SDRAM_GENERATOR_BASE && SDRAM_CKPHASE_EYE_RANGE
+
 static void ckphase_init_dram(void) {
 	// Close the test row (precharge all), then JEDEC init: DLL reset at the new CK phase.
 	sdram_dfii_control_write(DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N);
@@ -2210,6 +2380,10 @@ static int sdram_ckphase_calibrate(void) {
 	ckphase_set(ckphase.ckphase);
 	ckphase_init_dram();
 	lanes = ckphase_calibrate_point();
+#if defined(CSR_SDRAM_GENERATOR_BASE) && (SDRAM_CKPHASE_EYE_RANGE > 0)
+	if (lanes == CKPHASE_ALL_LANES)
+		ckphase_eye_refine();
+#endif
 	bist_errors = (lanes == CKPHASE_ALL_LANES) ?
 		ckphase_bist(SDRAM_CKPHASE_BIST_FINAL_BYTES) : 0xffffffff;
 	ok = (lanes == CKPHASE_ALL_LANES) && (bist_errors == 0);
@@ -2245,7 +2419,8 @@ int sdram_ckphase_leveling(int controller) {
 	}
 	printf("CK phase leveling (controller %d):\n", controller);
 #ifdef CSR_SDRAM_ECC_ENABLE_ADDR
-	// The BIST traffic tests judge the raw beats: no correction while leveling.
+	// The BIST traffic tests judge the raw beats: no correction while leveling (the eye
+	// refinement turns it on for its own reads, for the per-DQ counters).
 	sdram_ecc_enable_write(0);
 #endif
 	ok = sdram_ckphase_calibrate();
