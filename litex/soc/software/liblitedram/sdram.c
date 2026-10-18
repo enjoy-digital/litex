@@ -1800,7 +1800,10 @@ static void sdram_write_dq_dqs_training(void) {
  * is read at each offset; each bit then goes to the middle of its longest run of clean offsets.
  * The DFI ECC's per-DQ corrected-error counters (LiteDRAM core/ecc.py, with_bit_stats) tell
  * which bits fail at an offset; without them a passing read clears every bit and a failing one
- * is retried one bit at a time. SDRAM_CKPHASE_EYE_RANGE 0 leaves this step out.
+ * is retried one bit at a time. SDRAM_CKPHASE_EYE_RANGE 0 leaves this step out. The same scan
+ * runs under the application's own reads through sdram_ckphase_eye_refine() (the taps:
+ * sdram_ckphase_bit_tap() / _set()): a design's real access pattern can see a narrower eye
+ * than the BIST's reads do.
  */
 
 #ifdef SDRAM_PHY_ECC
@@ -2144,31 +2147,34 @@ static uint32_t ckphase_calibrate_point(void) {
 	return lanes;
 }
 
-/* Read eye under traffic (see the top): each bit's tap re-centred between the offsets where a
- * BIST read of SDRAM_CKPHASE_EYE_BYTES has no error on it. Returns the bits moved, -1 when the
- * BIST did not run. */
+/* Read eye under traffic (see the top): each bit's tap re-centred between the offsets where
+ * reads under traffic have no error on it. `traffic` runs the reads once per tap offset and
+ * returns their error count (0: clean), or -1 when they could not run: the BIST's reads at the
+ * end of the leveling (ckphase_eye_refine), or, through sdram_ckphase_eye_refine(), whatever
+ * reads the application wants the taps centred for - a design's own access pattern can see a
+ * narrower eye than any synthetic one. */
 
-#if defined(CSR_SDRAM_GENERATOR_BASE) && (SDRAM_CKPHASE_EYE_RANGE > 0)
-
-#define CKPHASE_EYE_RANGE SDRAM_CKPHASE_EYE_RANGE
-#if CKPHASE_EYE_RANGE > 15
+#define CKPHASE_EYE_MAX 15   // Offsets fit a 32-bit mask.
+#if SDRAM_CKPHASE_EYE_RANGE > CKPHASE_EYE_MAX
 #error "SDRAM_CKPHASE_EYE_RANGE: at most 15 (a 32-bit mask of offsets)"
 #endif
 
+static int ckphase_leveled;  // sdram_ckphase_calibrate() passed: ckphase.bit[] is the PHY's state.
+
 // Is offset o of a bit's mask clean? Offsets past the IDELAY's range are not tested: not clean.
-static int ckphase_eye_clean(uint32_t mask, int o) {
-	return (mask >> (o + CKPHASE_EYE_RANGE)) & 1;
+static int ckphase_eye_clean(uint32_t mask, int o, int range) {
+	return (mask >> (o + range)) & 1;
 }
 
-// The longest run of clean offsets; on a tie, the one holding the DFI scan's centre (offset 0).
+// The longest run of clean offsets; on a tie, the one holding the current tap (offset 0).
 // Returns its length and its middle (toward 0 on a half) in *centre.
-static int ckphase_eye_run(uint32_t mask, int *centre) {
+static int ckphase_eye_run(uint32_t mask, int range, int *centre) {
 	int best = 0, best_lo = 0, best_hi = -1;
-	for (int o = -CKPHASE_EYE_RANGE; o <= CKPHASE_EYE_RANGE; o++) {
-		if (!ckphase_eye_clean(mask, o))
+	for (int o = -range; o <= range; o++) {
+		if (!ckphase_eye_clean(mask, o, range))
 			continue;
 		int lo = o;
-		while (o < CKPHASE_EYE_RANGE && ckphase_eye_clean(mask, o + 1))
+		while (o < range && ckphase_eye_clean(mask, o + 1, range))
 			o++;
 		int len = o - lo + 1;
 		if (len > best || (len == best && lo <= 0 && o >= 0)) {
@@ -2191,25 +2197,31 @@ static void ckphase_eye_set(int b, int tap) {
 	ckphase_set_tap(1u << (b/8), 1u << (b%8), tap);
 }
 
-static int ckphase_eye_refine(void) {
-	uint32_t clean[CKPHASE_BITS];  // Bit (o + range): no read error on DQ b at tap offset o.
-	int moved = 0;
+// Every bit back at its centre.
+static void ckphase_eye_restore(void) {
+	for (int b = 0; b < CKPHASE_BITS; b++)
+		ckphase_eye_set(b, ckphase.bit[b].tap);
+}
 
-	ckphase_bist_begin();
-	if (!ckphase_bist_write(SDRAM_CKPHASE_EYE_BYTES)) {
-		ckphase_bist_end();
-		return -1;
-	}
+static int ckphase_eye_scan(int (*traffic)(void *arg), void *arg, int range, const char *what) {
+	uint32_t clean[CKPHASE_BITS];  // Bit (o + range): no read error on DQ b at tap offset o.
+	int moved = 0, failed = 0;
+
+	if (range < 1)
+		range = 1;
+	if (range > CKPHASE_EYE_MAX)
+		range = CKPHASE_EYE_MAX;
 #ifdef CSR_SDRAM_ECC_BITSEL_ADDR
 	// The per-DQ counters attribute the errors (the decoder's syndrome: correction on).
+	int ecc_was = sdram_ecc_enable_read();
 	sdram_ecc_enable_write(1);
 #endif
 	for (int b = 0; b < CKPHASE_BITS; b++)
 		clean[b] = 0;
-	for (int o = -CKPHASE_EYE_RANGE; o <= CKPHASE_EYE_RANGE; o++) {
-		uint32_t mark = 1u << (o + CKPHASE_EYE_RANGE);
+	for (int o = -range; o <= range && !failed; o++) {
+		uint32_t mark = 1u << (o + range);
 		uint32_t tested[CKPHASE_MASK_WORDS] = {0};  // Bits with a tap at this offset.
-		int tap;
+		int tap, errors;
 		for (int b = 0; b < CKPHASE_BITS; b++)
 			if (ckphase_eye_tap(b, o, &tap)) {
 				ckphase_eye_set(b, tap);
@@ -2218,7 +2230,11 @@ static int ckphase_eye_refine(void) {
 				ckphase_eye_set(b, ckphase.bit[b].tap);
 #ifdef CSR_SDRAM_ECC_BITSEL_ADDR
 		sdram_ecc_clear_write(1);
-		ckphase_bist_read(SDRAM_CKPHASE_EYE_BYTES);
+		errors = traffic(arg);
+		if (errors < 0) {
+			failed = 1;
+			break;
+		}
 		for (int b = 0; b < CKPHASE_BITS; b++) {
 			sdram_ecc_bitsel_write(b);
 			(void)sdram_ecc_bitcnt_read();  // The counter mux is registered: read it twice.
@@ -2226,18 +2242,25 @@ static int ckphase_eye_refine(void) {
 				clean[b] |= mark;
 		}
 #else
-		if (ckphase_bist_read(SDRAM_CKPHASE_EYE_BYTES) == 0) {
+		errors = traffic(arg);
+		if (errors < 0) {
+			failed = 1;
+			break;
+		}
+		if (errors == 0) {
 			for (int b = 0; b < CKPHASE_BITS; b++)
 				clean[b] |= mark;
 		} else {
 			// Which bits: every bit back at its centre, then one at a time at the offset.
-			for (int b = 0; b < CKPHASE_BITS; b++)
-				ckphase_eye_set(b, ckphase.bit[b].tap);
-			for (int b = 0; b < CKPHASE_BITS; b++) {
+			ckphase_eye_restore();
+			for (int b = 0; b < CKPHASE_BITS && !failed; b++) {
 				if (!ckphase_eye_tap(b, o, &tap))
 					continue;
 				ckphase_eye_set(b, tap);
-				if (ckphase_bist_read(SDRAM_CKPHASE_EYE_BYTES) == 0)
+				errors = traffic(arg);
+				if (errors < 0)
+					failed = 1;
+				else if (errors == 0)
 					clean[b] |= mark;
 				ckphase_eye_set(b, ckphase.bit[b].tap);
 			}
@@ -2249,27 +2272,30 @@ static int ckphase_eye_refine(void) {
 	}
 #ifdef CSR_SDRAM_ECC_BITSEL_ADDR
 	sdram_ecc_clear_write(1);
-	sdram_ecc_enable_write(0);
+	sdram_ecc_enable_write(ecc_was);
 #endif
-	ckphase_bist_end();
+	if (failed) {
+		ckphase_eye_restore();
+		printf("  read eye under %s: the traffic did not run, taps unchanged\n", what);
+		return -1;
+	}
 
 	// Re-centre, and show each bit's clean offsets (#) and its move.
-	printf("  read eye under traffic (%lu KB per offset, %+d..%+d from the scan's centre):\n",
-		(unsigned long)(SDRAM_CKPHASE_EYE_BYTES >> 10), -CKPHASE_EYE_RANGE, CKPHASE_EYE_RANGE);
+	printf("  read eye under %s (%+d..%+d taps from the current centres):\n", what, -range, range);
 	for (int l = 0; l < CKPHASE_LANES; l++) {
 		printf("  m%d:", l);
 		for (int i = 0; i < 8; i++) {
 			int b = 8*l + i, centre;
 			struct ckphase_bit *bit = &ckphase.bit[b];
-			ckphase_eye_run(clean[b], &centre);  // No clean offset: the scan's centre stays.
+			ckphase_eye_run(clean[b], range, &centre);  // No clean offset: the centre stays.
 			if (centre) {
 				bit->tap += centre;
 				moved++;
 			}
 			ckphase_eye_set(b, bit->tap);
 			printf(" ");
-			for (int o = -CKPHASE_EYE_RANGE; o <= CKPHASE_EYE_RANGE; o++)
-				printf("%c", ckphase_eye_clean(clean[b], o) ? '#' : '.');
+			for (int o = -range; o <= range; o++)
+				printf("%c", ckphase_eye_clean(clean[b], o, range) ? '#' : '.');
 			printf("%+d", centre);
 		}
 		printf("\n");
@@ -2278,6 +2304,54 @@ static int ckphase_eye_refine(void) {
 	return moved;
 }
 
+/* The eye scan under the application's own reads, after a successful leveling: traffic(arg)
+ * runs them once per tap offset and returns their error count (0: clean; the DFI ECC's per-DQ
+ * counters attribute them when present), or -1 when they could not run. Returns the bits
+ * moved, -1 when not leveled or the traffic did not run. */
+int sdram_ckphase_eye_refine(int (*traffic)(void *arg), void *arg, int range, const char *what) {
+	if (!ckphase_leveled || traffic == NULL)
+		return -1;
+	return ckphase_eye_scan(traffic, arg, range, what ? what : "traffic");
+}
+
+/* A DQ bit's read tap (IDELAY), for the application's own scans; -1 when not leveled. */
+int sdram_ckphase_bit_tap(int bit) {
+	if (!ckphase_leveled || bit < 0 || bit >= CKPHASE_BITS)
+		return -1;
+	return ckphase.bit[bit].tap;
+}
+
+int sdram_ckphase_bit_tap_set(int bit, int tap) {
+	if (!ckphase_leveled || bit < 0 || bit >= CKPHASE_BITS || tap < 0 || tap >= SDRAM_PHY_DELAYS)
+		return -1;
+	ckphase.bit[bit].tap = tap;
+	ckphase_eye_set(bit, tap);
+	return 0;
+}
+
+#if defined(CSR_SDRAM_GENERATOR_BASE) && (SDRAM_CKPHASE_EYE_RANGE > 0)
+// The leveling's traffic: a BIST read of the region written before the scan.
+static int ckphase_eye_bist_traffic(void *arg) {
+	uint32_t errors = ckphase_bist_read(SDRAM_CKPHASE_EYE_BYTES);
+	(void)arg;
+	if (errors == 0xffffffff)
+		return -1;
+	return errors > 0x7fffffff ? 0x7fffffff : (int)errors;
+}
+
+static int ckphase_eye_refine(void) {
+	int moved;
+	ckphase_bist_begin();
+	if (!ckphase_bist_write(SDRAM_CKPHASE_EYE_BYTES)) {
+		ckphase_bist_end();
+		return -1;
+	}
+	printf("  BIST region of %lu KB read at each tap offset\n",
+		(unsigned long)(SDRAM_CKPHASE_EYE_BYTES >> 10));
+	moved = ckphase_eye_scan(ckphase_eye_bist_traffic, NULL, SDRAM_CKPHASE_EYE_RANGE, "BIST reads");
+	ckphase_bist_end();
+	return moved;
+}
 #endif // CSR_SDRAM_GENERATOR_BASE && SDRAM_CKPHASE_EYE_RANGE
 
 static void ckphase_init_dram(void) {
@@ -2318,6 +2392,7 @@ static int sdram_ckphase_calibrate(void) {
 	uint32_t lanes, bist_errors;
 	int ok;
 
+	ckphase_leveled = 0;
 	printf("  ddrphy CSRs at %08lx, CK phase over one tCK: %d steps of %d\n",
 		(unsigned long)CSR_DDRPHY_BASE, CKPHASE_STEPS/SDRAM_CKPHASE_SCAN_STRIDE,
 		SDRAM_CKPHASE_SCAN_STRIDE);
@@ -2387,6 +2462,7 @@ static int sdram_ckphase_calibrate(void) {
 	bist_errors = (lanes == CKPHASE_ALL_LANES) ?
 		ckphase_bist(SDRAM_CKPHASE_BIST_FINAL_BYTES) : 0xffffffff;
 	ok = (lanes == CKPHASE_ALL_LANES) && (bist_errors == 0);
+	ckphase_leveled = ok;
 	ckphase_print_point(ckphase.ckphase, lanes, bist_errors);
 	printf("  CK phase %+d (run %d steps), write bitslips", ckphase.ckphase, ckphase.run);
 	for (int l = 0; l < CKPHASE_LANES; l++)
