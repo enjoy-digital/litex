@@ -125,7 +125,7 @@ def litex_setup_import_repos(download=False):
             raise
         if not download:
             print_error("litex_repos.py is missing.")
-            print_status("Run without --dev to download it automatically, or download it next to litex_setup.py.")
+            print_status("Download it next to litex_setup.py, or run --init without --dev to download it automatically.")
             raise SetupError
         litex_setup_download_repos()
         importlib.invalidate_caches()
@@ -495,17 +495,20 @@ def pip_install_in_uv_virtualenv():
         pass
     return False
 
-def pip_install_base_cmd():
+def pip_base_cmd(action):
     if pip_install_in_uv_virtualenv():
         uv_cmd = shutil.which("uv")
         if uv_cmd is not None:
-            return [uv_cmd, "pip", "install", "--python", sys.executable]
+            return [uv_cmd, "pip", action, "--python", sys.executable]
         scripts_path = sysconfig.get_path("scripts")
         if scripts_path is not None:
             venv_pip_cmd = os.path.join(scripts_path, "pip")
             if os.path.exists(venv_pip_cmd):
-                return [venv_pip_cmd, "install"]
-    return [sys.executable, "-m", "pip", "install"]
+                return [venv_pip_cmd, action]
+    return [sys.executable, "-m", "pip", action]
+
+def pip_install_base_cmd():
+    return pip_base_cmd("install")
 
 def pip_install_cmd(packages, user_mode=False, editable=False, no_build_isolation=False):
     pip_cmd = pip_install_base_cmd()
@@ -741,6 +744,56 @@ def litex_setup_install_repos(config="standard", user_mode=False, break_system_p
             print_status("Make sure that ~/.local/bin is in your PATH.")
             print_status("export PATH=$PATH:~/.local/bin # temporary (limited to the current terminal)")
             print_status("or add the previous line into your ~/.bashrc to permanently update PATH")
+
+# Python packages uninstall ------------------------------------------------------------------------
+
+def litex_setup_uninstall_repos(config="standard", assume_yes=False, dry_run=False,
+    break_system_packages=False):
+    # Repository names are also their distribution names. pip/uv normalize '-' and '_'.
+    packages = [name for name in install_configs[config] if git_repos[name].develop]
+    print_status("Uninstalling LiteX Python packages...", underline=True)
+    print_status(f"Python interpreter: {sys.executable}")
+    print_status(f"Python environment: {sys.prefix}")
+    print_status(f"Selected config: {config}")
+    print_status("Source repositories, build files, toolchains and shared dependencies are retained.")
+    if not packages:
+        print_status("No Python packages selected.")
+        return
+    print_status("Packages selected (packages not installed will be skipped):")
+    print_indented("\n".join(packages))
+
+    command = pip_base_cmd("uninstall")
+    # uv uninstall is non-interactive and does not accept pip's --yes option.
+    if command[1:3] != ["pip", "uninstall"]:
+        command.append("--yes")
+    if break_system_packages:
+        command.append("--break-system-packages")
+    command += packages
+    print_status("Command:")
+    print_indented(" ".join(shlex.quote(arg) for arg in command))
+    if dry_run:
+        print_status("Dry run: no packages removed.")
+        return
+
+    if pip_install_externally_managed() and not break_system_packages:
+        print_error("This Python environment is externally managed (PEP 668).")
+        print_status("Use the Python environment where LiteX was installed, or its system package manager.")
+        print_status("To explicitly allow package-manager changes here, pass --break-system-packages.")
+        raise SetupError
+    if not assume_yes:
+        if not sys.stdin.isatty():
+            print_error("Uninstall requires confirmation. Use --yes for non-interactive removal, or --dry-run to preview.")
+            raise SetupError
+        if input("Uninstall these Python packages from this environment? [y/N]: ").strip().lower() not in ["y", "yes"]:
+            print_status("Uninstall cancelled.")
+            return
+    try:
+        subprocess.check_call(command)
+    except (OSError, subprocess.CalledProcessError) as error:
+        print_error(f"Package uninstall failed: {error}")
+        print_status("Some packages may already have been removed. Resolve the package-manager error, then retry.")
+        raise SetupError
+    print_status("Package uninstall completed. Source checkouts and shared dependencies were retained.")
 
 # Git repositories freeze --------------------------------------------------------------------------
 
@@ -1019,13 +1072,15 @@ def main():
     parser.add_argument("--init",      action="store_true", help="Initialize Git repositories.")
     parser.add_argument("--update",    action="store_true", help="Update Git repositories.")
     parser.add_argument("--install",   action="store_true", help="Install Git repositories.")
+    parser.add_argument("--uninstall", action="store_true", help="Uninstall selected Python packages; retain source repositories.")
+    parser.add_argument("--dry-run",   action="store_true", help="Preview --uninstall without removing packages.")
     parser.add_argument("--user",      action="store_true", help="Install in User-Mode.")
     parser.add_argument("--break-system-packages", action="store_true",
-        help="Pass pip's --break-system-packages option when installing outside a virtual environment.")
-    parser.add_argument("--config",    default="standard",  help="Install config (minimal, standard, full).")
+        help="Allow package installation/removal in an externally managed Python environment.")
+    parser.add_argument("--config",    default="standard",  help="Repository/package config (minimal, standard, full).")
     parser.add_argument("--tag",       default=None,        help="Use version from release tag.")
     parser.add_argument("-y", "--yes", action="store_true",
-        help="Automatically confirm updates for repositories with local changes.")
+        help="Automatically confirm updates with local changes or package uninstall.")
     parser.add_argument("--clone-depth", type=int, default=None,
         help="Use shallow Git clones with this depth during --init when compatible.")
 
@@ -1050,6 +1105,25 @@ def main():
                 setattr(args, arg, True)
             if arg in ["gcc"]:
                 args.gcc = "riscv"
+
+    # Uninstall is independent of the checkout location and works offline. Do
+    # not auto-update the script or repository list before a removal/dry run.
+    if args.dry_run and not args.uninstall:
+        parser.error("--dry-run requires --uninstall.")
+    if args.uninstall:
+        if args.init or args.update or args.install or args.freeze or args.gcc:
+            parser.error("--uninstall cannot be combined with --init, --update, --install, --freeze or --gcc.")
+        if args.user:
+            parser.error("--user is an install-only option; uninstall uses the selected Python interpreter's environment.")
+        litex_setup_import_repos(download=False)
+        litex_setup_validate_config(args.config)
+        litex_setup_uninstall_repos(
+            config                = args.config,
+            assume_yes            = args.yes,
+            dry_run               = args.dry_run,
+            break_system_packages = args.break_system_packages,
+        )
+        return
 
     # Location/Auto-Update.
     litex_setup_location_check()
