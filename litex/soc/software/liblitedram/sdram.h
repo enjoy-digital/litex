@@ -42,6 +42,12 @@ void sdram_read_leveling(void);
 /* CK Phase Leveling (SDRAM_PHY_CKPHASE_STEPS)                           */
 /*-----------------------------------------------------------------------*/
 int sdram_ckphase_leveling(int controller);
+// After a successful leveling: the per-bit read eye re-centred under the application's own
+// reads (traffic(arg): once per tap offset, returns the error count, 0 clean, -1 not run; the
+// DFI ECC's per-DQ counters attribute errors to bits when present), and the read taps.
+int sdram_ckphase_eye_refine(int (*traffic)(void *arg), void *arg, int range, const char *what);
+int sdram_ckphase_bit_tap(int bit);
+int sdram_ckphase_bit_tap_set(int bit, int tap);
 
 /*-----------------------------------------------------------------------*/
 /* Leveling                                                              */
