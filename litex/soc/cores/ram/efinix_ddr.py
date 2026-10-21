@@ -4,6 +4,8 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import logging
+
 from migen import *
 
 from litex.gen import *
@@ -161,7 +163,7 @@ class EfinixDDR(LiteXModule):
         physical_rank  = 1,
         data_width     = 512,
         address_width  = 33,
-        id_width       = 8,
+        id_width       = 6,  # The hard controller's AXI IDs: ARID/AWID/RID/BID[5:0].
         pin_swizzle    = None,
         init_delay     = 256):
 
@@ -277,6 +279,11 @@ def add_efinix_ddr(soc, ddr, size, origin=None):
             raise ValueError(
                 "Efinix DDR CPU memory bus data width must match the controller data width.")
 
+        if memory_bus.id_width > ddr.bus.id_width:
+            # The controller only returns the low ID bits: the CPU must only use IDs that fit.
+            logging.getLogger("EfinixDDR").warning(
+                "CPU memory bus {}-bit IDs on the controller's {}-bit IDs.".format(
+                memory_bus.id_width, ddr.bus.id_width))
         soc.submodules += axi.AXIRemapper(
             master = memory_bus,
             slave  = ddr.bus,
