@@ -536,7 +536,8 @@ class TestEfinixRAM(unittest.TestCase):
         self.assertEqual(block["pin_swizzle"]["CA"], "CA[0],CA[1],CA[2],CA[3],CA[4],CA[5]")
         self.assertEqual(ddr.bus.data_width, 512)
         self.assertEqual(ddr.bus.address_width, 33)
-        self.assertEqual(ddr.bus.id_width, 8)
+        self.assertEqual(ddr.bus.id_width, 6)
+        self.assertEqual(len(ddr.axi_pads.arid), 6)
         self.assertIn(ddr.axi_pads.awaddr, platform.toolchain.excluded_ios)
         self.assertIn(ddr.cfg_pads.done, platform.toolchain.excluded_ios)
 
@@ -655,6 +656,22 @@ class TestEfinixRAM(unittest.TestCase):
             self.assertEqual((yield ddr.awallstrb), 1)
 
         run_simulation(soc, generator())
+
+    def test_add_efinix_ddr_warns_on_wider_cpu_ids(self):
+        # The hard controller has 6-bit AXI IDs: a CPU memory bus with wider IDs is warned about.
+        soc = _FakeSoC(_FakeNativeMemoryCPU())
+        ddr = SimpleNamespace(
+            bus = axi.AXIInterface(
+                data_width    = 512,
+                address_width = 33,
+                id_width      = 6,
+                clock_domain  = "cpu",
+            ),
+            awallstrb    = Signal(),
+            clock_domain = "cpu",
+        )
+        with self.assertLogs("EfinixDDR", level="WARNING"):
+            add_efinix_ddr(soc, ddr, size=0x4000_0000)
 
     def test_add_efinix_ddr_uses_soc_width_for_fallback_frontend(self):
         cpu = SimpleNamespace(memory_buses=[])
