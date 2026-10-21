@@ -249,6 +249,62 @@ class TestAXILite(unittest.TestCase):
             low_latency = True,
         )
 
+    def test_axilite2wishbone_err(self, low_latency=False):
+        # Wishbone errors must be returned as SLVERR (instead of stalling the AXI-Lite bus) and
+        # converted back to Wishbone errors by Wishbone2AXILite.
+        class DUT(Module):
+            def __init__(self):
+                self.wishbone = wishbone.Interface(data_width=32, adr_width=30, addressing="word")
+                axi_lite = AXILiteInterface(data_width=32, address_width=32)
+                wb       = wishbone.Interface(data_width=32, adr_width=30, addressing="word")
+                self.submodules.wishbone2axi = Wishbone2AXILite(self.wishbone, axi_lite)
+                self.submodules.axi2wishbone = AXILite2Wishbone(axi_lite, wb, low_latency=low_latency)
+                self.submodules.sram = sram = wishbone.SRAM(1024)
+                # Error for accesses at/above word address 16.
+                error = Signal()
+                self.comb += [
+                    error.eq(wb.adr >= 16),
+                    wb.connect(sram.bus, omit={"cyc", "stb", "ack", "err"}),
+                    sram.bus.cyc.eq(wb.cyc & ~error),
+                    sram.bus.stb.eq(wb.stb & ~error),
+                    wb.ack.eq(sram.bus.ack),
+                    wb.err.eq(wb.cyc & wb.stb & error),
+                ]
+
+        def access(bus, adr, we=0, dat_w=0):
+            yield bus.adr.eq(adr)
+            yield bus.we.eq(we)
+            yield bus.dat_w.eq(dat_w)
+            yield bus.sel.eq(0b1111)
+            yield bus.cyc.eq(1)
+            yield bus.stb.eq(1)
+            yield
+            for _ in range(256):
+                if (yield bus.ack) or (yield bus.err):
+                    break
+                yield
+            else:
+                raise TimeoutError
+            r = ((yield bus.dat_r), (yield bus.err))
+            yield bus.cyc.eq(0)
+            yield bus.stb.eq(0)
+            yield
+            return r
+
+        def generator(dut):
+            self.assertEqual((yield from access(dut.wishbone, 0, we=1, dat_w=0x12345678))[1], 0)
+            self.assertEqual((yield from access(dut.wishbone, 16, we=1, dat_w=0xdeadbeef))[1], 1)
+            self.assertEqual((yield from access(dut.wishbone, 0)), (0x12345678, 0))
+            self.assertEqual((yield from access(dut.wishbone, 16))[1], 1)
+            # Next accesses must be OKAY again.
+            self.assertEqual((yield from access(dut.wishbone, 0)), (0x12345678, 0))
+
+        dut = DUT()
+        run_simulation(dut, [generator(dut)])
+
+    def test_axilite2wishbone_err_low_latency(self):
+        return self.test_axilite2wishbone_err(low_latency=True)
+
     def test_axilite2axi2mem(self,
         data_width    = 32,
         address_width = 32,
