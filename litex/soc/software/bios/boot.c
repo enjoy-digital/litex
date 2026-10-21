@@ -39,6 +39,7 @@
 
 #include <liblitesdcard/spisdcard.h>
 #include <liblitesdcard/sdcard.h>
+#include <liblitesdcard/sdcard_dma.h>
 #include <liblitesata/sata.h>
 #include <libfatfs/ff.h>
 
@@ -120,6 +121,16 @@ static int boot_load_max_size(unsigned long addr, size_t *max_size)
 	unsigned long physical = boot_physical_address(addr);
 	int found = 0;
 
+#if SDCARD_DMA_BOUNCE
+	/* Reserve the receive-DMA scratch area for every BIOS boot transport,
+	 * including physical/virtual aliases and multi-file boot.json loads. */
+	if (physical >= SDCARD_DMA_BUFFER_BASE &&
+	    physical - SDCARD_DMA_BUFFER_BASE < MAIN_RAM_SIZE - SDCARD_DMA_BUFFER_OFFSET) {
+		printf("Error: boot load address 0x%08lx overlaps SDCard DMA scratch\n", addr);
+		return 0;
+	}
+#endif
+
 #ifdef BIOS_SRAM_BASE
 	/* SRAM holds the BIOS runtime and its growing stack. Only a buffer
 	   explicitly reserved by the linker is available for image loading.
@@ -146,6 +157,10 @@ static int boot_load_max_size(unsigned long addr, size_t *max_size)
 	found = boot_region_max_size(physical, MAIN_RAM_BASE_VA, MAIN_RAM_SIZE, max_size);
 #endif
 	if (found) {
+#if SDCARD_DMA_BOUNCE
+		if (physical < SDCARD_DMA_BUFFER_BASE && *max_size > SDCARD_DMA_BUFFER_BASE - physical)
+			*max_size = SDCARD_DMA_BUFFER_BASE - physical;
+#endif
 #ifdef BIOS_SRAM_BASE
 		/* A target may carve its SRAM reservation out of main RAM. */
 		if (physical < BIOS_SRAM_BASE && *max_size > BIOS_SRAM_BASE - physical)
