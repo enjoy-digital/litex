@@ -1,0 +1,8 @@
+dut.v
+sim_build/
+obj_dir/
+*.vcd
+*.fst
+__pycache__/
+*.pyc
+results.xml
