@@ -2801,14 +2801,17 @@ class LiteXSoC(SoC):
             endianness  = {True : self.cpu.endianness, False:      "big"}[with_ethmac],
             eth_mtu     = eth_mtu,
         )
+        # PHY's eth_tx/eth_rx clock domains (the core's eth_tx/eth_rx, at any data width: some PHYs
+        # name them differently, ex eth0_tx/eth0_rx).
+        if phy_cd is None:
+            phy_crg = getattr(phy, "crg", phy)
+            eth_tx_clk_name = getattr(getattr(phy_crg, "cd_eth_tx", None), "name", "eth_tx")
+            eth_rx_clk_name = getattr(getattr(phy_crg, "cd_eth_rx", None), "name", "eth_rx")
+        else:
+            eth_tx_clk_name = phy_cd + "_tx"
+            eth_rx_clk_name = phy_cd + "_rx"
         if not with_sys_datapath:
-            # Use PHY's eth_tx/eth_rx clock domains.
-            if phy_cd is None:
-                eth_tx_clk_name = getattr(phy, "crg", phy).cd_eth_tx.name
-                eth_rx_clk_name = getattr(phy, "crg", phy).cd_eth_rx.name
-            else:
-                eth_tx_clk_name = phy_cd + "_tx"
-                eth_rx_clk_name = phy_cd + "_rx"
+            # The core runs in the PHY's RX clock domain (its "sys", user ports included).
             ethcore_cd = {True: "sys", False: eth_rx_clk_name}[with_ethmac]
             ethcore = ClockDomainsRenamer({
                 "eth_tx": eth_tx_clk_name,
@@ -2817,16 +2820,24 @@ class LiteXSoC(SoC):
             })(ethcore)
         else:
             ethcore_cd = "sys"
+            if (eth_tx_clk_name, eth_rx_clk_name) != ("eth_tx", "eth_rx"):
+                ethcore = ClockDomainsRenamer({
+                    "eth_tx": eth_tx_clk_name,
+                    "eth_rx": eth_rx_clk_name,
+                })(ethcore)
         ethcore.cd = ethcore_cd
         self.add_module(name=f"ethcore_{name}", module=ethcore)
 
-        etherbone_cd = "sys"
-        if not with_sys_datapath:
-            # Create Etherbone clock domain and run it from sys clock domain.
-            etherbone_cd = name
-            setattr(self, f"cd_{name}", ClockDomain(name))
-            self.comb += getattr(self, f"cd_{name}").clk.eq(ClockSignal("sys"))
-            self.comb += getattr(self, f"cd_{name}").rst.eq(ResetSignal("sys"))
+        # Etherbone clock domain: the sys clock under its own name, so that it is not renamed with
+        # the core. UDP user ports for the SoC's sys clock domain use cd=name at any data width
+        # (ex ethcore.udp.crossbar.get_port(port, dw, cd="etherbone")); cd="sys" is the core's own
+        # clock domain (the PHY's RX clock domain at data_width=8).
+        setattr(self, f"cd_{name}", ClockDomain(name))
+        self.comb += getattr(self, f"cd_{name}").clk.eq(ClockSignal("sys"))
+        self.comb += getattr(self, f"cd_{name}").rst.eq(ResetSignal("sys"))
+        etherbone_cd = name if not with_sys_datapath else "sys"
+        self.logger.info("Etherbone {}-bit core in {} clock domain, UDP user ports for sys: cd=\"{}\".".format(
+            colorer(data_width), colorer(ethcore_cd), colorer(name)))
 
         # Etherbone
         self.check_if_exists(name)
