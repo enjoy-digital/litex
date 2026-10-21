@@ -32,6 +32,7 @@ class AXILite2Wishbone(LiteXModule):
 
         # Signals.
         _data         = Signal(axi_lite.data_width)
+        _resp         = Signal(2)
         _r_addr       = Signal(axi_lite.address_width)
         _w_addr       = Signal(axi_lite.address_width)
         _last_ar_aw_n = Signal()
@@ -54,24 +55,28 @@ class AXILite2Wishbone(LiteXModule):
             wishbone.dat_w.eq(axi_lite.w.data),
         ]
 
-        # AXI-Lite Response Signals.
+        # AXI-Lite Response Signals (Wishbone errors are returned as SLVERR).
+        resp = Signal(2)
+        self.comb += resp.eq(Mux(wishbone.err, RESP_SLVERR, RESP_OKAY))
         read_response = [
             axi_lite.r.valid.eq(1),
-            axi_lite.r.resp.eq(RESP_OKAY),
+            axi_lite.r.resp.eq(resp),
             axi_lite.r.data.eq(wishbone.dat_r),
             If(axi_lite.r.ready,
                 NextState("IDLE")
             ).Else(
                 NextValue(_data, wishbone.dat_r),
+                NextValue(_resp, resp),
                 NextState("SEND-READ-RESPONSE")
             )
         ]
         write_response = [
             axi_lite.b.valid.eq(1),
-            axi_lite.b.resp.eq(RESP_OKAY),
+            axi_lite.b.resp.eq(resp),
             If(axi_lite.b.ready,
                 NextState("IDLE")
             ).Else(
+                NextValue(_resp, resp),
                 NextState("SEND-WRITE-RESPONSE")
             )
         ]
@@ -83,6 +88,7 @@ class AXILite2Wishbone(LiteXModule):
         else:
             read_ack += [
                 NextValue(_data, wishbone.dat_r),
+                NextValue(_resp, resp),
                 NextState("SEND-READ-RESPONSE"),
             ]
         write_ack = [
@@ -92,7 +98,10 @@ class AXILite2Wishbone(LiteXModule):
         if low_latency:
             write_ack += write_response
         else:
-            write_ack += [NextState("SEND-WRITE-RESPONSE")]
+            write_ack += [
+                NextValue(_resp, resp),
+                NextState("SEND-WRITE-RESPONSE"),
+            ]
 
         # FSM.
         self.fsm = fsm = FSM(reset_state="IDLE")
@@ -117,13 +126,13 @@ class AXILite2Wishbone(LiteXModule):
         )
         fsm.act("DO-READ",
             *read_cmd,
-            If(wishbone.ack,
+            If(wishbone.ack | wishbone.err,
                 *read_ack
             )
         )
         fsm.act("SEND-READ-RESPONSE",
             axi_lite.r.valid.eq(1),
-            axi_lite.r.resp.eq(RESP_OKAY),
+            axi_lite.r.resp.eq(_resp),
             axi_lite.r.data.eq(_data),
             If(axi_lite.r.ready,
                 NextState("IDLE")
@@ -131,13 +140,13 @@ class AXILite2Wishbone(LiteXModule):
         )
         fsm.act("DO-WRITE",
             *write_cmd,
-            If(wishbone.ack,
+            If(wishbone.ack | wishbone.err,
                 *write_ack
             )
         )
         fsm.act("SEND-WRITE-RESPONSE",
             axi_lite.b.valid.eq(1),
-            axi_lite.b.resp.eq(RESP_OKAY),
+            axi_lite.b.resp.eq(_resp),
             If(axi_lite.b.ready,
                 NextState("IDLE")
             )
