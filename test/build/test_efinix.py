@@ -250,6 +250,52 @@ def test_generate_ddr_emits_controller_interfaces_and_swizzle():
     assert '"PIN_SWIZZLE_EN", "1", "DDR"' in cmds
     assert 'design.assign_resource("ddr_inst1", "DDR_0", "DDR")' in cmds
 
+    assert '"TARGET1_EN", "0", "DDR"' in cmds
+    assert "AXI1_" not in cmds
+
+
+def test_generate_ddr_emits_second_target():
+    def signal(name):
+        return migen.Signal(name_override=name)
+
+    axi_names = [
+        "araddr", "arapcmd", "arburst", "arid", "arlen", "arlock", "arqos", "arready",
+        "arsize", "resetn", "arvalid", "awaddr", "awallstrb", "awapcmd", "awburst",
+        "awcache", "awcobuf", "awid", "awlen", "awlock", "awqos", "awready", "awsize",
+        "awvalid", "bid", "bready", "bresp", "bvalid", "rdata", "rid", "rlast", "rready",
+        "rresp", "rvalid", "wdata", "wlast", "wready", "wstrb", "wvalid",
+    ]
+    writer = InterfaceWriter("/tmp/efinity")
+    writer.blocks.append({
+        "type"            : "DDR",
+        "name"            : "ddr_inst1",
+        "location"        : "DDR_0",
+        "memory_type"     : "LPDDR4x",
+        "memory_density"  : "8G",
+        "dq_width"        : 32,
+        "physical_rank"   : 1,
+        "clkin_sel"       : "CLKIN 0",
+        "axi"             : SimpleNamespace(**{name: signal(f"ddr0_{name}")   for name in axi_names}),
+        "axi1"            : SimpleNamespace(**{name: signal(f"ddr0_1_{name}") for name in axi_names}),
+        "axi_clk"         : "sys_pll0_clk",
+        "axi_data_width"  : 512,
+        "cfg"             : SimpleNamespace(
+            done  = signal("cfg_done"),
+            reset = signal("cfg_reset"),
+            sel   = signal("cfg_sel"),
+            start = signal("cfg_start"),
+        ),
+    })
+
+    cmds = writer.generate(partnumber="Ti375C529")
+
+    assert '"TARGET0_EN", "1", "DDR"' in cmds
+    assert '"TARGET1_EN", "1", "DDR"' in cmds
+    assert '"AXI0_ARADDR_BUS", "ddr0_araddr", "DDR"' in cmds
+    assert '"AXI1_ARADDR_BUS", "ddr0_1_araddr", "DDR"' in cmds
+    assert '"AXI1_CLK_INPUT_PIN", "sys_pll0_clk", "DDR"' in cmds
+    assert '"AXI1_DATA_WIDTH", "512", "DDR"' in cmds
+    assert sum('"AXI1_' in line for line in cmds.splitlines()) == sum('"AXI0_' in line for line in cmds.splitlines())
 
 def test_add_trion_ddr_xml_emits_ports_and_configuration():
     writer = InterfaceWriter("/tmp/efinity")

@@ -694,61 +694,64 @@ design.create("{2}", "{3}", "./", overwrite=True)
             ("PHYSICAL_RANK",  block["physical_rank"]),
             ("CLKIN_SEL",      block["clkin_sel"]),
             ("TARGET0_EN",     "1"),
-            ("TARGET1_EN",     "0"),
+            ("TARGET1_EN",     "1" if block.get("axi1") is not None else "0"),
         ]
         for prop, value in properties:
             cmd.append('design.set_property("{}", "{}", "{}", "{}")'.format(
                 name, prop, value, block_type))
 
-        axi_properties = [
-            ("AXI0_ARADDR_BUS",     axi.araddr),
-            ("AXI0_ARAPCMD_PIN",    axi.arapcmd),
-            ("AXI0_ARBURST_BUS",    axi.arburst),
-            ("AXI0_ARID_BUS",       axi.arid),
-            ("AXI0_ARLEN_BUS",      axi.arlen),
-            ("AXI0_ARLOCK_PIN",     axi.arlock),
-            ("AXI0_ARQOS_PIN",      axi.arqos),
-            ("AXI0_ARREADY_PIN",    axi.arready),
-            ("AXI0_ARSIZE_BUS",     axi.arsize),
-            ("AXI0_ARSTN_PIN",      axi.resetn),
-            ("AXI0_ARVALID_PIN",    axi.arvalid),
-            ("AXI0_AWADDR_BUS",     axi.awaddr),
-            ("AXI0_AWALLSTRB_PIN",  axi.awallstrb),
-            ("AXI0_AWAPCMD_PIN",    axi.awapcmd),
-            ("AXI0_AWBURST_BUS",    axi.awburst),
-            ("AXI0_AWCACHE_BUS",    axi.awcache),
-            ("AXI0_AWCOBUF_PIN",    axi.awcobuf),
-            ("AXI0_AWID_BUS",       axi.awid),
-            ("AXI0_AWLEN_BUS",      axi.awlen),
-            ("AXI0_AWLOCK_PIN",     axi.awlock),
-            ("AXI0_AWQOS_PIN",      axi.awqos),
-            ("AXI0_AWREADY_PIN",    axi.awready),
-            ("AXI0_AWSIZE_BUS",     axi.awsize),
-            ("AXI0_AWVALID_PIN",    axi.awvalid),
-            ("AXI0_BID_BUS",        axi.bid),
-            ("AXI0_BREADY_PIN",     axi.bready),
-            ("AXI0_BRESP_BUS",      axi.bresp),
-            ("AXI0_BVALID_PIN",     axi.bvalid),
-            ("AXI0_CLK_INPUT_PIN",  block["axi_clk"]),
-            ("AXI0_CLK_INVERT_EN",  "0"),
-            ("AXI0_DATA_WIDTH",     block["axi_data_width"]),
-            ("AXI0_RDATA_BUS",      axi.rdata),
-            ("AXI0_RID_BUS",        axi.rid),
-            ("AXI0_RLAST_PIN",      axi.rlast),
-            ("AXI0_RREADY_PIN",     axi.rready),
-            ("AXI0_RRESP_BUS",      axi.rresp),
-            ("AXI0_RVALID_PIN",     axi.rvalid),
-            ("AXI0_WDATA_BUS",      axi.wdata),
-            ("AXI0_WLAST_PIN",      axi.wlast),
-            ("AXI0_WREADY_PIN",     axi.wready),
-            ("AXI0_WSTRB_BUS",      axi.wstrb),
-            ("AXI0_WVALID_PIN",     axi.wvalid),
-        ]
-        for prop, value in axi_properties:
-            if isinstance(value, Signal):
-                value = value.name_override
-            cmd.append('design.set_property("{}", "{}", "{}", "{}")'.format(
-                name, prop, value, block_type))
+        def axi_properties(t, axi):
+            return [
+                (f"AXI{t}_ARADDR_BUS",     axi.araddr),
+                (f"AXI{t}_ARAPCMD_PIN",    axi.arapcmd),
+                (f"AXI{t}_ARBURST_BUS",    axi.arburst),
+                (f"AXI{t}_ARID_BUS",       axi.arid),
+                (f"AXI{t}_ARLEN_BUS",      axi.arlen),
+                (f"AXI{t}_ARLOCK_PIN",     axi.arlock),
+                (f"AXI{t}_ARQOS_PIN",      axi.arqos),
+                (f"AXI{t}_ARREADY_PIN",    axi.arready),
+                (f"AXI{t}_ARSIZE_BUS",     axi.arsize),
+                (f"AXI{t}_ARSTN_PIN",      axi.resetn),
+                (f"AXI{t}_ARVALID_PIN",    axi.arvalid),
+                (f"AXI{t}_AWADDR_BUS",     axi.awaddr),
+                (f"AXI{t}_AWALLSTRB_PIN",  axi.awallstrb),
+                (f"AXI{t}_AWAPCMD_PIN",    axi.awapcmd),
+                (f"AXI{t}_AWBURST_BUS",    axi.awburst),
+                (f"AXI{t}_AWCACHE_BUS",    axi.awcache),
+                (f"AXI{t}_AWCOBUF_PIN",    axi.awcobuf),
+                (f"AXI{t}_AWID_BUS",       axi.awid),
+                (f"AXI{t}_AWLEN_BUS",      axi.awlen),
+                (f"AXI{t}_AWLOCK_PIN",     axi.awlock),
+                (f"AXI{t}_AWQOS_PIN",      axi.awqos),
+                (f"AXI{t}_AWREADY_PIN",    axi.awready),
+                (f"AXI{t}_AWSIZE_BUS",     axi.awsize),
+                (f"AXI{t}_AWVALID_PIN",    axi.awvalid),
+                (f"AXI{t}_BID_BUS",        axi.bid),
+                (f"AXI{t}_BREADY_PIN",     axi.bready),
+                (f"AXI{t}_BRESP_BUS",      axi.bresp),
+                (f"AXI{t}_BVALID_PIN",     axi.bvalid),
+                (f"AXI{t}_CLK_INPUT_PIN",  block["axi_clk"]),
+                (f"AXI{t}_CLK_INVERT_EN",  "0"),
+                (f"AXI{t}_DATA_WIDTH",     block["axi_data_width"]),
+                (f"AXI{t}_RDATA_BUS",      axi.rdata),
+                (f"AXI{t}_RID_BUS",        axi.rid),
+                (f"AXI{t}_RLAST_PIN",      axi.rlast),
+                (f"AXI{t}_RREADY_PIN",     axi.rready),
+                (f"AXI{t}_RRESP_BUS",      axi.rresp),
+                (f"AXI{t}_RVALID_PIN",     axi.rvalid),
+                (f"AXI{t}_WDATA_BUS",      axi.wdata),
+                (f"AXI{t}_WLAST_PIN",      axi.wlast),
+                (f"AXI{t}_WREADY_PIN",     axi.wready),
+                (f"AXI{t}_WSTRB_BUS",      axi.wstrb),
+                (f"AXI{t}_WVALID_PIN",     axi.wvalid),
+            ]
+        targets = [(0, axi)] + ([(1, block["axi1"])] if block.get("axi1") is not None else [])
+        for t, pads in targets:
+            for prop, value in axi_properties(t, pads):
+                if isinstance(value, Signal):
+                    value = value.name_override
+                cmd.append('design.set_property("{}", "{}", "{}", "{}")'.format(
+                    name, prop, value, block_type))
 
         cfg_properties = [
             ("CFG_DONE_PIN",  cfg.done),
