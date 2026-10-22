@@ -1383,14 +1383,63 @@ class _AXIRequestCounter(LiteXModule):
             ),
         ]
 
+def _axi_index_bits(n):
+    return max(1, (n - 1).bit_length())
+
+def _axi_rr_next(current, requests, n):
+    """Round robin: the first requesting index after `current`, else `current` (combinational)."""
+    choice = Signal(max=max(2, n))
+    cases  = {}
+    for c in range(n):
+        stmt = choice.eq(current)
+        for i in reversed([(c + 1 + k) % n for k in range(n)]):
+            stmt = If(requests[i], choice.eq(i)).Else(stmt)
+        cases[c] = stmt
+    return choice, Case(current, cases)
+
+def _axi_ax_fields(ep):
+    """The fields of an address channel carried as they are (all but the ID)."""
+    fields = [name for name, _ in ep.description.payload_layout]
+    fields += [name for name, _ in ep.description.param_layout if name == "user"]
+    return fields
+
+def axi_interleaved_id_width(masters):
+    """The target ID width AXIArbiter(..., interleave=True) needs: the masters' IDs and an index."""
+    write_masters = [m for m in masters if "w" in m.mode]
+    read_masters  = [m for m in masters if "r" in m.mode]
+    index_bits    = max([_axi_index_bits(len(ms)) for ms in (write_masters, read_masters) if len(ms)])
+    return max(m.id_width for m in masters) + index_bits
+
 class AXIArbiter(LiteXModule):
     """AXI arbiter
 
     Arbitrate between master interfaces and connect one to the target. New master will not be
     selected until all requests have been responded to. Arbitration for write and read channels is
     done separately.
+
+    interleave: for masters that keep several bursts in flight (DMAs, streaming readers) on one
+    target port (a memory controller): the default mode then leaves the port idle at every switch
+    between masters. With interleave=True:
+
+    - reads: AR is arbitrated per request (round robin), the master's index rides in the upper
+      target ID bits and the R beats are routed back by them: every master keeps its own bursts in
+      flight and the target serves them in the order its IDs allow (in order per ID). With
+      `r_buffer`, each master's beats land in a FIFO of their own first, so a master that drains
+      slowly does not stall the target for the others: size it to the beats a master can have in
+      flight.
+    - writes: each master's AW is taken into a small queue and its W beats into a buffer of
+      `w_buffer` beats (at least its longest burst); an AW goes to the target only once its whole
+      burst is buffered, then the W beats follow in AW order (AXI4 has no WID). A master whose
+      write data waits on another master's progress can not block the port. A target that waits
+      for WVALID before it takes the AW is served too. B is routed back by the upper ID bits.
+
+    The target's ID width must hold the masters' IDs and the index: axi_interleaved_id_width().
+    AXI4 only.
     """
-    def __init__(self, masters, target):
+    def __init__(self, masters, target, interleave=False, w_queue_depth=8, w_buffer=32, r_buffer=0):
+        if interleave:
+            self.add_interleaved(masters, target, w_queue_depth, w_buffer, r_buffer)
+            return
         write_masters = [m for m in masters if "w" in m.mode]
         read_masters  = [m for m in masters if "r" in m.mode]
         self.rr_write = roundrobin.RoundRobin(len(write_masters), roundrobin.SP_CE)
@@ -1448,6 +1497,214 @@ class AXIArbiter(LiteXModule):
             self.comb += self.rr_write.request.eq(Cat(*[m.aw.valid | m.w.valid | m.b.valid for m in write_masters]))
         if len(read_masters):
             self.comb += self.rr_read.request.eq(Cat(*[m.ar.valid | m.r.valid for m in read_masters]))
+
+    # Interleaving mode ----------------------------------------------------------------------------
+
+    def add_interleaved(self, masters, target, w_queue_depth, w_buffer, r_buffer):
+        write_masters = [m for m in masters if "w" in m.mode]
+        read_masters  = [m for m in masters if "r" in m.mode]
+        id_width      = max(m.id_width for m in masters)
+        for m in masters + [target]:
+            if m.version != "axi4":
+                raise ValueError("AXIArbiter interleave mode is AXI4 only.")
+        for m in masters:
+            if m.data_width != target.data_width:
+                raise ValueError("AXIArbiter interleave mode needs the masters' data width on the target.")
+            if m.address_width > target.address_width:
+                raise ValueError("AXIArbiter interleave mode needs the masters' address width on the target.")
+        if target.id_width < axi_interleaved_id_width(masters):
+            raise ValueError("AXIArbiter interleave mode: the target ID width ({}) must hold the "
+                "masters' IDs and their index ({}).".format(target.id_width, axi_interleaved_id_width(masters)))
+
+        # # #
+
+        if len(read_masters):
+            self.add_interleaved_reads(read_masters, target, id_width, r_buffer)
+        if len(write_masters):
+            self.add_interleaved_writes(write_masters, target, id_width, w_queue_depth, w_buffer)
+
+    @staticmethod
+    def _tag(m_id, id_width, index, index_bits):
+        """A master's ID padded to `id_width` bits, its index above."""
+        pad = id_width - len(m_id)
+        return Cat(m_id, C(0, pad), C(index, index_bits)) if pad else Cat(m_id, C(index, index_bits))
+
+    def add_interleaved_reads(self, masters, target, id_width, r_buffer):
+        n          = len(masters)
+        index_bits = _axi_index_bits(n)
+        fields     = _axi_ax_fields(target.ar)
+
+        # Read Address: per-request round robin.
+        ar_sel  = Signal(max=max(2, n))
+        ar_cur  = Signal(max=max(2, n)) # The master presented this cycle.
+        ar_hold = Signal()              # A request was presented and not taken: keep it.
+        ar_pick, ar_case = _axi_rr_next(ar_sel, [m.ar.valid for m in masters], n)
+        self.comb += ar_case
+        self.comb += If(ar_hold, ar_cur.eq(ar_sel)).Else(ar_cur.eq(ar_pick))
+        for i, m in enumerate(masters):
+            self.comb += If(ar_cur == i,
+                target.ar.valid.eq(m.ar.valid),
+                *[getattr(target.ar, f).eq(getattr(m.ar, f)) for f in fields],
+                target.ar.id.eq(self._tag(m.ar.id, id_width, i, index_bits)),
+                m.ar.ready.eq(target.ar.ready),
+            )
+        self.sync += [
+            ar_sel.eq(ar_cur),
+            ar_hold.eq(target.ar.valid & ~target.ar.ready),
+        ]
+
+        # Read Data: back by the index bits.
+        r_index  = Signal(index_bits)
+        r_readys = []
+        self.comb += r_index.eq(target.r.id[id_width:id_width + index_bits])
+        for i, m in enumerate(masters):
+            if r_buffer:
+                fifo = stream.SyncFIFO([("data", target.data_width), ("resp", 2), ("id", m.id_width)],
+                    depth    = r_buffer,
+                    buffered = True,
+                )
+                self.add_module(name=f"r_buffer{i}", module=fifo)
+                self.comb += [
+                    fifo.sink.valid.eq(target.r.valid & (r_index == i)),
+                    fifo.sink.last.eq(target.r.last),
+                    fifo.sink.data.eq(target.r.data),
+                    fifo.sink.resp.eq(target.r.resp),
+                    fifo.sink.id.eq(target.r.id[:m.id_width]),
+                    m.r.valid.eq(fifo.source.valid),
+                    m.r.last.eq(fifo.source.last),
+                    m.r.data.eq(fifo.source.data),
+                    m.r.resp.eq(fifo.source.resp),
+                    m.r.id.eq(fifo.source.id),
+                    fifo.source.ready.eq(m.r.ready),
+                ]
+                r_readys.append(fifo.sink.ready)
+            else:
+                self.comb += [
+                    m.r.valid.eq(target.r.valid & (r_index == i)),
+                    m.r.last.eq(target.r.last),
+                    m.r.data.eq(target.r.data),
+                    m.r.resp.eq(target.r.resp),
+                    m.r.id.eq(target.r.id[:m.id_width]),
+                ]
+                r_readys.append(m.r.ready)
+        self.comb += target.r.ready.eq(Array(r_readys)[r_index])
+
+    def add_interleaved_writes(self, masters, target, id_width, w_queue_depth, w_buffer):
+        n          = len(masters)
+        index_bits = _axi_index_bits(n)
+        fields     = _axi_ax_fields(target.aw)
+        dw         = target.data_width
+
+        # Write Data: buffered per master; `bursts[i]` counts its complete bursts not yet granted.
+        w_buffers = []
+        bursts    = []
+        for i, m in enumerate(masters):
+            fifo = stream.SyncFIFO([("data", dw), ("strb", dw//8)], depth=w_buffer, buffered=True)
+            self.add_module(name=f"w_buffer{i}", module=fifo)
+            self.comb += [
+                fifo.sink.valid.eq(m.w.valid),
+                fifo.sink.last.eq(m.w.last),
+                fifo.sink.data.eq(m.w.data),
+                fifo.sink.strb.eq(m.w.strb),
+                m.w.ready.eq(fifo.sink.ready),
+            ]
+            w_buffers.append(fifo)
+            bursts.append(Signal(max=w_buffer + 1, name=f"w_bursts{i}"))
+
+        # Write Address: queued per master; per-burst round robin among the masters with a whole
+        # burst buffered, the grants queued in AW order for W.
+        self.w_order = w_order = stream.SyncFIFO([("index", index_bits)], depth=w_queue_depth)
+        aw_queues = []
+        for i, m in enumerate(masters):
+            layout = [(f, len(getattr(m.aw, f))) for f in fields] + [("id", m.id_width)]
+            queue  = stream.SyncFIFO(layout, depth=4)
+            self.add_module(name=f"aw_queue{i}", module=queue)
+            self.comb += [
+                queue.sink.valid.eq(m.aw.valid),
+                *[getattr(queue.sink, f).eq(getattr(m.aw, f)) for f in fields],
+                queue.sink.id.eq(m.aw.id),
+                m.aw.ready.eq(queue.sink.ready),
+            ]
+            aw_queues.append(queue)
+        w_done_early = Signal()
+        aw_valid     = Signal()
+        aw_sel       = Signal(max=max(2, n))
+        aw_cur       = Signal(max=max(2, n))
+        aw_hold      = Signal()
+        aw_pick, aw_case = _axi_rr_next(aw_sel, [aw_queues[i].source.valid & (bursts[i] != 0) for i in range(n)], n)
+        self.comb += aw_case
+        self.comb += If(aw_hold, aw_cur.eq(aw_sel)).Else(aw_cur.eq(aw_pick))
+        for i, m in enumerate(masters):
+            queue = aw_queues[i].source
+            self.comb += If(aw_cur == i,
+                aw_valid.eq(queue.valid & (bursts[i] != 0)),
+                *[getattr(target.aw, f).eq(getattr(queue, f)) for f in fields],
+                target.aw.id.eq(self._tag(queue.id, id_width, i, index_bits)),
+                queue.ready.eq(target.aw.ready & w_order.sink.ready & (bursts[i] != 0)),
+            )
+        self.comb += [
+            target.aw.valid.eq(aw_valid & w_order.sink.ready),
+            w_order.sink.valid.eq(target.aw.valid & target.aw.ready & ~w_done_early),
+            w_order.sink.index.eq(aw_cur),
+        ]
+        self.sync += [
+            aw_sel.eq(aw_cur),
+            aw_hold.eq(target.aw.valid & ~target.aw.ready),
+        ]
+
+        # Burst counts: +1 when a master's WLAST enters its buffer, -1 when its AW is granted.
+        aw_fire = Signal()
+        self.comb += aw_fire.eq(target.aw.valid & target.aw.ready)
+        for i, m in enumerate(masters):
+            sink = w_buffers[i].sink
+            self.sync += bursts[i].eq(bursts[i] + (sink.valid & sink.ready & sink.last) - (aw_fire & (aw_cur == i)))
+
+        # Write Data out: from the buffer of the master at the head of the AW order until WLAST, or,
+        # with the order empty, from the buffer of the master whose AW is presented (a target may
+        # wait for WVALID before it takes the AW: its burst is whole in the buffer, so it can go
+        # ahead; once its last beat is out before the AW is taken (`ahead`), nothing more is sent
+        # until it is, and that AW is not queued).
+        ahead        = Signal()
+        from_pending = Signal()
+        w_index      = Signal(index_bits)
+        w_last_fire  = Signal()
+        self.comb += [
+            from_pending.eq(~w_order.source.valid & target.aw.valid & ~ahead),
+            w_index.eq(Mux(w_order.source.valid, w_order.source.index, aw_cur)),
+        ]
+        for i, m in enumerate(masters):
+            source = w_buffers[i].source
+            self.comb += If((w_order.source.valid | from_pending) & (w_index == i),
+                target.w.valid.eq(source.valid),
+                target.w.last.eq(source.last),
+                target.w.data.eq(source.data),
+                target.w.strb.eq(source.strb),
+                source.ready.eq(target.w.ready),
+            )
+        self.comb += [
+            w_last_fire.eq(target.w.valid & target.w.ready & target.w.last),
+            w_order.source.ready.eq(w_order.source.valid & w_last_fire),
+            # The presented AW's burst completed: in this cycle or before.
+            w_done_early.eq(ahead | (from_pending & w_last_fire)),
+        ]
+        self.sync += [
+            If(aw_fire,
+                ahead.eq(0),
+            ).Elif(from_pending & w_last_fire,
+                ahead.eq(1),
+            )
+        ]
+
+        # Write Response: back by the index bits.
+        b_index = Signal(index_bits)
+        self.comb += b_index.eq(target.b.id[id_width:id_width + index_bits])
+        for i, m in enumerate(masters):
+            self.comb += [
+                m.b.valid.eq(target.b.valid & (b_index == i)),
+                m.b.resp.eq(target.b.resp),
+                m.b.id.eq(target.b.id[:m.id_width]),
+            ]
+        self.comb += target.b.ready.eq(Array([m.b.ready for m in masters])[b_index])
 
 class AXIDecoder(LiteXModule):
     """AXI decoder
@@ -1579,13 +1836,26 @@ class AXIInterconnectPointToPoint(LiteXModule):
         self.comb += master.connect(slave)
 
 class AXIInterconnectShared(LiteXModule):
-    """AXI shared interconnect"""
-    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6):
+    """AXI shared interconnect
+
+    interleave: AXIArbiter's interleaving mode; the shared bus then carries the masters' index in
+    its upper ID bits, so the slaves' ID width must hold axi_interleaved_id_width(masters).
+    """
+    def __init__(self, masters, slaves, register=False, timeout_cycles=1e6, interleave=False):
         data_width = get_check_parameters(ports=masters + [s for _, s in slaves])
         adr_width = max([m.address_width for m in masters])
         id_width = max([m.id_width for m in masters])
-        shared = AXIInterface(data_width=data_width, address_width=adr_width, id_width=id_width)
-        self.arbiter = AXIArbiter(masters, shared)
+        if interleave:
+            id_width = axi_interleaved_id_width(masters)
+            for _, s in slaves:
+                if s.id_width < id_width:
+                    raise ValueError("AXIInterconnectShared interleave mode: the slaves' ID width must "
+                        "be at least {}.".format(id_width))
+            shared = AXIInterface(data_width=data_width, address_width=adr_width, id_width=id_width)
+            self.arbiter = AXIArbiter(masters, shared, interleave=True)
+        else:
+            shared = AXIInterface(data_width=data_width, address_width=adr_width, id_width=id_width)
+            self.arbiter = AXIArbiter(masters, shared)
         self.decoder = AXIDecoder(shared, slaves)
         if timeout_cycles is not None:
             self.timeout = AXITimeout(shared, timeout_cycles)
