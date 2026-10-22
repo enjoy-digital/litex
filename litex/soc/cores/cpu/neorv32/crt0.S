@@ -98,6 +98,7 @@ trap_vector:
 	mret
 
 .bss
+  .p2align 2 // lw/sw below: a misaligned word (after a 2-byte .bss object) traps before the trap handler has a stack.
   smp_lottery_target: .word 0
   smp_lottery_args:   .word 0; .word 0; .word 0
   smp_lottery_lock:   .word 0
