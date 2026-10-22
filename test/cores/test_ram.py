@@ -541,6 +541,37 @@ class TestEfinixRAM(unittest.TestCase):
         self.assertIn(ddr.axi_pads.awaddr, platform.toolchain.excluded_ios)
         self.assertIn(ddr.cfg_pads.done, platform.toolchain.excluded_ios)
 
+        self.assertIsNone(block["axi1"])
+        self.assertFalse(hasattr(ddr, "bus1"))
+
+    def test_efinix_ddr_second_target(self):
+        platform = _FakeEfinixDDRPlatform()
+        ddr = EfinixDDR(
+            platform       = platform,
+            memory_type    = "LPDDR4x",
+            memory_density = "8G",
+            clkin_sel      = "CLKIN 0",
+            targets        = 2,
+        )
+
+        block = platform.toolchain.ifacewriter.get_block("ddr_inst1")
+        self.assertIs(block["axi"], ddr.axi_pads)
+        self.assertIsNotNone(block["axi1"])
+        self.assertEqual(ddr.bus1.data_width, 512)
+        self.assertEqual(ddr.bus1.id_width, 6)
+        self.assertEqual(len(block["axi1"].arid), 6)
+        self.assertIn(block["axi1"].awaddr, platform.toolchain.excluded_ios)
+
+    def test_efinix_ddr_rejects_three_targets(self):
+        with self.assertRaisesRegex(ValueError, "one or two AXI targets"):
+            EfinixDDR(
+                platform       = _FakeEfinixDDRPlatform(),
+                memory_type    = "LPDDR4x",
+                memory_density = "8G",
+                clkin_sel      = "CLKIN 0",
+                targets        = 3,
+            )
+
     def test_efinix_ddr_preserves_configuration_start_delay(self):
         platform = _FakeEfinixDDRPlatform()
         ddr = EfinixDDR(

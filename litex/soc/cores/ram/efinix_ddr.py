@@ -165,42 +165,52 @@ class EfinixDDR(LiteXModule):
         address_width  = 33,
         id_width       = 6,  # The hard controller's AXI IDs: ARID/AWID/RID/BID[5:0].
         pin_swizzle    = None,
-        init_delay     = 256):
+        init_delay     = 256,
+        targets        = 1):  # AXI targets: 1 (bus) or 2 (bus and bus1, sharing the controller).
 
         if clock_domain not in platform.clks:
             raise ValueError("Efinix DDR clock domain {} has no Efinity clock.".format(clock_domain))
         if init_delay < 1:
             raise ValueError("Efinix DDR initialization delay must be positive.")
+        if targets not in (1, 2):
+            raise ValueError("Efinix DDR has one or two AXI targets.")
 
         self.clock_domain = clock_domain
         self.awallstrb    = Signal()
         self.init_done    = Signal()
-        self.bus = axi.AXIInterface(
-            data_width    = data_width,
-            address_width = address_width,
-            id_width      = id_width,
-            clock_domain  = clock_domain,
-        )
 
-        # AXI Interface.
-        # --------------
-        axi_ios = self.bus.get_ios(interface_name)
-        axi_ios[0] += (
-            Subsignal("arapcmd",   Pins(1)),
-            Subsignal("awallstrb", Pins(1)),
-            Subsignal("awapcmd",   Pins(1)),
-            Subsignal("awcobuf",   Pins(1)),
-            Subsignal("resetn",    Pins(1)),
-        )
-        self.axi_pads = axi_pads = platform.add_iface_ios(axi_ios)
-        self.comb += self.bus.connect_to_pads(axi_pads, mode="master")
-        self.comb += [
-            axi_pads.arapcmd.eq(0),
-            axi_pads.awallstrb.eq(self.awallstrb),
-            axi_pads.awapcmd.eq(0),
-            axi_pads.awcobuf.eq(0),
-            axi_pads.resetn.eq(~ResetSignal(clock_domain)),
-        ]
+        # AXI Interfaces.
+        # ---------------
+        # Target 0 is `bus` (pads `interface_name`); with targets=2, target 1 is `bus1` (pads
+        # `interface_name` + "_1"), in the same clock domain: two ports into the one controller.
+        axi_pads_list = []
+        for t in range(targets):
+            bus = axi.AXIInterface(
+                data_width    = data_width,
+                address_width = address_width,
+                id_width      = id_width,
+                clock_domain  = clock_domain,
+            )
+            axi_ios = bus.get_ios(interface_name + ("_1" if t else ""))
+            axi_ios[0] += (
+                Subsignal("arapcmd",   Pins(1)),
+                Subsignal("awallstrb", Pins(1)),
+                Subsignal("awapcmd",   Pins(1)),
+                Subsignal("awcobuf",   Pins(1)),
+                Subsignal("resetn",    Pins(1)),
+            )
+            pads = platform.add_iface_ios(axi_ios)
+            self.comb += bus.connect_to_pads(pads, mode="master")
+            self.comb += [
+                pads.arapcmd.eq(0),
+                pads.awallstrb.eq(self.awallstrb),
+                pads.awapcmd.eq(0),
+                pads.awcobuf.eq(0),
+                pads.resetn.eq(~ResetSignal(clock_domain)),
+            ]
+            setattr(self, "bus1" if t else "bus", bus)
+            axi_pads_list.append(pads)
+        self.axi_pads = axi_pads = axi_pads_list[0]
 
         # Configuration Interface.
         # ------------------------
@@ -240,6 +250,7 @@ class EfinixDDR(LiteXModule):
             "physical_rank"   : physical_rank,
             "clkin_sel"       : clkin_sel,
             "axi"             : axi_pads,
+            "axi1"            : axi_pads_list[1] if targets > 1 else None,
             "axi_clk"         : platform.clks[clock_domain],
             "axi_data_width"  : data_width,
             "cfg"             : cfg_pads,
