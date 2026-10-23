@@ -353,6 +353,23 @@ class TITANIUMPLL(EFINIXPLL):
     def __init__(self, platform, dyn_phase_shift_pads=None):
         EFINIXPLL.__init__(self, platform, version="V3", dyn_phase_shift_pads=dyn_phase_shift_pads)
 
+    def set_config(self, M, N, O, dividers, phase_settings={}):
+        """Force the PLL configuration (applied after Efinity's auto-calculated one).
+
+        Efinity selects the highest VCO frequency; this allows selecting the dividers explicitly,
+        ex to get a specific dynamic phase shift step (half a post-divider O period).
+
+        - dividers       : {clkout: divider}.
+        - phase_settings : {clkout: phase setting} (in half post-divider O periods).
+        """
+        cmds = [f'design.set_property("{self.name}","{k}","{v}","PLL")' for k, v in [
+            ("M", M), ("N", N), ("O", O)]]
+        for n, div in dividers.items():
+            cmds.append(f'design.set_property("{self.name}","CLKOUT{n}_DIV","{int(div)}","PLL")')
+        for n, setting in phase_settings.items():
+            cmds.append(f'design.set_property("{self.name}","CLKOUT{n}_PHASE_SETTING","{int(setting)}","PLL")')
+        self.extra("\n".join(cmds))
+
 # Efinix / TRION ----------------------------------------------------------------------------------
 
 class TRIONPLL(EFINIXPLL):
