@@ -274,7 +274,7 @@ __attribute__((__used__)) int main(int i, char **c)
 
 	sdr_ok = 1;
 
-#ifdef CSR_HYPERRAM_BASE
+#if defined(CSR_HYPERRAM_REG_CONTROL_ADDR) || defined(CSR_HYPERRAM_CALIBRATION_ADDR)
 	hyperram_init();
 #endif
 
