@@ -35,6 +35,11 @@
 #define SDCARD_CLK_FREQ 25000000
 #endif
 
+/* (e)MMC operational frequency once in high speed timing (HS_TIMING, up to 52 MHz). */
+#ifndef SDCARD_MMC_CLK_FREQ
+#define SDCARD_MMC_CLK_FREQ 50000000
+#endif
+
 #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 
 #define BSWAP_32(x) ((uint32_t)((((x) >> 24) & 0xff) |  \
@@ -233,6 +238,32 @@ int sdcard_select_card(uint16_t rca) {
 	printf("CMD7: SELECT_CARD\n");
 #endif
 	return sdcard_send_command(rca << 16, 7, SDCARD_CTRL_RESPONSE_SHORT_BUSY | SDCARD_CTRL_RESPONSE_CRC);
+}
+
+/* (e)MMC commands */
+
+int mmc_send_op_cond(void) {
+	uint32_t arg = 0x40ff8080; /* Sector mode, 1.70-1.95 V and 2.7-3.6 V. */
+#ifdef SDCARD_DEBUG
+	printf("CMD1: SEND_OP_COND, arg: %08" PRIx32 "\n", arg);
+#endif
+	return sdcard_send_command(arg, 1, SDCARD_CTRL_RESPONSE_SHORT);
+}
+
+int mmc_set_relative_address(uint16_t rca) {
+#ifdef SDCARD_DEBUG
+	printf("CMD3: SET_RELATIVE_ADDR\n");
+#endif
+	return sdcard_send_command(rca << 16, 3, SDCARD_CTRL_RESPONSE_SHORT | SDCARD_CTRL_RESPONSE_CRC);
+}
+
+int mmc_switch(uint8_t index, uint8_t value) {
+	/* CMD6 SWITCH, access mode "write byte" into EXT_CSD[index]. */
+	uint32_t arg = (3 << 24) | (index << 16) | (value << 8);
+#ifdef SDCARD_DEBUG
+	printf("CMD6: SWITCH, EXT_CSD[%d] = %d\n", index, value);
+#endif
+	return sdcard_send_command(arg, 6, SDCARD_CTRL_RESPONSE_SHORT_BUSY | SDCARD_CTRL_RESPONSE_CRC);
 }
 
 int sdcard_app_set_bus_width(void) {
@@ -548,6 +579,65 @@ static int sdcard_get_scr(uint32_t *buf, uint16_t rca)
 /* SDCard user functions                                                 */
 /*-----------------------------------------------------------------------*/
 
+/* (e)MMC: the device answered CMD1 (no CMD8): identification with a host-assigned RCA, then
+   EXT_CSD switches to the widest bus the PHY has and to high speed timing. */
+static int mmc_init(void) {
+	uint16_t rca = 1, timeout;
+	uint32_t r[SD_CMD_RESPONSE_SIZE/4];
+
+	/* Wait for power-up (OCR busy bit) */
+	for (timeout=1000; timeout>0; timeout--) {
+		if (mmc_send_op_cond() == SD_OK) {
+			csr_rd_buf_uint32(CSR_SDCARD_CORE_CMD_RESPONSE_ADDR,
+			  r, SD_CMD_RESPONSE_SIZE/4);
+			if (r[0] & 0x80000000)
+				break;
+		}
+		busy_wait(1);
+	}
+	if (timeout == 0)
+		return 0;
+
+	/* OCR access mode: sector addresses (devices above 2 GB) or byte addresses. */
+	sdcard_ccs = ((r[0] >> 29) & 0x3) == 0x2;
+#ifdef SDCARD_CMD23_SUPPORT
+	support_cmd23 = 1; /* SET_BLOCK_COUNT is mandatory since MMC 4.3. */
+#endif
+
+	if (sdcard_all_send_cid() != SD_OK)
+		return 0;
+	if (mmc_set_relative_address(rca) != SD_OK)
+		return 0;
+	if (sdcard_send_csd(rca) != SD_OK)
+		return 0;
+	if (sdcard_select_card(rca) != SD_OK)
+		return 0;
+
+	/* Set SD clk freq to Operational frequency (legacy MMC timing: up to 26 MHz) */
+	sdcard_set_clk_freq(SDCARD_CLK_FREQ, 0);
+
+	/* Bus width (EXT_CSD BUS_WIDTH): 8-bit when the PHY has it, else 4-bit */
+#ifdef SDCARD_PHY_SUPPORT_8X
+	if (mmc_switch(183, 2) != SD_OK)
+		return 0;
+	sdcard_phy_settings_write(SD_PHY_SPEED_8X);
+#else
+	if (mmc_switch(183, 1) != SD_OK)
+		return 0;
+	sdcard_phy_settings_write(SD_PHY_SPEED_4X);
+#endif
+
+	/* High speed timing (EXT_CSD HS_TIMING) */
+	if (mmc_switch(185, 1) == SD_OK)
+		sdcard_set_clk_freq(SDCARD_MMC_CLK_FREQ, 0);
+
+	/* Set block length */
+	if (sdcard_app_set_blocklen(512) != SD_OK)
+		return 0;
+
+	return 1;
+}
+
 int sdcard_init(void) {
 	uint16_t rca, timeout;
 	uint32_t r[SD_CMD_RESPONSE_SIZE/4];
@@ -572,6 +662,10 @@ int sdcard_init(void) {
 		/* Set SDCard voltages, only supported by ver2.00+ SDCards */
 		if (sdcard_send_ext_csd() == SD_OK)
 			break;
+
+		/* No answer to CMD8 but to CMD1: an (e)MMC device */
+		if (mmc_send_op_cond() == SD_OK)
+			return mmc_init();
 	}
 	if (timeout == 0)
 		return 0;
