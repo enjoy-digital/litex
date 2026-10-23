@@ -50,14 +50,13 @@ class PeppercornToolchain(YosysNextPNRToolchain):
                 tpl = "create_clock -name {name} -period {period} [get_nets {{{clk}}}]"
                 sdc.append(tpl.format(name=name, clk=clk_sig, period=str(period)))
 
-        # False path constraints
-        for from_, to in sorted(self.false_paths, key=lambda x: (x[0].duid, x[1].duid)):
-            tpl = "set_false_path -from [get_clocks {{{from_}}}] -to [get_clocks {{{to}}}]"
-            sdc.append(tpl.format(from_=vns.get_name(from_), to=vns.get_name(to)))
+        # False path constraints: not generated, nextpnr does not support get_clocks and ignores
+        # set_false_path; paths between unrelated clocks are only reported, not timed.
 
         # Generate .sdc
         tools.write_to_file("{}.sdc".format(self._build_name), "\n".join(sdc))
 
+        # Default target for unconstrained clocks (constrained ones use the .sdc periods).
         # FIXME: NextPNRWrapper is constructed at finalize level, too early
         # to update self._pnr_opts. The solution is to update _nextpnr instance.
         if max_freq > 0:
@@ -85,7 +84,7 @@ class PeppercornToolchain(YosysNextPNRToolchain):
             else:
                 pnr_opts += f" --vopt strategy={self._strategy}"
 
-        #pnr_opts += " --sdc {top}.sdc"
+        pnr_opts += " --sdc {top}.sdc"
         self._pnr_opts += pnr_opts.format(
             device     = self.platform.device,
             top        = self._build_name,
