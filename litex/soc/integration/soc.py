@@ -1601,7 +1601,7 @@ class SoC(LiteXModule):
 
     # Add HyperRAM ---------------------------------------------------------------------------------
     def add_hyperram(self, name="hyperram", pads=None, origin=None, size=None, mode="rwx",
-        region_name=None, number=None, cached=True, linker=False,
+        region_name=None, number=None, cached=True, linker=False, module=None,
         l2_cache_size           = 0,
         l2_cache_reverse        = True,
         l2_cache_full_memory_we = True,
@@ -1631,30 +1631,37 @@ class SoC(LiteXModule):
             region_name = name
         if origin is None:
             origin = self.mem_map.get(region_name, None)
-        if pads is None:
-            pads = self.platform.request(name) if number is None else self.platform.request(name, number)
-
         # Core.
         self.check_if_exists(name)
-        bus_kwargs = (
-            {"bus_standard": "wishbone"} if l2_cache_size else
-            self.bus.get_bus_standard_kwargs(with_axi_id_width=True)
-        )
-        hyperram = HyperRAM(
-            pads         = pads,
-            sys_clk_freq = self.sys_clk_freq,
-            **bus_kwargs,
-            **kwargs,
-        )
+        if module is not None:
+            # Pre-built HyperRAM controller (ex: litex.soc.cores.hyperram.HyperRAMController).
+            hyperram = module
+        else:
+            if pads is None:
+                pads = self.platform.request(name) if number is None else self.platform.request(name, number)
+            bus_kwargs = (
+                {"bus_standard": "wishbone"} if l2_cache_size else
+                self.bus.get_bus_standard_kwargs(with_axi_id_width=True)
+            )
+            hyperram = HyperRAM(
+                pads         = pads,
+                sys_clk_freq = self.sys_clk_freq,
+                **bus_kwargs,
+                **kwargs,
+            )
 
         # Optional L2 Cache.
         bus = hyperram.bus
         if l2_cache_size:
-            bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+            bus      = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+            cache_wb = hyperram.bus
+            if isinstance(hyperram.bus, axi.AXIInterface):
+                cache_wb = wishbone.Interface(data_width=hyperram.bus.data_width, address_width=32, addressing="word")
+                self.add_module(name=f"{name}_wb2axi", module=axi.Wishbone2AXI(cache_wb, hyperram.bus))
             cache = wishbone.Cache(
                 cachesize = l2_cache_size//4,
                 master    = bus,
-                slave     = hyperram.bus,
+                slave     = cache_wb,
                 reverse   = l2_cache_reverse,
             )
             if l2_cache_full_memory_we:
