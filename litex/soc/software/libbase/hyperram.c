@@ -7,7 +7,7 @@
 
 #include <generated/csr.h>
 
-#ifdef CSR_HYPERRAM_BASE
+#ifdef CSR_HYPERRAM_REG_CONTROL_ADDR
 
 static void hyperram_write_reg(uint16_t reg_addr, uint16_t data) {
     /* Write data to the register */
@@ -147,6 +147,25 @@ void hyperram_init(void) {
     /* Read current configuration to verify changes */
     config_reg_0 = hyperram_read_reg(HYPERRAM_CONFIG_0_REG);
     printf("HyperRAM Configuration Register 0: %04x\n", config_reg_0);
+    printf("\n");
+}
+
+#endif
+
+#if defined(CSR_HYPERRAM_CALIBRATION_ADDR) && !defined(CSR_HYPERRAM_REG_CONTROL_ADDR)
+
+/* HyperRAM controller (litex.soc.cores.hyperram): read capture calibration is done in
+   gateware, wait for it and report the result. */
+void hyperram_init(void) {
+    uint32_t status;
+    printf("HyperRAM init...\n");
+    do {
+        status = hyperram_calibration_read();
+    } while (!(status & (1 << CSR_HYPERRAM_CALIBRATION_DONE_OFFSET)));
+    printf("HyperRAM Read Calibration: %s (phase %d, passing phases: 0x%02x)\n",
+        (status & (1 << CSR_HYPERRAM_CALIBRATION_ERROR_OFFSET)) ? "KO" : "OK",
+        (status >> CSR_HYPERRAM_CALIBRATION_PHASE_OFFSET)  & 0xff,
+        (status >> CSR_HYPERRAM_CALIBRATION_PASSES_OFFSET) & 0xff);
     printf("\n");
 }
 

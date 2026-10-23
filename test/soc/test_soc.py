@@ -1381,6 +1381,32 @@ class TestSoC(unittest.TestCase):
                 if bus_standard == "axi":
                     self.assertEqual(hyperram.bus.id_width, 4)
 
+    def test_add_hyperram_with_module(self):
+        from litex.soc.cores.hyperram import HyperRAMPHYInterface, HyperRAMController
+
+        class _PHY:
+            def __init__(self):
+                self.phy_if = HyperRAMPHYInterface(dq_width=16)
+
+        for l2_cache_size in [0, 1024]:
+            with self.subTest(l2_cache_size=l2_cache_size):
+                soc    = SoC(_FakePlatform(), sys_clk_freq=100e6)
+                module = HyperRAMController(_PHY(), clk_freq=100e6, size=0x1000)
+                hyperram = soc.add_hyperram(
+                    region_name   = "main_ram",
+                    origin        = 0x4000_0000,
+                    size          = 0x1000,
+                    l2_cache_size = l2_cache_size,
+                    module        = module,
+                )
+
+                self.assertIs(hyperram, module)
+                self.assertIs(soc.hyperram, module)
+                self.assertEqual(soc.bus.regions["main_ram"].origin, 0x4000_0000)
+                # AXI module on a Wishbone SoC: bridged by the L2 cache path or by the SoC adapter.
+                self.assertIsInstance(soc.bus.slaves["main_ram"], wishbone.Interface)
+                self.assertEqual(hasattr(soc, "hyperram_wb2axi"), bool(l2_cache_size))
+
     def test_add_hyperram_uses_mem_map_origin(self):
         soc = SoC(_FakePlatform(), sys_clk_freq=100e6)
         soc.mem_map["hyperram"] = 0x2000_0000
