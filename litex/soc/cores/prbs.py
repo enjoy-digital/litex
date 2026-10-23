@@ -170,7 +170,10 @@ class PRBSRX(LiteXModule):
         ]
 
         # Errors count (with optional saturation).
-        error = Signal()
+        error        = Signal()
+        count_enable = ~self.pause
+        if with_errors_saturation:
+            count_enable = count_enable & (errors != (2**errors_width-1))
         self.sync += [
             Case(config, {
                 PRBS_CONFIG_OFF    : error.eq(0),
@@ -180,7 +183,7 @@ class PRBSRX(LiteXModule):
             }),
             If(config == PRBS_CONFIG_OFF,
                 errors.eq(0)
-            ).Elif(~self.pause & (~with_errors_saturation | (errors != (2**errors_width-1))),
+            ).Elif(count_enable,
                 errors.eq(errors + error)
             )
         ]
