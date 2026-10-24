@@ -811,9 +811,14 @@ static DSTATUS sd_disk_initialize(BYTE drv) {
 }
 
 static DRESULT sd_disk_read(BYTE drv, BYTE *buf, LBA_t block, UINT count) {
+#ifdef CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR
 	if (sdcard_read(block, count, buf) != SD_OK)
 		return RES_ERROR;
 	return RES_OK;
+#else
+	/* No block2mem DMA (SD core streams consumed by the gateware): no reads into CPU memory. */
+	return RES_ERROR;
+#endif
 }
 
 static DISKOPS SdCardDiskOps = {
