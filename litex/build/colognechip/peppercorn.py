@@ -90,7 +90,7 @@ class PeppercornToolchain(YosysNextPNRToolchain):
             top        = self._build_name,
         )
 
-        self._packer_opts += "{top}.txt {top}.bit".format(
+        self._packer_opts += "--reset {top}.txt {top}.bit".format(
             top = self._build_name
         )
 
