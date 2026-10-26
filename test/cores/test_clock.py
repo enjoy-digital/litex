@@ -165,6 +165,16 @@ class TestClock(unittest.TestCase):
             pll.create_clkout(ClockDomain("clkout{}".format(i)), 200e6)
         pll.compute_config()
 
+    # Lattice / ECP5
+    def test_ecp5_pll_prefers_lower_vco(self):
+        pll = ECP5PLL()
+        pll.register_clkin(Signal(), 48e6)
+        pll.create_clkout(ClockDomain("clkout0"), 96e6)
+        pll.create_clkout(ClockDomain("clkout1"), 48e6)
+        config = pll.compute_config()
+        self.assertEqual(config["vco"], 480e6)
+        self.assertEqual(config["clkfb_div"], 10)
+
     def test_ice40_pll_rejects_out_of_range_frequencies(self):
         pll = iCE40PLL()
         with self.assertRaisesRegex(ValueError, "Input clock frequency"):
