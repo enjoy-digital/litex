@@ -14,14 +14,15 @@ logic (Modules, Signals, finite state machines, clock domains) and generates the
 Python does everything around it: parameters, address maps, generated software headers,
 toolchain scripts, simulation, host scripts talking to the running SoC. This is what makes a
 SoC a few lines long: the heavy lifting is in reusable cores and in the integration logic
-of the framework, not in each design. See [Migen-Amaranth](Migen-Amaranth.md) for why Migen
-and how other HDLs fit in.
+of the framework, not in each design.
 
-The flip side: a LiteX core is Python, so an experienced Verilog/VHDL engineer has to learn
-Migen's few concepts (`sync` vs `comb`, `Signal`, `If/Else`, `FSM`, `Record`). The
-[LiteX for Hardware Engineers](LiteX-for-Hardware-Engineers.asciidoc) page is written for
-that reader, and existing Verilog/VHDL/Amaranth/SpinalHDL cores are
-[reused as they are](Reuse-a-SystemVerilog-VHDL-Amaranth-Spinal-HDL-Chisel-core.md).
+Migen is a small DSL (`sync` vs `comb`, `Signal`, `If/Else`, `FSM`, `Record`) shared by the
+whole ecosystem of cores, and LiteX stays on it: it is stable, well understood, and no longer a
+barrier for an engineer coming from Verilog/VHDL, all the more since today's AI coding assistants
+are fluent in it. The [LiteX for Hardware Engineers](LiteX-for-Hardware-Engineers.asciidoc) page
+is written for that reader, and existing Verilog/VHDL/Amaranth/SpinalHDL/Chisel cores are
+[reused as they are](Reuse-a-SystemVerilog-VHDL-Amaranth-Spinal-HDL-Chisel-core.md), converted
+to Verilog at build time when needed.
 
 ## A SoC is a composition of cores with stable contracts
 

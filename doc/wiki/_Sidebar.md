@@ -10,7 +10,6 @@
   * [LiteX for Hardware Engineers](LiteX-for-Hardware-Engineers.asciidoc)
   * [Projects](Projects.md)
   * [Feedback-Contribution-Support](Feedback-Contribution-Support.md)
-  * [Migen-Amaranth](Migen-Amaranth.md)
   * [Contributing to the Wiki](Contributing-to-the-Wiki.md)
 * LiteX's internals
   * [Cores-_TODO_](Cores.md)

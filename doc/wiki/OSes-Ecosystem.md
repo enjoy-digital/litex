@@ -9,8 +9,8 @@ software always matches the hardware configuration. Pick what fits the job:
 | | Runs on | Good for |
 | --- | --- | --- |
 | [BIOS and bare metal](#bios-and-bare-metal) | every CPU | bring-up, control firmware, the smallest SoCs |
-| [RTOS](#rtos): Zephyr, FreeRTOS, NuttX | VexRiscv, VexiiRiscv (Zephyr) and other RV32 cores | real-time firmware with a scheduler and a driver model |
-| [MicroPython, Rust, MQuickJS](#micropython-rust-and-others) | RV32 cores | scripting the SoC, memory-safe firmware |
+| [RTOS](#rtos): [Zephyr](https://www.zephyrproject.org/), [FreeRTOS](https://github.com/enjoy-digital/freertos-on-litex), [NuttX](https://nuttx.apache.org/) | VexRiscv, VexiiRiscv (Zephyr) and other RV32 cores | real-time firmware with a scheduler and a driver model |
+| [Scripting and others](#micropython-rust-and-others): [MicroPython](https://github.com/litex-hub/micropython), Rust, [MQuickJS](https://github.com/enjoy-digital/mquickjs-on-litex) | RV32 cores | scripting the SoC, memory-safe firmware |
 | [Linux](#linux) | VexRiscv-SMP, NaxRiscv, VexiiRiscv, Rocket, Mor1kx, BlackParrot, Microwatt, hard CPUs | the full software ecosystem, networking, storage |
 
 ## BIOS and bare metal

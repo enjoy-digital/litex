@@ -21,7 +21,6 @@ the repository). Pages marked TODO are placeholders being written.
 - [Tutorials-Resources](https://github.com/enjoy-digital/litex/wiki/Tutorials-Resources): tutorials, workshops, example projects, blog posts and talks
 - [Projects](https://github.com/enjoy-digital/litex/wiki/Projects): industrial and open-source projects built with LiteX
 - [Feedback-Contribution-Support](https://github.com/enjoy-digital/litex/wiki/Feedback-Contribution-Support): how to report an issue (what to include), contribute a pull request, get support
-- [Migen-Amaranth](https://github.com/enjoy-digital/litex/wiki/Migen-Amaranth): why LiteX is built on Migen, and how Amaranth cores are used with it
 - [Contributing-to-the-Wiki](https://github.com/enjoy-digital/litex/wiki/Contributing-to-the-Wiki): the wiki is generated from doc/wiki in the repository, how to edit it, links, images, diagrams
 - [LiteX-for-Hardware-Engineers](https://github.com/enjoy-digital/litex/wiki/LiteX-for-Hardware-Engineers): an introduction to LiteX for engineers used to Verilog and Vivado (2018, by bunnie)
 
