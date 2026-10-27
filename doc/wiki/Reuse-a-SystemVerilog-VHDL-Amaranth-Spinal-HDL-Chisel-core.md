@@ -1,5 +1,5 @@
 # Intro
-Most of the open-source/shared LiteX designs are directly described in Migen/LiteX, but LiteX but is also **heavily used** to integrate/reuse traditional **Verilog/VHDL** cores (commercial or open-source) and also to integrate cores described in **Spinal-HDL, nMigen or other high level HDL DSL** through **Verilog**.
+Most of the open-source/shared LiteX designs are directly described in Migen/LiteX, but LiteX but is also **heavily used** to integrate/reuse traditional **Verilog/VHDL** cores (commercial or open-source) and also to integrate cores described in **Spinal-HDL, Amaranth or other high level HDL DSL** through **Verilog**.
 
 It is for example very common to create mixed language SoC similar to the following one:
 
@@ -63,7 +63,7 @@ params_ios.update(
    io_dinout = dinout
 )
 # Do the Instance:
-self.specials += Instance("custom_core", **self.params_ios)
+self.specials += Instance("custom_core", **params_ios)
 ```
 Splitting the Instance allows the use of Python as a powerful pre-processor to define the Parameters and/or assign the IOs.
 
@@ -114,13 +114,13 @@ As can be seen, to simplify things for the User, **LiteX automatically determine
 |      Extension    | Language       |
 |-------------------|----------------|
 | .vhd, .vhdl, .vho | VHDL           |
-| .v, .vh, .vo      | Verilog        |
+| .v, .vh, .vo, .vp | Verilog        |
 | .sv, .svo         | System Verilog |
 
 Still to simplify things for User, it is possible to **pass multiple sources at once** with `platform.add_sources(...)`:
 
 ```python3
-platform.add_sources(path="./",
+platform.add_sources("./",
   "core0.v",
   "core1.vhd",
   "core2.sv"
@@ -155,3 +155,14 @@ The [Betrusted.io](https://github.com/betrusted-io) project relies on LiteX for 
 In some cases, some encrypted cores or proprietary core formats needs to be passed to the toolchain: On Xilinx design you'll generally have to integrate `.xci` files or `.tcl` scripts that will automatically generate the cores.
 
 Most of these use-cases are probably already supported by LiteX but aren't (yet) documented here. Please have a look at the LiteX source code, the different LiteX [ressources](Tutorials-Resources.md), [projects](Projects.md) or at the targets from [LiteX-Boards](https://github.com/litex-hub/litex-boards/tree/master/litex_boards/targets) to find similar integration cases.
+
+# Converting at build time: VHDL, Amaranth, SystemVerilog
+
+When the toolchain does not read the language of the core, LiteX converts it to Verilog during the build:
+
+- **VHDL** with GHDL: `litex.build.vhd2v_converter.VHD2VConverter` (`platform`, `top_entity`, `build_dir`, `work_package`, `force_convert`, `flatten_source`, `add_instance`, `params`, `files`, `libraries`). When the toolchain supports VHDL (Vivado, Quartus, Diamond...) and `force_convert` is not set, it simply adds the VHDL sources; otherwise it runs `ghdl --synth --out=verilog` (optionally flattened with Yosys) and instantiates the result. Examples: `litex/soc/cores/cpu/neorv32/core.py`, `litex/soc/cores/cpu/microwatt/core.py`, `litex/soc/cores/can/ctu_can_fd.py`.
+- **Amaranth**: `litex.build.amaranth2v_converter.Amaranth2VConverter(platform, name, module, ports, domains, core_params, clock_domains, output_dir)` elaborates the `Elaboratable` with its parameters, writes the Verilog, adds it as a source and instantiates it. Examples: `litex/soc/cores/cpu/minerva/core.py`, `sentinel/core.py`, `litex/soc/cores/luna_cdc_acm.py` (LUNA).
+- **SystemVerilog** with the open-source flows: `--yosys-slang` makes Yosys read it through the slang plugin (Vivado, Quartus and the other vendor tools read SystemVerilog natively).
+- **SpinalHDL, Chisel**: generate the Verilog with sbt (at build time when the parameters depend on the SoC, as the VexRiscv-SMP, NaxRiscv and VexiiRiscv wrappers do, or once and commit it, as the `pythondata-cpu-vexriscv` package does).
+
+`litex_read_verilog core.v [module]` (needs Yosys) prints the ports of a Verilog module as the `Instance(...)` skeleton to paste in a wrapper.

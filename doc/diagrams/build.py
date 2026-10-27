@@ -41,6 +41,8 @@ DIAGRAMS = {
     "litex-buses":             2800,
     "litex-csr-bus":           2800,
     "litex-axi":               2800,
+    "litex-cpu-integration":   2800,
+    "litex-core-anatomy":      2800,
 }
 
 def run(cmd, **kw):

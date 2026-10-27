@@ -47,8 +47,8 @@ git clone https://github.com/enjoy-digital/openocd && cd openocd
 ```
 
 In a platform: `OpenOCD("openocd_xc7_ft2232.cfg", "bscan_spi_xc7a35t.bit")`; the configuration
-files are in `litex/build/openocd/` and the `OPENOCD` environment variable selects another
-binary.
+files are in the `prog/` directory of LiteX and of LiteX-Boards, and the `OPENOCD` environment
+variable selects another binary.
 
 ## Vendor tools and others
 

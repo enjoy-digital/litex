@@ -37,7 +37,7 @@ The [iCEBreaker](https://www.crowdsupply.com/1bitsquared/icebreaker-fpga) is the
 
 # Useful resources
 
-## [LiteX for Hardware Engineers](LiteX-for-Hardware-Engineers.asciidoc) 
+## [LiteX for Hardware Engineers](LiteX-for-Hardware-Engineers.md) 
 Blogpost/Wiki by @bunnie from 2018 with his understanding of LiteX and tips for engineers with a hardware background.
 
 ## [LiteX BuildEnv Wiki](https://github.com/timvideos/litex-buildenv/wiki)

@@ -44,14 +44,14 @@ the repository). Pages marked TODO are placeholders being written.
 
 ## How to
 
-- [Create-A-minimal-SoC](https://github.com/enjoy-digital/litex/wiki/Create-A-minimal-SoC): TODO
-- [Add-A-New-Board](https://github.com/enjoy-digital/litex/wiki/Add-A-New-Board): TODO, platform and target files for LiteX-Boards
-- [Add-A-New-Core](https://github.com/enjoy-digital/litex/wiki/Add-A-New-Core): WIP, pointers to example pull requests adding a core
-- [Add-A-New-CPU](https://github.com/enjoy-digital/litex/wiki/Add-A-New-CPU): WIP, pointers to example pull requests adding a CPU
+- [Create-A-minimal-SoC](https://github.com/enjoy-digital/litex/wiki/Create-A-minimal-SoC): walk-through: litex_sim, the simple target on any board, a 40-line target file explained, building without the toolchain (real log and output tree), building/loading/talking to it, growing it
+- [Add-A-New-Board](https://github.com/enjoy-digital/litex/wiki/Add-A-New-Board): the platform file (resources, Pins/IOStandard/Subsignal, connectors and extensions, vendor platform classes and device strings, programmer, vendor commands), smoke test with the simple target, the target file (CRG, BaseSoC with DRAM/Ethernet/flash, options, main), bring-up order, contributing to LiteX-Boards
+- [Add-A-New-Core](https://github.com/enjoy-digital/litex/wiki/Add-A-New-Core): writing a core (LiteXModule, CSRs, EventManager, streams, bus), simulating it with the Migen simulator, adding it to a SoC, using it from C and from the host, where to put it and how to contribute it
+- [Add-A-New-CPU](https://github.com/enjoy-digital/litex/wiki/Add-A-New-CPU): the CPU directory (core.py, crt0.S, irq.h, system.h), the wrapper class and the attributes the SoC builder reads, the sources (pythondata packages, downloaded, generated), the software side, testing and contributing; out-of-tree CPUs
 - [Reuse-a-SystemVerilog-VHDL-Amaranth-Spinal-HDL-Chisel-core](https://github.com/enjoy-digital/litex/wiki/Reuse-a-SystemVerilog-VHDL-Amaranth-Spinal-HDL-Chisel-core): integrating an existing Verilog/SystemVerilog/VHDL/Amaranth/SpinalHDL/Chisel core in a LiteX SoC (Instance, litex_read_verilog)
 - [Use-LiteX-on-the-Acorn-CLE-215](https://github.com/enjoy-digital/litex/wiki/Use-LiteX-on-the-Acorn-CLE-215): a repurposed mining board as a PCIe/SATA/Linux LiteX platform
 - [Load-Application-Code-To-CPU](https://github.com/enjoy-digital/litex/wiki/Load-Application-Code-To-CPU): the BIOS boot methods: ROM, serial, Ethernet (TFTP), SPI flash, SD card/SATA
-- [Create-And-Load-Software-To-The-CPU](https://github.com/enjoy-digital/litex/wiki/Create-And-Load-Software-To-The-CPU): TODO
+- [Create-And-Load-Software-To-The-CPU](https://github.com/enjoy-digital/litex/wiki/Create-And-Load-Software-To-The-CPU): building firmware with the demo template (Makefile, linker.ld, generated headers), interrupts, loading it (serial, TFTP, SD card, flash, ROM, main RAM), Rust/RTOS/OS pointers, debugging
 - [Use-Host-Bridge-to-control-debug-a-SoC](https://github.com/enjoy-digital/litex/wiki/Use-Host-Bridge-to-control-debug-a-SoC): add a UART/JTAG/Ethernet/PCIe bridge, litex_server, litex_cli, scripting register and memory accesses from the host
 - [Use-LiteScope-To-Debug-A-SoC](https://github.com/enjoy-digital/litex/wiki/Use-LiteScope-To-Debug-A-SoC): capture internal signals with the LiteScope logic analyzer through a bridge
 - [JTAG-GDB-Debugging-with-VexRiscv-CPU](https://github.com/enjoy-digital/litex/wiki/JTAG-GDB-Debugging-with-VexRiscv-CPU): OpenOCD + GDB on a VexRiscv SoC

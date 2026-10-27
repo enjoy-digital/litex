@@ -40,8 +40,8 @@ litex_server --devmem --devmem-base=0xff200000 --devmem-size=0x200000
 ```
 
 `--bind-ip`/`--bind-port` change where it listens (to reach a board from another machine),
-`--debug` prints every access. The OpenOCD configuration files for `--jtag` are in
-`litex/build/openocd/` (`openocd_xc7_ft232.cfg`, `openocd_xc7_ft2232.cfg`, `openocd_xc7_digilent.cfg`, ...).
+`--debug` prints every access. The OpenOCD configuration files for `--jtag` are in the
+`prog/` directory of LiteX (`openocd_xc7_ft232.cfg`, `openocd_xc7_ft2232.cfg`, `openocd_xc7_ft4232.cfg`) and in `litex-boards/prog/`.
 
 ## The client side
 

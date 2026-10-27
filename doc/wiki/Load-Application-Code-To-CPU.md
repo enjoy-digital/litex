@@ -7,7 +7,7 @@ An boot ROM with contents from `bootrom.bin` file, located at `0x20000000` can b
 ```python3
 self.add_rom("bootrom", 0x20000000, 2**10, contents=get_mem_data("bootrom.bin", endianness="little"))  # "little" for the default RISCV architectures selected by litex
 ```
-Defining `ROM_BOOT_ADDRESS` in the SoC will make it jump to the defined value at startup:
+Defining `ROM_BOOT_ADDRESS` in the SoC makes the BIOS jump to this address when the boot methods before it (serial, flash) did not boot. The BIOS tries the methods in this order: serial, flash, rom, sdcard, sata, net; the `<X>_BOOT_PRIORITY` and `<X>_BOOT_DISABLE` constants change or disable them ([BIOS](BIOS.md)):
 ```python3
 self.add_constant("ROM_BOOT_ADDRESS", 0x20000000)
 ```
@@ -16,25 +16,25 @@ self.add_constant("ROM_BOOT_ADDRESS", 0x20000000)
 Loading application code from serial is very convenient for development since provides an easy way
 to (re)load application code, boot to it and do quick iterations. LiteX supports very various serial interfaces that can be configured for the board with:
 
-`--uart_name=serial`: _Regular_ UART at 115200Bauds, ~10-15KB/s upload.
+`--uart-name=serial`: _Regular_ UART at 115200Bauds, ~10-15KB/s upload.
 
-`--uart_name=serial --uart_baudrate=1e6`: _Boosted_ UART at 1MBauds, ~80-90KB/s upload.
+`--uart-name=serial --uart-baudrate=1000000`: _Boosted_ UART at 1MBauds, ~80-90KB/s upload.
 
-`--uart_name=serial --uart_baudrate=3e6`: _Overboosted_ UART at 3MBauds :), ~250KB/s upload.
+`--uart-name=serial --uart-baudrate=3000000`: _Overboosted_ UART at 3MBauds :), ~250KB/s upload.
 
-`--uart_name=usb_fifo`: UART through FT245 FIFO, ~300KB/s upload.
+`--uart-name=usb_fifo`: UART through FT245 FIFO, ~300KB/s upload (boards with `usb_fifo` pads).
 
-`--uart_name=usb_acm`: UART through USB ACM Valenty USB core, ~160KB/s upload.
+`--uart-name=usb_acm`: UART through USB ACM Valenty USB core, ~160KB/s upload.
 
-`--uart_name=jtag_uart` UART through JTAG core, **TBD** upload.
+`--uart-name=jtag_uart`: UART through the JTAG TAP, no serial port needed (`litex_term jtag --jtag-config=openocd_xc7_ft2232.cfg`).
 
-`--uart_name=etc... or create yours!`
+`--uart-name=etc... or create yours!`
 
 Serial boot is generally slow compared to Ethernet or SDCard boot but is the easiest to setup and usable on all boards so is still very interesting for easy use or when no alternative are available.
 
 LiteX's [litex_term](https://github.com/enjoy-digital/litex/blob/master/litex/tools/litex_term.py) tool is used to upload the application code and is directly installed with LiteX, available with the `litex_term` command.
 
-Serial boot has priority over the other boot methods and the BIOS will always try to boot from it. If `litex_term` is running on the Host, it upload the binary(ies) at startup: 
+Serial boot is the first boot method (priority 0) and the BIOS always tries it first (unless `SERIAL_BOOT_DISABLE` is defined). If `litex_term` is running on the Host, it upload the binary(ies) at startup: 
 ```bash
 --============== Boot ==================--
 Booting from serial...
@@ -43,15 +43,13 @@ sL5DdSMmkekro
 [LITEX-TERM] Received firmware download request from the device.
 [LITEX-TERM] Uploading buildroot/Image to 0x40000000 (4545524 bytes)...
 [LITEX-TERM] Upload complete (162.0KB/s).
-[LITEX-TERM] Uploading buildroot/rootfs.cpio to 0x40800000 (8029184 bytes)...
-[LITEX-TERM] Upload complete (163.3KB/s).
-[LITEX-TERM] Uploading buildroot/rv32.dtb to 0x41000000 (1995 bytes)...
+[LITEX-TERM] Uploading buildroot/rv32.dtb to 0x40ef0000 (1995 bytes)...
 [LITEX-TERM] Upload complete (191.2KB/s).
-[LITEX-TERM] Uploading emulator/emulator.bin to 0x41100000 (9600 bytes)...
+[LITEX-TERM] Uploading opensbi.bin to 0x40f00000 (53640 bytes)...
 [LITEX-TERM] Upload complete (161.1KB/s).
 [LITEX-TERM] Booting the device.
 [LITEX-TERM] Done.
-Executing booted program at 0x41100000
+Executing booted program at 0x40f00000
 --============= Liftoff! ===============--
 ...
 ```
@@ -68,7 +66,7 @@ Booting from SDCard in SPI-Mode...
 
  1. Uploading a single binary:
 
-To load `boot.bin` to default location (`RAM at 0x4000000`), start `litex_term` with:
+To load `boot.bin` to default location (`main_ram`, `0x40000000` on most SoCs, `--kernel-adr` to change it), start `litex_term` with:
 ```bash
 litex_term /dev/ttyUSBX --kernel=boot.bin
 ```
@@ -79,38 +77,38 @@ When multiple binaries need to be loaded at different locations, a *JSON* descri
 {
 	"Image":        "0x40000000",
 	"rv32.dtb":     "0x40ef0000",
-	"rootfs.cpio":  "0x41000000",
 	"opensbi.bin":  "0x40f00000"
 }
 ```
 
-The **last file/address tuple** is used for the CPU **jump** (so here it will jump `0x41100000`).
+The **last file/address tuple** is used for the CPU **jump** (so here it will jump to `0x40f00000`, OpenSBI).
 
 It is also possible to optionally specify the `r1/r2/r3` and `addr` boot arguments:
 ```json
 {
 	"Image":        "0x40000000",
 	"rv32.dtb":     "0x40ef0000",
-	"rootfs.cpio":  "0x41000000",
 	"opensbi.bin":  "0x40f00000",
 	"bootargs": {
 		"r1":   "0x00000000",
 		"r2":   "0x00000000",
 		"r3":   "0x00000000",
-		"addr": "0x41100000",
+		"addr": "0x40f00000"
 	}
 }
 ```
-In this case, instead of defaulting to `0`, `r1/r2/r3` will use the specified value and `addr` will be used for the CPU jump.
+In this case, instead of defaulting to `0`, `r1/r2/r3` will use the specified value and `addr` will be used for the CPU jump. `bootargs` is read by the BIOS for the TFTP, SD card and SATA boots; `litex_term --images` only loads the file/address pairs.
 
 To use a _JSON_ file, start `litex_term` with:
 ```bash
 litex_term /dev/ttyUSBX --images=boot.json
 ```
+`litex_term --serial-boot` starts the upload without waiting for the BIOS prompt, `--safe` disables the upload speed optimizations (for unreliable links), `--kernel-adr` changes the load address. From the BIOS console, `serialboot`, `netboot [file]`, `flashboot`, `romboot`, `sdcardboot [file]` and `sataboot [file]` run one method again.
+
 # Ethernet Boot:
 On SoCs with Ethernet capability, loading application code with it can be very convenient for development since flexible  and fast (on a Linux SoC, loading binaries only takes a few seconds).
 
-Ethernet boot requires a *TFTP* server on the Host. LiteX uses `192.168.1.50` as default Host IP address, this default IP address can be changed by defining the `REMOTEIPX` constants in the SoC:
+Ethernet boot requires a *TFTP* server on the Host. By default the SoC's IP address is `192.168.1.50` and the TFTP server (the Host) `192.168.1.100`; the targets expose `--eth-ip`, `--remote-ip` (and `--eth-dhcp` to get the SoC's address from DHCP), and the SoC can define the `REMOTEIPX` constants directly:
 ```python3
 self.add_constant("REMOTEIP1", 192)
 self.add_constant("REMOTEIP2", 168)
@@ -125,13 +123,12 @@ The BIOS will first try to load a `boot.json` file over TFTP that will provide t
 {
 	"Image":        "0x40000000",
 	"rv32.dtb":     "0x40ef0000",
-	"rootfs.cpio":  "0x41000000",
 	"opensbi.bin":  "0x40f00000"
 }
 ```
 2. Uploading a single binary:
 
-When `boot.json` is available on the TFTP (or when boot.json is invalid), the BIOS will fallback to `boot.bin`. So when only one binary is used, it could be simply named `boot.bin` and put on the TFTP, the BIOS will loaded it and will jump to default location (`RAM at 0x4000000`).
+When `boot.json` is not available on the TFTP (or when `boot.json` is invalid), the BIOS will fallback to `boot.bin`. So when only one binary is used, it could be simply named `boot.bin` and put on the TFTP, the BIOS will load it to the main RAM origin (`0x40000000` on most SoCs) and jump to it.
 
 Example of Linux ethernet boot on [Arty A7](https://store.digilentinc.com/arty-a7-artix-7-fpga-development-board-for-makers-and-hobbyists/) board:
 ![enter image description here](https://web.archive.org/web/20221207075844im_/https://cdn10.bigcommerce.com/s-7gavg/product_images/attribute_rule_images/6425_zoom_1527801259.png)
@@ -150,7 +147,7 @@ Copying Image to 0x40000000... (4545524 bytes)
 Copying rootfs.cpio to 0x40800000... (8029184 bytes)
 Copying rv32.dtb to 0x41000000... (2167 bytes)
 Copying emulator.bin to 0x41100000... (9600 bytes)
-Executing booted program at 0x41100000
+Executing booted program at 0x40f00000
 
 --============= Liftoff! ===============--
 ```

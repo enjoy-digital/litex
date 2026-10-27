@@ -59,8 +59,8 @@ With the SoC built and loaded to the FPGA board, let's start LiteX Server:
 
 **Start OpenOCD Server** (from OpenOCD directory):
 
-    ./src/openocd -c 'interface dummy' \
-                  -c 'adapter_khz 1' \
+    ./src/openocd -c 'adapter driver dummy' \
+                  -c 'adapter speed 1' \
                   -c 'jtag newtap lx cpu -irlen 4' \
                   -c 'target create lx.cpu0 vexriscv -endian little -chain-position lx.cpu -dbgbase 0xF00F0000' \
                   -c 'vexriscv cpuConfigFile cpu0.yaml' \
@@ -117,7 +117,7 @@ Which should gives:
 
 Run GDB on `bios.elf` (from target build directory):
 
-    riscv64-unknown-elf-gdb build/efinix_titanium_ti60_f225_dev_kit/software/bios/bios.elf -ex 'target remote localhost:3333'
+    riscv64-unknown-elf-gdb build/digilent_arty/software/bios/bios.elf -ex 'target remote localhost:3333'
 
 which should gives:
 
@@ -136,7 +136,7 @@ which should gives:
     
     For help, type "help".
     Type "apropos word" to search for commands related to "word"...
-    Reading symbols from build/efinix_titanium_ti60_f225_dev_kit/software/bios/bios.elf...
+    Reading symbols from build/digilent_arty/software/bios/bios.elf...
     Remote debugging using localhost:3333
     _start () at /home/florent/dev/litex/litex/litex/soc/cores/cpu/vexriscv/crt0.S:6
     6	  j crt_init
@@ -147,3 +147,8 @@ which should gives:
     litex_term crossover
 
 And you are ready to debug! With GDB and LiteX-Term over a the same UART.
+
+## Notes
+
+- This page is for the plain `vexriscv` CPU and its `+debug` variants (`minimal+debug`, `lite+debug`, `standard+debug`, `full+debug`, `linux+debug`, `secure+debug`, `+hwbp` for hardware breakpoints), whose debug port is reached through the LiteX bridge with the SpinalHDL OpenOCD fork and `VexRiscv_Debug.yaml`. VexRiscv-SMP, NaxRiscv and VexiiRiscv have a standard RISC-V debug module instead: [JTAG/GDB debugging with VexRiscv-SMP, NaxRiscv and VexiiRiscv](JTAG-GDB-Debugging-with-VexRiscv-SMP-NaxRiscv-VexiiRiscv-CPUs.md) (`--with-cpu-jtag-debug`, `litex_jtag`).
+- Any [bridge](Host-Bridges.md) works for the debug transport: `--with-uartbone` as above, `--with-jtagbone` (`litex_server --jtag`, no pins) or `--with-etherbone` (`litex_server --udp`).

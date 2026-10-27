@@ -17,7 +17,7 @@ of the framework, not in each design.
 Migen is a small DSL (`sync` vs `comb`, `Signal`, `If/Else`, `FSM`, `Record`) shared by the
 whole ecosystem of cores, and LiteX stays on it: it is stable, well understood, and no longer a
 barrier for an engineer coming from Verilog/VHDL, all the more since today's AI coding assistants
-are fluent in it. The [LiteX for Hardware Engineers](LiteX-for-Hardware-Engineers.asciidoc) page
+are fluent in it. The [LiteX for Hardware Engineers](LiteX-for-Hardware-Engineers.md) page
 is written for that reader, and existing Verilog/VHDL/Amaranth/SpinalHDL/Chisel cores are
 [reused as they are](Reuse-a-SystemVerilog-VHDL-Amaranth-Spinal-HDL-Chisel-core.md), converted
 to Verilog at build time when needed.
