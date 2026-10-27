@@ -133,6 +133,27 @@ class TestBuildIO(unittest.TestCase):
         self.assertIn("b <= a;", v)
         self.assertIn("d <= c;", v)
 
+    def test_inferred_sdrio_follows_clock_domain_renaming(self):
+        # An SDRIO built with the default ClockSignal() in a module that is wrapped afterwards in a
+        # ClockDomainsRenamer must be registered in the renamed clock domain: the domain name is
+        # cached at construction (the ClockSignal is lowered before the Special) and has to follow
+        # the renaming.
+        class Inner(Module):
+            def __init__(self, a, b):
+                self.specials += SDROutput(a, b)
+
+        a   = Signal(2)
+        b   = Signal(2)
+        dut = Module()
+        dut.clock_domains.cd_fast = ClockDomain(reset_less=True)
+        dut.submodules.inner      = ClockDomainsRenamer("fast")(Inner(a, b))
+
+        v = str(verilog.convert(dut, ios={a, b, dut.cd_fast.clk}))
+        self.assertEqual(v.count("always @(posedge "), 1)
+        self.assertIn("always @(posedge fast_clk)", v)
+        self.assertNotIn("sys_clk", v)
+        self.assertIn("b <= a;", v)
+
     def test_sdr_tristate_width_mismatch_rejected(self):
         with self.assertRaisesRegex(ValueError, "SDRTristate signal widths"):
             SDRTristate(io=Signal(2), o=Signal(1), oe=Signal(1))
