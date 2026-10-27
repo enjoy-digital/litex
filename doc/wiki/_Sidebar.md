@@ -3,6 +3,7 @@
 * Welcome to LiteX
   * [Presentation](Home.md)
   * [Installation](Installation.md)
+  * [The LiteX approach](LiteX-Approach.md)
   * [Cores-Ecosystem](Cores-Ecosystem.md)
   * [OSes-Ecosystem](OSes-Ecosystem.md)
   * [Tutorials-Resources](Tutorials-Resources.md)

@@ -30,7 +30,8 @@ PNGS   = os.path.join(HERE, "build")
 
 # Diagram -> PNG export width (--png; about twice the canvas, crisp on HiDPI screens).
 DIAGRAMS = {
-    "litex-overview": 2800,
+    "litex-overview":      2800,
+    "litex-ecosystem-map": 2800,
 }
 
 def run(cmd, **kw):

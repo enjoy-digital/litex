@@ -13,10 +13,11 @@ the repository). Pages marked TODO are placeholders being written.
 
 ## Welcome
 
-- [Home](https://github.com/enjoy-digital/litex/wiki/Home): what LiteX is, the design flow, quick start, ecosystem and community
-- [Installation](https://github.com/enjoy-digital/litex/wiki/Installation): install LiteX with litex_setup.py, the RISC-V toolchain and Verilator, first build
-- [Cores-Ecosystem](https://github.com/enjoy-digital/litex/wiki/Cores-Ecosystem): the Lite* cores (DRAM, Ethernet, PCIe, SATA, SD card, SerDes, JESD204, SPI, HyperBus, logic analyzer) and their supported hardware
-- [OSes-Ecosystem](https://github.com/enjoy-digital/litex/wiki/OSes-Ecosystem): bare metal, bootloaders, RTOSes, MicroPython and Linux on LiteX SoCs
+- [Home](https://github.com/enjoy-digital/litex/wiki/Home): what LiteX is, the design flow diagram, where to go next, the ecosystem, examples, quick start, community
+- [Installation](https://github.com/enjoy-digital/litex/wiki/Installation): install LiteX with litex_setup.py (venv, configs minimal/standard/full, --gcc, --update/--tag), build a board target or litex_sim, uninstall, troubleshooting
+- [LiteX-Approach](https://github.com/enjoy-digital/litex/wiki/LiteX-Approach): how LiteX is built and used: Python + Migen, cores with stable stream/bus/CSR contracts, portable layering, simulation first, bridges and LiteScope on hardware, practical rules, releases
+- [Cores-Ecosystem](https://github.com/enjoy-digital/litex/wiki/Cores-Ecosystem): the Lite* cores (LiteDRAM, LiteEth, LitePCIe, LiteNVMe, LiteSATA, LiteSDCard, LiteICLink, LiteJESD204, LiteSPI, LiteI2C, LiteScope, LiteDSP): standards, supported hardware, standalone generators
+- [OSes-Ecosystem](https://github.com/enjoy-digital/litex/wiki/OSes-Ecosystem): what runs on a LiteX SoC: BIOS and bare metal, Zephyr/FreeRTOS/NuttX, MicroPython/Rust/MQuickJS, Linux (VexRiscv-SMP, NaxRiscv, VexiiRiscv, Rocket, hard CPUs), upstream drivers, simulation
 - [Tutorials-Resources](https://github.com/enjoy-digital/litex/wiki/Tutorials-Resources): tutorials, workshops, example projects, blog posts and talks
 - [Projects](https://github.com/enjoy-digital/litex/wiki/Projects): industrial and open-source projects built with LiteX
 - [Feedback-Contribution-Support](https://github.com/enjoy-digital/litex/wiki/Feedback-Contribution-Support): how to report an issue (what to include), contribute a pull request, get support
@@ -70,6 +71,6 @@ the repository). Pages marked TODO are placeholders being written.
 
 - [Soft-CPU](https://github.com/enjoy-digital/litex/wiki/Soft-CPU): moved to CPUs
 - [Reuse-a-(System)Verilog,-VHDL,-Amaranth,-Spinal-HDL,-Chisel-core](https://github.com/enjoy-digital/litex/wiki/Reuse-a-(System)Verilog,-VHDL,-Amaranth,-Spinal-HDL,-Chisel-core): moved to Reuse-a-SystemVerilog-VHDL-Amaranth-Spinal-HDL-Chisel-core
-- [Firmware](https://github.com/enjoy-digital/litex/wiki/Firmware): 2019 overview of bare metal, MicroPython, NuttX, Zephyr and Linux support (see OSes-Ecosystem)
-- [OS-support](https://github.com/enjoy-digital/litex/wiki/OS-support): two links (see OSes-Ecosystem)
+- [Firmware](https://github.com/enjoy-digital/litex/wiki/Firmware): moved to OSes-Ecosystem
+- [OS-support](https://github.com/enjoy-digital/litex/wiki/OS-support): moved to OSes-Ecosystem
 - [Related-Projects](https://github.com/enjoy-digital/litex/wiki/Related-Projects): Fomu, F4PGA, CFU Playground, RowHammer tester (see Projects)
