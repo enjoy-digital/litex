@@ -1,5 +1,3 @@
-# Create a PCIe SoC
-
 With [LitePCIe](https://github.com/enjoy-digital/litepcie), an FPGA board on a PCIe slot (or
 an M.2 card) becomes a device the host drives directly: the whole SoC bus is mapped in BAR0,
 DMAs move data between the host memory and the gateware's streams at the link speed, MSI

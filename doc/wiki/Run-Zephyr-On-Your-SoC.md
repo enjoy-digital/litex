@@ -1,5 +1,3 @@
-# Run Zephyr on your SoC
-
 [Zephyr](https://www.zephyrproject.org/) supports LiteX SoCs upstream: the `litex_vexriscv`
 and `litex_vexiiriscv` boards (`boards/enjoydigital/`) and the `litex` SoC family
 (`soc/litex/`), with the drivers of the LiteX cores (LiteUART, the timer, LiteEth, LiteSPI,
@@ -28,7 +26,7 @@ The overlay patches the labels of the `litex_vexriscv` board with the addresses 
 of your SoC (`--generate-soc-nodes` writes complete `/soc` nodes instead, for a SoC that
 differs a lot from the reference):
 
-```
+```dts
 &uart0 {
     reg = <0xf0004000 0x20>;
     interrupts = <0x0 0>;
@@ -51,7 +49,7 @@ differs a lot from the reference):
 
 and the configuration switches enable the drivers of the cores that exist:
 
-```
+```sh
 -DCONFIG_UART_LITEUART=y -DCONFIG_LITEX_TIMER=y -DCONFIG_ETH_LITEETH=y -DCONFIG_SPI_LITESPI=n -DCONFIG_I2C_LITEX=n
 ```
 

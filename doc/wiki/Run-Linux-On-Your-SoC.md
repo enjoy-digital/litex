@@ -1,5 +1,3 @@
-# Run Linux on your SoC
-
 A LiteX SoC runs Linux when its CPU has an MMU (a `linux` variant or a 64-bit core, see
 [CPUs](CPUs.md)) and it has a DRAM (`add_sdram`), a console and some way to load the images
 (serial, Ethernet, SD card, SATA, flash). The SoC description does the rest: the device tree

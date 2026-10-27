@@ -1,5 +1,3 @@
-# Export your core/SoC to Verilog
-
 A LiteX design does not have to be the whole chip: the cores and the SoC builder export
 plain Verilog modules with standard interfaces (AXI-Lite, AXI-Stream, Wishbone, native
 ports) for a Vivado, Quartus, Diamond or Yosys project written in Verilog/VHDL/SystemVerilog.

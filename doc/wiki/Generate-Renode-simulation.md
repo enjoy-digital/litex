@@ -1,5 +1,3 @@
-# Generate a Renode simulation
-
 [Renode](https://renode.io) (by [Antmicro](https://antmicro.com)) simulates whole systems
 (CPU, peripherals, network) fast enough to run Linux, Zephyr or the BIOS interactively,
 without the gateware: LiteX generates the Renode platform of your SoC from `csr.json`, with

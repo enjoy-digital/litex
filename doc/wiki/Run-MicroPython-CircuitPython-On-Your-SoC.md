@@ -36,7 +36,7 @@ litex_term /dev/ttyUSB1 --kernel=build/firmware.bin
 or copy `build/firmware.bin` as `boot.bin` on the TFTP server / the SD card and let the
 BIOS boot it ([Load application code](Load-Application-Code-To-CPU.md)).
 
-```
+```pycon
 >>> import litex
 >>> litex.leds(0b0101)
 >>> import umachine; umachine.freq()

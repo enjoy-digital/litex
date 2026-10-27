@@ -1,5 +1,3 @@
-# Create a complex SoC with cores from the ecosystem
-
 The [minimal SoC](Create-A-minimal-SoC.md) is a CPU, memories and a UART; a *complex* SoC adds
 the cores of the [ecosystem](Cores-Ecosystem.md): a DRAM controller (LiteDRAM), Ethernet
 (LiteEth), an SD card (LiteSDCard), a SPI flash (LiteSPI), SATA (LiteSATA), PCIe (LitePCIe),
