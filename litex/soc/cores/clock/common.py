@@ -156,11 +156,12 @@ def clkout_freq_error(clk_freq, freq):
     check_freq_positive(freq, "Output clock frequency")
     return abs(clk_freq - freq)/freq
 
-def clkout_config_score(errors, vco_freq=0):
-    return (max(errors), sum(errors), -vco_freq)
+def clkout_config_score(errors, vco_freq=0, vco_tie_break=-1):
+    # Prefer the lower VCO when vco_tie_break > 0, the higher VCO otherwise.
+    return (max(errors), sum(errors), vco_tie_break*vco_freq)
 
-def update_best_config(best_config, best_score, config, errors, vco_freq=0):
-    score = clkout_config_score(errors, vco_freq)
+def update_best_config(best_config, best_score, config, errors, vco_freq=0, vco_tie_break=-1):
+    score = clkout_config_score(errors, vco_freq, vco_tie_break)
     if best_score is None or score < best_score:
         return config, score
     return best_config, best_score

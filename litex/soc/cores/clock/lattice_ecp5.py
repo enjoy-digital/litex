@@ -22,6 +22,7 @@ class ECP5PLL(LiteXModule):
     clko_freq_range = (3.125e6,  400e6)
     vco_freq_range  = (  400e6,  800e6)
     pfd_freq_range  = (   10e6,  400e6)
+    vco_tie_break   = +1 # Prefer the lower VCO on equal output errors.
 
     def __init__(self, bel=None, name=None):
         self.logger = logging.getLogger("ECP5PLL")
@@ -111,7 +112,8 @@ class ECP5PLL(LiteXModule):
                                     candidate_clkouts    = dict(clkout_configs)
                                     candidate_clkouts[n] = feedback_config
                                     candidate_errors     = [clkout[0] for clkout in candidate_clkouts.values()]
-                                    candidate_score      = clkout_config_score(candidate_errors, vco_freq)
+                                    candidate_score      = clkout_config_score(
+                                        candidate_errors, vco_freq, self.vco_tie_break)
                                     if best_feedback_score is None or candidate_score < best_feedback_score:
                                         best_feedback_score  = candidate_score
                                         best_feedback_clkout = n
@@ -139,7 +141,8 @@ class ECP5PLL(LiteXModule):
                             config[f"clko{feedback_clkout}_div"] = clkofb_div
                         config["vco"]       = vco_freq
                         config["clkfb_div"] = clkfb_div
-                        best_config, best_score = update_best_config(best_config, best_score, config, errors, vco_freq)
+                        best_config, best_score = update_best_config(
+                            best_config, best_score, config, errors, vco_freq, self.vco_tie_break)
         if best_config is not None:
             compute_config_log(self.logger, best_config)
             return best_config
