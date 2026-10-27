@@ -1,30 +1,65 @@
-# Introduction to AXI Bus in LiteX SoCs
+# AXI Bus
 
-One of the key components of a LiteX SoC is the bus system, which is used to connect the various components of the SoC. One of the most popular bus systems used in LiteX SoCs is the Advanced eXtensible Interface (AXI) bus.
+[AXI](https://developer.arm.com/documentation/ihi0022/latest/) (Advanced eXtensible Interface,
+from Arm's AMBA) is the bus of the vendor IPs, the hard CPUs (Zynq, Agilex and Cyclone V HPS)
+and the high-performance soft CPUs (NaxRiscv, VexiiRiscv, Rocket, CVA6, OpenC906). LiteX
+implements AXI4, AXI4-Lite and AXI4-Stream in `litex/soc/interconnect/axi/`, with the same
+building blocks as Wishbone (interconnects, converters, bridges, SRAM, CDC, timeout), and a SoC
+can use `--bus-standard=axi-lite` or `axi` for its main bus, or mix masters and slaves of
+different standards: the [SoC builder](SoC-builder.md) inserts the bridges.
 
-## Overview of AXI Bus
+![AXI in LiteX](images/litex-axi.svg)
 
-The AXI bus is a high-performance, scalable bus system that is widely used in FPGA-based SoCs. It was developed by ARM and is widely used in embedded systems due to its high performance and flexible architecture.
+## The three flavours
 
-The AXI bus provides a simple, flexible, and scalable bus architecture that makes it easy to connect and communicate between different components in an SoC. The AXI bus specification defines a standard interface for communication between components, allowing components from different vendors to be easily combined in a single SoC.
+| | Interface | Channels | Use |
+| --- | --- | --- | --- |
+| **AXI4-Lite** | `AXILiteInterface(data_width=32, address_width=32)` | `aw`, `w`, `b`, `ar`, `r` (no bursts, no IDs) | Control: CSRs and simple peripherals; the bus of vendor IP control ports; `--bus-standard=axi-lite`. |
+| **AXI4** (full) | `AXIInterface(data_width, address_width, id_width=1, version="axi4"\|"axi3", bursting)` | The five channels with bursts (`len`, `size`, `burst`), IDs, responses | Memory traffic: DMAs, DRAM (LiteDRAM AXI port), the HPS bridges, the big CPUs; `--bus-standard=axi`. |
+| **AXI4-Stream** | `AXIStreamInterface(data_width, keep_width, id_width, dest_width, user_width)` | One channel: `tvalid`/`tready`/`tlast`/`tdata`/`tkeep`/`tid`/`tdest`/`tuser` | Data paths: it is a LiteX [stream](Streams.md) endpoint (payload `data`/`keep`, params `id`/`dest`/`user`), so it connects to any stream directly. |
 
-The AXI bus specification defines several channels or signals to communicate between the bus master and bus slave components in an SoC. Here are the main channels and their descriptions:
-* **AW (Address Write)** Channel: This channel carries the write address and write control signals from the bus master to the bus slave. It is used to initiate a write transaction.
-* **W (Write Data)** Channel: This channel carries the write data from the bus master to the bus slave. It is used to transfer the data to be written to the bus slave's memory.
-* **B (Write Response)** Channel: This channel carries the response from the bus slave to the bus master for a write transaction. It confirms the completion of the write transaction and provides status information.
-* **AR (Address Read)** Channel: This channel carries the read address and read control signals from the bus master to the bus slave. It is used to initiate a read transaction.
-* **R (Read Data)** Channel: This channel carries the read data from the bus slave to the bus master. It is used to transfer the data read from the bus slave's memory.
+Every channel of an AXI interface is itself a stream endpoint (`axi.aw.valid`,
+`axi.aw.addr`...), which is why the stream blocks (FIFOs, CDCs, pipelines) apply to AXI.
+AXI addressing is always in bytes.
 
-The AXI bus API in LiteX provides a convenient and straightforward way to work with the AXI bus in a LiteX SoC.
+```python
+from litex.soc.interconnect.axi import *
 
-## How AXI Bus Works in LiteX SoCs
+axi_lite = AXILiteInterface(data_width=32, address_width=32)
+axi      = AXIInterface(data_width=128, address_width=32, id_width=4)
+axis     = AXIStreamInterface(data_width=64, user_width=1)
 
-In a LiteX SoC, the AXI bus provides a communication channel between the different components of the SoC. Each component that wants to participate in the bus must implement an AXI slave interface, which provides access to the component's registers and memory. The AXI bus masters, such as a processor, can then read from or write to the slave components using the AXI slave interface.
+# The ports of a Verilog AXI core: name them axi_*, LiteX connects them:
+self.specials += Instance("my_axi_core", **axi.get_ios("s_axi"))         # or axi.connect_to_pads(pads, mode="slave")
+```
 
-AXI transactions are initiated by the bus master and consist of a request for data (read) or a request to write data (write). The transaction includes the address of the target component's slave interface and the data to be read or written. The slave component responds with the requested data in the case of a read transaction, or acknowledges the write transaction.
+## The building blocks
 
-## AXI Bus Example in LiteX SoCs
+| AXI4-Lite (`axi_lite.py`) | AXI4 (`axi_full.py`) | Purpose |
+| --- | --- | --- |
+| `AXILiteInterconnectShared`, `AXILiteCrossbar`, `AXILiteInterconnectPointToPoint` | `AXIInterconnectShared`, `AXICrossbar`, `AXIInterconnectPointToPoint` | Interconnects (shared bus or crossbar, with `AXILiteArbiter`/`AXIArbiter` and `AXILiteDecoder`/`AXIDecoder`; the AXI arbiter can interleave transactions by ID). |
+| `AXILiteSRAM` | `AXISRAM` | A block RAM on the bus. |
+| `AXILiteConverter` (`AXILiteUpConverter`/`DownConverter`) | `AXIConverter` (`AXIUpConverter`/`DownConverter`), `AXIBurst2Beat` | Data width conversion; burst to single-beat conversion for simple slaves. |
+| `AXILiteClockDomainCrossing`, `AXILiteTimeout` | `AXIClockDomainCrossing`, `AXITimeout` | Clock domain crossing, timeout. |
+| `AXILiteRemapper`, `AXILiteOffset` | `AXIRemapper`, `AXIOffset` | Address remapping. |
+| `AXILite2CSR` | | The bridge to the [CSR bus](CSR-Bus.md) (used when the main bus is AXI-Lite). |
+| `AXILite2Wishbone`, `Wishbone2AXILite` | `AXI2Wishbone`, `Wishbone2AXI`, `AXI2AXILite`, `AXILite2AXI` | The bridges between standards (`axi_lite_to_wishbone.py`, `axi_full_to_wishbone.py`, `axi_full_to_axi_lite.py`). |
 
-Here is a concrete example of how the AXI bus can be used in a LiteX SoC. Suppose we want to design an SoC that contains a processor and a memory module, and we want to use the AXI bus to connect the two components.
+The SoC bus handler uses them automatically: a Wishbone CPU on an AXI main bus gets a
+`Wishbone2AXI`, an AXI-Lite vendor IP on a Wishbone bus an `AXILite2Wishbone`, and widths are
+converted on the way (`SoCBusHandler.add_adapter`). `--bus-low-latency` selects the
+lower-latency bridges where available.
 
-`TODO`
+## Where AXI appears in a LiteX SoC
+
+- **Vendor and hard IP**: Zynq-7000/ZynqMP PS ports, the Cyclone V and Agilex HPS bridges,
+  Xilinx MIG and HBM2, Efinix DDR: LiteX adds them as AXI masters or slaves of the main bus.
+- **CPUs**: NaxRiscv/VexiiRiscv (AXI-Lite peripheral bus, AXI memory and DMA buses), Rocket,
+  CVA6, OpenC906, VeeR, Cortex-M, the MIPS cores.
+- **LiteDRAM**: `LiteDRAMAXIPort`/`LiteDRAMAXI2Native` give AXI ports on the crossbar for the
+  CPUs' memory buses and DMAs, with full bursts.
+- **Standalone cores**: `litex_soc_gen --bus-standard=axi-lite` and the `*_gen` generators
+  export the control bus as AXI-Lite and the data paths as AXI-Stream for integration in a
+  Vivado/Quartus block design ([Export](Export-Your-Core-SoC-To-Verilog.md)).
+- **Custom logic**: a core with an `AXILiteInterface` and `add_slave`, or a DMA with an
+  `AXIInterface` and `add_master`, exactly as with [Wishbone](Wishbone-Bus.md).

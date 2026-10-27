@@ -32,6 +32,15 @@ PNGS   = os.path.join(HERE, "build")
 DIAGRAMS = {
     "litex-overview":      2800,
     "litex-ecosystem-map": 2800,
+    "litex-soc-architecture": 2800,
+    "litex-build-flow":        2800,
+    "litex-host-bridges":      2800,
+    "litex-bios-boot":         2800,
+    "litex-simulation":        2800,
+    "litex-streams":           2800,
+    "litex-buses":             2800,
+    "litex-csr-bus":           2800,
+    "litex-axi":               2800,
 }
 
 def run(cmd, **kw):

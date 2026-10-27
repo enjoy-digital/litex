@@ -1,23 +1,80 @@
-# Introduction to Wishbone Bus in LiteX SoCs
+# Wishbone Bus
 
-One of the key components of a LiteX SoC is the bus system, which is used to connect the various components of the SoC and one of the default and probably most popular bus systems used in LiteX SoCs is the... Wishbone bus :).
+The [Wishbone](https://cdn.opencores.org/downloads/wbspec_b4.pdf) bus is the default
+memory-mapped bus of LiteX SoCs: simple (one request/acknowledge handshake, no channels),
+open, and what most soft CPUs and small cores speak. LiteX implements Wishbone *classic*
+(standard handshaking, synchronous feedback) with optional incrementing bursts (`cti`/`bte`),
+in `litex/soc/interconnect/wishbone.py`, and the SoC builder bridges it to AXI-Lite and AXI when
+a master or a slave needs them ([AXI-Bus](AXI-Bus.md), [SoC-builder](SoC-builder.md)).
 
-## Overview of Wishbone Bus
+![Wishbone in a LiteX SoC](images/litex-buses.svg)
 
-The Wishbone bus is a standardized, open-source bus system that is widely used in FPGA-based SoCs. It was originally developed as part of the OpenCores project and has since become a standard for inter-component communication in FPGA-based systems.
+## The interface
 
-The Wishbone bus provides a simple, flexible, and scalable bus architecture that makes it easy to connect and communicate between different components in an SoC. The Wishbone bus specification defines a standard interface for communication between components, allowing components from different vendors to be easily combined in a single SoC.
+| Signal | Direction | Role |
+| --- | --- | --- |
+| `adr` | master to slave | Address, in words by default (`addressing="word"`, 30 bits for a 32-bit bus) or in bytes (`addressing="byte"`). |
+| `dat_w`, `dat_r` | master to slave, slave to master | Write and read data (`data_width`: 32 by default, 8 to 512). |
+| `sel` | master to slave | Byte select, one bit per byte. |
+| `cyc`, `stb` | master to slave | Cycle and strobe: a request is `cyc & stb`. |
+| `we` | master to slave | Write enable. |
+| `ack`, `err` | slave to master | Acknowledge (one per request) or error. |
+| `cti`, `bte` | master to slave | Cycle type and burst type: `CTI_BURST_INCREMENTING`/`END` with `bursting=True`. |
 
-The Wishbone bus API in LiteX provides a convenient and straightforward way to work with the Wishbone bus in a LiteX SoC.
+```python
+from litex.soc.interconnect import wishbone
 
-## How Wishbone Bus Works in LiteX SoCs
+bus = wishbone.Interface(data_width=32, address_width=32, addressing="word", bursting=False)
+# In a simulation generator:
+yield from bus.write(0x10, 0xdeadbeef)
+value = yield from bus.read(0x10)
+```
 
-In a LiteX SoC, the Wishbone bus provides a communication channel between the different components of the SoC. Each component that wants to participate in the bus must implement a Wishbone slave interface, which provides access to the component's registers and memory. The Wishbone bus masters, such as a processor, can then read from or write to the slave components using the Wishbone slave interface.
+A transaction is one request (`cyc & stb`, with `we`, `adr`, `dat_w`, `sel`) answered by one
+`ack` (or `err`); with bursting, consecutive words of an incrementing burst are acknowledged
+one per cycle. There is no outstanding request: the master waits for the acknowledge. This is
+what makes Wishbone small, and what limits its throughput against AXI for DMAs on wide
+memories (LiteDRAM offers native and AXI ports for those).
 
-Wishbone transactions are initiated by the bus master and consist of a request for data (read) or a request to write data (write). The transaction includes the address of the target component's slave interface and the data to be read or written. The slave component responds with the requested data in the case of a read transaction, or acknowledges the write transaction.
+## The building blocks
 
-## Wishbone Bus Example in LiteX SoCs
+| Block | Purpose |
+| --- | --- |
+| `InterconnectShared(masters, slaves, register, timeout_cycles, arbiter)` | A shared bus: an `Arbiter` (round robin on `cyc`, `mode="cycle"` or `"transaction"`) and a `Decoder` (one slave per address range). The default of the SoC builder. |
+| `Crossbar(masters, slaves, register)` | Every master reaches every slave at the same time (`--bus-interconnect=crossbar`). |
+| `InterconnectPointToPoint(master, slave)` | A direct connection. |
+| `Decoder(master, [(fn, bus), ...])`, `Arbiter(masters, target)` | The pieces, for custom topologies. |
+| `SRAM(mem_or_size, read_only, init, bus)` | A memory on the bus (block RAM), with burst support. |
+| `Converter`, `UpConverter`, `DownConverter` | Data width conversion (word addressing). |
+| `Timeout(master, cycles)` | Acknowledges with an error after `cycles` without answer, so a missing slave does not hang the CPU (`--bus-timeout`). |
+| `Cache(cachesize, master, slave)` | A write-back cache (the L2 in front of LiteDRAM: `--l2-size`). |
+| `ClockDomainCrossing(master, slave, cd_from, cd_to)` | A crossing between two clock domains. |
+| `Remapper`, `Offset` | Address remapping and offset for masters with their own view of the memory. |
+| `Wishbone2CSR` | The bridge to the [CSR bus](CSR-Bus.md). |
+| `Wishbone2AXILite`, `AXILite2Wishbone`, `Wishbone2AXI`, `AXI2Wishbone`, `Wishbone2AvalonMM`, `AvalonMM2Wishbone`, `AHB2Wishbone` | The bridges to the other standards (`litex/soc/interconnect/axi/`, `avalon/`, `ahb.py`). |
 
-Here is a concrete example of how the Wishbone bus can be used in a LiteX SoC. Suppose we want to design an SoC that contains a processor and a memory module, and we want to use the Wishbone bus to connect the two components.
+## In a SoC
 
-`TODO`
+The SoC builder owns the main bus (`self.bus`): masters (`self.bus.add_master`) and slaves
+(`self.bus.add_slave` with a `SoCRegion`) are collected, adapted (data width, addressing,
+standard) and connected at finalization by the interconnect, with the timeout. A core with a
+Wishbone interface is added in one line:
+
+```python
+from litex.soc.interconnect import wishbone
+from litex.soc.integration.soc import SoCRegion
+
+class MyCore(LiteXModule):
+    def __init__(self):
+        self.bus = wishbone.Interface(data_width=32, address_width=32, addressing="word")
+        self.mem = wishbone.SRAM(0x1000, bus=self.bus)      # or your own logic on self.bus
+
+# In the SoC:
+self.mycore = MyCore()
+self.bus.add_slave("mycore", self.mycore.bus, SoCRegion(origin=0x90000000, size=0x1000, cached=False))
+```
+
+The CPU's instruction and data buses are the usual masters; the host [bridges](Host-Bridges.md)
+and the DMAs are the others. `--bus-data-width=64` (or more) widens the main bus for a
+64-bit CPU or a wide DRAM port, `--bus-bursting` enables the bursts, `--bus-addressing=byte`
+makes the addressing match AXI's. The generated `mem.h` and `csr.csv` describe the resulting map.

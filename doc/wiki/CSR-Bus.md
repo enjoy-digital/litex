@@ -1,5 +1,7 @@
 # LiteX CSRs: Embrace Simplicity!
 
+![The CSR bus](images/litex-csr-bus.svg)
+
 ## Introduction
 
 Ever found yourself wrestling with the intricacies of Wishbone, AXI, and AXI-Lite buses? You're not alone. These industry-standard buses, while powerful, can sometimes feel like an overly complicated puzzle - complex, resource-hungry, and not exactly the most straightforward when it comes to controlling or reading information from designs.

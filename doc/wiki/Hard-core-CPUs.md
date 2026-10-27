@@ -1,4 +1,4 @@
-LiteX has support for several vendor hard CPU integrations: Xilinx Zynq-7000 (`zynq7000`), Xilinx UltraScale+ MPSoC (`zynqmp`), QuickLogic EOS S3 (`eos_s3`), Gowin EMCU (`gowin_emcu`) and Gowin AE350 (`gowin_ae350`). The CPU wrappers live in `litex/soc/cores/cpu/*/core.py` and are selected with `--cpu-type=<name>`.
+LiteX has support for several vendor hard CPU integrations: Xilinx Zynq-7000 (`zynq7000`), Xilinx UltraScale+ MPSoC (`zynqmp`), Intel Cyclone V SoC HPS (`cyclonev_hps`), Intel Agilex 3/5/7 HPS (`agilex_hps`), QuickLogic EOS S3 (`eos_s3`), Gowin EMCU (`gowin_emcu`) and Gowin AE350 (`gowin_ae350`). The CPU wrappers live in `litex/soc/cores/cpu/*/core.py` and are selected with `--cpu-type=<name>`; they are the `hardcore` category of the [CPUs](CPUs.md) page.
 
 A hard CPU is a processor block already present in the FPGA/SoC silicon. This differs from a softcore CPU, which is synthesized into the FPGA fabric from HDL. Hard CPUs generally have vendor-specific boot, clocking, memory and peripheral configuration flows, while softcores are generated as part of the LiteX gateware.
 
@@ -16,6 +16,8 @@ The table below gives a rough comparison against a `vexriscv` `standard` softcor
 | `gowin_ae350` | 32-bit RISC-V MCU/SoC | several x | configuration-dependent |
 | `zynq7000` | Cortex-A9 application CPU | 10x+ | VFP/NEON |
 | `zynqmp` | Cortex-A53/R5F application/RT CPUs | 10x+ | FP/SIMD |
+| `cyclonev_hps` | dual Cortex-A9 application CPU | 10x+ | VFP/NEON |
+| `agilex_hps` | Cortex-A53 (Agilex 7), A76+A55 (Agilex 5), A55 (Agilex 3) | 10x+ | FP/SIMD |
 
 The characteristics below summarize the hard CPU blocks used by LiteX. Maximum frequencies are vendor/device-family figures; the actual LiteX target clocking can be lower and depends on the exact device, speed grade, board and PS/IP configuration.
 
@@ -38,6 +40,36 @@ Main characteristics: 16nm FinFET+ UltraScale+ MPSoC with up to a quad-core 64-b
 
 Refer to the readme in [this repository](https://github.com/sergachev/litex-template/) for a workflow allowing execution via JTAG.
 The serial terminal is on the USB-UART.
+
+# Intel Cyclone V SoC HPS
+
+Demonstrated on the Terasic DE10-Nano / MiSTer ([target](https://github.com/litex-hub/litex-boards/blob/master/litex_boards/targets/terasic_de10nano.py))
+and the DE1-SoC. Select with `--cpu-type=cyclonev_hps`. The HPS-to-FPGA lightweight AXI3
+bridge (`h2f_lw`, 2 MB window at `0xff200000`) is the LiteX peripheral/CSR bus, so the Linux
+running on the HPS reaches the LiteX gateware through `/dev/mem` (`litex_server --devmem`,
+the default window); `add_axi_h2f_master` adds the full-width bridge (`0xc0000000`, 960 MB),
+`add_axi_f2h_slave` lets the fabric access the HPS DDR3 (non-coherent below `0x80000000`, L2
+coherent through the ACP window above), and `add_fpga2sdram_port` the FPGA-to-SDRAM ports with
+the fixed layout expected by MiSTer's preloader/U-Boot. The HPS boots from its own boot ROM and
+SD card, so the reset address only places the (optional) BIOS in the HPS DDR3; the 32
+FPGA-to-HPS interrupts map to Linux `GIC_SPI 40-71`.
+
+Main characteristics: 28nm SoC FPGA with a dual-core 32-bit Arm Cortex-A9 (up to 925 MHz),
+hardened DDR controller and peripherals, AXI bridges in both directions.
+
+# Intel Agilex HPS
+
+Initial support for the Agilex 3, 5 and 7 HPS: `--cpu-type=agilex_hps --cpu-variant=agilex5`
+(or `agilex3`, `agilex7`). The Platform Designer HPS (and optional HPS EMIF) system is
+generated at build time from a per-variant configuration table (`add_hps_config` overrides
+parameters); the lightweight HPS-to-FPGA AXI4 bridge is the LiteX peripheral bus, with
+`add_axi_h2f_master`, `add_axi_f2h_slave` and `add_emif` following the Cyclone V pattern. The
+HPS boots through the SDM/FSBL/U-Boot flow of the vendor; the reset address is only used by
+the linker. Some parameters are still marked to be verified against a Quartus Pro build.
+
+Main characteristics: Agilex 7 with four Cortex-A53, Agilex 5 with two Cortex-A76 and two
+Cortex-A55, Agilex 3 with two Cortex-A55, 64-bit Arm with hardened memory controllers and
+peripherals (Quartus Pro required).
 
 # QuickLogic EOS S3
 
