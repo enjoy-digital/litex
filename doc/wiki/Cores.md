@@ -1,5 +1,3 @@
-# Cores
-
 The cores shipped with LiteX itself, in `litex/soc/cores/`: the building blocks every SoC needs
 (UART, timer, GPIO, SPI, I2C, clocking...) and a number of specialized ones (video, USB,
 HyperRAM, CAN, PSRAM, audio...). The large protocol cores live in their own repositories: see the

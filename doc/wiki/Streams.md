@@ -1,5 +1,3 @@
-# Streams
-
 LiteX's streams are the data-path interface of the framework: every core that moves data
 (Ethernet, PCIe DMA, SD card, video, SerDes, converters, FIFOs) has stream *endpoints*, and
 they connect to each other with one line. A stream is a group of signals (a Migen `Record`)

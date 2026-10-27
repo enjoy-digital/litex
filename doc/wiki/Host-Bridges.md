@@ -1,5 +1,3 @@
-# Host bridges
-
 A host bridge is a bus master in the gateware driven from the host PC: through it, the host
 reads and writes the whole address space of the running SoC (CSRs, memories, cores) without
 any CPU involved. It is how a board is brought up, how designs are debugged and measured

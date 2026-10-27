@@ -1,5 +1,3 @@
-# CPUs
-
 LiteX can create SoCs with or without CPU. Some simple SoCs don't use any CPU (bridging SoCs for
 example), some SoCs use a CPU but external to the FPGA (PCIe SoCs for example where the CPU is
 directly the CPU of the Host machine) but in most of the cases the SoC embeds a CPU to control

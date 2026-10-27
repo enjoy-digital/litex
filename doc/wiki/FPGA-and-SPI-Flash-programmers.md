@@ -1,5 +1,3 @@
-# FPGA and SPI Flash programmers
-
 `--load` writes the bitstream in the FPGA (lost at power off) and `--flash` in the SPI flash
 the FPGA boots from, through the programmer the platform declares in `create_programmer()`
 (`litex_boards/platforms/<board>.py`). Most boards use one of the two open-source tools below;

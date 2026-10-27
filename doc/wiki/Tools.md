@@ -1,5 +1,3 @@
-# Tools
-
 The command-line tools installed with LiteX (`setup.py` entry points, sources in
 `litex/tools/`). Every one of them has `--help`; this page says what each is for and where it
 is documented.

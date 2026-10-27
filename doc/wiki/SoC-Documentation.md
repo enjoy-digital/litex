@@ -1,5 +1,3 @@
-# SoC Documentation
-
 LiteX generates the register-level documentation of a SoC from the design itself: every
 `CSRStorage`/`CSRStatus` with its fields and descriptions, the memory map, the interrupts and
 the module descriptions, as a [Sphinx](https://www.sphinx-doc.org/) project with register

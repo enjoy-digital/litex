@@ -1,5 +1,3 @@
-# SoC builder
-
 The SoC builder is the part of LiteX that turns a Python description into a complete SoC: it
 allocates the address map, connects the bus masters and slaves through the interconnect,
 collects the control/status registers of every core, assigns the interrupts, generates the

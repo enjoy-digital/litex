@@ -1,5 +1,3 @@
-# Build backends
-
 The build backends are the part of LiteX that knows the FPGA toolchains: for each vendor, a
 *platform* class describes the device, the I/Os and the constraints, and a *toolchain* class
 generates the project files and scripts, runs the tools and names the bitstream. A LiteX design

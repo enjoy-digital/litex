@@ -1,5 +1,3 @@
-# BIOS
-
 The LiteX BIOS is the small program the Builder compiles for every SoC with a CPU
 (`litex/soc/software/bios/`, C, built on picolibc): it initializes the SoC (DRAM calibration,
 Ethernet, storage), gives a console on the UART to inspect the hardware, and loads the

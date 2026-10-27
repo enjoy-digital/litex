@@ -1,5 +1,3 @@
-# Wishbone Bus
-
 The [Wishbone](https://cdn.opencores.org/downloads/wbspec_b4.pdf) bus is the default
 memory-mapped bus of LiteX SoCs: simple (one request/acknowledge handshake, no channels),
 open, and what most soft CPUs and small cores speak. LiteX implements Wishbone *classic*

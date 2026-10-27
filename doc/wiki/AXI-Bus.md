@@ -1,5 +1,3 @@
-# AXI Bus
-
 [AXI](https://developer.arm.com/documentation/ihi0022/latest/) (Advanced eXtensible Interface,
 from Arm's AMBA) is the bus of the vendor IPs, the hard CPUs (Zynq, Agilex and Cyclone V HPS)
 and the high-performance soft CPUs (NaxRiscv, VexiiRiscv, Rocket, CVA6, OpenC906). LiteX

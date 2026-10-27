@@ -1,5 +1,3 @@
-# SoC Simulator
-
 `litex_sim` builds a complete LiteX SoC for [Verilator](https://www.veripool.org/verilator/) and
 runs it on your computer: the same CPU, BIOS, buses and cores as on a board, with C++ models
 for the outside world (serial console, DRAM chips, Ethernet through a TAP interface, SD card,
