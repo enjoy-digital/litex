@@ -10,7 +10,13 @@
 
 The LiteX framework provides a convenient and efficient infrastructure to create FPGA Cores/SoCs, to explore various digital design architectures and create [full FPGA based systems](Projects.md).
 
-**New to LiteX?** [Install it](Installation.md), run a SoC in [simulation](SoC-Simulator.md) or on [your board](https://github.com/litex-hub/litex-boards), then read [the LiteX approach](LiteX-Approach.md) and the [how-to pages](#where-to-go-next). **A question or want to get in touch?** Join us on [Discord](https://discord.gg/PkJwjDbxeG) or on IRC: [#litex at irc.libera.chat](https://web.libera.chat/#litex). **Development notes from building FPGA SoCs with LiteX?** The [LiteX Notes blog](https://enjoy-digital.github.io/). **A quick tour in slides:** [LiteX SoC builder framework overview](https://docs.google.com/presentation/d/1mQOWqgmyQxpjLAzFwCulqgkp0TuxmaIDYp5iUfPqqIk/edit?usp=sharing).
+**LiteX SoC builder framework quick tour/overview: [Slides](https://docs.google.com/presentation/d/1mQOWqgmyQxpjLAzFwCulqgkp0TuxmaIDYp5iUfPqqIk/edit?usp=sharing)**
+
+**Want to get started and/or looking for documentation? Make sure to visit the [Wiki](Home.md)!**
+
+**Want development notes from building FPGA SoCs with LiteX? Visit the [LiteX Notes blog](https://enjoy-digital.github.io/)!**
+
+**A question or want to get in touch? Join us on [Discord](https://discord.gg/PkJwjDbxeG) or on our IRC channel: [#litex at irc.libera.chat]**.
 
 LiteX provides all the common components required to easily create an FPGA Core/SoC:
  - :heavy_check_mark: Buses and Streams (Wishbone, AXI, Avalon-ST) and their interconnect.
@@ -23,10 +29,26 @@ LiteX provides all the common components required to easily create an FPGA Core/
  - :heavy_check_mark: Build backends for open-source and vendor toolchains (Xilinx, Intel, Lattice, Gowin, Efinix, CologneChip, Anlogic, Microsemi, QuickLogic).
  - :heavy_check_mark: And a lot more... :)
 
-# The LiteX design flow
-
-![The LiteX design flow: Migen, the framework, the cores ecosystem, the CPUs and your platform and target files go in; the gateware for the toolchains or Verilator and the software support come out](images/litex-overview.svg)
-
+# Typical LiteX design flow:
+```
+                                      +---------------+
+                                      |FPGA toolchains|
+                                      +----^-----+----+
+                                           |     |
+                                        +--+-----v--+
+                       +-------+        |           |
+                       | Migen +-------->           |
+                       +-------+        |           |        Your design
+                                        |   LiteX   +---> ready to be used!
+                                        |           |
+              +----------------------+  |           |
+              |LiteX Cores Ecosystem +-->           |
+              +----------------------+  +-^-------^-+
+               (Eth, SATA, DRAM, USB,     |       |
+                PCIe, Video, etc...)      +       +
+                                         board   target
+                                         file    file
+```
 Your design is two Python files: the *platform* describes the board (pins, clocks, connectors, toolchain, programmer; [LiteX-Boards](https://github.com/litex-hub/litex-boards) has 200+ of them) and the *target* describes your SoC (CPU, memories, peripherals, cores from the ecosystem). The LiteX Builder generates the Verilog and constraints, runs the toolchain (or Verilator), builds the BIOS and generates the software support (`csr.h`, `soc.h`, `mem.h`, `memory.x`, `csr.csv/json/svd`, device trees); the host tools (`litex_term`, `litex_server`/`litex_cli` through a UART, JTAG, Ethernet or PCIe bridge, LiteScope, GDB) control and debug the running SoC.
 
 By combining LiteX with the ecosystem of cores, creating complex SoCs becomes a lot easier than with traditional approaches while providing better portability and flexibility: Here is for example a Multi-core Linux Capable SoC based on VexRiscv-SMP CPU, LiteDRAM, LiteSATA built and integrated with LiteX, running on a cheap repurposed [Acorn CLE215+ Mining Board](Use-LiteX-on-the-Acorn-CLE-215.md):
