@@ -148,6 +148,20 @@ static unsigned long sdram_csr_base = CSR_BASE;
 	(SDRAM_READ_LEVELING_FAST_STEP*SDRAM_READ_LEVELING_FAST_MIN_WINDOW)
 #endif
 
+#ifdef SDRAM_WRITE_TRAINING
+/* Round-trip write training (sdram_write_training): the delay step of the write DQ and read
+ * scans, the DQS step of the write map, the seed pairs of each scan probe (3: every pair). */
+#ifndef SDRAM_WRITE_TRAINING_STEP
+#define SDRAM_WRITE_TRAINING_STEP 4
+#endif
+#ifndef SDRAM_WRITE_TRAINING_MAP_STEP
+#define SDRAM_WRITE_TRAINING_MAP_STEP 16
+#endif
+#ifndef SDRAM_WRITE_TRAINING_COARSE_SEEDS
+#define SDRAM_WRITE_TRAINING_COARSE_SEEDS 1
+#endif
+#endif // SDRAM_WRITE_TRAINING
+
 /* sdram_init(): the leveling is run again (up to SDRAM_LEVELING_RETRIES times in all) when the
  * memtest of SDRAM_MEMTEST_SIZE bytes fails. */
 #ifndef SDRAM_LEVELING_RETRIES
@@ -170,6 +184,13 @@ static unsigned long sdram_csr_base = CSR_BASE;
 	!defined(SDRAM_PHY_DDR4_RDIMM) && !defined(SDRAM_PHY_CLAM_SHELL) && \
 	((SDRAM_PHY_PHASES*SDRAM_PHY_XDR) == 8) && !defined(SDRAM_MPR_READ_LEVELING_DISABLE)
 #define SDRAM_MPR_READ_LEVELING
+#endif
+
+/* Round-trip write training (see sdram_write_training): a PHY with write and read delays and
+ * bitslips, when the SoC asks for it (SDRAM_WRITE_TRAINING). */
+#if defined(SDRAM_WRITE_TRAINING) && defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) && \
+	defined(SDRAM_PHY_READ_LEVELING_CAPABLE) && defined(SDRAM_PHY_BITSLIPS)
+#define SDRAM_WRITE_TRAINING_ENABLED
 #endif
 
 /* DDR4 MR3 value written by the LiteDRAM init sequence (1x fine granularity refresh). */
@@ -537,19 +558,11 @@ static unsigned int sdram_mpr_check_module(int module, int dq_line) {
  * through the configured read phase, and counts bit errors only on the module
  * (or single DQ line) currently being trained.
  */
-static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int seed, int dq_line) {
+static void sdram_test_pattern_fill(unsigned int seed,
+	unsigned char prs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES]) {
 	int p, i, bit;
-	unsigned int errors;
 	unsigned int prv;
 	unsigned char value;
-	unsigned char tst[DFII_PIX_DATA_BYTES];
-	unsigned char prs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
-
-#ifdef SDRAM_MPR_READ_LEVELING
-	/* In MPR mode, check the DRAM's predefined patterns instead (read-only). */
-	if (_sdram_mpr_mode)
-		return sdram_mpr_check_module(module, dq_line);
-#endif // SDRAM_MPR_READ_LEVELING
 
 	/* Generate pseudo-random sequence */
 	prv = seed;
@@ -563,6 +576,21 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 			prs[p][i] = value;
 		}
 	}
+}
+
+static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int seed, int dq_line) {
+	int p;
+	unsigned int errors;
+	unsigned char tst[DFII_PIX_DATA_BYTES];
+	unsigned char prs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
+
+#ifdef SDRAM_MPR_READ_LEVELING
+	/* In MPR mode, check the DRAM's predefined patterns instead (read-only). */
+	if (_sdram_mpr_mode)
+		return sdram_mpr_check_module(module, dq_line);
+#endif // SDRAM_MPR_READ_LEVELING
+
+	sdram_test_pattern_fill(seed, prs);
 
 	/* Activate */
 	sdram_activate_test_row();
@@ -1636,7 +1664,7 @@ static int sdram_write_latency_bitslip_has_window(int module, int dq_line, int b
 }
 #endif // SDRAM_WRITE_LATENCY_CALIBRATION_FAST
 
-static void sdram_write_latency_calibration(void) {
+__attribute__((unused)) static void sdram_write_latency_calibration(void) {
 	int module;
 	int bitslip;
 	int dq_line;
@@ -1748,7 +1776,7 @@ static int sdram_read_leveling_best_bitslip(int module, int dq_line) {
 		read_rst_dq_delay, read_inc_dq_delay, dq_line);
 }
 
-static void sdram_write_dq_dqs_training(void) {
+__attribute__((unused)) static void sdram_write_dq_dqs_training(void) {
 	int module;
 	int dq_line;
 
@@ -1775,6 +1803,491 @@ static void sdram_write_dq_dqs_training(void) {
 }
 
 #endif /* SDRAM_PHY_WRITE_DQ_DQS_TRAINING_CAPABLE */
+
+/*-----------------------------------------------------------------------*/
+/* Write Training (round trip)                                           */
+/*-----------------------------------------------------------------------*/
+
+#ifdef SDRAM_WRITE_TRAINING_ENABLED
+
+/*
+ * Round-trip training of the write side (SDRAM_WRITE_TRAINING). The stock stages read back
+ * what they write and cannot tell a wrong read setting from a wrong write setting, and at
+ * high data rates write leveling leaves some byte lanes on the edge of their write eye. This
+ * stage trusts the read side it is given (the MPR read leveling, or a previous pass) and, per
+ * module:
+ *
+ * 1. maps the write side: every write bitslip x DQS position, the DQ moving with the DQS as
+ *    write leveling moves them, and settles on the centre of the widest passing run;
+ * 2. centres the write DQ against the DQS over the whole delay range (with wrap-around);
+ * 3. levels the reads: every read bitslip x delay, the widest window, its centre;
+ * 4. verifies the pattern four times.
+ *
+ * When the map finds nothing, the fallbacks search the write side with the reads as they are
+ * (DQS position against CK, write bitslip, DQ against DQS), then the read side (read
+ * bitslip/delay, stepping the write DQ), then every write bitslip with a read search; the
+ * DQS is then centred against CK before 2-4. A module gets three passes before it is reported
+ * as failed.
+ *
+ * The probe is the DFII test pattern, each seed followed by its complement: the same pattern
+ * at the same address reads back right once ANY setting wrote it, so a write that lands
+ * nowhere would pass; the complement must overwrite what the seed left.
+ *
+ * The delay resets are the PHY's RST pulses under DLY_SEL. On the US/US+ PHYs the DQS write
+ * delay has no software reset: the DQS positions are then relative to where write leveling
+ * left the strobe, which every scan returns to by moving a full SDRAM_PHY_DELAYS.
+ */
+
+#ifdef SDRAM_DELAY_PER_DQ
+#error "SDRAM_WRITE_TRAINING: per-DQ delays are not supported"
+#endif // SDRAM_DELAY_PER_DQ
+
+#define WTRAIN_STEP      SDRAM_WRITE_TRAINING_STEP
+#define WTRAIN_MAP_STEP  SDRAM_WRITE_TRAINING_MAP_STEP
+#define WTRAIN_COARSE    SDRAM_WRITE_TRAINING_COARSE_SEEDS
+#define WTRAIN_ALL_SEEDS _seed_array_length
+
+/* A scan of the delay range samples every `step` taps from 0 (SDRAM_PHY_DELAYS/step samples,
+ * rounded up); the lines are sized for the finest step in use: the step, the map step,
+ * find_reads' 8. */
+#define WTRAIN_SAMPLES(step) ((SDRAM_PHY_DELAYS + (step) - 1)/(step))
+#if SDRAM_WRITE_TRAINING_STEP < SDRAM_WRITE_TRAINING_MAP_STEP
+#define WTRAIN_MIN_STEP SDRAM_WRITE_TRAINING_STEP
+#else
+#define WTRAIN_MIN_STEP SDRAM_WRITE_TRAINING_MAP_STEP
+#endif
+#if WTRAIN_MIN_STEP > 8
+#define WTRAIN_LINE_MAX WTRAIN_SAMPLES(8)
+#else
+#define WTRAIN_LINE_MAX WTRAIN_SAMPLES(WTRAIN_MIN_STEP)
+#endif
+
+/* The write delay resets as RST pulses (the stock US/US+ accessors wrap by incrementing). */
+static void wtrain_wdly_dq_rst(int module) {
+	write_dq_delay[module] = 0;
+	ddrphy_wdly_dq_rst_write(1);
+	cdelay(100);
+}
+
+static void wtrain_wdly_dqs_rst(int module) {
+	ddrphy_wdly_dqs_rst_write(1);
+	cdelay(100);
+}
+
+/* One delay/bitslip pulse on a module: DLY_SEL set, the pulse, DLY_SEL cleared. */
+static void wtrain_pulse(int module, action_callback action) {
+	sdram_leveling_action(module, 0, action);
+	cdelay(10);
+}
+
+/* n taps forward on the write DQS and DQ together (modulo the delay range). */
+static void wtrain_move_write(int module, int n) {
+	int i;
+	for (i = 0; i < n % SDRAM_PHY_DELAYS; i++) {
+		wtrain_pulse(module, write_inc_dqs_delay);
+		wtrain_pulse(module, write_inc_dq_delay);
+	}
+}
+
+/* n taps forward on the write DQ alone. */
+static void wtrain_move_dq(int module, int n) {
+	int i;
+	for (i = 0; i < n; i++)
+		wtrain_pulse(module, write_inc_dq_delay);
+}
+
+/* n taps forward on the read delay. */
+static void wtrain_move_read(int module, int n) {
+	int i;
+	for (i = 0; i < n; i++)
+		wtrain_pulse(module, read_inc_dq_delay);
+}
+
+/* The DFII test pattern of a seed, or its complement. */
+static void wtrain_pattern(unsigned int seed, int invert,
+	unsigned char prs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES]) {
+	int p, i;
+	sdram_test_pattern_fill(seed, prs);
+	if (invert)
+		for(p=0;p<SDRAM_PHY_PHASES;p++)
+			for(i=0;i<DFII_PIX_DATA_BYTES;i++)
+				prs[p][i] ^= 0xff;
+}
+
+/* One round trip of a seed's pattern (or its complement) through the DFI injector: the error
+ * bits on the module's bytes (sdram_write_read_check_test_pattern's byte selection). */
+static unsigned int wtrain_check_pattern(int module, unsigned int seed, int invert) {
+	int p;
+	unsigned int errors = 0;
+	unsigned char tst[DFII_PIX_DATA_BYTES];
+	unsigned char prs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
+	int pebo = (module * SDRAM_PHY_DQ_DQS_RATIO)/8;              /* positive edge byte */
+	int nebo = pebo + (DFII_PIX_DATA_BYTES / SDRAM_PHY_XDR);      /* negative edge byte */
+	int ibo  = (module * SDRAM_PHY_DQ_DQS_RATIO)%8;               /* in-byte offset (x4 ICs) */
+
+	wtrain_pattern(seed, invert, prs);
+
+	/* Activate, write the pattern, read it back, precharge. */
+	sdram_activate_test_row();
+	for(p=0;p<SDRAM_PHY_PHASES;p++)
+		csr_wr_buf_uint8(sdram_dfii_pix_wrdata_addr(p), prs[p], DFII_PIX_DATA_BYTES);
+	sdram_dfii_piwr_address_write(0);
+	sdram_dfii_piwr_baddress_write(0);
+	command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|DFII_COMMAND_WRDATA);
+	cdelay(15);
+	sdram_dfii_pird_address_write(0);
+	sdram_dfii_pird_baddress_write(0);
+	command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|DFII_COMMAND_RDDATA);
+	cdelay(15);
+	sdram_precharge_test_row();
+
+	/* The module's bytes of every phase. */
+	for(p=0;p<SDRAM_PHY_PHASES;p++) {
+		csr_rd_buf_uint8(sdram_dfii_pix_rddata_addr(p), tst, DFII_PIX_DATA_BYTES);
+		errors += popcount(((prs[p][pebo] ^ tst[pebo]) >> ibo) & MODULE_BITMASK);
+		if (SDRAM_PHY_DQ_DQS_RATIO == 16)
+			errors += popcount(((prs[p][pebo-1] ^ tst[pebo-1]) >> ibo) & MODULE_BITMASK);
+#if SDRAM_PHY_XDR == 2
+		errors += popcount(((prs[p][nebo] ^ tst[nebo]) >> ibo) & MODULE_BITMASK);
+		if (SDRAM_PHY_DQ_DQS_RATIO == 16)
+			errors += popcount(((prs[p][nebo-1] ^ tst[nebo-1]) >> ibo) & MODULE_BITMASK);
+#endif // SDRAM_PHY_XDR == 2
+	}
+	return errors;
+}
+
+/* The first nseeds seed pairs (seed, complement) round-trip with no error bit: the scans
+ * probe with SDRAM_WRITE_TRAINING_COARSE_SEEDS pairs, the gates and the verification with
+ * every pair. */
+static int wtrain_module_ok(int module, int nseeds) {
+	int i, inv;
+	if (nseeds < 1)
+		nseeds = 1;
+	if (nseeds > _seed_array_length)
+		nseeds = _seed_array_length;
+	for (i = 0; i < nseeds; i++)
+		for (inv = 0; inv < 2; inv++)
+			if (wtrain_check_pattern(module, _seed_array[i], inv) != 0)
+				return 0;
+	return 1;
+}
+
+/* Four verifications with every seed pair. */
+static int wtrain_verify(int module) {
+	int i;
+	for (i = 0; i < 4; i++)
+		if (!wtrain_module_ok(module, WTRAIN_ALL_SEEDS))
+			return 0;
+	return 1;
+}
+
+/* The widest run of passing samples of a scan line: its start, its length returned (0: none).
+ * Runs in order, the first widest wins. With wrap, the run reaching the end of the line
+ * continues into the one at its start (the merged run comes first). */
+static int wtrain_widest(const unsigned char *line, int n, int wrap, int *start) {
+	int i, runs = 0, cur = -1;
+	int best_start = 0, best_len = 0;   /* The first widest run. */
+	int mid_start = 0, mid_len = 0;     /* The same, the first and the last run aside. */
+	int first_len = 0;                  /* The run at the start of the line. */
+	int last_start = 0, last_len = 0;   /* The run reaching the end of the line. */
+
+	for (i = 0; i <= n; i++) {
+		int len;
+		if ((i < n) && line[i]) {
+			if (cur < 0)
+				cur = i;
+			continue;
+		}
+		if (cur < 0)
+			continue;
+		len = i - cur;
+		runs++;
+		if (len > best_len) {
+			best_start = cur;
+			best_len   = len;
+		}
+		if (cur == 0)
+			first_len = len;
+		if (i == n) {
+			last_start = cur;
+			last_len   = len;
+		} else if ((cur != 0) && (len > mid_len)) {
+			mid_start = cur;
+			mid_len   = len;
+		}
+		cur = -1;
+	}
+	if (wrap && first_len && last_len && (runs > 1)) {
+		if (last_len + first_len >= mid_len) {
+			*start = last_start;
+			return last_len + first_len;
+		}
+		*start = mid_start;
+		return mid_len;
+	}
+	*start = best_start;
+	return best_len;
+}
+
+static void wtrain_set_write_bitslip(int module, int bitslip) {
+	int i;
+	wtrain_pulse(module, write_rst_dq_bitslip);
+	for (i = 0; i < bitslip; i++)
+		wtrain_pulse(module, write_inc_dq_bitslip);
+}
+
+static void wtrain_set_read(int module, int bitslip, int delay) {
+	int i;
+	wtrain_pulse(module, read_rst_dq_bitslip);
+	for (i = 0; i < bitslip; i++)
+		wtrain_pulse(module, read_inc_dq_bitslip);
+	wtrain_pulse(module, read_rst_dq_delay);
+	wtrain_move_read(module, delay);
+}
+
+/* 1. The write map: every write bitslip x DQS position (the DQ moving with the DQS, from
+ * their reset), the write bitslip set and the DQS/DQ moved to the centre of the widest
+ * passing run. 1 when something passes; *dqs is the DQS position (taps from its reset). */
+static int wtrain_write_map_best(int module, int *dqs) {
+	const int step = WTRAIN_MAP_STEP;
+	const int n = WTRAIN_SAMPLES(step);
+	unsigned char line[WTRAIN_LINE_MAX];
+	int wbs, i, start, len, center;
+	int best_wbs = 0, best_start = 0, best_len = 0;
+
+	wtrain_pulse(module, write_rst_dq_bitslip);
+	for (wbs = 0; wbs < SDRAM_PHY_BITSLIPS; wbs++) {
+		wtrain_pulse(module, wtrain_wdly_dqs_rst);
+		wtrain_pulse(module, wtrain_wdly_dq_rst);
+		for (i = 0; i < n; i++) {
+			line[i] = wtrain_module_ok(module, WTRAIN_COARSE);
+			wtrain_move_write(module, step);
+		}
+		len = wtrain_widest(line, n, 0, &start);
+		if (len > best_len) {
+			best_wbs   = wbs;
+			best_start = start;
+			best_len   = len;
+		}
+		wtrain_pulse(module, write_inc_dq_bitslip);   /* SDRAM_PHY_BITSLIPS of them: back to 0 */
+	}
+	if (best_len == 0)
+		return 0;
+
+	wtrain_set_write_bitslip(module, best_wbs);
+	wtrain_pulse(module, wtrain_wdly_dqs_rst);
+	wtrain_pulse(module, wtrain_wdly_dq_rst);
+	center = best_start*step + (best_len*step)/2;
+	wtrain_move_write(module, center);
+	*dqs = center;
+	return 1;
+}
+
+/* 2. The write DQ against the DQS: the widest passing window over the delay range (the delay
+ * wraps, so the run at the end of the scan continues into the one at its start), the DQ moved
+ * to its centre. The window in taps (0: none); *dq the net move. */
+static int wtrain_write_center(int module, int step, int *dq) {
+	const int n = WTRAIN_SAMPLES(step);
+	unsigned char line[WTRAIN_LINE_MAX];
+	int i, start, len, center;
+
+	for (i = 0; i < n; i++) {
+		line[i] = wtrain_module_ok(module, WTRAIN_COARSE);
+		wtrain_move_dq(module, step);
+	}
+	len = wtrain_widest(line, n, 1, &start);
+	if (len == 0)
+		return 0;
+	center = (start*step + (len*step)/2) % SDRAM_PHY_DELAYS;
+	wtrain_move_dq(module, center);
+	*dq = center;
+	return len*step;
+}
+
+/* 3. Read leveling: every read bitslip x delay, the read bitslip and delay set to the centre
+ * of the widest window. The window in taps (0: none). */
+static int wtrain_read_center(int module, int step) {
+	const int n = WTRAIN_SAMPLES(step);
+	unsigned char line[WTRAIN_LINE_MAX];
+	int bs, i, start, len, center;
+	int best_bs = 0, best_start = 0, best_len = 0;
+
+	wtrain_pulse(module, read_rst_dq_bitslip);
+	for (bs = 0; bs < SDRAM_PHY_BITSLIPS; bs++) {
+		wtrain_pulse(module, read_rst_dq_delay);
+		for (i = 0; i < n; i++) {
+			line[i] = wtrain_module_ok(module, WTRAIN_COARSE);
+			wtrain_move_read(module, step);
+		}
+		len = wtrain_widest(line, n, 0, &start);
+		if (len > best_len) {
+			best_bs    = bs;
+			best_start = start;
+			best_len   = len;
+		}
+		wtrain_pulse(module, read_inc_dq_bitslip);    /* SDRAM_PHY_BITSLIPS of them: back to 0 */
+	}
+	if (best_len == 0)
+		return 0;
+
+	center = best_start*step + (best_len*step)/2;
+	wtrain_set_read(module, best_bs, center);
+	return best_len*step;
+}
+
+/* Fallback: a usable read setting, stepping the write DQ when the leveled point is outside
+ * the write eye. 1 when found. */
+static int wtrain_find_reads(int module) {
+	int k;
+	if (wtrain_read_center(module, 8))
+		return 1;
+	for (k = 0; k < SDRAM_PHY_DELAYS; k += 16) {
+		wtrain_move_dq(module, 16);
+		if (wtrain_read_center(module, 16))
+			return 1;
+	}
+	return 0;
+}
+
+/* Fallback: the write side with the reads as they are: the DQS position against CK (the DQ
+ * moving with it), the write bitslip, the DQ against the DQS. Write leveling fails on modules
+ * whose DQS-to-CK transition sits just before delay 0 and the latency calibration then
+ * guesses; a pattern that reads back right is all that matters, and tDQSS gives the DQS
+ * position slack. 1 when found; *dqs follows the DQS moves. */
+static int wtrain_find_writes(int module, int *dqs) {
+	const int dqs_step = 40;
+	const int dq_step  = 16;
+	int d, wbs, k;
+
+	for (d = 0; d < SDRAM_PHY_DELAYS; d += dqs_step) {
+		wtrain_pulse(module, write_rst_dq_bitslip);
+		for (wbs = 0; wbs < SDRAM_PHY_BITSLIPS; wbs++) {
+			for (k = 0; k < SDRAM_PHY_DELAYS; k += dq_step) {
+				if (wtrain_module_ok(module, WTRAIN_COARSE))
+					return 1;
+				wtrain_move_dq(module, dq_step);
+			}
+			wtrain_pulse(module, write_inc_dq_bitslip);
+		}
+		wtrain_move_write(module, dqs_step);
+		*dqs = (*dqs + dqs_step) % SDRAM_PHY_DELAYS;
+	}
+	return 0;
+}
+
+/* The DQS centred against CK inside the range where the pattern round-trips (the DQ moving
+ * with it): the fallbacks stop at the first passing point, which can be the edge of tDQSS,
+ * where a lane fails now and then. The window in taps (0: nothing passes at the origin);
+ * *dqs follows the move. */
+static int wtrain_dqs_center(int module, int *dqs) {
+	const int step = 8;
+	int fwd = 0, back = 0, center;
+
+	if (!wtrain_module_ok(module, WTRAIN_COARSE))
+		return 0;
+	while (fwd + step < SDRAM_PHY_DELAYS/2) {
+		wtrain_move_write(module, step);
+		fwd += step;
+		if (!wtrain_module_ok(module, WTRAIN_COARSE))
+			break;
+	}
+	wtrain_move_write(module, SDRAM_PHY_DELAYS - fwd);        /* back to the origin */
+	while (back + step < SDRAM_PHY_DELAYS/2) {
+		wtrain_move_write(module, SDRAM_PHY_DELAYS - step);
+		back += step;
+		if (!wtrain_module_ok(module, WTRAIN_COARSE))
+			break;
+	}
+	wtrain_move_write(module, back);                          /* back to the origin */
+	/* The passing range is (-back, +fwd), the failing ends excluded: its centre. */
+	center = (fwd - back)/2;
+	wtrain_move_write(module, center + SDRAM_PHY_DELAYS);
+	*dqs = (*dqs + center + SDRAM_PHY_DELAYS) % SDRAM_PHY_DELAYS;
+	return fwd + back;
+}
+
+/* One training pass of a module: 1 when its result verifies. *dqs, *dq and *window report
+ * the DQS position, the write DQ move and the read window. */
+static int wtrain_module(int module, int step, int *dqs, int *dq, int *window) {
+	*dqs = 0;
+	*dq  = 0;
+	if (wtrain_write_map_best(module, dqs)) {
+		wtrain_write_center(module, step, dq);
+		*window = wtrain_read_center(module, step);
+		return wtrain_verify(module);
+	}
+	if (!wtrain_module_ok(module, WTRAIN_ALL_SEEDS)) {
+		if (wtrain_find_writes(module, dqs)) {
+			printf("  m%d: write side found (DQS position / write bitslip / DQ)\n", module);
+		} else if (wtrain_find_reads(module)) {
+			printf("  m%d: read side found\n", module);
+		} else {
+			int found = 0;
+			int wbs;
+			wtrain_pulse(module, write_rst_dq_bitslip);
+			for (wbs = 0; wbs < SDRAM_PHY_BITSLIPS; wbs++) {
+				if (wtrain_find_reads(module)) {
+					printf("  m%d: write bitslip %d with a new read window\n", module, wbs);
+					found = 1;
+					break;
+				}
+				wtrain_pulse(module, write_inc_dq_bitslip);
+			}
+			if (!found) {
+				printf("  m%d: FAILED - no combination reads back the pattern\n", module);
+				return 0;
+			}
+		}
+	}
+	wtrain_dqs_center(module, dqs);
+	wtrain_write_center(module, step, dq);
+	*window = wtrain_read_center(module, step);
+	return wtrain_verify(module);
+}
+
+int sdram_write_training(void) {
+	int module, attempt;
+	int failed = 0;
+
+	for (module = 0; module < SDRAM_PHY_MODULES; module++) {
+		int dqs = 0, dq = 0, window = 0;
+		int ok = 0;
+		for (attempt = 1; attempt <= 3; attempt++) {
+			ok = wtrain_module(module, WTRAIN_STEP, &dqs, &dq, &window);
+			if (ok)
+				break;
+			printf("  m%d: verification failed after pass %d, retrying\n", module, attempt);
+		}
+		if (!ok) {
+			printf("  m%d: FAILED - three passes did not converge\n", module);
+			failed |= 1 << module;
+			continue;
+		}
+		printf("  m%d: write bitslip %d, DQS %d, DQ +%d, read bitslip %d delay %d (window %d)\n",
+			module, write_dq_bitslip[module], dqs, dq,
+			read_dq_bitslip[module], read_dq_delay[module], window);
+	}
+	return failed;
+}
+
+int sdram_write_training_check(int *errors_per_module) {
+	int module, i, inv;
+	int failed = 0;
+
+	for (module = 0; module < SDRAM_PHY_MODULES; module++) {
+		unsigned int errors = 0;
+		for (i = 0; i < _seed_array_length; i++)
+			for (inv = 0; inv < 2; inv++)
+				errors += wtrain_check_pattern(module, _seed_array[i], inv);
+		if (errors_per_module != NULL)
+			errors_per_module[module] = errors;
+		if (errors != 0)
+			failed |= 1 << module;
+	}
+	return failed;
+}
+
+#endif // SDRAM_WRITE_TRAINING_ENABLED
 
 /*-----------------------------------------------------------------------*/
 /* CK Phase Leveling                                                     */
@@ -2541,6 +3054,9 @@ int sdram_ckphase_leveling(int controller) {
  * - Read leveling then selects read bitslip and centers read delay windows.
  * - PHYs moving CK against DQ/DQS (SDRAM_PHY_CKPHASE_STEPS) run CK phase leveling
  *   instead: CK phase scan, write latency and per-bit read leveling at each step.
+ * - With SDRAM_WRITE_TRAINING, the round-trip write training replaces the write
+ *   latency calibration, the write DQ-DQS training and the final read leveling
+ *   (or runs after them with SDRAM_WRITE_TRAINING_AFTER_LEVELING).
  *
  * Each stage leaves its programmed PHY state in place for the next stage.
  */
@@ -2580,6 +3096,11 @@ int sdram_leveling(void) {
 	sdram_read_leveling_mpr();
 #endif // SDRAM_MPR_READ_LEVELING
 
+#if defined(SDRAM_WRITE_TRAINING_ENABLED) && !defined(SDRAM_WRITE_TRAINING_AFTER_LEVELING)
+	/* The round-trip training sets the write bitslip, the write DQS/DQ and the reads itself. */
+	printf("Write training:\n");
+	sdram_write_training();
+#else
 #ifdef SDRAM_PHY_WRITE_LATENCY_CALIBRATION_CAPABLE
 	printf("Write latency calibration:\n");
 	sdram_write_latency_calibration();
@@ -2597,6 +3118,12 @@ int sdram_leveling(void) {
 	printf("Read leveling:\n");
 	sdram_read_leveling();
 #endif // SDRAM_PHY_CKPHASE_STEPS / SDRAM_PHY_READ_LEVELING_CAPABLE
+
+#ifdef SDRAM_WRITE_TRAINING_ENABLED
+	printf("Write training:\n");
+	sdram_write_training();
+#endif // SDRAM_WRITE_TRAINING_ENABLED
+#endif // SDRAM_WRITE_TRAINING_ENABLED && !SDRAM_WRITE_TRAINING_AFTER_LEVELING
 
 	sdram_software_control_off();
 
