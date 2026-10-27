@@ -25,8 +25,8 @@ The [iCEBreaker](https://www.crowdsupply.com/1bitsquared/icebreaker-fpga) is the
 ### [LiteX for Hardware Engineers](LiteX-for-Hardware-Engineers.md)
 An introduction to LiteX written in 2018 by [bunnie](https://www.bunniestudios.com/) for engineers with a Verilog/Vivado background, with his tips; kept in this wiki with notes on what changed since.
 
-### [Migen manual](https://m-labs.hk/migen/manual) and [Amaranth](https://amaranth-lang.org/docs/)
-The language the cores are written in, and its successor ([why LiteX is still on Migen](Migen-Amaranth.md)).
+### [Migen manual](https://m-labs.hk/migen/manual)
+The language LiteX and its cores are written in: `Module`, `Signal`, `If`/`Case`, `FSM`, `Record`, the specials and the simulator.
 
 ## Examples to read
 
