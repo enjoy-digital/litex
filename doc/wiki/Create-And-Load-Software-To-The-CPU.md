@@ -96,7 +96,8 @@ and [BIOS](BIOS.md).
 - **Rust**: `--memory-x memory.x` and `--soc-svd soc.svd` give the linker regions and the
   peripheral description (`svd2rust`); [rust-litex-hal](https://github.com/pepijndevos/rust-litex-hal)
   implements `embedded-hal` on the LiteX cores.
-- **RTOS and OSes**: [Zephyr](Run-Zephyr-On-Your-SoC.md), FreeRTOS, NuttX, MicroPython and
+- **RTOS and OSes**: [Zephyr](Run-Zephyr-On-Your-SoC.md), [FreeRTOS](https://github.com/enjoy-digital/freertos-on-litex),
+  NuttX, [MicroPython](Run-MicroPython-CircuitPython-On-Your-SoC.md) and
   [Linux](Run-Linux-On-Your-SoC.md) take the SoC description through the generated device trees
   ([OSes ecosystem](OSes-Ecosystem.md)).
 - **Debugging**: `printf` over the UART, the BIOS `mem_*` commands, [GDB over JTAG](JTAG-GDB-Debugging-with-VexRiscv-CPU.md),
