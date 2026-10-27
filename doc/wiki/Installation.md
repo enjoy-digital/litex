@@ -1,5 +1,3 @@
-# LiteX installation guide
-
 LiteX is a set of Python packages (Migen, LiteX, the cores, the boards, the CPUs) installed
 from their Git repositories by `litex_setup.py`, plus the compilers of the CPU you use and the
 FPGA toolchain of your board (or Verilator to run the SoC on your computer). Ten minutes on

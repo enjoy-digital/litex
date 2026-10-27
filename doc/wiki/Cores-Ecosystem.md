@@ -1,5 +1,3 @@
-# LiteX Cores Ecosystem
-
 Around the [LiteX](Home.md) framework, a family of cores covers the usual needs of an FPGA
 system: DRAM, Ethernet, PCIe, SATA, SD card, SerDes links, JESD204, SPI, I2C, NVMe, DSP and a
 logic analyzer. Each core is its own repository, written in Migen/LiteX with the same

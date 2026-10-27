@@ -1,5 +1,3 @@
-# LiteX OSes Ecosystem
-
 What runs on the CPU of a LiteX SoC, from the BIOS to Linux. LiteX generates the software
 support from the SoC itself: C headers (`csr.h`, `soc.h`, `mem.h`), linker regions
 (`memory.x`), the `csr.csv/json/svd` descriptions and the device trees for Linux, Zephyr and

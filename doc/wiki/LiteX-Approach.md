@@ -1,5 +1,3 @@
-# The LiteX approach
-
 LiteX has been used since 2012 to build FPGA systems for clients and for open-source projects,
 and the framework is the distillation of what worked on these systems. This page describes the
 way we build with it, so that the code, the cores and the documentation make sense as a whole.
