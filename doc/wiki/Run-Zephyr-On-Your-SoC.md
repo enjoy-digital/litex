@@ -72,5 +72,5 @@ application (serial boot here, or TFTP/SD card/flash: [Load application code](Lo
   F4PGA toolchain, the SDI-MIPI video converter board) and a model of how to script the flow.
 - [Renode](Generate-Renode-simulation.md) runs the Zephyr image on a model of the SoC without
   a board, and [litex_sim](SoC-Simulator.md) in Verilator with `--rom-init`/`--ram-init`.
-- NEORV32 has its own upstream Zephyr board; FreeRTOS and NuttX are on the
-  [OSes ecosystem](OSes-Ecosystem.md) page.
+- NEORV32 has its own upstream Zephyr board; [FreeRTOS](https://github.com/enjoy-digital/freertos-on-litex)
+  and NuttX are on the [OSes ecosystem](OSes-Ecosystem.md) page.
