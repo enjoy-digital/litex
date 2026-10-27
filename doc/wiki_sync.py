@@ -298,6 +298,22 @@ def gfm_slugify(value, separator="-"):
     """GitHub's heading anchors (the same rule as anchors())."""
     return re.sub(r"[^\w\- ]", "", value.strip().lower()).replace(" ", separator)
 
+LIST_ITEM = re.compile(r"^ {0,3}([-*+]|\d+[.)]) ")
+
+def gfm_lists(text):
+    """GitHub lets a list interrupt a paragraph, Python-Markdown wants a blank line before it:
+    insert one when a list item follows a plain text line (outside the fenced code blocks)."""
+    out, fence, prev = [], False, ""
+    for line in text.split("\n"):
+        if line.lstrip().startswith(("```", "~~~")):
+            fence = not fence
+        elif not fence and LIST_ITEM.match(line) and prev.strip() and not LIST_ITEM.match(prev) \
+                and not prev.startswith((" ", "\t")):
+            out.append("")
+        out.append(line)
+        prev = line
+    return "\n".join(out)
+
 def render_markdown(text, known):
     """A page as HTML, with the links pointing to the .html pages (needs Python-Markdown)."""
     try:
@@ -307,6 +323,7 @@ def render_markdown(text, known):
     text = rewrite_links(text, known, ext=".html")
     for k, v in EMOJI.items():
         text = text.replace(k, v)
+    text = gfm_lists(text)
     md = markdown.Markdown(extensions=["extra", "toc", "sane_lists"],
                            extension_configs={"toc": {"slugify": gfm_slugify}})
     return md.convert(text)
