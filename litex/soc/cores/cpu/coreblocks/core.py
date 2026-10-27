@@ -159,10 +159,12 @@ class Coreblocks(CPU):
 
         data_mod = get_data_mod("cpu", "coreblocks")
 
-        if os.getenv("LITEX_COREBLOCKS_RUN_NATIVE", "0") != "0":
-            # run generation from `coreblocks` (not `pythondata-cpu-coreblocks`) package
-            # requires manual installation in the enviroment, mainly for dev/hacking
-            command = ["python3", "-m", "coreblocks.gen_verilog"]
+        if os.getenv("LITEX_COREBLOCKS_OVERRIDE_GEN_VERILOG", "") != "":
+            # Override coreblocks generation executable
+            # Useful for dev/hacking on a local coreblocks copy. Example usage would be pointing it to a script
+            # that will execute a local coreblocks gen_verilog script in an isolated python environment.
+            # Expected output file is passed as an argument.
+            command = [os.getenv("LITEX_COREBLOCKS_OVERRIDE_GEN_VERILOG")]
         else:
             # generation form `pythondata-cpu-coreblocks` wrapper script
             # it runs coreblocks in isolated enviroment with correct python version and separate dependencies
