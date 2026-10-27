@@ -167,6 +167,14 @@ class SDRIO(Special):
         yield self, "o"  , SPECIAL_OUTPUT
         yield self, "clk", SPECIAL_INPUT
 
+    def rename_clock_domain(self, old, new):
+        # Keep the cached clock domain name in sync with the ClockSignal: a ClockDomainsRenamer
+        # applied to the parent module renames it after construction, and the ClockSignal itself has
+        # already been lowered to its clock Signal when the Special is lowered.
+        Special.rename_clock_domain(self, old, new)
+        if self.clk_domain == old:
+            self.clk_domain = new
+
     @staticmethod
     def lower(dr):
         return InferredSDRIO(dr.i, dr.o, dr.clk, dr.clk_domain)
