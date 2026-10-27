@@ -1,0 +1,80 @@
+name: wiki
+
+# Publish doc/wiki/ to the GitHub wiki (https://github.com/enjoy-digital/litex/wiki) on every push
+# to master that touches it. One-way: the wiki is a rendered copy of doc/wiki/, edited through pull
+# requests (see doc/wiki_sync.py and the Contributing-to-the-Wiki page); direct edits on the wiki
+# are overwritten by the next sync (they are reported in the job log). The checks (links, images,
+# diagrams) run on pull requests in ci.yml.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "doc/wiki/**"
+      - "doc/wiki_sync.py"
+      - ".github/workflows/wiki.yml"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Render and show what would change, push nothing to the wiki"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # The default GITHUB_TOKEN pushes to <repo>.wiki.git with this permission.
+
+concurrency:
+  group: wiki-sync
+  cancel-in-progress: false   # Serialize the syncs, never drop one.
+
+jobs:
+  sync:
+    runs-on: ubuntu-22.04
+    if: github.repository_owner == 'enjoy-digital' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check wiki sources
+        run: python3 doc/wiki_sync.py check
+
+      # WIKI_TOKEN (a fine-grained PAT with Contents: write on this repository) is only needed if
+      # the organization policy denies the default token the push; otherwise github.token works.
+      - name: Clone wiki
+        env:
+          TOKEN: ${{ secrets.WIKI_TOKEN || github.token }}
+        run: |
+          git clone "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" "${RUNNER_TEMP}/wiki"
+
+      - name: Report manual edits
+        run: |
+          cd "${RUNNER_TEMP}/wiki"
+          last_sync=$(git log --format=%H --grep='^Sync from ' -n 1)
+          if [ -n "${last_sync}" ] && [ "${last_sync}" != "$(git rev-parse HEAD)" ]; then
+            echo "::warning::The wiki was edited directly since the last sync; these edits are overwritten (edit doc/wiki/ in the litex repository instead):"
+            git log --oneline "${last_sync}..HEAD"
+            git diff --stat "${last_sync}..HEAD"
+          fi
+
+      - name: Render wiki
+        run: python3 doc/wiki_sync.py render --out "${RUNNER_TEMP}/wiki" --clean
+
+      - name: Commit and push
+        env:
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          cd "${RUNNER_TEMP}/wiki"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "wiki up to date"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "Sync from ${GITHUB_REPOSITORY}@${GITHUB_SHA::12}" \
+                      -m "https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+          git show --stat HEAD
+          if [ "${DRY_RUN}" = "true" ]; then
+            echo "dry run: nothing pushed"
+            exit 0
+          fi
+          git push origin HEAD:master
