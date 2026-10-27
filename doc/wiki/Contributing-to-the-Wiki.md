@@ -1,5 +1,3 @@
-# Contributing to the Wiki
-
 This wiki is generated from the [`doc/wiki/`](https://github.com/enjoy-digital/litex/tree/master/doc/wiki)
 directory of the LiteX repository: the pages are edited there, reviewed as pull requests and
 published to the wiki by a GitHub Actions workflow on every push to `master`. Editing the wiki
