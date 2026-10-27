@@ -1,7 +1,7 @@
 ## **Feedback / Contribution / Support**
 
 Feedback, contributions greatly help improving open-source projects and any contribution to LiteX is welcome:
-- You create a design with LiteX, **it works** and you are happy with it? Please **let us know**, we could list it as a [useful resource](Tutorials-Resources.md#useful-resources) or a [project](Projects.md)! It could be used as an example and help other users.
+- You create a design with LiteX, **it works** and you are happy with it? Please **let us know**, we could list it as a [useful resource](Tutorials-Resources.md#examples-to-read) or a [project](Projects.md)! It could be used as an example and help other users.
 - You try to use LiteX but it **does not work**, we could certainly help if you create an **issue**, but please have a look at the list of **things we'll need to know** to be able to help you.
 - You've seen things that could be **improved** or have some **ideas** you think would be useful for the project? **Please share it with us**. If you don't feel confident enough to modify the code yourself, feel free to **create an issue describing your idea(s)** and describe how it could improve the project. If you think you are able to do the modification yourself, feel free to **try and create a Pull Request**. Even if this is not perfect, this would be welcomed and we will help you understand how you could eventually improve it or could do the modification for you. 
 - The documentation is wrong, outdated or missing something? This wiki is generated from the `doc/wiki` directory of the LiteX repository: [send a pull request](Contributing-to-the-Wiki.md), even for a one line fix.

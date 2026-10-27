@@ -48,3 +48,5 @@
   * [Export your Core/SoC to Verilog](Export-Your-Core-SoC-To-Verilog.md)
   * [Create a PCIe SoC](Create-A-PCIe-SoC.md)
   * [Generate Renode simulation](Generate-Renode-simulation.md)
+* For AI agents
+  * [LiteX for AI agents](LiteX-for-AI-Agents.md)

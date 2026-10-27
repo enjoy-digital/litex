@@ -90,7 +90,7 @@ The Migen simulator runs the module with a Python generator; CSRs have `write()`
 helpers for simulation:
 
 ```python
-# test/test_pwm.py
+# test/cores/test_pwm.py
 import unittest
 from migen import *
 from litex.soc.cores.pwm import PWM

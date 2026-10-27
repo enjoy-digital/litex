@@ -18,8 +18,8 @@ the repository). Pages marked TODO are placeholders being written.
 - [LiteX-Approach](https://github.com/enjoy-digital/litex/wiki/LiteX-Approach): how LiteX is built and used: Python + Migen, cores with stable stream/bus/CSR contracts, portable layering, simulation first, bridges and LiteScope on hardware, practical rules, releases
 - [Cores-Ecosystem](https://github.com/enjoy-digital/litex/wiki/Cores-Ecosystem): the Lite* cores (LiteDRAM, LiteEth, LitePCIe, LiteNVMe, LiteSATA, LiteSDCard, LiteICLink, LiteJESD204, LiteSPI, LiteI2C, LiteScope, LiteDSP): standards, supported hardware, standalone generators
 - [OSes-Ecosystem](https://github.com/enjoy-digital/litex/wiki/OSes-Ecosystem): what runs on a LiteX SoC: BIOS and bare metal, Zephyr/FreeRTOS/NuttX, MicroPython/Rust/MQuickJS, Linux (VexRiscv-SMP, NaxRiscv, VexiiRiscv, Rocket, hard CPUs), upstream drivers, simulation
-- [Tutorials-Resources](https://github.com/enjoy-digital/litex/wiki/Tutorials-Resources): tutorials, workshops, example projects, blog posts and talks
-- [Projects](https://github.com/enjoy-digital/litex/wiki/Projects): industrial and open-source projects built with LiteX
+- [Tutorials-Resources](https://github.com/enjoy-digital/litex/wiki/Tutorials-Resources): tutorials and workshops (FPGA 101, fjullien, Fomu, iCEBreaker), examples to read, articles and blog posts (LiteX Notes), talks and papers
+- [Projects](https://github.com/enjoy-digital/litex/wiki/Projects): projects built with LiteX in four groups: Enjoy-Digital (framework, cores, TriXium, LiteX-M2SDR, USB3-PIPE, LiteX-WR-NIC, Acorn baseboard, ChromatiX, CamLink 4K...), LiteX-Hub collaborative projects, community projects, industrial projects
 - [Feedback-Contribution-Support](https://github.com/enjoy-digital/litex/wiki/Feedback-Contribution-Support): how to report an issue (what to include), contribute a pull request, get support
 - [Contributing-to-the-Wiki](https://github.com/enjoy-digital/litex/wiki/Contributing-to-the-Wiki): the wiki is generated from doc/wiki in the repository, how to edit it, links, images, diagrams
 - [LiteX-for-Hardware-Engineers](https://github.com/enjoy-digital/litex/wiki/LiteX-for-Hardware-Engineers): an introduction to LiteX for engineers used to Verilog and Vivado (2018, by bunnie)
@@ -68,10 +68,14 @@ the repository). Pages marked TODO are placeholders being written.
 - [Create-A-PCIe-SoC](https://github.com/enjoy-digital/litex/wiki/Create-A-PCIe-SoC): LitePCIe (PHYs, endpoint, MMAP, DMAs, MSI, PTM, driver and tools), the target with add_pcie, build/driver/litepcie_util, using the DMAs from the gateware and from liblitepcie, standalone litepcie_gen, examples
 - [Generate-Renode-simulation](https://github.com/enjoy-digital/litex/wiki/Generate-Renode-simulation): litex_json2renode: the .repl/.resc from csr.json, the options (BIOS/OpenSBI/flash/TFTP binaries, network, Etherbone), the supported components
 
+## For AI agents
+
+- [LiteX-for-AI-Agents](https://github.com/enjoy-digital/litex/wiki/LiteX-for-AI-Agents): a map of LiteX for an agent working in or with it: what LiteX is, the repository layout, the key classes, the commands that answer questions fast, the conventions, how to verify a change, pitfalls, using LiteX from a project
+
 ## Moved or legacy pages (kept for their links)
 
 - [Soft-CPU](https://github.com/enjoy-digital/litex/wiki/Soft-CPU): moved to CPUs
 - [Reuse-a-(System)Verilog,-VHDL,-Amaranth,-Spinal-HDL,-Chisel-core](https://github.com/enjoy-digital/litex/wiki/Reuse-a-(System)Verilog,-VHDL,-Amaranth,-Spinal-HDL,-Chisel-core): moved to Reuse-a-SystemVerilog-VHDL-Amaranth-Spinal-HDL-Chisel-core
 - [Firmware](https://github.com/enjoy-digital/litex/wiki/Firmware): moved to OSes-Ecosystem
 - [OS-support](https://github.com/enjoy-digital/litex/wiki/OS-support): moved to OSes-Ecosystem
-- [Related-Projects](https://github.com/enjoy-digital/litex/wiki/Related-Projects): Fomu, F4PGA, CFU Playground, RowHammer tester (see Projects)
+- [Related-Projects](https://github.com/enjoy-digital/litex/wiki/Related-Projects): moved to Projects
