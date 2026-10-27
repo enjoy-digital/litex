@@ -31,9 +31,9 @@ def draw(d):
     d.box(30, 100, 300, 190, fill=KEY, lines=[("Platform file", 17, "bold"), ("pins · IOStandard · connectors", 13), ("default clock · toolchain · programmer", 13)])
     d.box(30, 230, 300, 320, fill=KEY, lines=[("Target file", 17, "bold"), ("the SoC: CPU, memories, cores,", 13), ("buses, options (--cpu-type, --with-...)", 13)])
     d.box(30, 360, 300, 430, lines=[("Builder options", 15, "bold"), ("--build · --load · --flash · --no-compile-*", 12), ("--soc-csv/json/svd · --doc · --build-bundle", 12)])
-    d.arrow([(300, 145), (360, 145), (360, 260)])
+    d.arrow([(300, 145), (360, 145)])
     d.arrow([(300, 275), (360, 275)], thick=True)
-    d.arrow([(300, 395), (360, 395), (360, 290)])
+    d.arrow([(300, 395), (360, 395)])
 
     # Builder steps.
     d.box(360, 40, 860, 560, fill=FPGA, c=24)

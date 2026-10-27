@@ -19,12 +19,12 @@
   <text x="165.0" y="384.6" font-size="15" text-anchor="middle" fill="#1a1a1a" font-weight="bold">Builder options</text>
   <text x="165.0" y="401.1" font-size="12" text-anchor="middle" fill="#1a1a1a">--build · --load · --flash · --no-compile-*</text>
   <text x="165.0" y="416.8" font-size="12" text-anchor="middle" fill="#1a1a1a">--soc-csv/json/svd · --doc · --build-bundle</text>
-  <path d="M 300.0,145.0 L 360.0,145.0 L 360.0,253.0" fill="none" stroke="#595959" stroke-width="1.6" stroke-linejoin="round"/>
-  <polygon points="360.0,260.0 356.2,251.0 363.8,251.0" fill="#595959"/>
+  <path d="M 300.0,145.0 L 353.0,145.0" fill="none" stroke="#595959" stroke-width="1.6" stroke-linejoin="round"/>
+  <polygon points="360.0,145.0 351.0,148.8 351.0,141.2" fill="#595959"/>
   <path d="M 300.0,275.0 L 351.0,275.0" fill="none" stroke="#8c8c8c" stroke-width="4" stroke-linejoin="round"/>
   <polygon points="360.0,275.0 349.0,279.6 349.0,270.4" fill="#8c8c8c"/>
-  <path d="M 300.0,395.0 L 360.0,395.0 L 360.0,297.0" fill="none" stroke="#595959" stroke-width="1.6" stroke-linejoin="round"/>
-  <polygon points="360.0,290.0 363.8,299.0 356.2,299.0" fill="#595959"/>
+  <path d="M 300.0,395.0 L 353.0,395.0" fill="none" stroke="#595959" stroke-width="1.6" stroke-linejoin="round"/>
+  <polygon points="360.0,395.0 351.0,398.8 351.0,391.2" fill="#595959"/>
   <polygon points="360,40 836,40 860,64 860,560 384,560 360,536" fill="#e4e4e4" stroke="#7f7f7f" stroke-width="1.5" filter="url(#shadow)"/>
   <text x="610" y="70" font-size="22" text-anchor="middle" fill="#1a1a1a" font-weight="bold">Builder</text>
   <text x="610" y="90" font-size="13" text-anchor="middle" fill="#1a1a1a" font-style="italic">litex/soc/integration/builder.py</text>
