@@ -268,6 +268,7 @@ h1.pagetitle { font-size: 32px; font-weight: 600; margin: 0 0 16px; }
 .markdown-body pre { background: #f6f8fa; padding: 16px; border-radius: 6px; overflow: auto; font-size: 85%; line-height: 1.45; }
 .markdown-body code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 85%; background: rgba(175,184,193,.2); padding: .2em .4em; border-radius: 6px; }
 .markdown-body pre code { background: none; padding: 0; font-size: 100%; }
+.markdown-body .highlight { background: #f6f8fa; border-radius: 6px; } .markdown-body .highlight pre { margin: 0; }
 .markdown-body table { border-collapse: collapse; margin: 16px 0; display: block; overflow: auto; max-width: 100%; }
 .markdown-body th, .markdown-body td { border: 1px solid #d0d7de; padding: 6px 13px; vertical-align: top; }
 .markdown-body th { font-weight: 600; background: #f6f8fa; }
@@ -279,7 +280,8 @@ h1.pagetitle { font-size: 32px; font-weight: 600; margin: 0 0 16px; }
 
 PREVIEW_TEMPLATE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{title} · LiteX wiki preview</title><style>{css}</style></head>
+<title>{title} · LiteX wiki preview</title><style>{css}
+{hl_css}</style></head>
 <body><div class="wrap">
 <div class="main">
 <div class="topbar">LiteX wiki preview ({source}) · <a href="Home.html">Home</a>{name}</div>
@@ -325,9 +327,18 @@ def render_markdown(text, known):
     for k, v in EMOJI.items():
         text = text.replace(k, v)
     text = gfm_lists(text)
-    md = markdown.Markdown(extensions=["extra", "toc", "sane_lists"],
-                           extension_configs={"toc": {"slugify": gfm_slugify}})
+    md = markdown.Markdown(extensions=["extra", "toc", "sane_lists", "codehilite"],
+                           extension_configs={"toc": {"slugify": gfm_slugify},
+                                              "codehilite": {"guess_lang": False, "css_class": "highlight"}})
     return md.convert(text)
+
+def highlight_css():
+    """The style of the code blocks (Pygments, GitHub-like colors); empty without Pygments."""
+    try:
+        from pygments.formatters import HtmlFormatter
+    except ImportError:
+        return ""
+    return HtmlFormatter(style="default").get_style_defs(".highlight")
 
 def wiki_at_ref(ref):
     """doc/wiki/ of a git ref (a branch, a tag, a commit: origin/wiki/welcome, v2026.08, ...) extracted
@@ -366,6 +377,7 @@ def preview(out, serve=False, port=8000, browser=True, ref=None):
     os.makedirs(out, exist_ok=True)
     def read(name):
         return open(os.path.join(root, name), encoding="utf-8").read()
+    hl_css  = highlight_css()
     sidebar = render_markdown(read("_Sidebar.md"), known) if "_Sidebar.md" in files else ""
     footer  = render_markdown(read("_Footer.md"),  known) if "_Footer.md"  in files else ""
     n = 0
@@ -380,7 +392,7 @@ def preview(out, serve=False, port=8000, browser=True, ref=None):
         page = PREVIEW_TEMPLATE.format(title=html.escape(name.replace("-", " ")),
                                        name=("" if name == "Home" else " · " + html.escape(name)),
                                        source=html.escape(ref or "doc/wiki"),
-                                       css=PREVIEW_CSS, body=body, footer=footer, sidebar=sidebar)
+                                       css=PREVIEW_CSS, hl_css=hl_css, body=body, footer=footer, sidebar=sidebar)
         with open(os.path.join(out, name + ".html"), "w", encoding="utf-8") as fo:
             fo.write(page)
         n += 1

@@ -45,7 +45,7 @@ there for the conventions, the lint and how to add one.
 ## Previewing the wiki locally
 
 ```sh
-pip install markdown                      # once (Python-Markdown)
+pip install markdown pygments             # once (Python-Markdown; Pygments for the syntax highlighting)
 python3 doc/wiki_sync.py preview --serve  # renders doc/wiki/ to HTML and opens it in the browser
 ```
 
