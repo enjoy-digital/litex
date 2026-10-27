@@ -1,5 +1,3 @@
-# Add a new board
-
 A board is two Python files in [LiteX-Boards](https://github.com/litex-hub/litex-boards)
 (or in your project): the **platform** (`litex_boards/platforms/<vendor>_<board>.py`: the
 FPGA, the pins, the I/O standards, the connectors, the default clock, the programmer, the

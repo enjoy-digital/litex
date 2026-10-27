@@ -1,5 +1,3 @@
-# Create a minimal SoC
-
 From nothing to a SoC with a CPU, a BIOS prompt on the serial port and a few lines of your own
 logic, first on your computer with Verilator, then on a board. Ten minutes once
 [LiteX is installed](Installation.md). What the pieces are is explained on the

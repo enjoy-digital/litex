@@ -1,5 +1,3 @@
-# Add a new core
-
 A LiteX core is a Python class: a `LiteXModule` whose logic is written in Migen, whose
 control/status registers are `CSRStorage`/`CSRStatus` attributes, whose interrupts come from an
 `EventManager` and whose data goes through [stream](Streams.md) endpoints or a

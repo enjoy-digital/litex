@@ -261,7 +261,7 @@ The LiteX simulation is running and we are able to interact with the BIOS, let's
 
 <p align="center"><img src="https://user-images.githubusercontent.com/1450143/80379942-144d2880-889f-11ea-9200-434ab7828c74.png"></p>
 
-```
+```console
 $./litescope_analyzer.py --ibus_stb
 [running]...
 [uploading]...
@@ -274,7 +274,7 @@ We can then open the wave with GTKWave and analyze the access:
 Now let's trigger on `ibus_adr=0x00000000` (which is the reset address of the CPU) and run the reboot command of the BIOS:
 <p align="center"><img src="https://user-images.githubusercontent.com/1450143/80379955-1b743680-889f-11ea-9151-d05700cea637.png"></p>
 
-```
+```console
 $./litescope_analyzer.py --ibus_adr=0x00000000
 [running]...
 [uploading]...

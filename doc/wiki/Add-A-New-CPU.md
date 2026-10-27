@@ -1,5 +1,3 @@
-# Add a new CPU
-
 A CPU in LiteX is a wrapper class around an existing core (Verilog, VHDL, SystemVerilog,
 SpinalHDL, Chisel or Amaranth sources): it instantiates the core, exposes its buses as LiteX
 interfaces, tells the SoC builder its memory map, interrupts and reset address, and gives the

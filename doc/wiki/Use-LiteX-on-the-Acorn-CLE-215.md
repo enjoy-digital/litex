@@ -1,5 +1,3 @@
-# Acorn CLE 215+
-
 The Acorn CLE 215+ is a cryptocurrency mining accelerator card from SQRL that can be repurposed as a generic FPGA PCIe development board:
 
 <div>

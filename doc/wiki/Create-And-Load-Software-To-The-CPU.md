@@ -1,5 +1,3 @@
-# Create and load software to the CPU
-
 Every LiteX SoC with a CPU gets the [BIOS](BIOS.md); your application is built the same way
 against the headers the Builder generates, loaded into the main RAM by one of the boot methods
 (or placed in the ROM/flash), and talks to your cores through the `csr.h` accessors. The

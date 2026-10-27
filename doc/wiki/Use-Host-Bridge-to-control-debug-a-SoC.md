@@ -4,21 +4,21 @@ Being able to easily read/write the addressable space of the SoC from a Host PC 
 
 # Add a UARTBone bridge to your SoC serial console:
 The easiest way to add a UARTBone bridge to a SoC is to add it to the existing serial port. For example with digilent_arty:
-```
+```console
 $ python3 -m litex_boards.targets.digilent_arty --uart-name=crossover+uartbone --build --load --csr-csv csr.csv
 ```
 
 Once your bitstream is built and loaded to the board, start *litex_server* in UART mode:
-```
+```console
 $ litex_server --uart --uart-port=/dev/ttyUSB0
 ```
 
 Console communication to the board is still available as follows (assumes a csr file for the board named `csr.csv` is in the current directory):
-```
+```console
 $ litex_term crossover
 ```
 Alternately, for a csr file with a different name:
-```
+```console
 $ litex_term crossover --csr-csv path/to/board_csr.csv
 ```
 
@@ -43,7 +43,7 @@ builder  = Builder(soc, ..., csr_csv="csr.csv")
 ```
 
 Once your bitstream is built and loaded to the board, start *litex_server* in UART mode:
-```
+```console
 $ litex_server --uart --uart-port=/dev/ttyUSBX
 ```
 
@@ -60,7 +60,7 @@ and generate the *.csv* file that will be used by the tools:
 builder  = Builder(soc, ..., csr_csv="csr.csv")
 ```
 Once your bitstream is built and loaded to the board, start *litex_server* in JTAG mode:
-```
+```console
 $ litex_server --jtag
 ```
 Tadaaa! Here is your JTAG-to-AXI equivalent :)
@@ -108,13 +108,13 @@ self.add_etherbone(
 
 Once your bitstream is built and loaded to the board, start _litex_server_ in UDP mode:
 
-```
+```console
 $ litex_server --udp --udp-ip=192.168.1.50
 ```
 
 If you want scan your network for available Etherbone/UDP devices, you can just do:
 
-```
+```console
 $litex_server --udp --udp-scan --udp-ip=192.168.1.x --udp-port=1234
 Etherbone scan on 192.168.1.x network:
 - 192.168.1.20
@@ -134,7 +134,7 @@ Then with *lspci*, find the location of the PCIe board on the bus, here `02:00.0
 02:00.0 Memory controller: Xilinx Corporation Device 7024
 ```
 And use this to start _litex_server_ in PCIe mode:
-```
+```console
 $ litex_server --pcie --pcie-bar=02:00.0
 ```
 
