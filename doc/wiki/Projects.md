@@ -1,5 +1,3 @@
-# Projects built with LiteX
-
 LiteX has been used since 2012 by [Enjoy-Digital](https://enjoy-digital.fr) to build systems
 for clients and open-source products, and by a growing community for boards, instruments,
 research platforms and products of their own. This page lists them in four groups: the

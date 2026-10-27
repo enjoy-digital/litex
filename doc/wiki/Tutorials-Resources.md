@@ -1,5 +1,3 @@
-# Tutorials and resources
-
 Where to learn Migen and LiteX, examples to read, and what has been written and said about
 LiteX. The wiki itself: start with [Installation](Installation.md), [Create a minimal SoC](Create-A-minimal-SoC.md)
 and [The LiteX approach](LiteX-Approach.md).

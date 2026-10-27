@@ -1,5 +1,3 @@
-# LiteX for AI agents
-
 A map of LiteX for a software agent asked to work *in* LiteX (fix, extend, review the
 framework or a core) or *with* it (build a SoC, bring up a board, write firmware, drive a
 board from the host). Everything here is also true for a human in a hurry. The facts come
