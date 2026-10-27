@@ -30,6 +30,7 @@ Conventions (pages render both in the repository view and on the wiki):
 
     python3 doc/wiki_sync.py check                      # sources are consistent (CI)
     python3 doc/wiki_sync.py preview --serve             # the wiki as HTML in your browser (pip install markdown)
+    python3 doc/wiki_sync.py preview --ref origin/wiki/welcome --serve   # a branch, without checking it out
     python3 doc/wiki_sync.py render --out DIR [--clean]  # wiki tree, links rewritten
     python3 doc/wiki_sync.py diff --wiki CLONE           # what a sync would change
 """
@@ -281,7 +282,7 @@ PREVIEW_TEMPLATE = """<!doctype html>
 <title>{title} · LiteX wiki preview</title><style>{css}</style></head>
 <body><div class="wrap">
 <div class="main">
-<div class="topbar">LiteX wiki preview (local, from doc/wiki) · <a href="Home.html">Home</a> · {name}</div>
+<div class="topbar">LiteX wiki preview ({source}) · <a href="Home.html">Home</a>{name}</div>
 <h1 class="pagetitle">{title}</h1>
 <div class="markdown-body">{body}</div>
 <div class="footer markdown-body">{footer}</div>
@@ -328,15 +329,43 @@ def render_markdown(text, known):
                            extension_configs={"toc": {"slugify": gfm_slugify}})
     return md.convert(text)
 
-def preview(out, serve=False, port=8000, browser=True):
-    """Render doc/wiki/ to HTML pages with the sidebar and footer, like the GitHub wiki, and serve them."""
+def wiki_at_ref(ref):
+    """doc/wiki/ of a git ref (a branch, a tag, a commit: origin/wiki/welcome, v2026.08, ...) extracted
+    to a temporary directory, so a branch can be previewed without checking it out. The ref is looked
+    up in the repository of the current directory, then in the one holding this script."""
+    import io, subprocess, tarfile
+    here  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    error = "git not found"
+    for repo in dict.fromkeys([os.getcwd(), here]):
+        try:
+            data = subprocess.run(["git", "-C", repo, "archive", "--format=tar", ref, "doc/wiki"],
+                                  capture_output=True, check=True).stdout
+            break
+        except FileNotFoundError:
+            continue
+        except subprocess.CalledProcessError as e:
+            error = e.stderr.decode(errors="replace").strip()
+    else:
+        sys.exit(f"preview --ref {ref}: {error}")
+    tmp = tempfile.mkdtemp(prefix="litex-wiki-")
+    with tarfile.open(fileobj=io.BytesIO(data)) as tar:
+        try:
+            tar.extractall(tmp, filter="data")
+        except TypeError:                               # Python < 3.12
+            tar.extractall(tmp)
+    return os.path.join(tmp, "doc", "wiki")
+
+def preview(out, serve=False, port=8000, browser=True, ref=None):
+    """Render doc/wiki/ (or the one of a git ref) to HTML pages with the sidebar and footer, like the
+    GitHub wiki, and serve them."""
     import html
-    files = list_files()
+    root  = wiki_at_ref(ref) if ref else ROOT
+    files = list_files(root)
     pgs   = pages(files)
     known = set(pgs)
     os.makedirs(out, exist_ok=True)
     def read(name):
-        return open(os.path.join(ROOT, name), encoding="utf-8").read()
+        return open(os.path.join(root, name), encoding="utf-8").read()
     sidebar = render_markdown(read("_Sidebar.md"), known) if "_Sidebar.md" in files else ""
     footer  = render_markdown(read("_Footer.md"),  known) if "_Footer.md"  in files else ""
     n = 0
@@ -348,7 +377,9 @@ def preview(out, serve=False, port=8000, browser=True):
             body = render_markdown(text, known)
         else:
             body = "<p><em>This page is not markdown; shown as source.</em></p><pre>" + html.escape(text) + "</pre>"
-        page = PREVIEW_TEMPLATE.format(title=html.escape(name.replace("-", " ")), name=html.escape(name),
+        page = PREVIEW_TEMPLATE.format(title=html.escape(name.replace("-", " ")),
+                                       name=("" if name == "Home" else " · " + html.escape(name)),
+                                       source=html.escape(ref or "doc/wiki"),
                                        css=PREVIEW_CSS, body=body, footer=footer, sidebar=sidebar)
         with open(os.path.join(out, name + ".html"), "w", encoding="utf-8") as fo:
             fo.write(page)
@@ -357,10 +388,10 @@ def preview(out, serve=False, port=8000, browser=True):
         if "/" in f or not f.endswith(PAGE_EXTS):      # images/, llms.txt, ...
             dst = os.path.join(out, f)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
-            shutil.copyfile(os.path.join(ROOT, f), dst)
+            shutil.copyfile(os.path.join(root, f), dst)
     with open(os.path.join(out, "index.html"), "w", encoding="utf-8") as fo:
         fo.write('<!doctype html><meta http-equiv="refresh" content="0; url=Home.html">')
-    print(f"{n} pages rendered to {out} (open {os.path.join(out, 'Home.html')})")
+    print(f"{n} pages of {ref or 'doc/wiki'} rendered to {out} (open {os.path.join(out, 'Home.html')})")
     if serve:
         import http.server
         url = f"http://127.0.0.1:{port}/Home.html"
@@ -386,6 +417,7 @@ def main():
     p.add_argument("--serve", action="store_true", help="Serve the directory on localhost and open the browser.")
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--no-browser", action="store_true", help="With --serve: do not open the browser.")
+    p.add_argument("--ref", help="Preview doc/wiki of this git ref (origin/wiki/welcome, a tag, a commit) instead of the checkout.")
     p = sub.add_parser("render", help="Write the wiki tree (links rewritten) to a directory.")
     p.add_argument("--out", required=True)
     p.add_argument("--clean", action="store_true", help="Remove files of --out that are not in the sources (keeps .git).")
@@ -396,7 +428,7 @@ def main():
     if args.cmd == "check":
         sys.exit(0 if check(args.external) else 1)
     if args.cmd == "preview":
-        preview(args.out, args.serve, args.port, browser=not args.no_browser)
+        preview(args.out, args.serve, args.port, browser=not args.no_browser, ref=args.ref)
     if args.cmd == "render":
         render(args.out, args.clean, args.absolute_images)
     if args.cmd == "diff":

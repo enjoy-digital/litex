@@ -52,6 +52,13 @@ python3 doc/wiki_sync.py preview --serve  # renders doc/wiki/ to HTML and opens 
 `preview` renders every page with the sidebar and the footer, like the GitHub wiki, and serves
 them on `http://127.0.0.1:8000/` (`--port` to change it, `--no-browser` to only serve,
 `--out DIR` to only write the HTML files). Re-run it after editing a page and reload the browser.
+To review a pull request without touching your checkout, preview its branch directly:
+
+```sh
+git fetch origin
+python3 doc/wiki_sync.py preview --ref origin/wiki/welcome --serve   # any branch, tag or commit
+```
+
 The rendering is close to GitHub's (same heading anchors, tables, code blocks, task lists) but not
 identical: emoji shortcodes are limited to the common ones and GitHub alerts (`> [!NOTE]`) show as
 plain quotes.
