@@ -1,22 +1,33 @@
-You can run [Zephyr RTOS](https://github.com/zephyrproject-rtos/zephyr) on your LiteX SoC!
+# Run Zephyr on your SoC
 
-### Generate VexRiscv/LiteX SoC
+[Zephyr](https://www.zephyrproject.org/) supports LiteX SoCs upstream: the `litex_vexriscv`
+and `litex_vexiiriscv` boards (`boards/enjoydigital/`) and the `litex` SoC family
+(`soc/litex/`), with the drivers of the LiteX cores (LiteUART, the timer, LiteEth, LiteSPI,
+LiteI2C, GPIO, PWM, the clock control, the DNA...). The device tree of *your* SoC comes from
+LiteX, so any SoC with a supported CPU runs it.
 
-First generate a SoC with a supported VexRiscv CPU. Please note that since Zephyr requires `ecall` instruction support, you need at least the `lite` variant of the CPU.
+### 1. Build a SoC
 
+Zephyr needs the `ecall` instruction and the machine timer: a VexRiscv `lite` variant or
+better, or VexiiRiscv. The console and the timer are enough; Ethernet, SPI and I2C are used
+when present:
+
+```sh
+python3 -m litex_boards.targets.digilent_arty --cpu-type=vexriscv --cpu-variant=standard --with-ethernet --build --load
 ```
-./litex-boards/litex_boards/targets/digilent_arty.py --cpu-type vexriscv --with-ethernet --csr-json csr.json
+
+The build writes `build/digilent_arty/csr.json` (always; `--soc-json` to choose the path).
+
+### 2. Generate the device tree overlay and the configuration
+
+```sh
+litex_json2dts_zephyr --dts overlay.dts --config overlay.config build/digilent_arty/csr.json
 ```
 
-### Generate Zephyr configuration and DTS overlay
+The overlay patches the labels of the `litex_vexriscv` board with the addresses and interrupts
+of your SoC (`--generate-soc-nodes` writes complete `/soc` nodes instead, for a SoC that
+differs a lot from the reference):
 
-In order to build Zephyr image that is compatible with the hardware platform you need to generate additional file. Thankfully, LiteX comes with helper scripts:
-
-```
-./litex/litex/tools/litex_json2dts_zephyr.py --dts overlay.dts --config overlay.config csr.json
-```
-
-As a result you'll get the DTS overlay file, similar to:
 ```
 &uart0 {
     reg = <0xf0004000 0x20>;
@@ -33,33 +44,33 @@ As a result you'll get the DTS overlay file, similar to:
 &spi0 {
     status = "disabled";
 };
-&i2c0 {
-    status = "disabled";
-};
 &ram0 {
     reg = <0x40000000 0x10000000>;
 };
-&dna0 {
-    reg = <0xf0002000 0x100>;
-};
 ```
 
-and Zephyr config switches like:
+and the configuration switches enable the drivers of the cores that exist:
+
 ```
 -DCONFIG_UART_LITEUART=y -DCONFIG_LITEX_TIMER=y -DCONFIG_ETH_LITEETH=y -DCONFIG_SPI_LITESPI=n -DCONFIG_I2C_LITEX=n
 ```
 
-### Build Zephyr example application
+### 3. Build and run a Zephyr application
 
-Now you can build a Zephyr binary:
-```
-cat overlay.config | xargs west build \
-	-b litex_vexriscv \
-	samples/subsys/shell/shell_module \
-	-- \
-	-DDTC_OVERLAY_FILE=overlay.dts
+```sh
+cat overlay.config | xargs west build -b litex_vexriscv samples/subsys/shell/shell_module -- -DDTC_OVERLAY_FILE=overlay.dts
+litex_term /dev/ttyUSB1 --kernel=build/zephyr/zephyr.bin
 ```
 
-### More details
+`-b litex_vexiiriscv` for a VexiiRiscv SoC. The binary is loaded by the BIOS like any
+application (serial boot here, or TFTP/SD card/flash: [Load application code](Load-Application-Code-To-CPU.md)).
 
-For more details and scripts to automate the process please take a look at: [The LiteX Build Environment Wiki page](https://github.com/timvideos/litex-buildenv/wiki/Zephyr) and the [build-zephyr.sh](https://github.com/timvideos/litex-buildenv/blob/master/scripts/build-zephyr.sh) script.
+### More
+
+- [zephyr-on-litex-vexriscv](https://github.com/litex-hub/zephyr-on-litex-vexriscv) (from
+  Antmicro) is the SoC builder of the reference `litex_vexriscv` platform (Arty A7 with the
+  F4PGA toolchain, the SDI-MIPI video converter board) and a model of how to script the flow.
+- [Renode](Generate-Renode-simulation.md) runs the Zephyr image on a model of the SoC without
+  a board, and [litex_sim](SoC-Simulator.md) in Verilator with `--rom-init`/`--ram-init`.
+- NEORV32 has its own upstream Zephyr board; FreeRTOS and NuttX are on the
+  [OSes ecosystem](OSes-Ecosystem.md) page.

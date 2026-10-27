@@ -60,13 +60,13 @@ the repository). Pages marked TODO are placeholders being written.
 
 ## How to (advanced)
 
-- [Create-A-complex-SoC-With-Cores-From-The-Ecosystem](https://github.com/enjoy-digital/litex/wiki/Create-A-complex-SoC-With-Cores-From-The-Ecosystem): TODO
-- [Run-MicroPython-CircuitPython-On-Your-SoC](https://github.com/enjoy-digital/litex/wiki/Run-MicroPython-CircuitPython-On-Your-SoC): MicroPython and CircuitPython on a LiteX SoC
-- [Run-Zephyr-On-Your-SoC](https://github.com/enjoy-digital/litex/wiki/Run-Zephyr-On-Your-SoC): Zephyr on a LiteX SoC (litex_json2dts_zephyr)
-- [Run-Linux-On-Your-SoC](https://github.com/enjoy-digital/litex/wiki/Run-Linux-On-Your-SoC): Linux on LiteX SoCs: VexRiscv-SMP, Rocket, Mor1kx, BlackParrot, Microwatt
-- [Export-Your-Core-SoC-To-Verilog](https://github.com/enjoy-digital/litex/wiki/Export-Your-Core-SoC-To-Verilog): TODO
-- [Create-A-PCIe-SoC](https://github.com/enjoy-digital/litex/wiki/Create-A-PCIe-SoC): TODO
-- [Generate-Renode-simulation](https://github.com/enjoy-digital/litex/wiki/Generate-Renode-simulation): simulate a LiteX SoC in Renode (litex_json2renode)
+- [Create-A-complex-SoC-With-Cores-From-The-Ecosystem](https://github.com/enjoy-digital/litex/wiki/Create-A-complex-SoC-With-Cores-From-The-Ecosystem): the Linux-capable Arty SoC step by step: LiteDRAM, LiteEth, LiteSDCard/SATA, LiteSPI, video, PCIe, what each add_* brings (regions, CSRs, IRQs, BIOS commands, boot methods, Linux drivers), from the SoC to Linux
+- [Run-MicroPython-CircuitPython-On-Your-SoC](https://github.com/enjoy-digital/litex/wiki/Run-MicroPython-CircuitPython-On-Your-SoC): the litex-hub MicroPython port: build the SoC, build MicroPython against it, load it; FuPy and CircuitPython are historical
+- [Run-Zephyr-On-Your-SoC](https://github.com/enjoy-digital/litex/wiki/Run-Zephyr-On-Your-SoC): Zephyr upstream boards litex_vexriscv/litex_vexiiriscv: build the SoC, generate the DTS overlay and config with litex_json2dts_zephyr, west build, load
+- [Run-Linux-On-Your-SoC](https://github.com/enjoy-digital/litex/wiki/Run-Linux-On-Your-SoC): Linux-on-LiteX-VexRiscv (the reference), the other CPUs (NaxRiscv, VexiiRiscv, Rocket, CVA6, OpenRISC, Microwatt, hard CPUs), the device tree generator and upstream drivers, OpenSBI, simulation, larger systems
+- [Export-Your-Core-SoC-To-Verilog](https://github.com/enjoy-digital/litex/wiki/Export-Your-Core-SoC-To-Verilog): litex_soc_gen/litex_periph_gen (a SoC as a Verilog module with mmap_s/mmap_m ports), the *_gen generators of the cores (interfaces, configurations, YAML example), the integration checklist, exporting a board target without building
+- [Create-A-PCIe-SoC](https://github.com/enjoy-digital/litex/wiki/Create-A-PCIe-SoC): LitePCIe (PHYs, endpoint, MMAP, DMAs, MSI, PTM, driver and tools), the target with add_pcie, build/driver/litepcie_util, using the DMAs from the gateware and from liblitepcie, standalone litepcie_gen, examples
+- [Generate-Renode-simulation](https://github.com/enjoy-digital/litex/wiki/Generate-Renode-simulation): litex_json2renode: the .repl/.resc from csr.json, the options (BIOS/OpenSBI/flash/TFTP binaries, network, Etherbone), the supported components
 
 ## Moved or legacy pages (kept for their links)
 

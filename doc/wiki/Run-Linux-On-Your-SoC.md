@@ -1,54 +1,82 @@
-There are already various possibilities to run Linux on a LiteX SoC or with LiteX's components:
+# Run Linux on your SoC
 
-## [Linux-on-LiteX-VexRiscv](https://github.com/litex-hub/linux-on-litex-vexriscv)
-<div>
-<img src="https://linuxgizmos.com/files/gsd_orangecrab_frontback.jpg" width="300">
-<img src="https://web.archive.org/web/20200205034350im_/https://pbs.twimg.com/media/EM6jskWXUAAflwE.jpg" width="300">
-</div>
- 
- - Have an FPGA board with 32MB of RAM and want to test Linux on it? 
- - Want to study/explore a RISC-V Linux capable SoC?
- - Want to create a full autonomous SoC with LiteX and its peripherals (SPI, I2C, SDCard, FrameBuffer, etc...) managed by Linux?
+A LiteX SoC runs Linux when its CPU has an MMU (a `linux` variant or a 64-bit core, see
+[CPUs](CPUs.md)) and it has a DRAM (`add_sdram`), a console and some way to load the images
+(serial, Ethernet, SD card, SATA, flash). The SoC description does the rest: the device tree
+is generated from `csr.json`, the kernel has the drivers of the LiteX cores, and the BIOS loads
+the images.
 
-[Linux-on-LiteX-VexRiscv](https://github.com/litex-hub/linux-on-litex-vexriscv) project demonstrates how to create a Linux capable SoC with [VexRiscv](https://github.com/SpinalHDL/VexRiscv) CPU, a 32-bits Linux Capable RISC-V CPU written in Spinal HDL. A SoC around the VexRiscv CPU is created using LiteX as the SoC builder and LiteX's cores written in Migen Python DSL (LiteDRAM, LiteEth, LiteSDCard). All the components used to create the SoC are open-source and the flexibility of Spinal HDL/Migen allow targeting easily very various FPGA devices/boards: Lattice, Altera, Xilinx, Microsemi FPGAs with SDRAM/DDR/DDR2/DDR3/DDR4 RAMs, RMII/MII/RGMII/1000BASE-X Ethernet PHYs. On Lattice ECP5 FPGAs, the [open source toolchain](https://github.com/SymbiFlow/prjtrellis) allows creating full open-source SoC with open-source cores **and** toolchain!
+![A Linux-capable LiteX SoC](images/litex-complex-soc.svg)
 
-This project demonstrates **how high level HDLs (Spinal HDL, Migen) enable new possibilities and complement each other**. Results shown there are the results of a productive collaboration between open-source communities.ant to test easily control LiteX cores.
+## Linux-on-LiteX-VexRiscv: the reference
 
-With recent improvements on VexRiscv SMP and SDCard support, it can even boot Linux from reset in just a few seconds, as demonstrated on the [Arty A7](https://twitter.com/enjoy_digital/status/1285996750696742912).
+[Linux-on-LiteX-VexRiscv](https://github.com/litex-hub/linux-on-litex-vexriscv) builds a
+Linux SoC around the VexRiscv-SMP CPU (1 to 8 cores, FPU and RVC optional, coherent DMA) for
+the boards of LiteX-Boards, with LiteDRAM, LiteEth, LiteSDCard, LiteSATA, PCIe, USB OHCI, the
+framebuffer and the usual peripherals, and provides the images (OpenSBI, the kernel, the device
+tree, a Buildroot root filesystem):
 
-![enter image description here](https://user-images.githubusercontent.com/1450143/89118966-96567a00-d4aa-11ea-9827-999a8ffd1444.jpg)
+```sh
+git clone https://github.com/litex-hub/linux-on-litex-vexriscv && cd linux-on-litex-vexriscv
+./make.py --board=arty --build --load                     # the SoC (./make.py --help lists the boards and options)
+# the images: pre-built in https://github.com/litex-hub/linux-on-litex-vexriscv/issues/164,
+# or built with Buildroot (make BR2_EXTERNAL=../linux-on-litex-vexriscv/buildroot/ litex_vexriscv_defconfig)
+litex_term /dev/ttyUSB1 --images=images/boot.json       # serial boot of the four images
+# or: copy them to a TFTP root / an SD card with --with-ethernet / --with-sdcard, the BIOS netboots or sdcardboots
+```
 
-## [A Trustworthy, Libre, Self-Hosting 64bit RISC-V Linux Computer](http://www.contrib.andrew.cmu.edu/~somlo/BTCP/)
+The boot takes a few seconds from an SD card; `--with-ethernet`, `--with-sdcard`,
+`--with-sata`, `--with-video-framebuffer`, `--with-spi-flash`, `--cpu-count`, `--with-fpu`...
+are the `make.py` options. Xilinx, Intel, Lattice, Microsemi, Efinix and Gowin boards are
+supported, and on Lattice ECP5 the whole stack (CPU, cores, toolchain) is open source.
 
-Adding the [Rocket Chip](https://github.com/chipsalliance/rocket-chip) (64-bit RISC-V CPU) to the LiteX ecosystem, this project is capable of booting a *nearly* unmodified 64-bit upstream Linux kernel (with only the LiteEth network driver currently patched in).
+![Linux on LiteX](https://user-images.githubusercontent.com/1450143/89118966-96567a00-d4aa-11ea-9827-999a8ffd1444.jpg)
 
-Targeted toward the [ECP5-5G-Versa](https://www.latticesemi.com/en/Products/DevelopmentBoardsAndKits/ECP55GVersaDevKit) and the [TrellisBoard](https://github.com/daveshah1/TrellisBoard) (but also known to work on the [Nexys 4 DDR](https://store.digilentinc.com/nexys-a7-fpga-trainer-board-recommended-for-ece-curriculum/)), the ultimate goal is to boot a Linux distro (e.g., [Fedora](https://fedoraproject.org/wiki/Architectures/RISC-V)), and use native riscv64 builds of the Libre FPGA toolchain ([yosys](https://github.com/YosysHQ/yosys)/[trellis](https://github.com/SymbiFlow/prjtrellis)/[nextpnr](https://github.com/YosysHQ/nextpnr)) to build the underlying FPGA-based computer's **_own_** bitstream!
+## The other CPUs
 
-For the latest details, check out [http://www.contrib.andrew.cmu.edu/~somlo/BTCP](http://www.contrib.andrew.cmu.edu/~somlo/BTCP).
+| CPU | How |
+| --- | --- |
+| `naxriscv`, `vexiiriscv` (64-bit, out-of-order / the current SpinalHDL generation) | The LiteX-Boards targets with `--cpu-type=naxriscv --xlen 64` or `--cpu-type=vexiiriscv --cpu-variant=linux` (or `debian`), the images from the CPUs' documentation (the SpinalHDL repositories describe the Linux/Debian builds), the BIOS boot as above. |
+| `rocket` (64-bit, Chisel) | [Linux-on-LiteX-Rocket](https://github.com/litex-hub/linux-on-litex-rocket): the `linux`/`full` variants, an upstream kernel in a BBL payload with a BusyBox initramfs, on ECP5 (Versa, TrellisBoard, ECPIX-5), Nexys Video and others; maintained by Gabriel Somlo, who also [self-hosts Fedora](https://www.contrib.andrew.cmu.edu/~somlo/BTCP/) on it. |
+| `cva6`, `openc906`, `blackparrot` (64-bit) | Their upstream Linux support; BlackParrot was demonstrated in [Linux-On-LiteX-BlackParrot](https://github.com/scanakci/linux-on-litex-blackparrot). |
+| `mor1kx`, `marocchino` (OpenRISC) | The `linux`, `linux+smp`, `linux+fpu` variants and the upstream OpenRISC kernel (`arch/openrisc/boot/dts/or1klitex.dts`); mor1kx was the first CPU to boot Linux on LiteX. |
+| `microwatt` (POWER) | Upstream Linux has the Microwatt platform; within LiteX the integration is used with the BIOS and bare metal, the Linux flow of the [Microwatt project](https://github.com/antonblanchard/microwatt) uses LiteDRAM through its standalone generator. |
+| Hard CPUs: `zynq7000`, `zynqmp`, `cyclonev_hps`, `agilex_hps` | The vendor Linux (PetaLinux, Yocto, the SoC-FPGA distributions) runs on the hard cores; the LiteX gateware is reached through the AXI bridges, and the host tools through `litex_server --devmem` ([Hard core CPUs](Hard-core-CPUs.md)). |
 
-## [OpenRisc / Mor1kx](https://github.com/openrisc/mor1kx)
+## The device tree and the drivers
 
-The [Mor1kx](https://github.com/openrisc/mor1kx) CPU was one of the first CPU supported in LiteX (alongs with LM32), before the RISC-V CPUs invasion :) It's still a very good CPU and was the first one to boot Linux with LiteX. More information to boot Linux on it with LiteX can be found on the [LiteX Buildenv's wiki](https://github.com/timvideos/litex-buildenv/wiki/Linux).
+```sh
+litex_json2dts_linux build/<board>/csr.json > soc.dts          # --initrd, --initrd-start/size, --root-device, --polling
+dtc -O dtb -o soc.dtb soc.dts
+```
 
-## [Linux-On-LiteX-BlackParrot](https://github.com/scanakci/linux-on-litex-blackparrot)
-![BlackParrot](https://github.com/black-parrot/black-parrot/raw/master/docs/bp_logo.png)
+`litex_json2dts_linux` writes the nodes of the CPU(s), the interrupt controller, the memory,
+the LiteUART, LiteEth, LiteSDCard, LiteSPI flash, the I2C controllers, the GPIOs, the
+framebuffer and the SoC controller from the build's `csr.json`. The drivers are upstream in
+the kernel (`drivers/tty/serial/liteuart.c`, `drivers/net/ethernet/litex/`,
+`drivers/mmc/host/litex_mmc.c`, `drivers/soc/litex/litex_soc_ctrl.c`); the others (SPI
+flash, GPIO, I2C, framebuffer) use generic drivers (`spi-bitbang`, `gpio-mmio`,
+`simple-framebuffer`) or the Linux-on-LiteX-VexRiscv patches. [barebox](https://www.barebox.org/)
+has a LiteX board and drivers, U-Boot the LiteEth driver.
 
-The [BlackParrot](https://github.com/black-parrot/black-parrot) CPU support has been added recently to LiteX and Linux demonstrated on it in Linux-On-LiteX-BlackParrot project:
+[OpenSBI](https://github.com/litex-hub/opensbi) (the `*-linux-on-litex-vexriscv` branches
+carry the LiteX platform) is the firmware between the BIOS and the kernel on RISC-V: the
+BIOS loads `opensbi.bin`, the kernel, the device tree and the rootfs from `boot.json` and
+jumps to OpenSBI ([Load application code](Load-Application-Code-To-CPU.md)).
 
-![BlackParrot](https://user-images.githubusercontent.com/1450143/89119006-fcdb9800-d4aa-11ea-98f0-ca27c6a9b11f.jpeg)
+## Without a board
 
-[https://www.youtube.com/watch?v=npeDkfEMsoI&feature=youtu.be](https://www.youtube.com/watch?v=npeDkfEMsoI&feature=youtu.be)
+- [litex_sim](SoC-Simulator.md) runs the same SoC in Verilator (slow for a Linux boot, but
+  cycle accurate), and the QEMU co-simulation (`--cpu-type=qemu --qemu-kernel=...`) boots
+  Linux in seconds against the simulated peripherals.
+- [Renode](Generate-Renode-simulation.md) simulates the SoC from `csr.json` with the Linux
+  images, fast, with network.
 
-## [Boot Linux on Microwatt](https://shenki.github.io/boot-linux-on-microwatt/)
+## Beyond Linux-on-LiteX
 
-![Microwatt](https://shenki.github.io/images/microwatt-title.png)
-
-The Microwatt CPU is supported by LiteX but not yet capable of booting Linux directly when integrated in LiteX. 
-
-### Linux on MicroWatt outside of LiteX (but using some LiteX cores)
-
-The [Boot Linux on Microwatt](https://shenki.github.io/boot-linux-on-microwatt/) blog post demonstrates how to boot Linux on the Microwatt CPU. It does this by pulling together a number of cores from multiple sources, including a few LiteX based cores **without** using the full LiteX SoC builder. 
-
-By choosing to not use the LiteX SoC builder, this approach is unable to take advantage of many of the nicest features in the LiteX ecosystem and isolates itself from other efforts like the OpenRISC1000 and RISC-V efforts (VexRISC-V / Rocket / BlackParrot / more in future).
-
-This approach **does** demonstrate that LiteX based cores can be integrated directly into existing more traditional flows like any other traditional IP core and a user is not forced to use LiteX for the integration. This example uses the [LiteDRAM memory controller generator](https://github.com/enjoy-digital/litedram/blob/master/litedram/gen.py) to create the DRAM controller and initialization code to be included in the VHDL based SoC.
+[OpenWrt](https://github.com/enjoy-digital/litex_openwrt_test), [Debian](https://github.com/roryt12/RISCV64-Debian-Linux-on-FPGA-with-Litex)
+(archived) and [Fedora](https://www.contrib.andrew.cmu.edu/~somlo/BTCP/) have been run on
+LiteX SoCs; [Xous](https://github.com/betrusted-io/xous-core) (the Precursor microkernel) is
+the largest non-Linux system on one. The LiteX-Boards targets with `--cpu-type=vexriscv_smp`
+and the [complex SoC](Create-A-complex-SoC-With-Cores-From-The-Ecosystem.md) page show what
+the Linux SoC is made of.

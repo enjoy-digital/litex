@@ -18,7 +18,7 @@ is documented.
 | --- | --- | --- | --- |
 | `litex_sim` | A full SoC in Verilator: CPU, BIOS, DRAM, Ethernet, SD card, SPI flash, video models, tracing, QEMU co-simulation | `litex_sim --cpu-type=vexriscv --with-sdram` | [SoC-Simulator](SoC-Simulator.md) |
 | `litex_soc_gen` | Generates a standalone LiteX SoC as a Verilog core (CPU, memories, peripherals, bus exposed as ports) for another flow | `litex_soc_gen --cpu-type=vexriscv --bus-standard=axi-lite --build` | [Export](Export-Your-Core-SoC-To-Verilog.md) |
-| `litex_periph_gen` | Generates a standalone peripheral SoC (no CPU, CSRs/peripherals behind a bus) | `litex_periph_gen --bus-standard=axi-lite --build` | [Export](Export-Your-Core-SoC-To-Verilog.md) |
+| `litex_periph_gen` | Generates a standalone set of peripherals behind a bus slave port (no CPU with `--cpu-type=None`) | `litex_periph_gen --cpu-type=None --bus-standard=axi-lite --build` | [Export](Export-Your-Core-SoC-To-Verilog.md) |
 | `litex_bare_metal_demo` | Builds the demo application against the generated headers of a build | `litex_bare_metal_demo --build-path=build/digilent_arty` | [Create and load software](Create-And-Load-Software-To-The-CPU.md) |
 | `litex_build_bundle`, `litex_remote_build` | Record the inputs of a build in an archive and replay it, locally or on a remote host over SSH | `litex_remote_build --host build@server -- python3 target.py --build` | [Build-Backends](Build-Backends.md) |
 | `litex_read_verilog` | Parses a Verilog module with Yosys and prints its ports as a LiteX `Instance` skeleton (JSON intermediate) | `litex_read_verilog core.v` | [Reuse a core](Reuse-a-SystemVerilog-VHDL-Amaranth-Spinal-HDL-Chisel-core.md) |

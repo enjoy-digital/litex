@@ -43,6 +43,9 @@ DIAGRAMS = {
     "litex-axi":               2800,
     "litex-cpu-integration":   2800,
     "litex-core-anatomy":      2800,
+    "litex-complex-soc":       2800,
+    "litex-pcie-soc":          2800,
+    "litex-standalone-core":   2800,
 }
 
 def run(cmd, **kw):
