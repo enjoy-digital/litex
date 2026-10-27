@@ -50,6 +50,18 @@ int sdram_ckphase_bit_tap(int bit);
 int sdram_ckphase_bit_tap_set(int bit, int tap);
 
 /*-----------------------------------------------------------------------*/
+/* Write Training (SDRAM_WRITE_TRAINING)                                 */
+/*-----------------------------------------------------------------------*/
+/* Round-trip training of the write side of every module (write bitslip, DQS and DQ delays,
+ * then the reads), under software control like the other stages: the mask of the modules
+ * that did not train (0: all trained). */
+int sdram_write_training(void);
+/* The error bits of every module on the training pattern (each seed and its complement),
+ * under software control; errors_per_module (SDRAM_PHY_MODULES entries) may be NULL. Returns
+ * the mask of the modules with errors. */
+int sdram_write_training_check(int *errors_per_module);
+
+/*-----------------------------------------------------------------------*/
 /* Leveling                                                              */
 /*-----------------------------------------------------------------------*/
 int sdram_leveling(void);
