@@ -537,19 +537,11 @@ static unsigned int sdram_mpr_check_module(int module, int dq_line) {
  * through the configured read phase, and counts bit errors only on the module
  * (or single DQ line) currently being trained.
  */
-static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int seed, int dq_line) {
+static void sdram_test_pattern_fill(unsigned int seed,
+	unsigned char prs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES]) {
 	int p, i, bit;
-	unsigned int errors;
 	unsigned int prv;
 	unsigned char value;
-	unsigned char tst[DFII_PIX_DATA_BYTES];
-	unsigned char prs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
-
-#ifdef SDRAM_MPR_READ_LEVELING
-	/* In MPR mode, check the DRAM's predefined patterns instead (read-only). */
-	if (_sdram_mpr_mode)
-		return sdram_mpr_check_module(module, dq_line);
-#endif // SDRAM_MPR_READ_LEVELING
 
 	/* Generate pseudo-random sequence */
 	prv = seed;
@@ -563,6 +555,21 @@ static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int
 			prs[p][i] = value;
 		}
 	}
+}
+
+static unsigned int sdram_write_read_check_test_pattern(int module, unsigned int seed, int dq_line) {
+	int p;
+	unsigned int errors;
+	unsigned char tst[DFII_PIX_DATA_BYTES];
+	unsigned char prs[SDRAM_PHY_PHASES][DFII_PIX_DATA_BYTES];
+
+#ifdef SDRAM_MPR_READ_LEVELING
+	/* In MPR mode, check the DRAM's predefined patterns instead (read-only). */
+	if (_sdram_mpr_mode)
+		return sdram_mpr_check_module(module, dq_line);
+#endif // SDRAM_MPR_READ_LEVELING
+
+	sdram_test_pattern_fill(seed, prs);
 
 	/* Activate */
 	sdram_activate_test_row();
