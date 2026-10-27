@@ -148,6 +148,15 @@ static unsigned long sdram_csr_base = CSR_BASE;
 	(SDRAM_READ_LEVELING_FAST_STEP*SDRAM_READ_LEVELING_FAST_MIN_WINDOW)
 #endif
 
+/* sdram_init(): the leveling is run again (up to SDRAM_LEVELING_RETRIES times in all) when the
+ * memtest of SDRAM_MEMTEST_SIZE bytes fails. */
+#ifndef SDRAM_LEVELING_RETRIES
+#define SDRAM_LEVELING_RETRIES 1
+#endif
+#ifndef SDRAM_MEMTEST_SIZE
+#define SDRAM_MEMTEST_SIZE MEMTEST_DATA_SIZE
+#endif
+
 #ifdef SDRAM_DELAY_PER_DQ
 #define DQ_COUNT SDRAM_PHY_DQ_DQS_RATIO
 #else
@@ -2669,15 +2678,30 @@ int sdram_init(void) {
 	 * normal LiteX memory paths instead of direct DFII command CSRs. */
 	sdram_software_control_off();
 #ifndef SDRAM_TEST_DISABLE
-	/* Final software smoke test before marking DDRCTRL init_done. */
-	if(!memtest((unsigned int *) MAIN_RAM_BASE_VA, MEMTEST_DATA_SIZE)) {
+	/* Final software smoke test before marking DDRCTRL init_done. A training that landed on a
+	 * marginal point gets another leveling (SDRAM_LEVELING_RETRIES). */
+#if !defined(CONFIG_SDRAM_CUSTOM_INIT) && \
+	(defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE))
+#define SDRAM_LEVELING_RETRY
+	int attempt = 1;
+#endif
+	while(!memtest((unsigned int *) MAIN_RAM_BASE_VA, SDRAM_MEMTEST_SIZE)) {
+#ifdef SDRAM_LEVELING_RETRY
+		if (attempt < SDRAM_LEVELING_RETRIES) {
+			attempt++;
+			printf("Memtest failed, leveling again (attempt %d/%d).\n", attempt, SDRAM_LEVELING_RETRIES);
+			sdram_leveling();
+			sdram_software_control_off();
+			continue;
+		}
+#endif
 #ifdef CSR_DDRCTRL_BASE
 		ddrctrl_init_error_write(1);
 		ddrctrl_init_done_write(1);
 #endif // CSR_DDRCTRL_BASE
 		return 0;
 	}
-	memspeed((unsigned int *) MAIN_RAM_BASE_VA, MEMTEST_DATA_SIZE, false, 0);
+	memspeed((unsigned int *) MAIN_RAM_BASE_VA, SDRAM_MEMTEST_SIZE, false, 0);
 #endif // SDRAM_TEST_DISABLE
 #if defined(SDRAM_PHY_CKPHASE_STEPS) && defined(SDRAM_CONTROLLERS)
 	/* Other controllers of the SoC (SDRAM_CSR_STRIDE): leveled once main_ram is up, so they
