@@ -29,11 +29,13 @@ Conventions (pages render both in the repository view and on the wiki):
 - `llms.txt` lists every page (one line each) for agents: `check` keeps it complete.
 
     python3 doc/wiki_sync.py check                      # sources are consistent (CI)
+    python3 doc/wiki_sync.py preview --serve             # the wiki as HTML in your browser (pip install markdown)
     python3 doc/wiki_sync.py render --out DIR [--clean]  # wiki tree, links rewritten
     python3 doc/wiki_sync.py diff --wiki CLONE           # what a sync would change
 """
 
 import argparse
+import functools
 import os
 import re
 import shutil
@@ -41,6 +43,7 @@ import subprocess
 import sys
 import tempfile
 import urllib.request
+import webbrowser
 
 ROOT      = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wiki")
 WIKI_URL  = "https://github.com/enjoy-digital/litex/wiki"
@@ -194,18 +197,18 @@ def check(external=False):
 
 # Render --------------------------------------------------------------------------------------------
 
-def rewrite_links(text, known, absolute_images=False):
-    """Wiki form of a page: `](Page.md#a)` -> `](Page#a)` for the known pages."""
+def rewrite_links(text, known, absolute_images=False, ext=""):
+    """Wiki form of a page: `](Page.md#a)` -> `](Page#a)` for the known pages (`](Page.html#a)` with ext=".html")."""
     exts = "|".join(e[1:] for e in PAGE_EXTS)
     def sub(m):
         name = m.group(2)
         if name in known:
-            return f"{m.group(1)}{name}{m.group(4) or ''}{m.group(5)}"
+            return f"{m.group(1)}{name}{ext}{m.group(4) or ''}{m.group(5)}"
         return m.group(0)
     text = re.sub(r"(\]\()([A-Za-z0-9][A-Za-z0-9._-]*)\.(" + exts + r")(#[^)\s]*)?(\))", sub, text)
     def sub_ref(m):
         name = m.group(2)
-        return f"{m.group(1)}{name}{m.group(4) or ''}" if name in known else m.group(0)
+        return f"{m.group(1)}{name}{ext}{m.group(4) or ''}" if name in known else m.group(0)
     text = re.sub(r"(^\[[^\]]+\]:\s*)([A-Za-z0-9][A-Za-z0-9._-]*)\.(" + exts + r")(#\S*)?$", sub_ref, text, flags=re.M)
     if absolute_images:
         text = re.sub(r"(\]\(|src=\")images/", r"\1" + RAW_URL + "/images/", text)
@@ -244,6 +247,116 @@ def diff(wiki):
                            capture_output=True, text=True)
         print(r.stdout)
 
+
+# Preview -------------------------------------------------------------------------------------------
+
+PREVIEW_CSS = """
+body { margin: 0; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.5; color: #1f2328; background: #ffffff; }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 16px 24px; display: flex; gap: 32px; align-items: flex-start; }
+.main { flex: 1; min-width: 0; }
+.sidebar { width: 296px; flex: none; position: sticky; top: 16px; border: 1px solid #d0d7de; border-radius: 6px; padding: 8px 16px; font-size: 14px; background: #f6f8fa; }
+.sidebar h2 { font-size: 16px; border: none; margin: 8px 0; }
+.sidebar ul { padding-left: 18px; margin: 4px 0; }
+.topbar { font-size: 13px; color: #57606a; border-bottom: 1px solid #d0d7de; padding-bottom: 8px; margin-bottom: 16px; }
+.topbar a { color: #0969da; text-decoration: none; }
+h1.pagetitle { font-size: 32px; font-weight: 600; margin: 0 0 16px; }
+.markdown-body h1, .markdown-body h2 { padding-bottom: .3em; border-bottom: 1px solid #d0d7de; margin-top: 24px; }
+.markdown-body h1 { font-size: 2em; } .markdown-body h2 { font-size: 1.5em; } .markdown-body h3 { font-size: 1.25em; }
+.markdown-body a { color: #0969da; text-decoration: none; } .markdown-body a:hover { text-decoration: underline; }
+.markdown-body img { max-width: 100%; box-sizing: border-box; }
+.markdown-body pre { background: #f6f8fa; padding: 16px; border-radius: 6px; overflow: auto; font-size: 85%; line-height: 1.45; }
+.markdown-body code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 85%; background: rgba(175,184,193,.2); padding: .2em .4em; border-radius: 6px; }
+.markdown-body pre code { background: none; padding: 0; font-size: 100%; }
+.markdown-body table { border-collapse: collapse; margin: 16px 0; display: block; overflow: auto; max-width: 100%; }
+.markdown-body th, .markdown-body td { border: 1px solid #d0d7de; padding: 6px 13px; vertical-align: top; }
+.markdown-body th { font-weight: 600; background: #f6f8fa; }
+.markdown-body tr:nth-child(2n) { background: #f6f8fa; }
+.markdown-body blockquote { margin: 0; padding: 0 1em; color: #57606a; border-left: .25em solid #d0d7de; }
+.markdown-body hr { border: 0; border-top: 1px solid #d0d7de; margin: 24px 0; }
+.footer { border-top: 1px solid #d0d7de; margin-top: 32px; padding-top: 16px; font-size: 14px; color: #57606a; }
+"""
+
+PREVIEW_TEMPLATE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title} · LiteX wiki preview</title><style>{css}</style></head>
+<body><div class="wrap">
+<div class="main">
+<div class="topbar">LiteX wiki preview (local, from doc/wiki) · <a href="Home.html">Home</a> · {name}</div>
+<h1 class="pagetitle">{title}</h1>
+<div class="markdown-body">{body}</div>
+<div class="footer markdown-body">{footer}</div>
+</div>
+<div class="sidebar markdown-body">{sidebar}</div>
+</div></body></html>
+"""
+
+EMOJI = {":heavy_check_mark:": "✔️", ":wink:": "\U0001F609", ":smile:": "\U0001F604", ":warning:": "⚠️",
+         ":bulb:": "\U0001F4A1", ":rocket:": "\U0001F680", ":tada:": "\U0001F389", ":information_source:": "ℹ️",
+         ":heavy_exclamation_mark:": "❗", ":fire:": "\U0001F525", ":fr:": "\U0001F1EB\U0001F1F7", ":+1:": "\U0001F44D"}
+
+def gfm_slugify(value, separator="-"):
+    """GitHub's heading anchors (the same rule as anchors())."""
+    return re.sub(r"[^\w\- ]", "", value.strip().lower()).replace(" ", separator)
+
+def render_markdown(text, known):
+    """A page as HTML, with the links pointing to the .html pages (needs Python-Markdown)."""
+    try:
+        import markdown
+    except ImportError:
+        sys.exit("preview needs Python-Markdown: pip install markdown")
+    text = rewrite_links(text, known, ext=".html")
+    for k, v in EMOJI.items():
+        text = text.replace(k, v)
+    md = markdown.Markdown(extensions=["extra", "toc", "sane_lists"],
+                           extension_configs={"toc": {"slugify": gfm_slugify}})
+    return md.convert(text)
+
+def preview(out, serve=False, port=8000, browser=True):
+    """Render doc/wiki/ to HTML pages with the sidebar and footer, like the GitHub wiki, and serve them."""
+    import html
+    files = list_files()
+    pgs   = pages(files)
+    known = set(pgs)
+    os.makedirs(out, exist_ok=True)
+    def read(name):
+        return open(os.path.join(ROOT, name), encoding="utf-8").read()
+    sidebar = render_markdown(read("_Sidebar.md"), known) if "_Sidebar.md" in files else ""
+    footer  = render_markdown(read("_Footer.md"),  known) if "_Footer.md"  in files else ""
+    n = 0
+    for name, f in sorted(pgs.items()):
+        if name.startswith("_"):
+            continue
+        text = read(f)
+        if f.endswith(".md"):
+            body = render_markdown(text, known)
+        else:
+            body = "<p><em>This page is not markdown; shown as source.</em></p><pre>" + html.escape(text) + "</pre>"
+        page = PREVIEW_TEMPLATE.format(title=html.escape(name.replace("-", " ")), name=html.escape(name),
+                                       css=PREVIEW_CSS, body=body, footer=footer, sidebar=sidebar)
+        with open(os.path.join(out, name + ".html"), "w", encoding="utf-8") as fo:
+            fo.write(page)
+        n += 1
+    for f in files:
+        if "/" in f or not f.endswith(PAGE_EXTS):      # images/, llms.txt, ...
+            dst = os.path.join(out, f)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copyfile(os.path.join(ROOT, f), dst)
+    with open(os.path.join(out, "index.html"), "w", encoding="utf-8") as fo:
+        fo.write('<!doctype html><meta http-equiv="refresh" content="0; url=Home.html">')
+    print(f"{n} pages rendered to {out} (open {os.path.join(out, 'Home.html')})")
+    if serve:
+        import http.server
+        url = f"http://127.0.0.1:{port}/Home.html"
+        handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=out)
+        with http.server.ThreadingHTTPServer(("127.0.0.1", port), handler) as httpd:
+            print(f"serving {url} (Ctrl-C to stop)")
+            if browser:
+                webbrowser.open(url)
+            try:
+                httpd.serve_forever()
+            except KeyboardInterrupt:
+                pass
+
 # Main ----------------------------------------------------------------------------------------------
 
 def main():
@@ -251,6 +364,11 @@ def main():
     sub = parser.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("check", help="Check the sources (links, images, names, llms.txt).")
     p.add_argument("--external", action="store_true", help="Also HEAD-request the external links and images (slow, not in CI).")
+    p = sub.add_parser("preview", help="Render the pages to HTML (sidebar, footer) and open them in the browser.")
+    p.add_argument("--out", default=os.path.join(tempfile.gettempdir(), "litex-wiki-preview"), help="Output directory.")
+    p.add_argument("--serve", action="store_true", help="Serve the directory on localhost and open the browser.")
+    p.add_argument("--port", type=int, default=8000)
+    p.add_argument("--no-browser", action="store_true", help="With --serve: do not open the browser.")
     p = sub.add_parser("render", help="Write the wiki tree (links rewritten) to a directory.")
     p.add_argument("--out", required=True)
     p.add_argument("--clean", action="store_true", help="Remove files of --out that are not in the sources (keeps .git).")
@@ -260,6 +378,8 @@ def main():
     args = parser.parse_args()
     if args.cmd == "check":
         sys.exit(0 if check(args.external) else 1)
+    if args.cmd == "preview":
+        preview(args.out, args.serve, args.port, browser=not args.no_browser)
     if args.cmd == "render":
         render(args.out, args.clean, args.absolute_images)
     if args.cmd == "diff":

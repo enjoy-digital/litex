@@ -42,12 +42,26 @@ one script per diagram, the SVG committed in `doc/wiki/images/` and embedded wit
 `![alt text](images/name.svg)`. See the [README](https://github.com/enjoy-digital/litex/blob/master/doc/diagrams/README.md)
 there for the conventions, the lint and how to add one.
 
+## Previewing the wiki locally
+
+```sh
+pip install markdown                      # once (Python-Markdown)
+python3 doc/wiki_sync.py preview --serve  # renders doc/wiki/ to HTML and opens it in the browser
+```
+
+`preview` renders every page with the sidebar and the footer, like the GitHub wiki, and serves
+them on `http://127.0.0.1:8000/` (`--port` to change it, `--no-browser` to only serve,
+`--out DIR` to only write the HTML files). Re-run it after editing a page and reload the browser.
+The rendering is close to GitHub's (same heading anchors, tables, code blocks, task lists) but not
+identical: emoji shortcodes are limited to the common ones and GitHub alerts (`> [!NOTE]`) show as
+plain quotes.
+
 ## Checking before a pull request
 
 ```sh
 python3 doc/wiki_sync.py check            # links, images, names, llms.txt
 python3 doc/diagrams/build.py --check     # diagrams match their scripts, labels fit
-python3 doc/wiki_sync.py render --out /tmp/wiki   # the pages as the wiki will show them
+python3 doc/wiki_sync.py render --out /tmp/wiki   # the exact tree the sync pushes to the wiki
 ```
 
 The same checks run in CI on the pull request. After the merge, the `wiki` workflow pushes the
