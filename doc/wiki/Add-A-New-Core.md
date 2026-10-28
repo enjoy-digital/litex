@@ -150,7 +150,7 @@ irq_setmask(irq_getmask() | (1 << PWM_INTERRUPT));
 ```
 
 And from the host through a [bridge](Host-Bridges.md): `bus.regs.pwm_period.write(1000)`.
-[Create and load software](Create-And-Load-Software-To-The-CPU.md) covers the firmware build.
+[Create and load software](Write-Firmware-For-Your-SoC.md) covers the firmware build.
 
 ## 5. Where to put it
 

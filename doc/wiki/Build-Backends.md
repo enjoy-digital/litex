@@ -107,7 +107,7 @@ that do not:
 - `Amaranth2VConverter` elaborates an Amaranth module to Verilog (Minerva, Sentinel, LUNA).
 - `--yosys-slang` makes the Yosys-based flows read SystemVerilog through the slang plugin.
 
-How to wrap an existing core: [Reuse a (System)Verilog, VHDL, Amaranth, SpinalHDL, Chisel core](Reuse-a-SystemVerilog-VHDL-Amaranth-Spinal-HDL-Chisel-core.md).
+How to wrap an existing core: [Reuse a (System)Verilog, VHDL, Amaranth, SpinalHDL, Chisel core](Reuse-An-Existing-Core.md).
 
 ## Build bundles and remote builds
 
@@ -123,4 +123,4 @@ replay there, copy `build/` back ([Tools](Tools.md)).
 `--load` calls `platform.create_programmer().load_bitstream(...)` and `--flash`
 `prog.flash(address, file)`: openFPGALoader for most boards, OpenOCD (with the bscan SPI proxy
 bitstreams for flashing through JTAG), the vendor programmers, DFU for the boards with a DFU
-bootloader. Installation and details on [FPGA and SPI Flash programmers](FPGA-and-SPI-Flash-programmers.md).
+bootloader. Installation and details on [FPGA and SPI Flash programmers](Load-And-Flash.md).

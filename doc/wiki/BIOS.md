@@ -2,7 +2,7 @@ The LiteX BIOS is the small program the Builder compiles for every SoC with a CP
 (`litex/soc/software/bios/`, C, built on picolibc): it initializes the SoC (DRAM calibration,
 Ethernet, storage), gives a console on the UART to inspect the hardware, and loads the
 application through one of the boot methods. It is the first thing that runs on a new board and
-the reference user of the generated headers; your own firmware ([Create and load software](Create-And-Load-Software-To-The-CPU.md))
+the reference user of the generated headers; your own firmware ([Create and load software](Write-Firmware-For-Your-SoC.md))
 is built the same way against the same `csr.h`/`soc.h`/`mem.h`.
 
 ![The BIOS boot flow](images/litex-bios-boot.svg)
@@ -111,7 +111,7 @@ and where to put them (Linux: OpenSBI, the kernel, the device tree, the rootfs):
 Without `bootargs`, the BIOS jumps to the last image. The complete description of the manifest,
 the flash image bounds and the SRAM boot buffers is in
 [doc/bios_config.md](https://github.com/enjoy-digital/litex/blob/master/doc/bios_config.md);
-the practical page is [Load application code to the CPU](Load-Application-Code-To-CPU.md).
+the practical page is [Load application code to the CPU](Write-Firmware-For-Your-SoC.md).
 
 ## Configuring the BIOS
 

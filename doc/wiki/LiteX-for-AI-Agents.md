@@ -27,7 +27,7 @@ of the repository. [DeepWiki](https://deepwiki.com/enjoy-digital/litex) indexes 
    and `build/<platform>/software/` (headers, BIOS); `--no-compile-gateware` skips the
    toolchain, `--no-compile` skips everything but the generation.
 6. The BIOS boots the application from serial, flash, ROM, SD card, SATA or TFTP
-   ([BIOS](BIOS.md), [Load application code](Load-Application-Code-To-CPU.md)).
+   ([BIOS](BIOS.md), [Load application code](Write-Firmware-For-Your-SoC.md)).
 7. The host reaches the running SoC's bus through a [bridge](Host-Bridges.md) (UART, JTAG,
    Ethernet, PCIe): `litex_server` + `litex_cli`/`RemoteClient`, LiteScope for signals.
 8. `litex_sim` runs the same SoC in Verilator ([SoC-Simulator](SoC-Simulator.md)); unit tests
@@ -163,7 +163,7 @@ Then a target file (copy the closest LiteX-Boards target, or the [40-line one](C
 `litex_term` for the console, `--with-uartbone`/`--with-etherbone` + `litex_server` +
 `RemoteClient` to script the board from Python, [LiteScope](Use-LiteScope-To-Debug-A-SoC.md)
 to see signals, `litex_bare_metal_demo` as the firmware template. For a core that must exist
-in a non-LiteX design, the generators ([Export](Export-Your-Core-SoC-To-Verilog.md)).
+in a non-LiteX design, the generators ([Export](Export-To-Verilog.md)).
 
 ## The pages of this wiki
 

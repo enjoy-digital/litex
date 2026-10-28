@@ -60,14 +60,14 @@ has a LiteX board and drivers, U-Boot the LiteEth driver.
 [OpenSBI](https://github.com/litex-hub/opensbi) (the `*-linux-on-litex-vexriscv` branches
 carry the LiteX platform) is the firmware between the BIOS and the kernel on RISC-V: the
 BIOS loads `opensbi.bin`, the kernel, the device tree and the rootfs from `boot.json` and
-jumps to OpenSBI ([Load application code](Load-Application-Code-To-CPU.md)).
+jumps to OpenSBI ([Load application code](Write-Firmware-For-Your-SoC.md)).
 
 ## Without a board
 
 - [litex_sim](SoC-Simulator.md) runs the same SoC in Verilator (slow for a Linux boot, but
   cycle accurate), and the QEMU co-simulation (`--cpu-type=qemu --qemu-kernel=...`) boots
   Linux in seconds against the simulated peripherals.
-- [Renode](Generate-Renode-simulation.md) simulates the SoC from `csr.json` with the Linux
+- [Renode](SoC-Simulator.md) simulates the SoC from `csr.json` with the Linux
   images, fast, with network.
 
 ## Beyond Linux-on-LiteX
@@ -76,5 +76,5 @@ jumps to OpenSBI ([Load application code](Load-Application-Code-To-CPU.md)).
 (archived) and [Fedora](https://www.contrib.andrew.cmu.edu/~somlo/BTCP/) have been run on
 LiteX SoCs; [Xous](https://github.com/betrusted-io/xous-core) (the Precursor microkernel) is
 the largest non-Linux system on one. The LiteX-Boards targets with `--cpu-type=vexriscv_smp`
-and the [complex SoC](Create-A-complex-SoC-With-Cores-From-The-Ecosystem.md) page show what
+and the [complex SoC](Create-A-Complex-SoC.md) page show what
 the Linux SoC is made of.

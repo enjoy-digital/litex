@@ -12,7 +12,7 @@ With LiteScope, we want to capture internal signals of our design, store their v
 
 To use LiteScope in LiteX, the first step is then to add a bridge connection between the Host PC and our FPGA board to allow the Host PC to access the main bus of our SoC and interact with it.
 
-LiteX provides native bridges that can operate over a [UART](Use-Host-Bridge-to-control-debug-a-SoC.md#add-a-uartbone-bridge-to-your-soc), [Ethernet](Use-Host-Bridge-to-control-debug-a-SoC.md#add-an-ethernet-bridge-to-your-soc) or [PCIe](Use-Host-Bridge-to-control-debug-a-SoC.md#add-a-pcie-bridge-to-your-soc) and the integration of these bridges in the SoC is explained in the [Use a Host Bridge to control/debug a SoC documentation](Use-Host-Bridge-to-control-debug-a-SoC.md).
+LiteX provides native bridges that can operate over a [UART](Host-Bridges.md#add-a-uartbone-bridge-to-your-soc), [Ethernet](Host-Bridges.md#add-an-ethernet-bridge-to-your-soc) or [PCIe](Host-Bridges.md#add-a-pcie-bridge-to-your-soc) and the integration of these bridges in the SoC is explained in the [Use a Host Bridge to control/debug a SoC documentation](Host-Bridges.md).
 
 The other bridges work the same way: JTAGBone (`--with-jtagbone`, `litex_server --jtag`, no pins needed), PCIe (`litex_server --pcie`), USB (`litex_server --usb`): see [Host-Bridges](Host-Bridges.md).
 

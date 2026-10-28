@@ -61,7 +61,7 @@ is independent of the FPGA JTAG primitives.
 
 Use a RISC-V capable OpenOCD with `riscv use_bscan_tunnel` support and the
 `riscv_jtag_tunneled.tcl` configuration from the
-[LiteX JTAG debugging guide](https://github.com/enjoy-digital/litex/wiki/JTAG-GDB-Debugging-with-VexRiscv-SMP-NaxRiscv-VexiiRiscv-CPUs).
+[LiteX JTAG debugging guide](https://github.com/enjoy-digital/litex/wiki/Debug-With-GDB).
 With that guide's `digilent_arty.cfg` and a one-hart CPU:
 
 ```sh

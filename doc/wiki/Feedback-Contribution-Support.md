@@ -44,3 +44,12 @@ While LiteX is an open-source project and we are really enjoying working on it, 
 We have the chance to have clients trusting us and funding systems built with LiteX or new developments but please consider that most of us can only answer you on working days and also need to spend weekend/holidays with our family and friends to come back with fresh minds and ideas!
 
 We are happy to provide basic support for everyone, if you are developing a product, want to reuse LiteX or part of it (some of the cores, the infrastructure, etc...) and want extensive support or want us to customize things for you, please get in touch with us, seeing our work used on real products it what motivate us and we'll see together what we and our partners could do!
+
+## Community
+
+<p align="center"><img src="https://raw.githubusercontent.com/enjoy-digital/litex/master/doc/litex-hub.png" width="400"></p>
+
+Over the years a friendly community has grown around LiteX and the ecosystem of cores. Feedbacks and contributions have already greatly improved the project, EnjoyDigital still leads the development but it is now a community project and collaborative projects created around/with LiteX can be found at https://github.com/litex-hub.
+
+
+Contact: florent@enjoy-digital.fr

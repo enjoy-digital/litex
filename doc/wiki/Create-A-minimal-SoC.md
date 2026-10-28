@@ -179,7 +179,7 @@ litex_term /dev/ttyUSB1                        # 115200 8N1 by default
 
 The BIOS prompt appears after the board resets; the LEDs chase. `litex_term` is the LiteX
 serial terminal (any terminal works); `--kernel demo.bin` boots an application
-([Create and load software](Create-And-Load-Software-To-The-CPU.md)). If nothing shows:
+([Create and load software](Write-Firmware-For-Your-SoC.md)). If nothing shows:
 check the serial device and baudrate, that the clock pin and frequency of the CRG are the
 board's, and that the bitstream loaded (the programmer's output).
 
@@ -194,7 +194,7 @@ litex_server --uart --uart-port=/dev/ttyUSB1 && litex_cli --regs            # re
 ```
 
 Then in the target: `self.add_sdram(...)` for a DRAM, `self.add_ethernet(...)`, a
-[core of your own](Add-A-New-Core.md), a [Verilog core](Reuse-a-SystemVerilog-VHDL-Amaranth-Spinal-HDL-Chisel-core.md),
+[core of your own](Add-A-New-Core.md), a [Verilog core](Reuse-An-Existing-Core.md),
 [LiteScope](Use-LiteScope-To-Debug-A-SoC.md) to look inside; the LiteX-Boards target of your
 board shows how its DRAM, Ethernet and flash are added
-([Create a complex SoC](Create-A-complex-SoC-With-Cores-From-The-Ecosystem.md)).
+([Create a complex SoC](Create-A-Complex-SoC.md)).

@@ -16,7 +16,7 @@ software always matches the hardware configuration. Pick what fits the job:
 Every SoC with a CPU gets the [LiteX BIOS](https://github.com/enjoy-digital/litex/tree/master/litex/soc/software/bios):
 it initializes the SoC (DRAM training, Ethernet, SD card...), provides a console with commands
 to inspect memory and registers, and loads the application through the
-[boot methods](Load-Application-Code-To-CPU.md) (serial, Ethernet/TFTP, SPI flash, SD card,
+[boot methods](Write-Firmware-For-Your-SoC.md) (serial, Ethernet/TFTP, SPI flash, SD card,
 SATA). It is built by the Builder with picolibc; `--libc-mode minimal` (the default) or
 `full`, `--bios-console`, `--bios-format` and `--bios-lto` tune its size and features.
 
@@ -25,7 +25,7 @@ libraries of `litex/soc/software/` (`libbase`, `liblitedram`, `libliteeth`, `lib
 `liblitesata`, `liblitespi`...): the [demo application](https://github.com/enjoy-digital/litex/tree/master/litex/soc/software/demo)
 (`litex_bare_metal_demo --build-path=build/<board>`, then `litex_term /dev/ttyUSBx --kernel=demo.bin`)
 is the template: console, LEDs, a donut. See
-[Create and load software](Create-And-Load-Software-To-The-CPU.md).
+[Create and load software](Write-Firmware-For-Your-SoC.md).
 
 ## RTOS
 
@@ -43,7 +43,7 @@ is the template: console, LEDs, a donut. See
 ## MicroPython, Rust and others
 
 - [MicroPython](https://github.com/litex-hub/micropython) (`ports/litex`, maintained in
-  LiteX-Hub): Python on the SoC, see [Run MicroPython](Run-MicroPython-CircuitPython-On-Your-SoC.md).
+  LiteX-Hub): Python on the SoC, see [Run MicroPython](Run-MicroPython-On-Your-SoC.md).
   The [FuPy](https://github.com/fupy/micropython) port (LM32, OpenRISC) and the CircuitPython
   port are historical.
 - Rust: the Builder's `--csr-svd` output feeds `svd2rust` for a peripheral access crate;
@@ -60,7 +60,7 @@ is the template: console, LEDs, a donut. See
   PCIe, USB OHCI, framebuffer... on Xilinx, Intel, Lattice, Microsemi and Efinix boards;
   OpenSBI + Linux + Buildroot rootfs loaded by the BIOS. NaxRiscv and VexiiRiscv (64-bit,
   MMU) boot Linux too, with the `linux` variants of the [LiteX-Boards](https://github.com/litex-hub/litex-boards)
-  targets (see [CPUs](CPUs.md) and the [JTAG/GDB page](JTAG-GDB-Debugging-with-VexRiscv-SMP-NaxRiscv-VexiiRiscv-CPUs.md)).
+  targets (see [CPUs](CPUs.md) and the [JTAG/GDB page](Debug-With-GDB.md)).
 - [Linux-on-LiteX-Rocket](https://github.com/litex-hub/linux-on-litex-rocket): 64-bit
   RocketChip, upstream Linux (BBL + initramfs), maintained by Gabriel Somlo.
 - Mor1kx (OpenRISC), BlackParrot and Microwatt (POWER) also boot Linux on LiteX SoCs:
@@ -76,6 +76,6 @@ is the template: console, LEDs, a donut. See
   [Xous](https://github.com/betrusted-io/xous-core) (the Precursor microkernel, on a LiteX SoC).
 
 Simulation of the software without a board: `litex_sim` runs the SoC with its BIOS and
-firmware in Verilator ([SoC-Simulator](SoC-Simulator.md)), [Renode](Generate-Renode-simulation.md)
+firmware in Verilator ([SoC-Simulator](SoC-Simulator.md)), [Renode](SoC-Simulator.md)
 runs Linux/Zephyr images on a model of the SoC, and the QEMU co-simulation runs the CPU in
 QEMU against the simulated gateware.

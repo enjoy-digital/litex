@@ -19,7 +19,7 @@ whole ecosystem of cores, and LiteX stays on it: it is stable, well understood, 
 barrier for an engineer coming from Verilog/VHDL, all the more since today's AI coding assistants
 are fluent in it. The [LiteX for Hardware Engineers](LiteX-for-Hardware-Engineers.md) page
 is written for that reader, and existing Verilog/VHDL/Amaranth/SpinalHDL/Chisel cores are
-[reused as they are](Reuse-a-SystemVerilog-VHDL-Amaranth-Spinal-HDL-Chisel-core.md), converted
+[reused as they are](Reuse-An-Existing-Core.md), converted
 to Verilog at build time when needed.
 
 ## A SoC is a composition of cores with stable contracts
@@ -69,7 +69,7 @@ Adding a device means writing an adapter, not a copy of the protocol.
 - On hardware, the SoC is never a black box: a [host bridge](Host-Bridges.md) (UART, JTAG,
   Ethernet, PCIe) exposes the whole address space to the host (`litex_server`, `litex_cli`,
   Python scripts), [LiteScope](Use-LiteScope-To-Debug-A-SoC.md) captures internal signals
-  through the same bridge, and the CPU is debugged with [GDB over JTAG](JTAG-GDB-Debugging-with-VexRiscv-CPU.md).
+  through the same bridge, and the CPU is debugged with [GDB over JTAG](Debug-With-GDB.md).
   A board bring-up starts with the bridge and the BIOS, before any application.
 
 ## Experiment, get it working, understand, refine, strip down
@@ -95,7 +95,7 @@ cores.
   written by hand.
 - **Standalone cores for other flows.** The cores ship a generator (`litedram_gen`,
   `liteeth_gen`, `litepcie_gen`, `litex_soc_gen`, ...) producing a Verilog core with a
-  plain interface for designs that are not LiteX SoCs ([Export](Export-Your-Core-SoC-To-Verilog.md)).
+  plain interface for designs that are not LiteX SoCs ([Export](Export-To-Verilog.md)).
 - **Validate with elaboration, simulation and one real build.** A Python import proves
   nothing: elaborate every supported variant, run the tests, build a representative target
   when the toolchain is available, and say in the pull request what was not tested on

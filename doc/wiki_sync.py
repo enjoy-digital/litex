@@ -62,9 +62,15 @@ SIZE_WARN = 100*1024
 
 # The one line "Moved to [...](Page.md)." pages: kept for the links from outside, never in the sidebar.
 STUBS = {"Document-a-SoC", "Firmware", "OS-support", "Related-Projects", "Soft-CPU",
-         "Reuse-a-(System)Verilog,-VHDL,-Amaranth,-Spinal-HDL,-Chisel-core"}
-OPTIONAL_NEXT = {"Home", "LiteX-for-AI-Agents"}   # Content pages without a closing "## Next" section.
-UNLISTED      = set()                             # Content pages allowed out of _Sidebar.md (archives).
+         "Reuse-a-(System)Verilog,-VHDL,-Amaranth,-Spinal-HDL,-Chisel-core",
+         "Reuse-a-SystemVerilog-VHDL-Amaranth-Spinal-HDL-Chisel-core",
+         "Use-Host-Bridge-to-control-debug-a-SoC", "JTAG-GDB-Debugging-with-VexRiscv-CPU",
+         "JTAG-GDB-Debugging-with-VexRiscv-SMP-NaxRiscv-VexiiRiscv-CPUs", "Create-And-Load-Software-To-The-CPU",
+         "Load-Application-Code-To-CPU", "Generate-Renode-simulation",
+         "Create-A-complex-SoC-With-Cores-From-The-Ecosystem", "Export-Your-Core-SoC-To-Verilog",
+         "Run-MicroPython-CircuitPython-On-Your-SoC", "FPGA-and-SPI-Flash-programmers"}
+OPTIONAL_NEXT = {"Home", "LiteX-for-AI-Agents", "LiteX-for-Hardware-Engineers-2018"}   # No closing "## Next".
+UNLISTED      = {"LiteX-for-Hardware-Engineers-2018"}   # Content pages allowed out of _Sidebar.md (archives).
 ALERTS        = {"NOTE", "TIP", "WARNING"}
 README        = os.path.normpath(os.path.join(ROOT, "..", "..", "README.md"))
 README_BEGIN, README_END = "<!-- readme:begin -->", "<!-- readme:end -->"
@@ -260,7 +266,7 @@ def check(external=False, strict=False):
                 err(f"{n}: link ]({dest}) to a page without its extension, use ]({pgs[path]}{'#' + anchor if anchor else ''})")
             else:
                 err(f"{n}: broken link/image ]({dest})")
-        if not n.startswith("_") and n not in STUBS:
+        if not n.startswith("_") and n not in STUBS and n != "Home":
             check_style(n, text, report, err)
 
     # Stubs: one line pages, listed in STUBS, pointing to a real page, out of the sidebar.
@@ -373,7 +379,7 @@ def readme_block(known):
     if README_BEGIN not in home or README_END not in home:
         return None
     block = home.split(README_BEGIN, 1)[1].split(README_END, 1)[0]
-    block = rewrite_links(block, known, prefix=WIKI_URL + "/")
+    block = rewrite_links(block, known, prefix=WIKI_URL + "/").replace(f"]({WIKI_URL}/Home)", f"]({WIKI_URL})")
     return re.sub(r"(\]\(|src=\")images/", r"\1doc/wiki/images/", block)
 
 def readme(write=True):

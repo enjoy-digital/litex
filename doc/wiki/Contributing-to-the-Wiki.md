@@ -14,7 +14,7 @@ one line change. Open an issue if you are not sure where something belongs.
   many places. If a page moves, leave a one line `Moved to [...](New-Page.md).` stub under the
   old name.
 - Links to other pages are written with the extension: `[Installation](Installation.md)`,
-  `[UARTBone](Use-Host-Bridge-to-control-debug-a-SoC.md#add-a-uartbone-bridge-to-your-soc)`.
+  `[UARTBone](Host-Bridges.md#add-a-uartbone-bridge-to-your-soc)`.
   They work in the repository view and are rewritten for the wiki. No `[[Page]]` wiki-links,
   no absolute `https://github.com/enjoy-digital/litex/wiki/...` links.
 - Links to files of the repository use the full URL
