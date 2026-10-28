@@ -157,8 +157,10 @@ class PRBSRX(LiteXModule):
             self.comb += new_prbs_data.eq(prbs_data[::-1])
             prbs_data = new_prbs_data
 
-        # Checkers.
+        # Checkers (config and pause come from the control clock domain: synchronize both).
+        pause = Signal()
         self.specials += MultiReg(self.config, config)
+        self.specials += MultiReg(self.pause,  pause)
         prbs7  = PRBS7Checker(width)
         prbs15 = PRBS15Checker(width)
         prbs31 = PRBS31Checker(width)
@@ -169,8 +171,12 @@ class PRBSRX(LiteXModule):
             prbs31.i.eq(prbs_data),
         ]
 
-        # Errors count (with optional saturation).
-        error = Signal()
+        # Errors count (with optional saturation). The pause takes effect two cycles after the data
+        # it applies to (the error register and the synchronizer), which is fine for a CSR-driven pause.
+        error        = Signal()
+        count_enable = ~pause
+        if with_errors_saturation:
+            count_enable = count_enable & (errors != (2**errors_width-1))
         self.sync += [
             Case(config, {
                 PRBS_CONFIG_OFF    : error.eq(0),
@@ -180,7 +186,7 @@ class PRBSRX(LiteXModule):
             }),
             If(config == PRBS_CONFIG_OFF,
                 errors.eq(0)
-            ).Elif(~self.pause & (~with_errors_saturation | (errors != (2**errors_width-1))),
+            ).Elif(count_enable,
                 errors.eq(errors + error)
             )
         ]
