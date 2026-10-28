@@ -1,26 +1,20 @@
-# LiteX CSRs: Embrace Simplicity!
+**Embrace simplicity.** Ever wrestled with Wishbone, AXI or AXI-Lite just to read a status bit
+or set a mode? These buses are powerful, and far too much for the job. LiteX controls its cores
+through [CSRs](https://github.com/enjoy-digital/litex/blob/master/litex/soc/interconnect/csr.py),
+control and status registers on a bus of five signals that writes in one cycle and reads in
+two, bridged to the main bus of the SoC. You declare a register as an attribute of your module,
+and at build time LiteX collects it, maps it, bridges it and writes its address and accessors
+for the software. Et voilà!
 
 ![The CSR bus](images/litex-csr-bus.svg)
 
-## Introduction
+*The bridge turns accesses to the `csr` region into one-cycle writes and two-cycle reads; one
+bank per core, one slot per register.*
 
-Ever found yourself wrestling with the intricacies of Wishbone, AXI, and AXI-Lite buses? You're not alone. These industry-standard buses, while powerful, can sometimes feel like an overly complicated puzzle - complex, resource-hungry, and not exactly the most straightforward when it comes to controlling or reading information from designs.
-
-Fear not, because LiteX has a solution to these complications - the Control Status Registers ([CSRs](https://github.com/enjoy-digital/litex/blob/master/litex/soc/interconnect/csr.py))! Think of them as your trusty pocket knife in the vast Swiss army of FPGA design - simple, versatile, and always ready when you need them.
-
-**The Simplicity of the CSR Bus**
-
-The [CSR Bus](https://github.com/enjoy-digital/litex/blob/master/litex/soc/interconnect/csr_bus.py), LiteX's version of a local bus, takes a minimalist approach to interface signals, featuring only `adr`, `re`, `we`, `dat_w` and `dat_r` signals. This lightweight bus operates in the `sys_clk` domain of the SoC, completing **writes in a single cycle** and **reads in two cycles**. This straightforward approach streamlines your design process.
-
-**From CSR Bus to Main Bus: The Perfect Blend**
-
-The CSR Bus doesn't exist in isolation. It connects seamlessly to the main bus of the SoC (Wishbone, AXI, AXI-Lite) through a bridge, combining the simplicity of the local bus with the power of the industry-standard bus. This marriage of ease and capability allows you to get the best of both worlds.
-
-**CSRs: Making Life Easier**
-
-But the CSR Bus is only half the story. The real stars of the show are the CSRs. Available in different types (`CSR`, `CSRStorage`, `CSRStatus`), they're ready to be attached to a LiteX Module. Once you kick off the build, LiteX takes it from there. It collects the CSRs, maps them to the local CSR bus, and bridges them to the Main Bus.
-
-Et voilà! With CSRs and the CSR Bus, you now have a simple, straightforward way to define registers in a design, making the process as easy as pie. Embrace the simplicity and focus on what truly matters - creating amazing digital systems!
+```sh
+litex_cli --regs            # every register of the running SoC, through a bridge
+grep pwm build/sim/csr.csv  # where the registers of a core landed
+```
 
 ## The CSR bus
 
@@ -30,7 +24,7 @@ Et voilà! With CSRs and the CSR Bus, you now have a simple, straightforward way
 | `re` | 1 | the bridge | Read strobe, high for one cycle: the slot at `adr` is being read. |
 | `we` | 1 | the bridge | Write strobe, high for one cycle: `dat_w` goes into the slot at `adr`. |
 | `dat_w` | `csr_data_width` (32 by default, 8 possible) | the bridge | The data written. |
-| `dat_r` | `csr_data_width` | the banks | The data read, valid the cycle after the address (the banks OR their outputs, a bank that is not selected drives 0). |
+| `dat_r` | `csr_data_width` | the banks | The data read, valid the cycle after the address; an unselected bank drives 0, the outputs are ORed. |
 
 No handshake and no wait state: a write takes one cycle, a read two (the address, then the data),
 everything in the `sys` clock domain. The bus has a single master, the **CSR bridge**
@@ -48,9 +42,10 @@ far from the throughput of the main bus, so a fixed-latency bus with no handshak
 logic, routes easily, and lets every register of every core be declared, generated and accessed the
 same way. Memory and DMAs stay on the main bus ([Wishbone](Wishbone-Bus.md), [AXI](AXI-Bus.md)).
 
+> [!NOTE]
 > LiteX CSRs have nothing to do with the CSRs of the RISC-V ISA (`mstatus`, `mie`...): those are
-> registers inside the CPU, reached with `csrr`/`csrw`; LiteX CSRs are memory-mapped registers of
-> the SoC, reached with loads and stores.
+> registers inside the CPU, reached with `csrr` and `csrw`; LiteX CSRs are memory-mapped
+> registers of the SoC, reached with loads and stores.
 
 ## Declaring registers
 
@@ -97,11 +92,22 @@ What each kind of register gives to the logic:
 
 | Register | Software | Logic |
 | --- | --- | --- |
-| `CSRStorage(size=1, reset=0, fields=[], reset_less=False, atomic_write=False, write_from_dev=False)` | reads and writes | `.storage` holds the value; `.wr_stb` is high for one cycle after each write by software. With `write_from_dev=True`, the logic can also update the value through `.dat_w` and `.we`. |
-| `CSRStatus(size=1, reset=0, fields=[], read_only=True, reset_less=False)` | reads (and writes with `read_only=False`) | `.status` is driven by the logic; `.rd_stb` is high for one cycle after each read by software (clear a flag on read, pop a FIFO...). With `read_only=False`, `.wr_data` and `.wr_stb` give what software wrote. |
-| `CSR(size=1)` | reads and writes, up to `csr_data_width` bits | The raw register the two others are built on: `.wr_data`/`.wr_stb` from software, `.rd_data`/`.rd_stb` to software, nothing stored. |
-| `CSRConstant(value)` | a constant | Nothing in the gateware: the value goes to `csr.h`, `csr.csv`... (a version, a parameter). |
-| `CSRGap(count=1)` | reserved slots | Nothing: keeps addresses free in a bank whose layout must not move. |
+| `CSRStorage` | reads and writes | `.storage` holds the value, `.wr_stb` is high one cycle after each write. |
+| `CSRStatus` | reads | `.status` is driven by the logic, `.rd_stb` is high one cycle after each read. |
+| `CSR` | reads and writes | The raw register: `.wr_data` and `.wr_stb` in, `.rd_data` and `.rd_stb` out, nothing stored. |
+| `CSRConstant` | a constant | Nothing in the gateware: the value goes to `csr.h` and `csr.csv` (a version, a parameter). |
+| `CSRGap` | reserved slots | Nothing: keeps addresses free in a bank whose layout must not move. |
+
+```python
+CSRStorage(size=1, reset=0, fields=[], reset_less=False, atomic_write=False, write_from_dev=False)
+CSRStatus(size=1, reset=0, fields=[], read_only=True, reset_less=False)
+CSR(size=1); CSRConstant(value); CSRGap(count=1)
+```
+
+`CSRStorage(write_from_dev=True)` lets the logic update the value too, through `.dat_w` and
+`.we`; `CSRStatus(read_only=False)` accepts writes, available as `.wr_data` and `.wr_stb`;
+`.rd_stb` is how a flag is cleared on read or a FIFO popped. A `CSR` carries up to
+`csr_data_width` bits.
 
 The strobes and the data are named from the software side: `wr_*` for what software writes, `rd_*`
 for what it reads. The historical names still work as aliases, but beware when you meet them in
@@ -233,10 +239,14 @@ its software.
 | Option | Default | Effect |
 | --- | --- | --- |
 | `--csr-data-width` | 32 | Bits carried by a slot (8 or 32). |
-| `--csr-address-width` | 14 | Width of `adr`: the size of the `csr` region (`2^(n+2)` bytes) and the number of locations (14 to 18). |
+| `--csr-address-width` | 14 | Width of `adr`, 14 to 18: the size of the `csr` region (`2^(n+2)` bytes), the number of locations. |
 | `--csr-paging` | 0x800 | Bytes per location (0x400 to 0x4000). |
 | `--csr-ordering` | big | Order of the words of a wide register (`big` or `little`). |
 | `--soc-csv`, `--soc-json`, `--soc-svd` | | Where to write the map (`--csr-csv`... are the old spellings). |
 
-[SoC builder](SoC-builder.md) describes the handler behind this (`self.csr`), and
-[Add a new core](Add-A-New-Core.md) the interrupts (`EventManager`), which are CSRs too.
+## Next
+
+- [Add a new core](Add-A-New-Core.md): a core with registers and an interrupt, from the Python to the C.
+- [SoC builder](SoC-builder.md): the handler behind this (`self.csr`), and the bridge.
+- [Wishbone bus](Wishbone-Bus.md): the main bus the CSR bridge hangs on.
+- [SoC documentation](SoC-Documentation.md): the register-level documentation generated from these declarations.

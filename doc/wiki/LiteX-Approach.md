@@ -1,7 +1,8 @@
-LiteX has been used since 2012 to build FPGA systems for clients and for open-source projects,
-and the framework is the distillation of what worked on these systems. This page describes the
-way we build with it, so that the code, the cores and the documentation make sense as a whole.
-It complements the [design flow](Home.md) and the [internals](SoC-builder.md) pages.
+This is how we build with LiteX, and why the code, the cores and these pages fit together:
+Python as the glue and Migen as the HDL, cores with stable contracts, layers that keep a
+protocol independent of the FPGA, simulation first and instruments on the hardware. LiteX has
+been used since 2012 on systems for clients and on open-source projects, and the framework is
+what worked on them. Read this once; the rest of the wiki assumes it.
 
 ![The LiteX design flow](images/litex-overview.svg)
 
@@ -126,3 +127,10 @@ community since. Enjoy-Digital leads the development; the collaborative projects
 [LiteX-Hub](https://github.com/litex-hub). The framework is permissively licensed
 (BSD-2-Clause), and we ask in return for feedback, contributions and the respect of the
 work involved ([Feedback, contribution, support](Feedback-Contribution-Support.md)).
+
+## Next
+
+- [SoC builder](SoC-builder.md): the integration logic this page describes, class by class.
+- [Streams](Streams.md), [Wishbone bus](Wishbone-Bus.md), [CSR bus](CSR-Bus.md): the contracts the cores share.
+- [Cores](Cores.md): what is in the repository, and the [ecosystem](Cores-Ecosystem.md) around it.
+- [Projects](Projects.md): the systems the features come from.

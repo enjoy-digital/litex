@@ -1,8 +1,8 @@
-LiteX generates the register-level documentation of a SoC from the design itself: every
-`CSRStorage`/`CSRStatus` with its fields and descriptions, the memory map, the interrupts and
-the module descriptions, as a [Sphinx](https://www.sphinx-doc.org/) project with register
-diagrams, plus the `.svd` file used by `svd2rust` and the debuggers. The documentation is
-always in sync with the hardware, since it comes from the same Python objects as `csr.h`.
+You get the register-level documentation of your SoC for free: `python3 target.py --build
+--doc` turns every `CSRStorage` and `CSRStatus`, with its fields and descriptions, the memory
+map, the interrupts and the module descriptions into a [Sphinx](https://www.sphinx-doc.org/)
+site with register diagrams, and `--soc-svd` into the `.svd` file `svd2rust` and the debuggers
+read. It comes from the same Python objects as `csr.h`, so it is never out of date.
 
 ## Generating it
 
@@ -85,3 +85,9 @@ support); the first line is the title, or pass `title=` and `body=`. Register li
 - The interrupt table.
 - The SVD describes the same registers for the tools that read CMSIS-SVD (Rust `svd2rust`,
   debuggers, register viewers).
+
+## Next
+
+- [CSR bus](CSR-Bus.md): the registers and fields this documentation describes, and the `csr.h` accessors.
+- [Add a new core](Add-A-New-Core.md): where the descriptions are written.
+- [Write firmware for it](Write-Firmware-For-Your-SoC.md): the headers generated next to the documentation.
