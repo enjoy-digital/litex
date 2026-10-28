@@ -33,7 +33,7 @@ from migen.fhdl.conv_output import ConvOutput
 from migen.fhdl.specials    import Instance, Memory, _MemoryPort
 
 from litex.gen import LiteXContext
-from litex.gen.fhdl.expression import _generate_expression, _generate_signal
+from litex.gen.fhdl.expression import _generate_expression, _generate_signal, _verilog_width
 from litex.gen.fhdl.namer      import build_signal_namespace
 from litex.gen.fhdl.hierarchy  import LiteXHierarchyExplorer
 from litex.gen.fhdl.utils      import allocate_generated_name
@@ -270,7 +270,9 @@ def _generate_node(ns, at, level, node, target_filter=None):
             assignment = " = "
         else:
             assignment = " <= "
-        return _tab*level + _generate_expression(ns, node.l)[0] + assignment + _generate_expression(ns, node.r)[0] + ";\n"
+        # Value truncated to the target: target width bits needed, evaluated on (at least) it.
+        rhs = _generate_expression(ns, node.r, need=len(node.l), width=max(len(node.l), _verilog_width(node.r)))[0]
+        return _tab*level + _generate_expression(ns, node.l)[0] + assignment + rhs + ";\n"
 
     # Iterable.
     elif isinstance(node, collections.abc.Iterable):
@@ -278,7 +280,7 @@ def _generate_node(ns, at, level, node, target_filter=None):
 
     # If.
     elif isinstance(node, If):
-        r = _tab*level + "if (" + _generate_expression(ns, node.cond)[0] + ") begin\n"
+        r = _tab*level + "if (" + _generate_expression(ns, node.cond, need=len(node.cond))[0] + ") begin\n"
         r += _generate_node(ns, at, level + 1, node.t, target_filter)
         if node.f:
             r += _tab*level + "end else begin\n"
@@ -289,10 +291,22 @@ def _generate_node(ns, at, level, node, target_filter=None):
     # Case.
     elif isinstance(node, Case):
         if node.cases:
-            r = _tab*level + "case (" + _generate_expression(ns, node.test)[0] + ")\n"
+            test, test_signed, _ = _generate_expression(ns, node.test, need=len(node.test))
+            r = _tab*level + "case (" + test + ")\n"
             css = [(k, v) for k, v in node.cases.items() if isinstance(k, Constant)]
             css = sorted(css, key=lambda x: x[0].value)
+            # Choices with the test signedness (Verilog signs the test and the choices together: an
+            # unsigned choice would turn a signed test expression unsigned), choices out of the test
+            # range never match (dropped).
+            nbits, signed = value_bits_sign(node.test)
+            vmin, vmax = (-(1 << (nbits - 1)), (1 << (nbits - 1)) - 1) if signed else (0, (1 << nbits) - 1)
             for choice, statements in css:
+                if not (vmin <= choice.value <= vmax):
+                    continue
+                if test_signed:
+                    choice = Constant(choice.value, (nbits, True))
+                elif choice.signed:
+                    choice = Constant(choice.value) # Unsigned (in range: positive).
                 r += _tab*(level + 1) + _generate_expression(ns, choice)[0] + ": begin\n"
                 r += _generate_node(ns, at, level + 2, statements, target_filter)
                 r += _tab*(level + 1) + "end\n"
@@ -780,8 +794,8 @@ class _ComplexSliceLowerer(_Lowerer):
                 node, inv   = _lower_slice_invert(node, inv)
                 if node is former_node:
                     break
-        if start == 0 and len(node) == length:
-            pass
+        if start == 0 and len(node) == length and not value_bits_sign(node)[1]:
+            pass # Full slice of an unsigned value (a slice of a signed value is unsigned: kept).
         elif isinstance(node, Signal):
             node = _Slice(node, start, start + length)
         else:
