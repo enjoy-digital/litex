@@ -1,11 +1,10 @@
-A LiteX core is a Python class: a `LiteXModule` whose logic is written in Migen, whose
-control/status registers are `CSRStorage`/`CSRStatus` attributes, whose interrupts come from an
-`EventManager` and whose data goes through [stream](Streams.md) endpoints or a
-[Wishbone](Wishbone-Bus.md)/[AXI](AXI-Bus.md) interface. Add it to a SoC as an attribute and the
-[SoC builder](SoC-builder.md) does the rest: a location on the [CSR bus](CSR-Bus.md), the C
-accessors in `csr.h`, the lines in `csr.csv`/`csr.json`/`csr.svd`, the interrupt line, the
-documentation. This page writes one, simulates it, uses it from the BIOS/firmware and from the
-host, and says where it goes. [Cores](Cores.md) lists the existing ones to copy from.
+You will write a core of your own, a PWM, with its registers and its interrupt, simulate it
+with a Python generator, add it to a SoC in one line and drive it from the firmware and from
+the host. A LiteX core is a `LiteXModule`: the logic in Migen, the registers as `CSRStorage`
+and `CSRStatus` attributes, the interrupt from an `EventManager`, the data through
+[streams](Streams.md) or a [bus](Wishbone-Bus.md) interface; the [SoC builder](SoC-builder.md)
+does the rest, the `csr.h` accessors included. Thirty minutes; [Cores](Cores.md) lists the
+existing ones to copy from.
 
 ![Anatomy of a core](images/litex-core-anatomy.svg)
 
@@ -168,3 +167,10 @@ And from the host through a [bridge](Host-Bridges.md): `bus.regs.pwm_period.writ
 - Bigger protocol cores get their own repository, structured like the
   [ecosystem cores](Cores-Ecosystem.md) (`phy/`, `core/`, `frontend/`, `software/`, `gen.py`,
   `test/`).
+
+## Next
+
+- [CSR bus](CSR-Bus.md): what the registers of step 1 become on the bus and in `csr.h`.
+- [Use LiteScope](Use-LiteScope-To-Debug-A-SoC.md): the core on hardware, signal by signal.
+- [Reuse an existing core](Reuse-An-Existing-Core.md): when the core already exists in Verilog or VHDL.
+- [Add a new CPU](Add-A-New-CPU.md): the biggest core of all, wrapped the same way.

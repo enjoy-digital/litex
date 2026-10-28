@@ -1,10 +1,10 @@
-The [minimal SoC](Create-A-minimal-SoC.md) is a CPU, memories and a UART; a *complex* SoC adds
-the cores of the [ecosystem](Cores-Ecosystem.md): a DRAM controller (LiteDRAM), Ethernet
-(LiteEth), an SD card (LiteSDCard), a SPI flash (LiteSPI), SATA (LiteSATA), PCIe (LitePCIe),
-video... Each one is a PHY for the board's chips plus one `add_*` call, and each one brings its
-BIOS commands, its boot method, its software library and its Linux driver. This page builds the
-Linux-capable SoC of the Digilent Arty A7 step by step; the LiteX-Boards targets do the same for
-their boards.
+You will add the cores of the ecosystem to a SoC, one call each: a DRAM controller
+(LiteDRAM), Ethernet (LiteEth), an SD card (LiteSDCard), a SPI flash (LiteSPI), SATA
+(LiteSATA), PCIe (LitePCIe), video. Each one is a PHY for the board's chips plus one `add_*`,
+and each one brings its BIOS commands, its boot method, its software library and its Linux
+driver. This page builds the Linux-capable SoC of the Digilent Arty A7 step by step; the
+LiteX-Boards targets do the same for their boards. An hour, after
+[the minimal SoC](Create-A-minimal-SoC.md).
 
 ![A complex LiteX SoC](images/litex-complex-soc.svg)
 
@@ -182,3 +182,10 @@ FreeRTOS and MicroPython use the same headers ([OSes ecosystem](OSes-Ecosystem.m
 - [LiteScope](Use-LiteScope-To-Debug-A-SoC.md) on the signals of a core that misbehaves, in
   [simulation](SoC-Simulator.md) first: `litex_sim --with-sdram --with-ethernet --with-sdcard
   --with-spi-flash` has models for all of them.
+
+## Next
+
+- [Run Linux on your SoC](Run-Linux-On-Your-SoC.md): what this SoC is for.
+- [Cores ecosystem](Cores-Ecosystem.md): the repositories behind each `add_*`.
+- [Create a PCIe SoC](Create-A-PCIe-SoC.md): the PCIe core in detail.
+- [Add a new board](Add-A-New-Board.md): the platform these cores need pins from.

@@ -1,10 +1,10 @@
-A LiteX design does not have to be the whole chip: the cores and the SoC builder export
-plain Verilog modules with standard interfaces (AXI-Lite, AXI-Stream, Wishbone, native
-ports) for a Vivado, Quartus, Diamond or Yosys project written in Verilog/VHDL/SystemVerilog.
-This is how LiteDRAM, LiteEth, LitePCIe or LiteSATA are used in many non-LiteX designs, and
-how a LiteX SoC (CPU, BIOS, peripherals) becomes a subsystem of a bigger FPGA design. The
-other direction, a Verilog/VHDL core inside a LiteX SoC, is on the
-[Reuse a core](Reuse-An-Existing-Core.md) page.
+You take a LiteX core, or a whole LiteX SoC, into a Vivado, Quartus, Diamond or Yosys project
+written in Verilog, VHDL or SystemVerilog: the generators write plain Verilog modules with
+standard interfaces (AXI-Lite, AXI-Stream, Wishbone, native ports) and the headers that go
+with them. This is how LiteDRAM, LiteEth, LitePCIe and LiteSATA run in many designs that are
+not LiteX SoCs, and how a LiteX SoC with its CPU, BIOS and peripherals becomes a subsystem of
+a bigger FPGA design. The other direction, a Verilog or VHDL core inside a LiteX SoC, is on
+[Reuse an existing core](Reuse-An-Existing-Core.md).
 
 ![Standalone cores](images/litex-standalone-core.svg)
 
@@ -20,7 +20,7 @@ generates `build/my_soc/gateware/my_soc.v`, a module with:
 | --- | --- |
 | `clk`, `rst` | The system clock (`--sys-clk-freq`, 50 MHz by default) and an active-high reset. |
 | `uart_tx`, `uart_rx` | The console of the BIOS/firmware (`--no-uart` to remove it, `--with-uartbone` for a bridge). |
-| `mmap_s_*` | A slave port on the SoC's main bus (Wishbone or AXI-Lite): your logic or another CPU accesses the SoC's memories and CSRs. |
+| `mmap_s_*` | A slave port on the SoC's main bus (Wishbone or AXI-Lite): your logic reaches its memories and CSRs. |
 | `mmap_m_*` | A master port: the SoC's CPU accesses your logic through a window (`0xa0000000`, 256 MiB). |
 | `debug[7:0]` | Spare signals (an example to extend). |
 
@@ -57,17 +57,42 @@ my_soc soc (
 Each ecosystem core has a generator that reads a YAML configuration and writes the core with
 its vendor-specific pieces (PHY, hard IP, PLLs) resolved:
 
-| Generator | Produces | Interfaces of the core | Configurations |
-| --- | --- | --- | --- |
-| `liteeth_gen config.yml` | `liteeth_core.v` + constraints, `csr.csv` | `sys_clock`/`sys_reset`, the PHY pads (MII, RMII, GMII, RGMII, SGMII, 1000BASE-X, 10G BASE-R, XGMII...), `mac_address`/`ip_address` inputs; `core: wishbone`/`axi-lite`: a MAC with slots behind a slave port and an `interrupt` (for a CPU running a software stack); `core: udp`: the hardware ARP/ICMP/UDP stack (DHCP optional) with UDP ports as AXI-Stream (`udp0_sink_*`/`udp0_source_*`, streamer or raw mode) and an Etherbone AXI-Lite master | Xilinx and Lattice PHYs, 8 to 512-bit datapaths, jumbo frames (`liteeth/doc/gen.md`, `examples/*.yml`) |
-| `litedram_gen config.yml` | `litedram_core.v` + `.xdc`/`.lpf`, `*.init`, `csr.h`/`sdram_phy.h`, the BIOS | `clk` (the PLL is inside), `user_clk`/`user_rst` outputs, `init_done`/`init_error`, the DRAM pads, user ports `user_port_<n>_*` of type `native`, `wishbone`, `avalon`, `axi` or `fifo`; a UART (`rs232` or `fifo`) for the calibration CPU, or `wb_ctrl_*` with `cpu: None` | SDR on every FPGA, DDR3 on ECP5, DDR2/DDR3 on 7-Series, DDR4 on UltraScale(+) (`examples/arty.yml`, `kcu105.yml`, `versa_ecp5.yml`...) |
-| `litepcie_gen config.yml` | `litepcie_core.v` + the hard IP TCL, `csr.h`/`soc.h`/`mem.h` | `clk`/`rst` (outputs from the PCIe clock, or inputs with `clk_external`), `pcie_*`, `mmap_axi_lite_*` master (BAR0 to your logic), `mmap_slave_axi_*` (to the host memory), `ctrl_axi_lite_*`, `dma<n>_writer_axi_t*`/`dma<n>_reader_axi_t*` AXI-Stream, `msi_irqs` | 7-Series, UltraScale(+), Cyclone V, GW5A, CertusPro-NX (`examples/acorn.yml`, `kcu105.yml`) |
-| `litesata_gen config.yml` | `litesata_core.v` + `.xdc`, `csr.csv` | `clk`/`rst`, `sata_*`, `enable`/`ready`/`link_up`, `irq`, native user ports (`sector`, `count`, `data` streams) or a `wb_ctrl_*`/`axil_ctrl_*` slave and a `wb_dma_*` master | Xilinx GTP/GTX/GTH/GTY, Gen1 to Gen3 (`doc/gen.md`, `examples/*.yml`) |
-| `litesdcard_gen --vendor xilinx --clk-freq 100e6` | `litesdcard_core.v` | `clk`/`rst`, `sdcard_*`, `irq`, `wb_ctrl_*` slave, `wb_dma_*` master | Xilinx, Intel, Lattice |
-| `litespi_gen --module S25FL128L --mode x4 --bus-standard axi-lite` | `litespi_core.v` + `.init` | `clk`, `spiflash4x_*`, a `bus_*` slave (memory-mapped flash), `master_*` | any vendor (generic PHY) |
-| `litenvme_gen config.yml` | `litenvme_core.v` + `.tcl`/`.xdc`, the firmware ROM `.init`, headers | `pcie_*`, `rst_n`, `clk`/`rst`, `serial_*`, `status_init_*`, `block_ctrl_*` (start/write/sector/count), 256-bit `block_wr_axis_*`/`block_rd_axis_*` | UltraScale+ Gen3 x4 (`doc/STANDALONE_CORE.md`) |
-| `litedsp_gen config.yml`, `litedsp_flow netlist.json` | `<name>.v`, `csr.*`, `blocks.json`, a Vivado IP (`--vivado-ip`) | `s_axil_*` control, per-port `<id>_valid/_ready/_last/_payload_i/_q` streams | DSP chains described in YAML/JSON (`doc/flow.md`) |
-| `usb3_pipe_gen config.yml` | `<name>.v` + scoped `.xdc`, `*.init`, `<name>_inst.v` template, `<name>.md` | the SerDes pads, `clk`/`refclk`, 32-bit `sink_*`/`source_*` AXI-Stream (the PHY), or `bulk_in_*`/`bulk_out_*` with the USB3 device core | Artix-7 GTP, Kintex-7 GTX, UltraScale+ GTY (`doc/standalone-core.md`) |
+| Generator | Produces | For |
+| --- | --- | --- |
+| `liteeth_gen config.yml` | `liteeth_core.v`, constraints, `csr.csv` | Xilinx and Lattice PHYs, 8 to 512-bit datapaths, jumbo frames |
+| `litedram_gen config.yml` | `litedram_core.v`, constraints, `*.init`, headers, the BIOS | SDR anywhere, DDR3 on ECP5, DDR2/3 on 7-Series, DDR4 on UltraScale(+) |
+| `litepcie_gen config.yml` | `litepcie_core.v`, the hard IP TCL, headers | 7-Series, UltraScale(+), Cyclone V, GW5A, CertusPro-NX |
+| `litesata_gen config.yml` | `litesata_core.v`, constraints, `csr.csv` | Xilinx GTP, GTX, GTH and GTY, Gen1 to Gen3 |
+| `litesdcard_gen --vendor xilinx` | `litesdcard_core.v` | Xilinx, Intel, Lattice |
+| `litespi_gen --module S25FL128L --mode x4` | `litespi_core.v`, `.init` | any vendor (generic PHY) |
+| `litenvme_gen config.yml` | `litenvme_core.v`, TCL, constraints, the firmware ROM, headers | UltraScale+ Gen3 x4 |
+| `litedsp_gen config.yml`, `litedsp_flow netlist.json` | `<name>.v`, `csr.*`, `blocks.json`, a Vivado IP | DSP chains described in YAML or JSON |
+| `usb3_pipe_gen config.yml` | `<name>.v`, scoped constraints, `*.init`, an instantiation template | Artix-7 GTP, Kintex-7 GTX, UltraScale+ GTY |
+
+What the ports of each core look like, in short (each generator has a `doc/gen.md` or a
+`README` with the full list, and `examples/*.yml` to start from):
+
+- **LiteEth**: `sys_clock` and `sys_reset`, the PHY pads (MII to XGMII, SGMII, 1000BASE-X,
+  10GBASE-R), `mac_address` and `ip_address` inputs; `core: wishbone` or `axi-lite` gives a
+  MAC behind a slave port with an `interrupt`, for a CPU running a software stack; `core: udp`
+  gives the hardware ARP, ICMP and UDP stack (DHCP optional) with UDP ports as AXI-Stream and
+  an Etherbone AXI-Lite master.
+- **LiteDRAM**: `clk` (the PLL is inside), `user_clk` and `user_rst` outputs, `init_done` and
+  `init_error`, the DRAM pads, user ports `user_port_<n>_*` of type `native`, `wishbone`,
+  `avalon`, `axi` or `fifo`; a UART for the calibration CPU, or `wb_ctrl_*` with `cpu: None`.
+- **LitePCIe**: `clk` and `rst` from the link (or inputs with `clk_external`), `pcie_*`, an
+  `mmap_axi_lite_*` master (BAR0 to your logic), `mmap_slave_axi_*` (to the host memory),
+  `ctrl_axi_lite_*`, `dma<n>_writer_axi_t*` and `dma<n>_reader_axi_t*` AXI-Stream, `msi_irqs`.
+- **LiteSATA**: `clk` and `rst`, `sata_*`, `enable`, `ready`, `link_up`, `irq`, native user
+  ports (`sector`, `count`, `data` streams) or a `wb_ctrl_*` or `axil_ctrl_*` slave and a
+  `wb_dma_*` master.
+- **LiteSDCard, LiteSPI**: `clk` and `rst`, the card or flash pads, a `wb_ctrl_*` slave and a
+  `wb_dma_*` master; `litespi_gen` exposes the memory-mapped flash as a `bus_*` slave.
+- **LiteNVMe**: `pcie_*`, `rst_n`, `clk` and `rst`, `serial_*`, `status_init_*`, `block_ctrl_*`
+  (start, write, sector, count), 256-bit `block_wr_axis_*` and `block_rd_axis_*`.
+- **LiteDSP, USB3-PIPE**: an `s_axil_*` control port and per-port `<id>_valid`, `_ready`,
+  `_last`, `_payload_i`, `_q` streams; the SerDes pads, `clk` and `refclk`, 32-bit `sink_*` and
+  `source_*` AXI-Stream (the PHY) or `bulk_in_*` and `bulk_out_*` with the USB3 device core.
 
 A LiteEth UDP core, `examples/udp_s7phyrgmii.yml` shortened:
 
@@ -116,3 +141,10 @@ build script of any LiteX-Boards target without running the toolchain:
 edited elsewhere. `--hierarchical-verilog` keeps the module hierarchy (one Verilog module per
 `LiteXModule`) instead of the flattened netlist, which makes a large design readable in the
 vendor tools and lets you reuse a sub-module.
+
+## Next
+
+- [Reuse an existing core](Reuse-An-Existing-Core.md): the other direction.
+- [Cores ecosystem](Cores-Ecosystem.md): the cores these generators come from.
+- [Create a PCIe SoC](Create-A-PCIe-SoC.md): `litepcie_gen` and the driver it shares with the SoC flow.
+- [Build backends](Build-Backends.md): `--no-compile-gateware` and `--hierarchical-verilog` for a whole target.

@@ -1,10 +1,11 @@
-A CPU in LiteX is a wrapper class around an existing core (Verilog, VHDL, SystemVerilog,
-SpinalHDL, Chisel or Amaranth sources): it instantiates the core, exposes its buses as LiteX
+You bring a CPU of your own to LiteX with a wrapper class: it instantiates the core (Verilog,
+VHDL, SystemVerilog, SpinalHDL, Chisel or Amaranth sources), exposes its buses as LiteX
 interfaces, tells the SoC builder its memory map, interrupts and reset address, and gives the
-Builder the compiler flags and the start-up code. 38 CPUs follow this pattern
-([CPUs](CPUs.md)); the 150-line `litex/soc/cores/cpu/picorv32/core.py` is the one to copy for a
-simple Wishbone core, `vexriscv_smp/core.py` or `naxriscv/core.py` for a core generated at
-build time with options, `cva6/core.py` for an AXI core.
+Builder the compiler flags and the start-up code; `--cpu-type=<name>` then finds it, and the
+BIOS boots on it. Thirty-nine CPUs follow this pattern ([CPUs](CPUs.md)); the 150-line
+`litex/soc/cores/cpu/picorv32/core.py` is the one to copy for a Wishbone core,
+`vexriscv_smp/core.py` for a core generated at build time with options, `cva6/core.py` for an
+AXI core. A day for a first boot in `litex_sim`.
 
 ![How a CPU is integrated](images/litex-cpu-integration.svg)
 
@@ -28,17 +29,10 @@ patterns with each other (copy from a similar core: same ISA, same interrupt sch
 ## 2. The wrapper (`core.py`)
 
 ```python
-from migen import *
-from litex.gen import *
-from litex import get_data_mod
-from litex.soc.interconnect import wishbone
 from litex.soc.cores.cpu import CPU, CPU_GCC_TRIPLE_RISCV32
 
 CPU_VARIANTS = ["minimal", "standard"]
-GCC_FLAGS = {
-    "minimal":  "-march=rv32i2p0   -mabi=ilp32 ",
-    "standard": "-march=rv32i2p0_m -mabi=ilp32 ",
-}
+GCC_FLAGS = {"minimal": "-march=rv32i2p0 -mabi=ilp32 ", "standard": "-march=rv32i2p0_m -mabi=ilp32 "}
 
 class PicoRV32(CPU):
     category             = "softcore"              # softcore, hardcore or emulator
@@ -52,15 +46,10 @@ class PicoRV32(CPU):
     linker_output_format = "elf32-littleriscv"
     nop                  = "nop"
     io_regions           = {0x8000_0000: 0x8000_0000}   # where uncached peripherals may live
-    # mem_map = {...}                              # optional: forces origins (rom, sram, main_ram, csr)
 
     @property
     def gcc_flags(self):
         return "-mno-save-restore " + GCC_FLAGS[self.variant] + "-D__picorv32__ "
-
-    @property
-    def reserved_interrupts(self):                  # lines the CPU uses itself
-        return {"timer": 0, "ebreak_ecall_illegal": 1, "bus_error": 2}
 
     def __init__(self, platform, variant="standard"):
         self.platform     = platform
@@ -74,7 +63,6 @@ class PicoRV32(CPU):
         # # #
 
         mem_valid, mem_ready, mem_addr = Signal(), Signal(), Signal(32)
-        ...
         self.cpu_params = dict(                     # the Instance parameters and ports
             p_ENABLE_MUL = 1, ...,
             i_clk        = ClockSignal("sys"),
@@ -82,17 +70,11 @@ class PicoRV32(CPU):
             o_mem_valid  = mem_valid, i_mem_ready = mem_ready, o_mem_addr = mem_addr, ...
             i_irq        = self.interrupt,
         )
-        if variant == "minimal":
-            self.cpu_params.update(p_ENABLE_MUL=0, p_ENABLE_DIV=0, ...)
-
-        # Adapt the core's memory interface to Wishbone.
-        self.comb += [
-            idbus.adr.eq(mem_addr), idbus.cyc.eq(mem_valid), idbus.stb.eq(mem_valid), ...,
-            mem_ready.eq(idbus.ack),
-        ]
+        self.comb += [idbus.adr.eq(mem_addr), idbus.cyc.eq(mem_valid), idbus.stb.eq(mem_valid), ...,
+                      mem_ready.eq(idbus.ack)]      # the core's memory interface, adapted to Wishbone
         self.add_sources(platform)
 
-    def set_reset_address(self, reset_address):     # called by the SoC with the ROM origin (or --cpu-reset-address)
+    def set_reset_address(self, reset_address):     # called by the SoC with the ROM origin
         self.reset_address = reset_address
         self.cpu_params.update(p_PROGADDR_RESET=reset_address, p_PROGADDR_IRQ=reset_address + 0x10)
 
@@ -102,7 +84,6 @@ class PicoRV32(CPU):
         platform.add_source(os.path.join(vdir, "picorv32.v"))
 
     def do_finalize(self):
-        assert hasattr(self, "reset_address")
         self.specials += Instance("picorv32", **self.cpu_params)
 ```
 
@@ -110,16 +91,22 @@ The attributes the SoC builder reads (`CPU` base class in `litex/soc/cores/cpu/_
 
 | Attribute | Meaning |
 | --- | --- |
-| `periph_buses` | The buses to the main bus (`wishbone.Interface`, `AXILiteInterface` or `AXIInterface`): instruction and data, or one shared. Any width and standard, the SoC adapts them. |
-| `memory_buses` | Optional direct ports to LiteDRAM (`add_memory_buses(address_width, data_width)` is called by `add_sdram`): for cached CPUs that want the full DRAM bandwidth. |
+| `periph_buses` | The buses to the main bus: instruction and data, or one shared; any width and standard. |
+| `memory_buses` | Optional direct ports to LiteDRAM, for cached CPUs that want the full DRAM bandwidth. |
 | `dma_bus` | Optional slave port for coherent DMAs (Linux). |
-| `interrupt`, `reserved_interrupts`, `interrupts` | The interrupt lines (a `Signal(n)`) and the ones the CPU reserves (timer, exceptions...). |
-| `io_regions`, `mem_map` | Where uncached peripherals may be placed; forced origins when the core imposes them (`csr` at `0xf0000000` on VexRiscv, reset at `0x10000000` on Rocket...). |
-| `reset`, `set_reset_address()` | The SoC resets the CPU with `ctrl.soc_rst | ctrl.cpu_rst`; the reset address is the ROM origin by default. |
-| `gcc_triple`, `gcc_flags`, `linker_output_format`, `nop`, `endianness`, `data_width` | The software build. |
-| `add_sources()`, `do_finalize()` | The sources (a `pythondata-cpu-*` package, files downloaded or generated at build time, `platform.add_source`) and the `Instance`. |
-| `add_jtag()`/`connect_jtag()`, `add_debug()`, `add_cfu()`, `add_soc_components(soc)`, `add_software_packages(builder)`, `prepare_software(builder)` | Optional hooks: JTAG debug TAP, debug variants, custom function unit, extra SoC components (a PLIC, a CLINT), extra software (a BSP, generated linker scripts). |
-| `args_fill(parser)`, `args_read(args)` | Optional class methods for CPU-specific command-line options (`--cpu-count`, `--with-fpu`...). |
+| `interrupt`, `reserved_interrupts` | The interrupt lines (a `Signal(n)`) and the ones the CPU keeps for itself. |
+| `io_regions`, `mem_map` | Where uncached peripherals may live; forced origins when the core imposes them. |
+| `reset`, `set_reset_address()` | The SoC resets the CPU; the reset address is the ROM origin by default. |
+| `gcc_triple`, `gcc_flags`, `linker_output_format`, `nop` | The software build, with `endianness` and `data_width`. |
+| `add_sources()`, `do_finalize()` | The sources (a `pythondata-cpu-*` package, downloaded or generated) and the `Instance`. |
+| `args_fill()`, `args_read()` | Optional class methods for CPU-specific options (`--cpu-count`, `--with-fpu`...). |
+
+The optional hooks: `add_jtag()` and `connect_jtag()` for a debug TAP, `add_debug()` for the
+debug variants, `add_cfu()` for a custom function unit, `add_soc_components(soc)` for extra
+SoC components (a PLIC, a CLINT), `add_software_packages(builder)` and
+`prepare_software(builder)` for extra software (a BSP, generated linker scripts). The buses
+are `wishbone.Interface`, `AXILiteInterface` or `AXIInterface`, and `add_memory_buses()` is
+called by `add_sdram`.
 
 A hard CPU (`category = "hardcore"`) instantiates the vendor processing system instead and
 exposes its fabric bridges as `periph_buses` ([Hard core CPUs](Hard-core-CPUs.md)).
@@ -165,3 +152,10 @@ LiteX-Hub, the wrapper in LiteX with the `litex_repos.py` entry, and a line in t
 [CV32E40P](https://github.com/enjoy-digital/litex/pull/535),
 [FemtoRV](https://github.com/enjoy-digital/litex/commit/b1d8fe61f8613babeb486877a094bff759e31fd0),
 [Coreblocks](https://github.com/enjoy-digital/litex/pull/2339).
+
+## Next
+
+- [Choosing a CPU](Choosing-A-CPU.md): what `add_cpu` does with the attributes above.
+- [CPUs](CPUs.md): the thirty-two wrappers to compare yours with.
+- [Reuse an existing core](Reuse-An-Existing-Core.md): the `Instance` and the sources, in general.
+- [SoC simulator](SoC-Simulator.md): where the first boot happens.

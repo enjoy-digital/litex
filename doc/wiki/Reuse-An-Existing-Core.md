@@ -1,168 +1,117 @@
-## Intro
-Most of the open-source/shared LiteX designs are directly described in Migen/LiteX, but LiteX but is also **heavily used** to integrate/reuse traditional **Verilog/VHDL** cores (commercial or open-source) and also to integrate cores described in **Spinal-HDL, Amaranth or other high level HDL DSL** through **Verilog**.
-
-It is for example very common to create mixed language SoC similar to the following one:
+Your Verilog, VHDL or SystemVerilog core goes into a LiteX SoC as it is, and so does a core
+written in SpinalHDL, Amaranth, Chisel or any language that generates Verilog: an `Instance`
+in the design and the sources added to the platform are all it takes, the toolchain does the
+rest. Most LiteX designs mix the two; LiteX itself is **heavily used** to integrate
+traditional cores, commercial or open source. Twenty minutes, with a core of yours at hand.
 
 ![](https://user-images.githubusercontent.com/1450143/141784446-e60d3905-6f1c-4773-89b9-dfe2074b5686.png)
 
-In this SoC, the integration and most of the cores are directly described with Migen/LiteX but external cores are also integrated:
+*A mixed-language SoC: the integration and most cores in Migen, the VexRiscv from SpinalHDL as
+Verilog, a LiteDRAM standalone core generated from a `.yml`, a VHDL core and a Verilog core.*
 
-- The [VexRiscv](https://github.com/SpinalHDL/VexRiscv) CPU, described in [Spinal-HDL](https://github.com/SpinalHDL/SpinalHDL) language, is integrated as a verilog standalone core in the LiteX SoC (Pre-generated verilog configuration from https://github.com/litex-hub/pythondata-cpu-vexriscv or https://github.com/litex-hub/pythondata-cpu-vexriscv_smp).
-- The [LiteDRAM](https://github.com/enjoy-digital/litedram) core is in this case integrated as verilog standalone core, generated from a [LiteDRAM's Generator](https://github.com/enjoy-digital/litedram/blob/master/litedram/gen.py) and a `.yml` configuration file (ex: [Arty's yml](https://github.com/enjoy-digital/litedram/blob/master/examples/arty.yml))  with: `litedram_gen arty.yml`
-- Core 0 is a VHDL core.
-- Core 1 is a Verilog core.
+```sh
+litex_read_verilog core.v        # the ports of a Verilog module as an Instance(...) skeleton, with Yosys
+```
 
->Note: The VexRiscv configurations can also be directly generated from design's parameters/Spinal-HDL sources when the configuration is not cached/present, where verilog is just used as an intermediate language for the integration.
+## 1. Instantiate the core
 
-## Basics
-Integrating an external core in LiteX that is not written in native Migen/LiteX is pretty straightforward and follows the exact sames rules than other design flows; the tool just needs to know:
+The design configures the core through its parameters and connects its ports; LiteX then
+treats the core as a black box with a known name and interface, discovered by the toolchain at
+synthesis. The `Instance` of Migen does it, with a prefix for each kind of connection:
 
-- **The configuration of the core (through parameters) and the description of the interfaces** for the integration in the design.
-- **The list of sources describing the core** that will be passed to the toolchain for synthesis, place and route.
-
-## Instantiate a core in the design
-Doing the instance of the core in the design configures the core and specifies the interfaces. The framework will then consider the **core as a blackbox with known name and interfaces** and will only discover its contents and integrate it during the synthesis of the design.
-
-To instantiate a core in LiteX we are simply reallying on Migen's Instance:
-```python3
+```python
 din    = Signal(32)
 dout   = Signal(32)
 dinout = Signal(32)
 self.specials += Instance("custom_core",
-   p_DATA_WIDTH = 32,
-   i_din     = din,
-   o_dout    = dout,
-   io_dinout = dinout
+    p_DATA_WIDTH = 32,      # p_: a parameter (int, str or Const)
+    i_din        = din,     # i_: an input port (Signal, Cat, Slice or int)
+    o_dout       = dout,    # o_: an output port
+    io_dinout    = dinout,  # io_: a bidirectional port
 )
 ```
-The first parameters of the `Instance` is the Module's name (`custom_core` in our example) followed by the parameters and ports of the Module:
 
-Prefixes are used to specify the type of interface:
-* `p_` for a Parameter (Python's `str` or `int` or Migen's `Const`).
-* `i_` for an Input port (Python's `int` or Migen's `Signal`, `Cat`, `Slice`).
-* `o_` for an Output port (Python's `int` or Migen's `Signal`, `Cat`, `Slice`).
-* `io_` for a Bi-Directional port  (Migen's `Signal`, `Cat`, `Slice`).
+If you are already familiar with VHDL or Verilog, this is the instantiation you know, with
+the flexibility of Python on top: an `Instance` is a Python dict, so the parameters and ports
+can be prepared in advance, conditionally, or in a loop:
 
-If you are **already familiar with VHDL/Verilog**, you can see that the approach is **very similar** to the one you are already using in these languages, with just more flexibility thanks to Python :)
+```python
+params_ios = dict(p_DATA_WIDTH=32)                       # the parameters...
+params_ios.update(i_din=din, o_dout=dout, io_dinout=dinout)   # ...the ports...
+self.specials += Instance("custom_core", **params_ios)   # ...the instance
 
-### A few Python's tricks for Instances:
-While an instance has to be declared as a single block in (System)Verilog/VHDL, it's not mandatory with Migen/LiteX since Migen's Instance is relying on a Python's Dict: It's possible to have a lot more flexibility and prepare the Instance's parameters in conditionally or in advance:
-
-```python3
-# Create a Dict for the Parameters/IOs.
-params_ios = dict()
-
-# Add the Parameters.
-params_ios.update(
-   p_DATA_WIDTH = 32
-)
-# Add the IOs.
-params_ios.update(
-   i_din     = din,
-   o_dout    = dout,
-   io_dinout = dinout
-)
-# Do the Instance:
-self.specials += Instance("custom_core", **params_ios)
-```
-Splitting the Instance allows the use of Python as a powerful pre-processor to define the Parameters and/or assign the IOs.
-
-This can be very useful to update some Parameters/IOs of the Instance from methods; for example allowing the update the CPU reset address from the design:
-```python3
+# Updated from a method, as a CPU wrapper does with its reset address:
 def set_reset_address(self, reset_address):
-	self.cpu_params.update(i_externalResetVector=Signal(32, reset=reset_address)) 
-```
+    self.cpu_params.update(i_externalResetVector=Signal(32, reset=reset_address))
 
-It can also provide some interesting flexibility to connect group of ports, as done for example below to connect an abitrary number of FIFOs ports when re-integrating a LiteDRAM's standalone core in LiteX design:
-
-```python3
+# A group of ports in a loop (a LiteDRAM standalone core with n FIFO ports):
 for i in range(fifo_ports):
-	litedram_params.update(**{
-		# FIFO In.
-		f"i_user_fifo_{i}_in_valid": axis_in[i].valid,
-		f"o_user_fifo_{i}_in_ready": axis_in[i].ready,
-		f"i_user_fifo_{i}_in_data" : axis_in[i].data,
-		
-		# FIFO Out.
-		f"o_user_fifo_{i}_out_valid": axis_out[i].valid,
-		f"i_user_fifo_{i}_out_ready": axis_out[i].ready,
-		f"o_user_fifo_{i}_out_data" : axis_out[i].data,
-})
-```
-...Or do a one-line connect of a bus with a different name for each bit to a bus of the LiteX design, as done for example on the [LiteICLink ECP5's SerDes](https://github.com/enjoy-digital/liteiclink/blob/master/liteiclink/serdes/serdes_ecp5.py):
-```python3
-serdes_params.update(**{
-# CHX TX — data
-**{f"i_CHX_FF_TX_D_{n}" : tx_bus[n] for n in range(tx_bus.nbits)}
-})
-```
->Note: Python restricts Dict creation/update to 255 items, so large Instances have to split the Dict creation as just described above.
+    litedram_params.update(**{
+        f"i_user_fifo_{i}_in_valid" : axis_in[i].valid,
+        f"o_user_fifo_{i}_in_ready" : axis_in[i].ready,
+        f"i_user_fifo_{i}_in_data"  : axis_in[i].data,
+    })
 
-## Adding the sources of a core to the design
-
-With the `Instance`,  the design is now aware of the configuration and interfaces of the integrated core but **still don't know from where this core comes and in which language it is described**.
-
-Adding the sources of the core to the design will allow LiteX to pass these informations to the synthesis toolchain and let the toolchain do the synthesis of the core and integration in the design.
-
-Adding the **single source to the LiteX design** is done with `platform.add_source(...)`
-```python3
-platform.add_source("core.v")   # Will automatically add the core as Verilog source.
-platform.add_source("core.sv")  # Will automatically add the core as System-Verilog source.
-platform.add_source("core.vhd") # Will automatically add the core as VHDL source.
-```
-As can be seen, to simplify things for the User, **LiteX automatically determines the language** based on the file extension:
-|      Extension    | Language       |
-|-------------------|----------------|
-| .vhd, .vhdl, .vho | VHDL           |
-| .v, .vh, .vo, .vp | Verilog        |
-| .sv, .svo         | System Verilog |
-
-Still to simplify things for User, it is possible to **pass multiple sources at once** with `platform.add_sources(...)`:
-
-```python3
-platform.add_sources("./",
-  "core0.v",
-  "core1.vhd",
-  "core2.sv"
-)
+# A bus with one port per bit, connected in one line (the LiteICLink ECP5 SerDes):
+serdes_params.update(**{f"i_CHX_FF_TX_D_{n}": tx_bus[n] for n in range(tx_bus.nbits)})
 ```
 
-Or **just provide the path** and let LiteX automatically collect and add the sources:
-```python3
-platform.add_source_dir(path="./")
+> [!NOTE]
+> Python limits a call to 255 keyword arguments: a large `Instance` is built with several
+> `update()` calls, as above.
+
+## 2. Add the sources
+
+The toolchain still has to find the core: `platform.add_source()` adds a file, the language
+coming from its extension (`.v`, `.vh`, `.vo`, `.vp` for Verilog; `.sv`, `.svo` for
+SystemVerilog; `.vhd`, `.vhdl`, `.vho` for VHDL):
+
+```python
+platform.add_source("core.v")
+platform.add_sources("./", "core0.v", "core1.vhd", "core2.sv")   # several at once
+platform.add_source_dir(path="./")                                # a whole directory
 ```
 
-This last method is **however not always possible** for all external cores: Some projects provide different implementation of the same module: One for simulation, one specialized for one type of FPGA, etc... and the synthesis toolchain will not be able to automatically select the one to use. In theses cases, the previous methods manually specifying the sources should be used.
+`add_source_dir` is not always the right tool: some projects ship several implementations of
+the same module (one for simulation, one per FPGA family), and the toolchain cannot choose. List
+the files yourself in that case. Encrypted or proprietary cores (an `.xci`, a `.tcl` generating
+the IP on Xilinx) are added with the toolchain's own calls; the LiteX-Boards
+[targets](https://github.com/litex-hub/litex-boards/tree/master/litex_boards/targets) and the
+[projects](Projects.md) hold examples of most of these cases.
 
-For more information about the supported parameters of these methods, the LiteX source code be consulted.
+## 3. Converting at build time
 
-## Reusing a (System)Verilog/VHDL core
+When the toolchain does not read the language of the core, LiteX converts it to Verilog
+during the build:
 
-Just do the `Instance` in your LiteX design and add the source to the LiteX platform as just described just above.
+- **VHDL** with GHDL: `VHD2VConverter` (`litex.build.vhd2v_converter`) adds the VHDL sources
+  as they are when the toolchain reads VHDL (Vivado, Quartus, Diamond), and otherwise runs
+  `ghdl --synth --out=verilog`, flattened with Yosys on request, and instantiates the result.
+  NEORV32, Microwatt and the CTU CAN FD core use it.
+- **Amaranth**: `Amaranth2VConverter` (`litex.build.amaranth2v_converter`) elaborates the
+  `Elaboratable` with its parameters, writes the Verilog, adds it and instantiates it. Minerva,
+  Sentinel and LUNA use it.
+- **SystemVerilog** with the open-source flows: `--yosys-slang` makes Yosys read it through
+  the slang plugin (the vendor tools read it natively).
+- **SpinalHDL, Chisel**: generate the Verilog with sbt, at build time when the parameters
+  depend on the SoC (the VexRiscv-SMP, NaxRiscv and VexiiRiscv wrappers), or once and commit
+  it (the `pythondata-cpu-vexriscv` package).
 
-> Note: For verilog cores [litex_read_verilog](https://github.com/enjoy-digital/litex/blob/master/litex/tools/litex_read_verilog.py) tool can be useful to generate the Instance template.
+## 4. Examples
 
-## Reusing a Amaranth/Spinal-HDL/Chisel/etc... core
+- The [Betrusted](https://github.com/betrusted-io) project relies on LiteX for its
+  integration and makes heavy use of external Verilog and SystemVerilog cores:
+  [the integration of an I2C core from OpenCores](https://github.com/betrusted-io/gateware/blob/master/gateware/i2c/core.py)
+  is a good model.
+- Every CPU wrapper of `litex/soc/cores/cpu/` is a reused core: `picorv32/core.py` for a plain
+  Verilog one, `neorv32/core.py` for VHDL, `minerva/core.py` for Amaranth
+  ([Add a new CPU](Add-A-New-CPU.md)).
+- The other direction, a LiteX core or SoC as a Verilog module for a vendor flow, is
+  [Export to Verilog](Export-To-Verilog.md).
 
-This is very similar than reusing a Verilog/VHDL core with just one extra step: **Generate** the Amaranth/Spinal-HDL/Chisel/etc.. core **as a verilog core** :)
+## Next
 
-## Examples of more complex integration
-
-The [Betrusted.io](https://github.com/betrusted-io) project relies on LiteX for the integration and makes heavy use of external Verilog/System Verilog cores. This can then be a good source of integration examples such as [the integration of an I2C core from  OpenCores](https://github.com/betrusted-io/gateware/blob/master/gateware/i2c/core.py).
-
-## Reusing other type of cores
-
-In some cases, some encrypted cores or proprietary core formats needs to be passed to the toolchain: On Xilinx design you'll generally have to integrate `.xci` files or `.tcl` scripts that will automatically generate the cores.
-
-Most of these use-cases are probably already supported by LiteX but aren't (yet) documented here. Please have a look at the LiteX source code, the different LiteX [ressources](Tutorials-Resources.md), [projects](Projects.md) or at the targets from [LiteX-Boards](https://github.com/litex-hub/litex-boards/tree/master/litex_boards/targets) to find similar integration cases.
-
-## Converting at build time: VHDL, Amaranth, SystemVerilog
-
-When the toolchain does not read the language of the core, LiteX converts it to Verilog during the build:
-
-- **VHDL** with GHDL: `litex.build.vhd2v_converter.VHD2VConverter` (`platform`, `top_entity`, `build_dir`, `work_package`, `force_convert`, `flatten_source`, `add_instance`, `params`, `files`, `libraries`). When the toolchain supports VHDL (Vivado, Quartus, Diamond...) and `force_convert` is not set, it simply adds the VHDL sources; otherwise it runs `ghdl --synth --out=verilog` (optionally flattened with Yosys) and instantiates the result. Examples: `litex/soc/cores/cpu/neorv32/core.py`, `litex/soc/cores/cpu/microwatt/core.py`, `litex/soc/cores/can/ctu_can_fd.py`.
-- **Amaranth**: `litex.build.amaranth2v_converter.Amaranth2VConverter(platform, name, module, ports, domains, core_params, clock_domains, output_dir)` elaborates the `Elaboratable` with its parameters, writes the Verilog, adds it as a source and instantiates it. Examples: `litex/soc/cores/cpu/minerva/core.py`, `sentinel/core.py`, `litex/soc/cores/luna_cdc_acm.py` (LUNA).
-- **SystemVerilog** with the open-source flows: `--yosys-slang` makes Yosys read it through the slang plugin (Vivado, Quartus and the other vendor tools read SystemVerilog natively).
-- **SpinalHDL, Chisel**: generate the Verilog with sbt (at build time when the parameters depend on the SoC, as the VexRiscv-SMP, NaxRiscv and VexiiRiscv wrappers do, or once and commit it, as the `pythondata-cpu-vexriscv` package does).
-
-`litex_read_verilog core.v [module]` (needs Yosys) prints the ports of a Verilog module as the `Instance(...)` skeleton to paste in a wrapper.
+- [Add a new core](Add-A-New-Core.md): the wrapper around your `Instance`, with CSRs and an interrupt.
+- [Build backends](Build-Backends.md): the toolchains, the converters, `--yosys-slang`.
+- [Add a new CPU](Add-A-New-CPU.md): the largest `Instance` of a SoC.
+- [Export to Verilog](Export-To-Verilog.md): the opposite direction.
