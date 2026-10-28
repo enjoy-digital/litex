@@ -24,7 +24,7 @@ to (re)load application code, boot to it and do quick iterations. LiteX supports
 
 `--uart-name=usb_fifo`: UART through FT245 FIFO, ~300KB/s upload (boards with `usb_fifo` pads).
 
-`--uart-name=usb_acm`: UART through USB ACM Valenty USB core, ~160KB/s upload.
+`--uart-name=usb_acm`: UART through the USB CDC-ACM core (LUNA, on a ULPI PHY or on LiteX's soft USB2 PHY), no USB-UART chip needed.
 
 `--uart-name=jtag_uart`: UART through the JTAG TAP, no serial port needed (`litex_term jtag --jtag-config=openocd_xc7_ft2232.cfg`).
 

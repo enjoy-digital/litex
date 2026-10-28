@@ -14,7 +14,7 @@ To use LiteScope in LiteX, the first step is then to add a bridge connection bet
 
 LiteX provides native bridges that can operate over a [UART](Use-Host-Bridge-to-control-debug-a-SoC.md#add-a-uartbone-bridge-to-your-soc), [Ethernet](Use-Host-Bridge-to-control-debug-a-SoC.md#add-an-ethernet-bridge-to-your-soc) or [PCIe](Use-Host-Bridge-to-control-debug-a-SoC.md#add-a-pcie-bridge-to-your-soc) and the integration of these bridges in the SoC is explained in the [Use a Host Bridge to control/debug a SoC documentation](Use-Host-Bridge-to-control-debug-a-SoC.md).
 
-The other bridges work the same way: JTAGBone (`--with-jtagbone`, `litex_server --jtag`, no pins needed), PCIe (`litex_server --pcie`), USB (`litex_server --usb`, used on Fomu): see [Host-Bridges](Host-Bridges.md).
+The other bridges work the same way: JTAGBone (`--with-jtagbone`, `litex_server --jtag`, no pins needed), PCIe (`litex_server --pcie`), USB (`litex_server --usb`): see [Host-Bridges](Host-Bridges.md).
 
 # Add a LiteScope Analyzer to your SoC:
 
