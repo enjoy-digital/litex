@@ -29,11 +29,12 @@ clocking, ...) are listed on the [Cores](Cores.md) page.
 | [LiteScope](https://github.com/enjoy-digital/litescope) | [![](https://github.com/enjoy-digital/litescope/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litescope/actions) | Embedded logic analyzer | Triggers, subsampling, RLE, BRAM storage; over the UART, JTAG, Etherbone or PCIe [bridges](Host-Bridges.md); exports .vcd, .sr (sigrok), .csv | Generic | |
 | [LiteDSP](https://github.com/enjoy-digital/litedsp) | [![](https://github.com/enjoy-digital/litedsp/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litedsp/actions) | RF/DSP blocks (work in progress) | Generation, mixing, filters, rate conversion, FFT/PSD, FEC (RS, LDPC, Viterbi), OFDM, motor control, audio, radar, image; pure HDL, no vendor IP | Generic (resource figures for ECP5, Artix-7, Artix UltraScale+) | `litedsp_gen`, `litedsp_flow` |
 
-USB: [ValentyUSB](https://github.com/litex-hub/valentyusb) (USB device for iCE40/ECP5) and
-[LUNA](https://github.com/greatscottgadgets/luna) (used through `litex/soc/cores/luna_cdc_acm.py`
-and the USB2 soft PHY) cover USB 2.0; [USB3-PIPE](https://github.com/enjoy-digital/usb3_pipe)
-provides a USB 3.0 PHY and device core without external chip. HyperRAM and video (timings,
-framebuffer, terminal, HDMI/DVI PHYs) are cores of LiteX itself ([Cores](Cores.md)).
+USB 2.0 relies on [LUNA](https://github.com/greatscottgadgets/luna): LiteX integrates its CDC-ACM
+device as the USB console (`litex/soc/cores/luna_cdc_acm.py`, `--uart-name=usb_acm`), on a ULPI
+PHY or on LiteX's own USB2 soft PHY (`litex/soc/cores/usb2_phy/`, full and high speed in the
+fabric); [USB3-PIPE](https://github.com/enjoy-digital/usb3_pipe) provides a USB 3.0 PHY and device
+core without external chip. HyperRAM and video (timings, framebuffer, terminal, HDMI/DVI PHYs) are
+cores of LiteX itself ([Cores](Cores.md)).
 
 The boards are in [LiteX-Boards](https://github.com/litex-hub/litex-boards)
 ([![](https://github.com/litex-hub/litex-boards/workflows/ci/badge.svg)](https://github.com/litex-hub/litex-boards/actions)):
