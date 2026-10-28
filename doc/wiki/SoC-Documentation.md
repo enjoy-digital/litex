@@ -1,8 +1,8 @@
-You get the register-level documentation of your SoC for free: `python3 target.py --build
---doc` turns every `CSRStorage` and `CSRStatus`, with its fields and descriptions, the memory
-map, the interrupts and the module descriptions into a [Sphinx](https://www.sphinx-doc.org/)
-site with register diagrams, and `--soc-svd` into the `.svd` file `svd2rust` and the debuggers
-read. It comes from the same Python objects as `csr.h`, so it is never out of date.
+`--doc` builds a [Sphinx](https://www.sphinx-doc.org/) site of your SoC's registers (every
+`CSRStorage` and `CSRStatus` with its fields and descriptions, the memory map, the interrupts,
+the module descriptions, with register diagrams), and `--soc-svd` the `.svd` file `svd2rust`
+and the debuggers read. Both come from the same Python objects as `csr.h`, so they cannot
+disagree with the hardware.
 
 ## Generating it
 
@@ -74,8 +74,8 @@ class DocExample(LiteXModule):
 ```
 
 The text is reStructuredText by default (`format="markdown"` is possible, with limited
-support); the first line is the title, or pass `title=` and `body=`. Register listings use
-`sphinxcontrib.wavedrom`, which is why it must be installed.
+support); the first line is the title, or pass `title=` and `body=`. The register listings are
+drawn by `sphinxcontrib.wavedrom`, hence the install line above.
 
 ## What the output contains
 

@@ -1,10 +1,8 @@
-You will add the cores of the ecosystem to a SoC, one call each: a DRAM controller
-(LiteDRAM), Ethernet (LiteEth), an SD card (LiteSDCard), a SPI flash (LiteSPI), SATA
-(LiteSATA), PCIe (LitePCIe), video. Each one is a PHY for the board's chips plus one `add_*`,
-and each one brings its BIOS commands, its boot method, its software library and its Linux
-driver. This page builds the Linux-capable SoC of the Digilent Arty A7 step by step; the
-LiteX-Boards targets do the same for their boards. An hour, after
-[the minimal SoC](Create-A-minimal-SoC.md).
+DRAM (LiteDRAM), Ethernet (LiteEth), an SD card (LiteSDCard), a SPI flash (LiteSPI), SATA
+(LiteSATA), PCIe (LitePCIe), video: each is a PHY matching the board's chip plus one `add_*`
+call, and brings its BIOS commands, its boot method and its Linux driver along. We walk
+through the Digilent Arty A7 target, the one the Linux SoC is built on; the other LiteX-Boards
+targets do the same for their boards. Count an hour after [the minimal SoC](Create-A-minimal-SoC.md).
 
 ![A complex LiteX SoC](images/litex-complex-soc.svg)
 
@@ -161,14 +159,13 @@ whole SoC bus, the DMAs and MSI, the Linux driver and user tools: [Create a PCIe
 
 `--with-xadc`/`--with-dna` (Xilinx), `--with-buttons`, `--with-switches`, `--with-pmod-gpio`,
 `--with-can`, `--with-i2c`, `--with-spi`, USB (`--uart-name=usb_acm`), the watchdog, the
-`--pmod pmodd=sdcard` extensions: the [in-tree cores](Cores.md), one line each.
+`--pmod pmodd=sdcard` extensions: the [in-tree cores](Cores.md).
 
 ## From the SoC to Linux
 
 With a DRAM, Ethernet or an SD card and a `linux`-capable CPU, the SoC runs Linux:
 `litex_json2dts_linux build/<board>/csr.json > soc.dts` generates the device tree from the
-same description (the UART, the Ethernet MAC, the SD card, the SPI flash, the framebuffer, the
-GPIOs and I2C get their nodes), and [Linux-on-LiteX-VexRiscv](Run-Linux-On-Your-SoC.md) packages
+same description (every core the kernel has a driver for gets its node), and [Linux-on-LiteX-VexRiscv](Run-Linux-On-Your-SoC.md) packages
 the kernel, OpenSBI, Buildroot and the boot images for the LiteX-Boards targets. Zephyr,
 FreeRTOS and MicroPython use the same headers ([OSes ecosystem](OSes-Ecosystem.md)).
 
@@ -185,7 +182,7 @@ FreeRTOS and MicroPython use the same headers ([OSes ecosystem](OSes-Ecosystem.m
 
 ## Next
 
-- [Run Linux on your SoC](Run-Linux-On-Your-SoC.md): what this SoC is for.
+- [Run Linux on your SoC](Run-Linux-On-Your-SoC.md): boot Linux on this SoC.
 - [Cores ecosystem](Cores-Ecosystem.md): the repositories behind each `add_*`.
 - [Create a PCIe SoC](Create-A-PCIe-SoC.md): the PCIe core in detail.
 - [Add a new board](Add-A-New-Board.md): the platform these cores need pins from.

@@ -17,9 +17,11 @@ from litex_diagram import *
 from terminal import Terminal, capture
 
 NAME  = "litex-minimal-soc-build"
-COLS  = 112
-LINES = capture(NAME, cols=COLS)
-W, H  = Terminal.size(LINES, cols=COLS)
+LINES = capture(NAME)
+COLS  = Terminal.fit(LINES)
+TITLE, SUBTITLE = ("The SoC, built without the FPGA toolchain",
+                   "the builder prints the memory map and the CSR locations, compiles the BIOS and writes build/")
+W, H  = Terminal.size(LINES, cols=COLS, caption=(TITLE, SUBTITLE))
 
 DESC = ("A terminal running python3 minimal_soc.py --build --no-compile-gateware: the SoC builder prints "
         "the finalized SoC (a 32-bit Wishbone bus with the rom, sram and csr regions, the two CPU bus "
@@ -28,9 +30,8 @@ DESC = ("A terminal running python3 minimal_soc.py --build --no-compile-gateware
         "and software.")
 
 def draw(d):
-    w, h = Terminal(d, cols=COLS).draw(24, 24, LINES)
-    d.caption(24 + w/2, 24 + h + 48, "The SoC, built without the FPGA toolchain",
-              "the builder prints the memory map and the CSR locations, compiles the BIOS and writes build/")
+    w, h = Terminal(d, cols=COLS).draw_centered(W, 24, LINES)
+    d.caption(W/2, 24 + h + 48, TITLE, SUBTITLE)
     d.footer()
 
 if __name__ == "__main__":

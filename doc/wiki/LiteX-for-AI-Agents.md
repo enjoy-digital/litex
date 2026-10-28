@@ -1,8 +1,7 @@
 A map of LiteX for a software agent asked to work *in* LiteX (fix, extend, review the
 framework or a core) or *with* it (build a SoC, bring up a board, write firmware, drive a
-board from the host). Everything here is also true for a human in a hurry. The facts come
-from the code; when this page and the code disagree, the code is right and this page needs a
-[pull request](Contributing-to-the-Wiki.md).
+board from the host). The facts come from the code; when this page and the code disagree, the
+code is right and this page needs a [pull request](Contributing-to-the-Wiki.md).
 
 **Machine-readable index of this wiki:** [llms.txt](https://raw.githubusercontent.com/wiki/enjoy-digital/litex/llms.txt)
 (one line per page); the raw markdown of a page is at
@@ -27,7 +26,7 @@ of the repository. [DeepWiki](https://deepwiki.com/enjoy-digital/litex) indexes 
    and `build/<platform>/software/` (headers, BIOS); `--no-compile-gateware` skips the
    toolchain, `--no-compile` skips everything but the generation.
 6. The BIOS boots the application from serial, flash, ROM, SD card, SATA or TFTP
-   ([BIOS](BIOS.md), [Load application code](Write-Firmware-For-Your-SoC.md)).
+   ([BIOS](BIOS.md), [Write firmware for your SoC](Write-Firmware-For-Your-SoC.md)).
 7. The host reaches the running SoC's bus through a [bridge](Host-Bridges.md) (UART, JTAG,
    Ethernet, PCIe): `litex_server` + `litex_cli`/`RemoteClient`, LiteScope for signals.
 8. `litex_sim` runs the same SoC in Verilator ([SoC-Simulator](SoC-Simulator.md)); unit tests
@@ -168,14 +167,9 @@ in a non-LiteX design, the generators ([Export](Export-To-Verilog.md)).
 
 ## The pages of this wiki
 
-Seven sections, in reading order: **Start here** (the six-page path: install, a minimal SoC,
-firmware, the host bridge, LiteScope, GDB), **Build your SoC** (boards, cores, CPUs, reuse,
-complex and PCIe SoCs, export, simulation, loading), **Run software on it** (OSes, BIOS,
-MicroPython, Zephyr, Linux), **How LiteX works** (the approach, the SoC builder, the CPUs, the
-buses and streams, the Verilog cheat sheet), **Reference** (CPUs, hard CPUs, the SoC builder
-tables, cores, backends, tools, documentation), **Projects and community**, and this page. The
-full list with one line each is [llms.txt](https://raw.githubusercontent.com/wiki/enjoy-digital/litex/llms.txt);
-each page ends with a `## Next` section pointing to the natural continuation.
+The index with one line per page is [llms.txt](https://raw.githubusercontent.com/wiki/enjoy-digital/litex/llms.txt);
+the sidebar gives the reading order, from the six-page path of "Start here" to the reference
+pages, and every page ends with a `## Next` section.
 
 ## Next
 

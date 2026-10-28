@@ -1,9 +1,7 @@
-The soft CPUs LiteX supports, by family, with their variants and where their sources come from:
-thirty-two of them, plus the [hard CPUs](Hard-core-CPUs.md) and the QEMU emulator. `--cpu-type`
-picks one, `--cpu-variant` its configuration, and the same SoC, BIOS and firmware build for all
-of them, since the wrapper (`litex/soc/cores/cpu/<name>/core.py`) carries the memory map, the
-compiler flags and the software support. The list is the one of 2026-10-28; your checkout
-prints its own:
+The thirty-two soft CPUs LiteX supports, by family, with their variants and where their sources
+come from, plus the [hard CPUs](Hard-core-CPUs.md) and the QEMU emulator. `--cpu-type` picks
+one, `--cpu-variant` its configuration, and the same SoC, BIOS and firmware build for all of
+them. The list is the one of 2026-10-28; your checkout prints its own:
 
 ```sh
 python3 -c "from litex.soc.cores.cpu import CPUS; print('\n'.join(sorted(k for k in CPUS if k)))"
@@ -14,8 +12,8 @@ python3 -c "from litex.soc.cores.cpu import CPUS; print('\n'.join(sorted(k for k
 
 ## Linux-capable RISC-V
 
-The Linux line of LiteX: pick from the first column, `vexriscv_smp` being the mature 32-bit
-choice and `vexiiriscv` the current 64-bit one.
+`vexriscv_smp` is what Linux-on-LiteX-VexRiscv uses and has booted the most Linux;
+`vexiiriscv` is where the 64-bit work goes now.
 
 | `--cpu-type` | ISA | Good for |
 | --- | --- | --- |
@@ -60,13 +58,13 @@ For the BIOS, bare-metal firmware and an RTOS; `vexriscv` is the default of ever
 
 | `--cpu-type` | ISA | Good for |
 | --- | --- | --- |
-| `vexriscv` | RV32I[MAC] | The default: small, fast, the best supported (BIOS, Zephyr, JTAG debug, CFU). |
+| `vexriscv` | RV32I[MAC] | The default, what we test first; BIOS, Zephyr, JTAG debug, CFU. |
 | `neorv32` | RV32I[MC][U], PMP | An MCU with its own peripherals and documentation; Zephyr, FreeRTOS, OpenOCD. |
 | `ibex` | RV32IMC | lowRISC's MCU-class core. |
 | `cv32e40p`, `cv32e41p` | RV32IMC[F] | OpenHW MCU-class cores with a debug module. |
 | `cva5` | RV32IM[A][FD] | OpenHW, multicore with CLINT and PLIC, Wishbone or AXI. |
 | `veer_eh1` | RV32IMC | Western Digital's core; many `--veer-*` options; JTAG debug. |
-| `picorv32` | RV32IMC | Small, slow, robust. |
+| `picorv32` | RV32IMC | Small and simple; slow. |
 | `coreblocks` | RV32I[MAC], out-of-order | Written in Amaranth (Python 3.13 to elaborate). |
 | `minerva` | RV32IM | Written in Amaranth, converted by LiteX. |
 | `kianv` | RV32IMA | Linux in its own SoC, bare metal in LiteX. |
@@ -107,7 +105,7 @@ For the BIOS and control firmware on the smallest FPGAs; no MMU, a few hundred L
 
 | `--cpu-type` | ISA | Good for |
 | --- | --- | --- |
-| `serv` | RV32I, bit-serial | The smallest RISC-V there is. |
+| `serv` | RV32I, bit-serial | A few hundred LUTs. |
 | `fazyrv` | RV32I/E, chunked | Between bit-serial and full width, the chunk size is yours. |
 | `femtorv` | RV32I/M/F | Bruno Levy's teaching cores, from `quark` to the FPU-equipped `petitbateau`. |
 | `sentinel` | RV32I, microcoded | A very small microcoded core in Amaranth. |
@@ -176,8 +174,8 @@ and rocket (memory) are built but not booted, the hard CPUs and the Cortex-M can
 - Arm: the Cortex-M cores use `arm-none-eabi-gcc`.
 
 The `rv32i`, `rv32im` or `rv32imac` choice is made by the variant: `minimal` cores omit the
-multiplier and the compressed instructions, which is why a `-march` mismatch between the
-firmware and the CPU shows as an illegal instruction trap.
+multiplier and the compressed instructions, so a `-march` mismatch between the firmware and
+the CPU shows as an illegal instruction trap.
 
 ## Next
 

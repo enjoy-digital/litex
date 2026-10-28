@@ -1,7 +1,6 @@
-You will capture the internal signals of your running SoC with LiteScope, a logic analyzer in
-the gateware: arm it on an event, upload the samples through the host bridge and open them in
-GTKWave. It is what simulation gives you, on the real hardware, in real time, for a few block
-RAMs. Ten minutes after [the host bridge](Host-Bridges.md), in simulation or on a board.
+LiteScope is a logic analyzer in your gateware, for the price of a few block RAMs: you arm it
+on an event, it stores the internal signals you listed, and you upload the capture through the
+host bridge and open it in GTKWave. Ten minutes, in simulation or on a board.
 
 ## 1. Add an analyzer to the SoC
 
@@ -68,16 +67,14 @@ low until a command runs new code: pressing Enter in the console is enough.
 
 ![litescope_cli: list, trigger, capture](images/litescope-capture.svg)
 
-*The signals, a rising-edge trigger, the upload: 512 samples in `dump.vcd`, 32 of them before
-the edge (`--offset`).*
-
-Drawn from `dump.vcd`, this is what the capture holds:
+512 samples land in `dump.vcd`, 32 of them from before the edge (`--offset`). Drawn from that
+file, this is what the capture holds:
 
 ![A LiteScope capture of the CPU instruction bus](images/litescope-wave.svg)
 
 *The CPU refills a cache line: `cyc` and `stb` rise, four words from `0xfd8`, one `ack` each.*
 
-Et voilà! The same capture in GTKWave, with the trigger in the middle of the window:
+In GTKWave, the trigger in the middle of the window:
 
 <p align="center"><img src="https://user-images.githubusercontent.com/1450143/98355087-f7e63180-2021-11eb-92ce-62d598b8d524.png"></p>
 
@@ -144,9 +141,6 @@ the CPU restarting:
 
 <p align="center"><img src="https://user-images.githubusercontent.com/1450143/80379959-1d3dfa00-889f-11ea-8f04-23b4ca910fc1.png"></p>
 
-Triggering on a register of your core while the host writes it shows your core reacting, cycle
-by cycle.
-
 ## 6. Sizing it
 
 - The block RAM budget is depth × the sum of the signal widths: 512 samples of two 32-bit
@@ -160,7 +154,7 @@ by cycle.
 
 ## Next
 
-- [Debug the CPU with GDB](Debug-With-GDB.md): the next step of the path, breakpoints in the firmware.
+- [Debug the CPU with GDB](Debug-With-GDB.md): when the signals are fine and the bug is in the code.
 - [Control it from the host](Host-Bridges.md): the bridge the samples come through.
 - [Add a new core](Add-A-New-Core.md): simulate the core first, capture it on hardware after.
 - [SoC simulator](SoC-Simulator.md): when a VCD of the whole simulated SoC (`--trace`) is the better tool.

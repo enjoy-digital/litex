@@ -1,21 +1,16 @@
-The BIOS is the first program that runs on your SoC, and the one you talk to on a new board:
-the Builder compiles it for every SoC with a CPU (`litex/soc/software/bios/`, C on picolibc),
-it initializes the SoC (DRAM calibration, Ethernet, storage), gives you a console on the UART
-to inspect the hardware, and loads your application through one of the boot methods. It is
-the reference user of the generated headers: your firmware is built the same way against the
-same `csr.h`, `soc.h` and `mem.h` ([Write firmware for it](Write-Firmware-For-Your-SoC.md)).
+The BIOS is the first thing that runs on your SoC and the first thing you talk to on a new
+board. The Builder compiles it for every SoC with a CPU (`litex/soc/software/bios/`, C on
+picolibc); it brings up the DRAM and the peripherals, gives you a console on the UART, then
+loads your application through one of the boot methods. Your own firmware is built the same
+way, against the same `csr.h` ([Write firmware for it](Write-Firmware-For-Your-SoC.md)).
 
 ![The BIOS boot flow](images/litex-bios-boot.svg)
-
-*Initialize, try the boot methods in order, drop to the console when none boots.*
 
 ```sh
 litex_sim --with-sdram          # the BIOS on a SoC with a DRAM model: calibration, memtest, boot, console
 ```
 
 ![The BIOS initializing the SDRAM](images/litex-bios-dram.svg)
-
-*The SoC summary, the DRAM brought up and tested, the boot sequence, the prompt.*
 
 ## What it does at start-up
 
@@ -78,7 +73,7 @@ and where to put them (Linux: OpenSBI, the kernel, the device tree, the rootfs):
 Without `bootargs`, the BIOS jumps to the last image. The complete description of the manifest,
 the flash image bounds and the SRAM boot buffers is in
 [doc/bios_config.md](https://github.com/enjoy-digital/litex/blob/master/doc/bios_config.md);
-the practical page is [Load application code to the CPU](Write-Firmware-For-Your-SoC.md).
+the practical page is [Write firmware for your SoC](Write-Firmware-For-Your-SoC.md).
 
 ## Configuring the BIOS
 
@@ -108,7 +103,7 @@ console take most of the space: a `lite` console and `minimal` libc fit small FP
 ## Where the code is
 
 - `litex/soc/software/bios/main.c`: the start-up and the console; `boot.c`: the boot methods;
-  `cmds/cmd_*.c`: the commands, one file per core.
+  `cmds/cmd_*.c`: the commands of each core.
 - `litex/soc/software/libbase/`, `liblitedram/`, `libliteeth/`, `liblitesdcard/`,
   `liblitesata/`, `liblitespi/`: the libraries the BIOS and your firmware share (console,
   memtest, DRAM calibration, UDP/TFTP, FAT access, flash).

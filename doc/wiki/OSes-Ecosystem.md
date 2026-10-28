@@ -1,10 +1,6 @@
-From the BIOS to Linux, pick what runs on the CPU of your SoC: bare metal for control
-firmware, an RTOS when you need a scheduler and a driver model, MicroPython or Rust to script
-it, Linux for the full software ecosystem. Whatever you pick, the software support comes from
-the SoC itself: the C headers (`csr.h`, `soc.h`, `mem.h`), the linker regions, the `csr.csv`,
-`csr.json` and `csr.svd` descriptions and the device trees for Linux, Zephyr and Renode are
-generated from your design, so the software always matches the hardware. Read the first
-column, the third says what each one is good for:
+Bare metal, an RTOS, MicroPython, Linux: whatever runs on the CPU of your SoC gets its headers
+(`csr.h`, `soc.h`, `mem.h`), its linker regions and its device tree generated from the design,
+so the software always matches the hardware. What is available, and what each one is good for:
 
 | | Runs on | Good for |
 | --- | --- | --- |
@@ -27,7 +23,7 @@ libraries of `litex/soc/software/` (`libbase`, `liblitedram`, `libliteeth`, `lib
 `liblitesata`, `liblitespi`...): the [demo application](https://github.com/enjoy-digital/litex/tree/master/litex/soc/software/demo)
 (`litex_bare_metal_demo --build-path=build/<board>`, then `litex_term /dev/ttyUSBx --kernel=demo.bin`)
 is the template: console, LEDs, a donut. See
-[Create and load software](Write-Firmware-For-Your-SoC.md).
+[Write firmware for your SoC](Write-Firmware-For-Your-SoC.md).
 
 ## RTOS
 

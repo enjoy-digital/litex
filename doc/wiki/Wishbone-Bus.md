@@ -1,18 +1,11 @@
 [Wishbone](https://cdn.opencores.org/downloads/wbspec_b4.pdf) is the main bus of a LiteX SoC
 unless you ask for AXI: one request, one acknowledge, no channels, what most soft CPUs and
-small cores speak. You meet it as `self.bus` in every SoC and as the `wishbone.Interface` of
-the cores; the builder bridges it to AXI-Lite and AXI when a master or a slave needs them.
-LiteX implements Wishbone classic with optional incrementing bursts, in
+small cores speak. It is `self.bus` in every SoC and the `wishbone.Interface` of the cores;
+the builder bridges it to AXI-Lite and AXI when a master or a slave needs them. LiteX
+implements Wishbone classic with optional incrementing bursts, in
 `litex/soc/interconnect/wishbone.py`.
 
 ![Wishbone in a LiteX SoC](images/litex-buses.svg)
-
-*The CPU, the bridges and the DMAs are the masters; the memories, the CSR bridge and your
-cores are the slaves; the interconnect in the middle is a shared bus or a crossbar.*
-
-```sh
-python3 -m litex_boards.targets.digilent_arty --build --no-compile-gateware 2>&1 | grep -A12 "Bus Masters"   # who is on the bus
-```
 
 ## The interface
 
@@ -48,9 +41,6 @@ LiteDRAM offers native and AXI ports for those.
 
 ## The building blocks
 
-Pick the interconnect for a SoC (the builder does, from `--bus-interconnect`), the rest for a
-core of your own:
-
 | Block | Purpose |
 | --- | --- |
 | `InterconnectShared(masters, slaves)` | A shared bus: an `Arbiter` (round robin) and a `Decoder`; the default. |
@@ -71,8 +61,8 @@ core of your own:
 
 The builder owns the main bus: masters (`self.bus.add_master`) and slaves (`self.bus.add_slave`
 with a `SoCRegion`) are collected, adapted in width, addressing and standard, and connected at
-finalization by the interconnect, with the timeout. A core with a Wishbone interface is one
-line away:
+finalization by the interconnect, with the timeout. Putting a core with a Wishbone interface on
+the bus:
 
 ```python
 from litex.soc.interconnect import wishbone

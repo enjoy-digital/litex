@@ -1,8 +1,7 @@
-You will build a C program against the headers of your SoC, load it into its main RAM over the
-serial port and talk to it from its console; then you know the other ways to load it (network,
-SD card, flash, ROM) and how interrupts reach your code. Ten minutes after
-[the minimal SoC](Create-A-minimal-SoC.md). The template is the demo application of LiteX,
-`litex/soc/software/demo/`: a console with `help`, `reboot`, `helloc` and a spinning donut.
+Build the demo against the headers of your SoC, load it over the serial port, talk to it. Then
+the other boot methods (TFTP, SD card, flash, ROM) and how interrupts reach your code. The demo
+is `litex/soc/software/demo/`: a console with `help`, `reboot`, `helloc` and a spinning donut,
+and the template of your own firmware. Ten minutes.
 
 ## 1. Build the SoC, then the application, then boot it
 
@@ -25,10 +24,9 @@ jumps to it. If the BIOS is already at its prompt when you connect, type `reboot
 
 ![litex_term --kernel: the firmware boots](images/litex-term-boot.svg)
 
-*The upload, the jump to `0x40000000`, the demo's console: your program runs on your SoC.*
-
-Et voilà! `litex_bare_metal_demo` copies the template to `./demo/`, adapts the linker script
-and runs `make` with the SoC's `build/<board>/` as `BUILD_DIR`: the generated headers, the
+Type `donut` and it spins. What `litex_bare_metal_demo` did: it copied the template to
+`./demo/`, adapted the linker script and ran `make` with the SoC's `build/<board>/` as
+`BUILD_DIR`: the generated headers, the
 libraries (`libbase`, `libc`, `liblitedram`...) and the compiler flags of the CPU come from
 there, so the application always matches the SoC. `--with-cxx` enables C++ (`hellocpp.cpp`),
 `--mem` picks the region where the code runs (`main_ram` by default; `rom` or `spiflash` for
@@ -92,8 +90,8 @@ interrupt support define `UART_POLLING` in `soc.h` and are polled.
 
 ## 4. Load it
 
-Pick the method from the first column; serial is the one of step 1 and the right one while you
-develop, the others are for bigger binaries or boards running on their own:
+Serial is the method of step 1 and the right one while you develop; the others are for bigger
+binaries, or for boards that run on their own:
 
 | Method | Command or file | When |
 | --- | --- | --- |
@@ -218,13 +216,13 @@ self.add_constant("ROM_BOOT_ADDRESS", 0x20000000)
   [FreeRTOS](https://github.com/enjoy-digital/freertos-on-litex), NuttX,
   [MicroPython](Run-MicroPython-On-Your-SoC.md) and [Linux](Run-Linux-On-Your-SoC.md) take the
   SoC description through the generated device trees ([OSes ecosystem](OSes-Ecosystem.md)).
-- **Debugging**: `printf` over the UART, the BIOS `mem_*` commands, the registers from the host
-  with `litex_cli` while the firmware runs (the next step of the path), and
+- **Debugging**: `printf` over the UART, the BIOS `mem_*` commands, the registers read from the
+  host with `litex_cli` while the firmware runs ([Host bridges](Host-Bridges.md)), and
   [GDB](Debug-With-GDB.md) on the CPU.
 
 ## Next
 
-- [Control it from the host](Host-Bridges.md): the next step of the path, your SoC driven from your computer without any firmware.
+- [Control it from the host](Host-Bridges.md): drive the SoC from your computer, firmware or not.
 - [BIOS](BIOS.md): what runs before your program, the boot order, the console commands.
 - [OSes ecosystem](OSes-Ecosystem.md): when C on bare metal is not enough.
 - [Debug the CPU with GDB](Debug-With-GDB.md): breakpoints in this firmware.

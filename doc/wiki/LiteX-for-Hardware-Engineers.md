@@ -1,17 +1,9 @@
-You know Verilog and Vivado and you want to know what each of your habits becomes in LiteX:
-this cheat sheet maps them one by one, with the page to read for each. The long version, bunnie's
-2018 introduction for engineers coming from Verilog, kept with dated notes, is on
-[its own page](LiteX-for-Hardware-Engineers-2018.md); the reasons behind the choices are on
-[The LiteX approach](LiteX-Approach.md).
-
-```sh
-python3 -m litex_boards.targets.digilent_arty --build --no-compile-gateware
-less build/digilent_arty/gateware/digilent_arty.v        # what Migen made of the Python: a flat netlist with readable names
-```
+Coming from Verilog and Vivado? Here is what each thing you do becomes in LiteX, and where to
+read more. The long version, bunnie's 2018 introduction for engineers coming from Verilog, kept
+with dated notes, is on [its own page](LiteX-for-Hardware-Engineers-2018.md); the reasons
+behind the choices are on [The LiteX approach](LiteX-Approach.md).
 
 ## Verilog to LiteX
-
-Read the first column for what you do today, the second for what you write instead:
 
 | In Verilog and Vivado | In LiteX and Migen | Read more |
 | --- | --- | --- |

@@ -1,9 +1,8 @@
-You take a LiteX core, or a whole LiteX SoC, into a Vivado, Quartus, Diamond or Yosys project
-written in Verilog, VHDL or SystemVerilog: the generators write plain Verilog modules with
-standard interfaces (AXI-Lite, AXI-Stream, Wishbone, native ports) and the headers that go
-with them. This is how LiteDRAM, LiteEth, LitePCIe and LiteSATA run in many designs that are
-not LiteX SoCs, and how a LiteX SoC with its CPU, BIOS and peripherals becomes a subsystem of
-a bigger FPGA design. The other direction, a Verilog or VHDL core inside a LiteX SoC, is on
+Not every design is a LiteX SoC. The generators export a core (LiteDRAM, LiteEth, LitePCIe,
+LiteSATA...) or a whole LiteX SoC with its CPU, BIOS and peripherals as a plain Verilog module
+with standard interfaces (AXI-Lite, AXI-Stream, Wishbone, native ports) and its headers, for
+a Vivado, Quartus, Diamond or Yosys project written in Verilog, VHDL or SystemVerilog. The
+other direction, a Verilog or VHDL core inside a LiteX SoC, is on
 [Reuse an existing core](Reuse-An-Existing-Core.md).
 
 ![Standalone cores](images/litex-standalone-core.svg)
@@ -28,7 +27,7 @@ The CPU, memories and peripherals are those of any `SoCCore` (`--cpu-type`, `--c
 `--integrated-rom-size`, `--integrated-sram-size`, `--integrated-main-ram-size`, `--uart-*`,
 `--timer-*`, `--csr-*`...). The BIOS is compiled and placed in the ROM; the software support
 (`csr.h`, `soc.h`, `mem.h`, `csr.csv`...) is in `build/my_soc/software/`, so the firmware of
-your subsystem is built like any LiteX firmware ([Create and load software](Write-Firmware-For-Your-SoC.md));
+your subsystem is built like any LiteX firmware ([Write firmware for your SoC](Write-Firmware-For-Your-SoC.md));
 `--integrated-rom-init=firmware.bin` puts your application in the ROM instead of the BIOS.
 
 `litex_periph_gen` is the same generator without the SoC defaults: with `--cpu-type=None`,
@@ -144,7 +143,7 @@ vendor tools and lets you reuse a sub-module.
 
 ## Next
 
-- [Reuse an existing core](Reuse-An-Existing-Core.md): the other direction.
+- [Reuse an existing core](Reuse-An-Existing-Core.md): a Verilog or VHDL core inside a LiteX SoC.
 - [Cores ecosystem](Cores-Ecosystem.md): the cores these generators come from.
 - [Create a PCIe SoC](Create-A-PCIe-SoC.md): `litepcie_gen` and the driver it shares with the SoC flow.
 - [Build backends](Build-Backends.md): `--no-compile-gateware` and `--hierarchical-verilog` for a whole target.

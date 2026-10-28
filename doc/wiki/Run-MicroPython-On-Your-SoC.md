@@ -1,10 +1,8 @@
-You will have a Python prompt on the serial port of your SoC, with the LEDs, the switches and
-every register of your cores reachable from it: the LiteX port of
-[MicroPython](https://micropython.org/) lives in
-[litex-hub/micropython](https://github.com/litex-hub/micropython) (`ports/litex`) and runs on
-any SoC with a supported CPU (the RISC-V cores, Mor1kx, LM32). It builds against the headers
-of your SoC, like the BIOS does, so the hardware is defined by LiteX and controlled from
-Python. Fifteen minutes after [the firmware page](Write-Firmware-For-Your-SoC.md).
+A Python prompt on the serial port of your SoC, with `litex.leds()` and your CSRs reachable
+from it. The port of [MicroPython](https://micropython.org/) lives in
+[litex-hub/micropython](https://github.com/litex-hub/micropython) (`ports/litex`), runs on any
+SoC with a supported CPU (the RISC-V cores, Mor1kx, LM32), and builds against the headers of
+your SoC like the BIOS does. Fifteen minutes.
 
 ## 1. Build the SoC
 
@@ -40,14 +38,8 @@ Et voilà! `umachine` gives the basics (reset, frequency, identifier) and the `l
 LEDs, the switches and the CSRs. The other boot methods are on the
 [firmware page](Write-Firmware-For-Your-SoC.md#4-load-it).
 
-## Notes
-
-- The port is maintained in LiteX-Hub; the older [FuPy](https://fupy.github.io/) port (LM32,
-  OpenRISC, 2018 to 2020) and the CircuitPython LiteX port (removed from CircuitPython in
-  2021, it targeted the Fomu) are history.
-- [MQuickJS on LiteX](https://github.com/enjoy-digital/mquickjs-on-litex) does the same with
-  JavaScript: Bellard's engine bare metal on VexRiscv, the CSRs reachable from JavaScript, in
-  `litex_sim` and on boards.
+The older FuPy and CircuitPython ports, and MQuickJS (the same idea with JavaScript), are on
+[OSes ecosystem](OSes-Ecosystem.md#micropython-rust-and-others).
 
 ## Next
 

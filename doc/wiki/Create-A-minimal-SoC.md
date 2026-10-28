@@ -1,7 +1,7 @@
-You will have a SoC with a CPU, a BIOS prompt on the serial port and a few lines of your own
-logic, first on your computer with Verilator, then on a board, from a target script of forty
-lines that you own. Ten minutes once [LiteX is installed](Installation.md). What the pieces are
-is explained on [SoC builder](SoC-builder.md); this page is the walk-through.
+A SoC with a CPU, a BIOS prompt on the serial port and a few lines of your own logic, from a
+target script of forty lines that you own: first on your computer with Verilator, then on a
+board. Ten minutes once [LiteX is installed](Installation.md). The why is on
+[SoC builder](SoC-builder.md); here we just build it.
 
 ## 1. In simulation, no board needed
 
@@ -9,15 +9,9 @@ is explained on [SoC builder](SoC-builder.md); this page is the walk-through.
 litex_sim
 ```
 
-Verilator compiles a SoC with a VexRiscv CPU, a ROM holding the BIOS, an SRAM and a UART, and
-the BIOS prompt appears in the terminal:
-
-![litex_sim: the BIOS boots in the terminal](images/litex-sim-boot.svg)
-
-*The BIOS lists the SoC it runs on, tries the boot methods and waits at its prompt.*
-
-`help`, `mem_list`, `mem_read 0x10000000 32`: the same BIOS as on hardware. `Ctrl-C` ends it.
-[SoC simulator](SoC-Simulator.md) has the options: DRAM, Ethernet, tracing, your own firmware.
+The same SoC as in [Installation](Installation.md#4-run-a-soc-on-your-computer), step 4: a
+VexRiscv, a ROM with the BIOS, an SRAM and a UART, compiled by Verilator, the BIOS prompt in
+your terminal. If `litex_sim` already showed you that prompt, go straight to the board.
 
 ## 2. A board: the one-line SoC
 
@@ -117,8 +111,6 @@ the BIOS and the software headers.
 
 ![The minimal SoC built with --no-compile-gateware](images/litex-minimal-soc-build.svg)
 
-*The memory map, the bus masters and slaves and the CSR locations of the SoC, then its BIOS.*
-
 Read the summary as the contract between the hardware and the software: `rom`, `sram` and
 `csr` are the regions `mem.h` and the linker script know, the two bus masters are the CPU's
 instruction and data buses, and `leds` is at CSR location 2 because the locations are allocated
@@ -141,8 +133,8 @@ litex_term /dev/ttyUSB1                        # 115200 8N1
 ```
 
 The board resets, the LEDs chase and the BIOS prompt is there. Et voilà! `litex_term` is the
-LiteX serial terminal (any terminal works); `--kernel demo.bin` boots an application, the next
-step of the path. If nothing shows: check the serial device and the baudrate, that the clock pin
+LiteX serial terminal (any terminal works); `--kernel demo.bin` boots an application
+([next page](Write-Firmware-For-Your-SoC.md)). If nothing shows: check the serial device and the baudrate, that the clock pin
 and the frequency of the CRG are the board's, and that the bitstream loaded (the programmer's
 output).
 
@@ -161,7 +153,7 @@ board shows how its DRAM, Ethernet and flash are added ([Create a complex SoC](C
 
 ## Next
 
-- [Write firmware for it](Write-Firmware-For-Your-SoC.md): the next step of the path, your own program on this SoC.
+- [Write firmware for it](Write-Firmware-For-Your-SoC.md): put your own program on this SoC.
 - [SoC builder](SoC-builder.md): what `SoCCore` and `Builder` do behind the forty lines.
 - [Add a new board](Add-A-New-Board.md): the platform file and the CRG of a board of your own.
-- [SoC simulator](SoC-Simulator.md): more of `litex_sim`.
+- [SoC simulator](SoC-Simulator.md): what else `litex_sim` can model (DRAM, Ethernet, tracing).

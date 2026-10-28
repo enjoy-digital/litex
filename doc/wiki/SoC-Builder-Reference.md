@@ -1,7 +1,7 @@
 Every argument of `SoCCore`, every `add_*` helper, every option of the Builder, and the checks
 run at finalization: the tables behind [SoC builder](SoC-builder.md), from
-`litex/soc/integration/soc.py`, `soc_core.py` and `builder.py` as of 2026-10-28. The live
-list of any target is one command away:
+`litex/soc/integration/soc.py`, `soc_core.py` and `builder.py` as of 2026-10-28. `--help` on
+any target prints the live list:
 
 ```sh
 python3 -m litex_boards.targets.digilent_arty --help      # SoC, Builder, toolchain and CPU options
@@ -118,7 +118,7 @@ add_constant(name, value=None); add_config(name, value=None); add_soc_reset_requ
 
 The convention: `name` is the CSR and IRQ name and the prefix of the constants, and the
 module is `self.<name>` afterwards (`self.sdram`, `self.ethmac`, `self.pcie_phy`), so a target
-can refine it.
+can refine it after the call.
 
 ## Builder options
 

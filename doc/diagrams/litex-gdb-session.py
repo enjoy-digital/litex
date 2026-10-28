@@ -18,7 +18,10 @@ from terminal import Terminal, capture, PROMPTS
 
 NAME  = "litex-gdb-session"
 LINES = capture(NAME)
-W, H  = Terminal.size(LINES)
+COLS  = Terminal.fit(LINES)
+TITLE, SUBTITLE = ("A breakpoint in the firmware",
+                   "the CPU stops in donut() when the command is typed in the console")
+W, H  = Terminal.size(LINES, cols=COLS, caption=(TITLE, SUBTITLE))
 
 DESC = ("A terminal: OpenOCD finds the RISC-V TAP (0x10003fff), examines one hart and listens on port 3333; "
         "gdb-multiarch connects to it, shows the CPU halted in readchar_nonblock, sets a breakpoint on donut, "
@@ -26,9 +29,8 @@ DESC = ("A terminal: OpenOCD finds the RISC-V TAP (0x10003fff), examines one har
         "the backtrace goes donut, donut_cmd, console_service, main.")
 
 def draw(d):
-    w, h = Terminal(d).draw(24, 24, LINES, prompts=PROMPTS + ("(gdb) ",))
-    d.caption(24 + w/2, 24 + h + 48, "A breakpoint in the firmware",
-              "the CPU stops in donut() when the command is typed in the console")
+    w, h = Terminal(d, cols=COLS).draw_centered(W, 24, LINES, prompts=PROMPTS + ("(gdb) ",))
+    d.caption(W/2, 24 + h + 48, TITLE, SUBTITLE)
     d.footer()
 
 if __name__ == "__main__":

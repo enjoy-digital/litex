@@ -48,7 +48,7 @@ LiteX provides all the common components required to easily create an FPGA Core/
                                          board   target
                                          file    file
 ```
-Your design is two Python files: the *platform* describes the board (pins, clocks, connectors, toolchain, programmer; [LiteX-Boards](https://github.com/litex-hub/litex-boards) has 200+ of them) and the *target* describes your SoC (CPU, memories, peripherals, cores from the ecosystem). The LiteX Builder generates the Verilog and constraints, runs the toolchain (or Verilator), builds the BIOS and generates the software support (`csr.h`, `soc.h`, `mem.h`, `memory.x`, `csr.csv/json/svd`, device trees); the host tools (`litex_term`, `litex_server`/`litex_cli` through a UART, JTAG, Ethernet or PCIe bridge, LiteScope, GDB) control and debug the running SoC.
+Your design is two Python files: the *platform* describes the board (pins, clocks, connectors, toolchain, programmer) and the *target* describes your SoC (CPU, memories, peripherals, cores from the ecosystem); [LiteX-Boards](https://github.com/litex-hub/litex-boards) has 250+ of them. The Builder generates the Verilog and the constraints, runs the toolchain (or Verilator), builds the BIOS and writes the software support: `csr.h`, `soc.h`, `mem.h`, `memory.x`, `csr.csv/json/svd`, the device trees. The host tools (`litex_term`, `litex_server` and `litex_cli` through a UART, JTAG, Ethernet or PCIe bridge, LiteScope, GDB) then control and debug the running SoC.
 
 # Try it in ten minutes
 
@@ -64,8 +64,8 @@ litex_sim --cpu-type=vexriscv                          # a SoC in Verilator, no 
 
 ![litex_sim: the BIOS boots in the terminal](images/litex-sim-boot.svg)
 
-A SoC with a VexRiscv CPU, built and run by Verilator, with the LiteX BIOS waiting at its prompt
-in your terminal. Then follow the path, one short page at a time:
+That is a VexRiscv SoC running in Verilator, the LiteX BIOS at its prompt in your terminal.
+Next:
 
 1. [Install LiteX](Installation.md): the toolchains, your board, updates, troubleshooting.
 2. [Create a minimal SoC](Create-A-minimal-SoC.md): the same SoC on your board, from a 40-line Python file.
@@ -103,6 +103,4 @@ We share this project under a permissive BSD 2-Clause License, inspired by our f
 | **Reference** | [CPUs](CPUs.md), [Hard core CPUs](Hard-core-CPUs.md), [SoC builder reference](SoC-Builder-Reference.md), [Cores](Cores.md), [Cores ecosystem](Cores-Ecosystem.md), [Build backends](Build-Backends.md), [Tools](Tools.md), [SoC documentation](SoC-Documentation.md) |
 | **Projects and community** | [Projects](Projects.md), [Tutorials and resources](Tutorials-Resources.md), [Feedback, contribution, support](Feedback-Contribution-Support.md), [Contributing to the wiki](Contributing-to-the-Wiki.md) |
 | **For AI agents** | [LiteX for AI agents](LiteX-for-AI-Agents.md) |
-
-Have fun! :wink:
 <!-- readme:end -->

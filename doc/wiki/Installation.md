@@ -1,8 +1,7 @@
-You will have LiteX, its cores, the boards and the compiler of its default CPU installed in a
-Python virtual environment, and a SoC booting its BIOS on your computer, with nothing to buy:
-about ten minutes on Linux or macOS (on Windows, use WSL). Everything comes from Git in
-development mode, so an update is a `git pull` and a fix is an edit in the right file. The path
-continues with [Create a minimal SoC](Create-A-minimal-SoC.md).
+Ten minutes to get LiteX, the cores, LiteX-Boards and a RISC-V compiler in a virtual
+environment, and to boot a SoC in Verilator; no board yet. Linux or macOS (on Windows, use
+WSL). Everything is installed from Git in editable mode: updating is a `git pull`, fixing
+something is editing the file.
 
 ## 1. What you need
 
@@ -75,11 +74,9 @@ runs it: the BIOS prints its banner, lists what it found and waits at its prompt
 
 ![litex_sim: the BIOS boots in the terminal](images/litex-sim-boot.svg)
 
-*The LiteX BIOS at its prompt, on a SoC that did not exist a minute ago.*
-
-Et voilà! It is the same BIOS as on a board: type `help`, `mem_list`, `mem_read 0x10000000 32`.
-`Ctrl-C` ends the simulation. [SoC simulator](SoC-Simulator.md) has the options: DRAM and
-Ethernet models, your own firmware, waveform tracing.
+It is the same BIOS as on a board: type `help`, `mem_list`, `mem_read 0x10000000 32`. `Ctrl-C`
+ends the simulation. [SoC simulator](SoC-Simulator.md) has the options: DRAM and Ethernet
+models, your own firmware, waveform tracing.
 
 ## 5. Run a SoC on a board
 
@@ -89,7 +86,7 @@ python3 -m litex_boards.targets.lattice_ecp5_evn --build --load  # ECP5: Yosys, 
 litex_term /dev/ttyUSB1                                         # the serial console, 115200 8N1
 ```
 
-LiteX-Boards has a target script for 200+ boards, and `--help` lists what each one can add
+LiteX-Boards has a target script for 250+ boards, and `--help` lists what each one can add
 (CPU, DRAM, Ethernet, SD card, PCIe...). `--build` generates the gateware and the BIOS and runs
 the toolchain, `--load` programs the board (the programmers are on
 [Load and flash](Load-And-Flash.md)). The BIOS prompt appears in `litex_term` once the board
@@ -126,7 +123,7 @@ practical for a CI; the script stays the way to get an editable checkout of ever
 
 ## Next
 
-- [Create a minimal SoC](Create-A-minimal-SoC.md): the next step of the path, a target script of forty lines you own.
+- [Create a minimal SoC](Create-A-minimal-SoC.md): the next step, a target script of forty lines that you own.
 - [SoC simulator](SoC-Simulator.md): everything `litex_sim` can simulate.
 - [Build backends](Build-Backends.md): the toolchains and how LiteX finds them.
 - [Load and flash](Load-And-Flash.md): the programmers behind `--load` and `--flash`.

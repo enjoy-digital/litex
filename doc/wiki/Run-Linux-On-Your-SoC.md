@@ -1,14 +1,10 @@
-Linux on your board in three steps: build the SoC, get the images, boot them over the serial
-port or from an SD card. A LiteX SoC runs Linux when its CPU has an MMU (a `linux` variant or
-a 64-bit core, [Choosing a CPU](Choosing-A-CPU.md)), a DRAM (`add_sdram`), a console and a
-way to load the images; the SoC description does the rest, since the device tree is generated
-from `csr.json`, the kernel has the drivers of the LiteX cores and the BIOS loads the images.
-Half an hour with a board that has DRAM, after [the complex SoC](Create-A-Complex-SoC.md).
+Three steps: build the SoC, get the images, boot them over the serial port or from an SD
+card. Any LiteX SoC with an MMU-capable CPU (a `linux` variant or a 64-bit core,
+[Choosing a CPU](Choosing-A-CPU.md)), a DRAM and a console will do: the device tree comes out
+of `csr.json`, the kernel already has the drivers of the LiteX cores, and the BIOS loads the
+images. Half an hour with a board that has DRAM.
 
 ![A Linux-capable LiteX SoC](images/litex-complex-soc.svg)
-
-*A VexRiscv-SMP with LiteDRAM, LiteEth, LiteSDCard and the usual peripherals: the reference
-Linux SoC.*
 
 ## 1. Build the SoC
 
@@ -92,9 +88,8 @@ Verilator, `./sim.py` of the project; a board does it in seconds.)
   used with the BIOS and bare metal, the Linux flow of the
   [Microwatt project](https://github.com/antonblanchard/microwatt) uses LiteDRAM through its
   standalone generator.
-- **The hard CPUs** (Zynq, ZynqMP, Cyclone V and Agilex HPS): the vendor Linux runs on the
-  hard cores, the LiteX gateware is reached through the AXI bridges and the host tools through
-  `litex_server --devmem` ([Hard core CPUs](Hard-core-CPUs.md)).
+- **The hard CPUs** (Zynq, ZynqMP, Cyclone V and Agilex HPS): the vendor Linux runs on them;
+  [Hard core CPUs](Hard-core-CPUs.md).
 
 ## 5. The device tree and the drivers
 

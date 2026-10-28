@@ -2,8 +2,8 @@ You will run a [Zephyr](https://www.zephyrproject.org/) application on your SoC 
 device tree of *your* design: the `litex_vexriscv` and `litex_vexiiriscv` boards and the
 `litex` SoC family are upstream in Zephyr, with the drivers of the LiteX cores (LiteUART, the
 timer, LiteEth, LiteSPI, LiteI2C, GPIO, PWM, the clock control, the DNA), and LiteX generates
-the overlay that maps them to the addresses and interrupts of your SoC. Twenty minutes after
-[the firmware page](Write-Firmware-For-Your-SoC.md), with a Zephyr workspace installed.
+the overlay that maps them to the addresses and interrupts of your SoC. Twenty minutes, with
+a Zephyr workspace installed.
 
 ## 1. Build a SoC
 
@@ -61,9 +61,9 @@ cat overlay.config | xargs west build -b litex_vexriscv samples/subsys/shell/she
 litex_term /dev/ttyUSB1 --kernel=build/zephyr/zephyr.bin
 ```
 
-The Zephyr shell answers on the serial port. Et voilà! `-b litex_vexiiriscv` for a VexiiRiscv
-SoC; the binary is loaded by the BIOS like any application (serial boot here, or TFTP, SD card
-and flash: [the firmware page](Write-Firmware-For-Your-SoC.md#4-load-it)).
+The Zephyr shell answers on the serial port. Et voilà! For a VexiiRiscv SoC use
+`-b litex_vexiiriscv`. The binary is loaded by the BIOS like any application (serial boot
+here, or TFTP, SD card and flash: [the firmware page](Write-Firmware-For-Your-SoC.md#4-load-it)).
 
 ## More
 

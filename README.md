@@ -50,7 +50,7 @@ LiteX provides all the common components required to easily create an FPGA Core/
                                          board   target
                                          file    file
 ```
-Your design is two Python files: the *platform* describes the board (pins, clocks, connectors, toolchain, programmer; [LiteX-Boards](https://github.com/litex-hub/litex-boards) has 200+ of them) and the *target* describes your SoC (CPU, memories, peripherals, cores from the ecosystem). The LiteX Builder generates the Verilog and constraints, runs the toolchain (or Verilator), builds the BIOS and generates the software support (`csr.h`, `soc.h`, `mem.h`, `memory.x`, `csr.csv/json/svd`, device trees); the host tools (`litex_term`, `litex_server`/`litex_cli` through a UART, JTAG, Ethernet or PCIe bridge, LiteScope, GDB) control and debug the running SoC.
+Your design is two Python files: the *platform* describes the board (pins, clocks, connectors, toolchain, programmer) and the *target* describes your SoC (CPU, memories, peripherals, cores from the ecosystem); [LiteX-Boards](https://github.com/litex-hub/litex-boards) has 250+ of them. The Builder generates the Verilog and the constraints, runs the toolchain (or Verilator), builds the BIOS and writes the software support: `csr.h`, `soc.h`, `mem.h`, `memory.x`, `csr.csv/json/svd`, the device trees. The host tools (`litex_term`, `litex_server` and `litex_cli` through a UART, JTAG, Ethernet or PCIe bridge, LiteScope, GDB) then control and debug the running SoC.
 
 # Try it in ten minutes
 
@@ -66,8 +66,8 @@ litex_sim --cpu-type=vexriscv                          # a SoC in Verilator, no 
 
 ![litex_sim: the BIOS boots in the terminal](doc/wiki/images/litex-sim-boot.svg)
 
-A SoC with a VexRiscv CPU, built and run by Verilator, with the LiteX BIOS waiting at its prompt
-in your terminal. Then follow the path, one short page at a time:
+That is a VexRiscv SoC running in Verilator, the LiteX BIOS at its prompt in your terminal.
+Next:
 
 1. [Install LiteX](https://github.com/enjoy-digital/litex/wiki/Installation): the toolchains, your board, updates, troubleshooting.
 2. [Create a minimal SoC](https://github.com/enjoy-digital/litex/wiki/Create-A-minimal-SoC): the same SoC on your board, from a 40-line Python file.
@@ -105,8 +105,6 @@ We share this project under a permissive BSD 2-Clause License, inspired by our f
 | **Reference** | [CPUs](https://github.com/enjoy-digital/litex/wiki/CPUs), [Hard core CPUs](https://github.com/enjoy-digital/litex/wiki/Hard-core-CPUs), [SoC builder reference](https://github.com/enjoy-digital/litex/wiki/SoC-Builder-Reference), [Cores](https://github.com/enjoy-digital/litex/wiki/Cores), [Cores ecosystem](https://github.com/enjoy-digital/litex/wiki/Cores-Ecosystem), [Build backends](https://github.com/enjoy-digital/litex/wiki/Build-Backends), [Tools](https://github.com/enjoy-digital/litex/wiki/Tools), [SoC documentation](https://github.com/enjoy-digital/litex/wiki/SoC-Documentation) |
 | **Projects and community** | [Projects](https://github.com/enjoy-digital/litex/wiki/Projects), [Tutorials and resources](https://github.com/enjoy-digital/litex/wiki/Tutorials-Resources), [Feedback, contribution, support](https://github.com/enjoy-digital/litex/wiki/Feedback-Contribution-Support), [Contributing to the wiki](https://github.com/enjoy-digital/litex/wiki/Contributing-to-the-Wiki) |
 | **For AI agents** | [LiteX for AI agents](https://github.com/enjoy-digital/litex/wiki/LiteX-for-AI-Agents) |
-
-Have fun! :wink:
 <!-- readme:end -->
 
 ## 2026.08 highlights

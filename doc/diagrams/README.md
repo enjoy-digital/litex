@@ -46,10 +46,11 @@ port the change back before committing, or `--check` will flag the difference.
 Two helpers draw the other pictures the pages need, in the same style and with the same checks:
 
 - [`terminal.py`](terminal.py): a terminal session as a dark box of monospace text. The text
-  lives in [`captures/<name>.txt`](captures/) (80 columns, about 25 lines, an `...` line where
+  lives in [`captures/<name>.txt`](captures/) (about 25 lines, the box hugs the longest one, an `...` line where
   output is skipped; freeze what changes from run to run: dates, hashes, timings) and the script
-  is a few lines: `LINES = capture("name")`, `W, H = Terminal.size(LINES)`,
-  `Terminal(d).draw(24, 24, LINES)`, then the caption and the footer. See
+  is a few lines: `LINES = capture("name")`, `COLS = Terminal.fit(LINES)`,
+  `W, H = Terminal.size(LINES, cols=COLS, caption=(TITLE, SUBTITLE))`,
+  `Terminal(d, cols=COLS).draw_centered(W, 24, LINES)`, then the caption and the footer. See
   [`litex-sim-boot.py`](litex-sim-boot.py). Lines starting with a prompt (`$ `, `litex> `) are bold.
 - [`wave.py`](wave.py): a timing diagram from the transitions written in the script:
   `Wave(d, x, y, cycles=10).clock("sys_clk").bit("we", "0010000000").bus("adr", {2: "0x04", 3: None})`.
