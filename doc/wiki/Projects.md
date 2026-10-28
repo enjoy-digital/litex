@@ -134,6 +134,11 @@ Tests and bring-ups that became reference material: [litex_mister_test](https://
 [litex_vexriscv_smp_usb_host_test](https://github.com/enjoy-digital/litex_vexriscv_smp_usb_host_test), and the others under
 [github.com/enjoy-digital](https://github.com/enjoy-digital?tab=repositories).
 
+Two of them in pictures: the alternative firmware/gateware of the SDS1104X-E scope
+([360nosc0pe](https://github.com/360nosc0pe/scope)) and the HBM2 test infrastructure on the Forest Kitten 33.
+
+<img src="https://user-images.githubusercontent.com/1450143/124901562-6977e480-dfe2-11eb-9071-4344d1146968.png" width="420"> <img src="https://user-images.githubusercontent.com/1450143/124902018-d4c1b680-dfe2-11eb-89c4-8b498605c34d.png" width="300">
+
 ## LiteX-Hub collaborative projects
 
 [LiteX-Hub](https://github.com/litex-hub) hosts the repositories maintained with and by the

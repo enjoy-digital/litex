@@ -23,7 +23,7 @@ litex_bare_metal_demo --build-path=build/digilent_arty --runtime-mem=main_ram
 ```
 
 Loading the compiled demo app can be done in different ways as explain in LiteX's wiki:
-https://github.com/enjoy-digital/litex/wiki/Load-Application-Code-To-CPU
+https://github.com/enjoy-digital/litex/wiki/Write-Firmware-For-Your-SoC
 
 Since our app is small and for simplicity we'll just load it over serial here:
  `$ litex_term /dev/ttyUSBX --kernel=demo.bin`

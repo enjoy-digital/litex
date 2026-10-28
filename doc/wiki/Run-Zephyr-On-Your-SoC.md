@@ -61,14 +61,14 @@ litex_term /dev/ttyUSB1 --kernel=build/zephyr/zephyr.bin
 ```
 
 `-b litex_vexiiriscv` for a VexiiRiscv SoC. The binary is loaded by the BIOS like any
-application (serial boot here, or TFTP/SD card/flash: [Load application code](Load-Application-Code-To-CPU.md)).
+application (serial boot here, or TFTP/SD card/flash: [Load application code](Write-Firmware-For-Your-SoC.md)).
 
 ### More
 
 - [zephyr-on-litex-vexriscv](https://github.com/litex-hub/zephyr-on-litex-vexriscv) (from
   Antmicro) is the SoC builder of the reference `litex_vexriscv` platform (Arty A7 with the
   F4PGA toolchain, the SDI-MIPI video converter board) and a model of how to script the flow.
-- [Renode](Generate-Renode-simulation.md) runs the Zephyr image on a model of the SoC without
+- [Renode](SoC-Simulator.md) runs the Zephyr image on a model of the SoC without
   a board, and [litex_sim](SoC-Simulator.md) in Verilator with `--rom-init`/`--ram-init`.
 - NEORV32 has its own upstream Zephyr board; [FreeRTOS](https://github.com/enjoy-digital/freertos-on-litex)
   and NuttX are on the [OSes ecosystem](OSes-Ecosystem.md) page.

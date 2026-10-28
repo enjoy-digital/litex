@@ -58,6 +58,6 @@ lower-latency bridges where available.
   CPUs' memory buses and DMAs, with full bursts.
 - **Standalone cores**: `litex_soc_gen --bus-standard=axi-lite` and the `*_gen` generators
   export the control bus as AXI-Lite and the data paths as AXI-Stream for integration in a
-  Vivado/Quartus block design ([Export](Export-Your-Core-SoC-To-Verilog.md)).
+  Vivado/Quartus block design ([Export](Export-To-Verilog.md)).
 - **Custom logic**: a core with an `AXILiteInterface` and `add_slave`, or a DMA with an
   `AXIInterface` and `add_master`, exactly as with [Wishbone](Wishbone-Bus.md).

@@ -69,7 +69,7 @@ python3 -m litex_boards.targets.digilent_arty --help             # CPU, memories
 ```
 
 `--build` generates the gateware and the BIOS and runs the toolchain; `--load` programs the
-board (the programmers are listed in [FPGA and SPI Flash programmers](FPGA-and-SPI-Flash-programmers.md)).
+board (the programmers are listed in [FPGA and SPI Flash programmers](Load-And-Flash.md)).
 Then open the serial console (115200 8-N-1) and get the BIOS prompt:
 
 ```sh
@@ -79,7 +79,7 @@ litex_term /dev/ttyUSB1
 <p align="center"><img src="https://raw.githubusercontent.com/enjoy-digital/litex/master/doc/bios_screenshot.png"></p>
 
 [Create a minimal SoC](Create-A-minimal-SoC.md) walks through a target script;
-[Load application code](Load-Application-Code-To-CPU.md) through the boot methods.
+[Load application code](Write-Firmware-For-Your-SoC.md) through the boot methods.
 
 ## 5. ... or run the SoC on your computer with Verilator
 

@@ -7,7 +7,7 @@ real systems ([Projects](Projects.md)). They are installed by `litex_setup.py` w
 (`add_sdram`, `add_ethernet`, `add_pcie`, `add_sata`, `add_sdcard`, `add_spi_flash`, ...: see
 [SoC-builder](SoC-builder.md)). Most of them also ship a **standalone generator** producing a
 plain Verilog core for designs that are not LiteX SoCs
-([Export](Export-Your-Core-SoC-To-Verilog.md)).
+([Export](Export-To-Verilog.md)).
 
 ![The LiteX ecosystem](images/litex-ecosystem-map.svg)
 

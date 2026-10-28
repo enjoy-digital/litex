@@ -132,7 +132,7 @@ exact build.
 `litepcie_gen config.yml` exports the same thing as a Verilog core for a Vivado/Quartus
 design: the PHY, the endpoint, an AXI-Lite MMAP master and/or slave, the DMA channels as
 AXI-Stream ports, `msi_irqs` inputs, with the headers for the driver
-([Export your core/SoC to Verilog](Export-Your-Core-SoC-To-Verilog.md)); the examples
+([Export your core/SoC to Verilog](Export-To-Verilog.md)); the examples
 (`examples/acorn.yml`, `kcu105.yml`) are the starting points.
 
 ## Examples

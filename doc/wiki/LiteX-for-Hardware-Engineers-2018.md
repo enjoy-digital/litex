@@ -1,0 +1,1750 @@
+*This introduction was written in 2018 by [bunnie](https://www.bunniestudios.com/) for engineers
+coming from Verilog and Vivado, and is kept close to the original: the statements that aged are
+noted inline in italics (*[2026: ...]*). The short version, a Verilog-to-LiteX cheat sheet linking
+to the current pages, is [LiteX for Hardware Engineers](LiteX-for-Hardware-Engineers.md).*
+
+## What is LiteX?
+
+LiteX is a Python "front-end" that generates
+Verilog netlists, and drives proprietary build "back-ends", such as
+Vivado or ISE, to create bitstreams ("gateware") for FPGAs.
+
+LiteX is relies on a Python toolbox called
+[Migen](https://github.com/m-labs/migen). In addition to a build
+environment, it provides a set of IP blocks. Some of the IP blocks
+include a DDR2/3 MIG equivalent, various softcore CPUs (lm32, openrisc,
+RISCV), Ethernet controller, HDMI input/output, Wishbone routing
+fabrics, streams, and PCI express. *[2026: the CPU list has grown considerably (VexRiscv, NaxRiscv, Rocket, Ibex, SERV, Microwatt, ... see `litex/soc/cores/cpu/`); `SoCCore` now defaults to `cpu_type="vexriscv"`.]*
+
+LiteX naively supports Linux/x86. It requires Python3.5 or later. *[2026: LiteX now requires Python 3.7 or later (`python_requires = "~=3.7"` in `setup.py`).]* You'll
+need to manually download, install, and provision your back-end tools
+(e.g.: Vivado/ISE), and you'll also need to install a gcc cross-compiler
+to any softcore CPU you plan to use in your designs. Details later.
+
+Here's the design flow in a nutshell:
+
+1. Describe your design in Python using the migen toolbox and LiteX IP by
+   customizing a `Module` object (typically by subclassing `SoCSDRAM`,
+   which is a subclass of `SoCCore` which subclasses the base `Module` class)
+   *[2026: `SoCSDRAM` no longer exists; subclass `SoCCore` directly and call `self.add_sdram(...)` to add the DRAM controller.]*
+2. Describe your build environment by customizing a `Platform` object
+   (typically by subclassing the `XilinxPlatform` class which itself
+   sublcasses the `GenericPlatform` base class)
+3. Run a function which passes your `Platform` object to a `Builder`
+   object, and invokes the `build()` method which:
+   1. Creates a `top.v` file: a single, flat verilog netlist of your entire
+      design modulo a few exceptions to be noted later.
+   2. Creates a `top.xdc` file: constraints that locate pins, defines
+      clocks, and eliminates false paths
+   3. If a CPU is configured, generates and builds a BIOS binary to be
+      compiled into the design
+   4. If a toolchain is configured, creates a `top.tcl` file which drives
+      the proprietary synth/place/route/bitgen "backend" toolchain
+   5. Attempts to run the proprietary back-end tool (Vivado will be assumed
+      for this doc, but ISE is also supported)
+4. Run `make` in the `firmware` directory, which builds your firmware
+   binary (`firmware.bin`).
+5. Upload `top.bit` to the FPGA -- typically over JTAG via openOCD
+6. Upload `firmware.bin` to the FPGA -- typically via UART or Ethernet, using
+   the `flterm` host-native application and the `serialboot` command
+   *[2026: `flterm` has been replaced by `litex_term`; the BIOS command is still `serialboot`.]*
+7. Interact with your firmware's REPL loop using flterm
+8. If you designed a `litescope` into your design (an ILA like
+   Chipscope), configure triggers and download traces using an analyzer
+   script, which relies on a helper program called litex_server. Debugging
+   occurs either through a supplementary UART or Ethernet that must be
+   present in the hardware (either designed in or test leads connected to a
+   header).
+9. Find bugs & go back to step 1!
+
+LiteX-buildenv attempts to automate steps 3 and onwards. However, I
+don't use the master script, it's a bit too brittle yet for reliable
+development, so I tend to run each of the major steps one command at a
+time.
+
+## Editors and Environments
+
+It's extremely helpful to use a very
+featureful Python editor when coding with LiteX/migen. Just trying to
+code in a basic text editor will drive you nuts. I was introduced to
+[PyCharm](https://www.jetbrains.com/pycharm/), and I would strongly
+recommend it if you don't already have a preferred editor. In particular
+you want to be able to "push" into object declarations by
+control-clicking on the name and method name autocompletion is extremely
+helpful when groping around for signal names.
+
+Furthermore, Python has several key limitations, a major one being
+package management. Namely, it's not a native feature of the language.
+Just running setup.py on various eggs will toss all your packages into
+your system dist-packages directory, which can break other dependencies
+in your Linux system. If you ask five Python developers how to deal with
+this, you'll get five different answers. Litex-buildenv I think tries to
+use Conda to get around this. Just be aware there's some weird stuff
+going on here that's totally obvious to the package maintainer and if
+you don't match your assumptions to theirs you'll be blindsided by a
+problem down the road.
+
+> **Warning:** Python3 is inherently nondeterministic. This is a
+> "security feature" which causes, among other things, dictionaries and
+> hash iterators to be visited in a different order every time a script is
+> run. **This means your verilog netlist, register space addressing, and
+> so forth will change with every run.** Some think this is a feature, I
+> think this is a bug. I work around this by setting the PYTHONHASHSEED
+> variable to a fixed value, and checking the setting within the Python
+> script. It's not possible to change or set the variable once the program
+> is started. You can only check it.
+
+## Bit Ordering and Array Indices
+
+One tricking bit on going to Python that always trips me up is bit ordering and array indices, so it's getting a section of its own near the top.
+
+Array indices in Python are foo[offset:offset+length]. So if you want to select the bottom 10 bits of a signal, you do a_python[:10] instead of a_verilog[9:0] (an empty spot has implicit meaning in Python it seems). The next 10 bits is b_python[10:20], instead of b_verilog[19:10]. You can't "reverse" MSB/LSB in Python like you can in Verilog by changing the index order in the brackets.
+
+This is known as the standard Python "slicing" syntax - https://www.pythoncentral.io/how-to-slice-listsarrays-and-tuples-in-python/
+
+Smaller bit-width `Signal()`s can be combined together using the `Cat()` function.
+Note that `Cat()` combines from LSB-to-MSB order (**opposite** of verilog), as follows:
+
+```python
+foo = Signal(7)
+bar = Signal(2)
+baz = Signal()
+self.comb += [
+  foo.eq(Cat(0, 0, bar, 0, baz, 1)),
+]
+```
+
+This is the verilog equivalent of:
+
+```verilog
+wire[6:0] foo;
+wire[1:0] bar;
+wire baz;
+assign foo = {1'b1, baz, 0, bar[1:0], 1'b0, 1'b0};
+```
+
+## What is Migen?
+
+Migen is the Python toolbox that is used to create a
+description of your hardware design. It abuses the Python's
+object-oriented class and method system to create a design tree embodied
+as a single mega-object using a process called "finalization".
+
+For design description, the base class is a "Module". It has five key
+attributes used to organize the elements that describe any hardware
+design:
+
+- Comb
+- Sync
+- Submodules
+- Specials
+- ClockDomains
+
+Each of these attributes is a list, and a design is described by
+appending an element to the appropriate list. Once all the lists have
+been populated, the submodules are collected and then finalized into a
+single, huge verilog netlist.
+
+The elements that go into a design description are numerous, but the
+most common one you'll encounter is `Signal()`, followed distantly by
+`ClockDomain()` and `Instance()`.
+
+A `Signal()`, as its name implies, is a named net. By default, a `Signal()`
+has a bit width of 1. An n-bit signal is created by `Signal(n)`. Groups of
+Signals() can be bundled together in `Records()` and `Streams()`, more on
+that later. A `Signal()` has no inherent direction, clock domain, or
+meaning. It picks this all up based on how you use it: which attribute
+of the `Module` class you've assigned it to, and so forth.
+
+> **Caution:** In Migen, you can specify the number of bits for a `Signal()` by doing `Signal(max=8)`. Counter to what you think it should do, `max` is **exclusive** (but `min` is **inclusive**), so `Signal(max=8)` cannot actually hold the number `8`. It can hold the number `7`, because it will infer only three bits for the directive `max=8`. I was not in the room when this was decided.
+
+> **Tip:** Dangling references and signal name typos will result in Python crashes during
+> the finalization process, and you are expected to dig through the stack
+> trace to find the problem. Because finalization disassociates the locality
+> of a reference from the code that created it, this can be difficult. It helps
+> to have an IDE with a debug mode that allows you to click into a stack level
+> and then inspect variables at various stack levels to try and identify where
+> you went wrong.
+
+> **Caution:** Forgetting to add new objects to one of the five key Module
+> attributes means it will not be finalized. Thus, *you* might see your logic
+> in the Python code, but if it doesn't get finalized, it might as well just be
+> commented out as far as migen is concerned.
+
+Let's look at what each of these five attributes are, one at a time.
+
+### Comb
+
+The `comb` attribute is a list of "combinational" logic
+operations. The verilog equivalent is everything that occurs outside an
+`always @(posedge)` block, e.g. all your assign statements. Since `comb` is
+a list, you append operations onto the list using Python list syntax.
+`self` is a shortcut to your module object, and `.comb` is how you
+reference the `comb` attribute:
+
+```python
+foo = Signal()  # these are all one-bit wide by default
+bar = Signal()
+baz = Signal()
+mumble = Signal()
+self.comb += [
+    foo.eq(bar),
+    baz.eq(foo & mumble),  # trailing commas at the end of a list are OK in python
+]
+```
+
+This is the verilog equivalent of:
+
+```verilog
+wire foo;
+wire bar;
+wire baz;
+wire mumble;
+assign foo = bar;
+assign baz = foo & mumble;
+```
+
+You'll notice that there's no `=` operator -- assignment (and thus
+declaration of which signal in the source and sink) is done by invoking
+`.eq()` on the sink and putting the source as the argument for a signal.
+However, most arithmetic operations are available between Signals, e.g.
+`~` is invert, `&` is and, `|` is or, `+` is add, `*` is multiply. I think there's
+also divide and I have no idea about signed types.
+
+### Sync
+
+The `sync` attribute is the list of synchronous operations.
+Items added to this list will generally infer a clocked register.
+
+"But to what clock domain?" I hear you ask. Migen starts with a
+single, default clock domain called `sys`. Its frequency is defined by
+passing a mandatory `clk_freq` argument to the `SoCSDRAM` base class,
+and it's up to you to actually hook up a clock generator that is at the
+right frequency.
+
+You can also specify which clock domain you want registers to go to by
+adding a modifier to the `sync` attribute. The migen methodology
+prescribes *not* assigning a clock domain until a module is
+instantiated. So if a sub-module's design can be implemented in a
+single, synchronous domain, just use the generic `sync` attribute. If
+the sub-module requires two clock domains, it's actually recommended to
+make up a "descriptive" name for the module, such as `write` and
+`read` clock domains for a FIFO. Then, when the modules are created,
+the all the clocks can be renamed to be consistent with the
+instantiating-module level clock names using a function called
+`ClockDomainsRenamer()`.
+
+Clear as mud? Some examples will help.
+
+```python
+foo = Signal()
+bar = Signal()
+bar_r = Signal()
+self.sync += [
+    bar_r.eq(bar),
+    foo.eq(bar & ~bar_r),
+]
+```
+
+This is the verilog equivalent of
+
+```verilog
+wire bar;
+reg foo = 1'd0;  // yes, the autogen code will use decimal constants
+reg bar_r = 1'd0;
+always(@posdege sys_clk) begin
+    bar_r <= bar;
+    foo <= bar & bar_r;
+end
+```
+
+Again, `sys_clk` is implicit because we used a "naked" `self.sync`. And,
+note that the "zero" initializer of every register is part of the
+migen spec (so if you forget to hook up an input to an output, you get
+zeros injected at the break and no warnings or errors thrown by the
+verilog compiler).
+
+If you wanted to do two clock domains, you might do something like this:
+
+```python
+class Baz(Module):
+    def __init__(self):
+        foo = Signal()
+        bar_r = Signal()
+        bar_w = Signal()
+        self.sync.read += bar_r.eq(foo)   # when adding just one item to the list, you can use +=
+        self.sync.write += bar_w.eq(foo)
+```
+
+This is the verilog equivalent of
+
+```verilog
+wire foo;
+reg bar_r = 1'd0;
+reg bar_w = 1'd0;
+always(@posedge read_clk) begin
+    bar_r <= foo;
+end
+always(@posedge write_clk) begin
+    bar_w <= foo;
+end
+```
+
+Easy enough, but where does `read_clk` and `write_clk` come from? Notice how
+I encapsulated the Python in a module called `Baz()`. To assign them in an
+upper level function, do this:
+
+```python
+mybaz = Baz()
+mybaz = ClockDomainsRenamer( {"write" : "sys", "read" : "pix"} )(mybaz)
+self.submodules += mybaz  # I'll describe why this is important later, but it's IMPORTANT
+```
+
+What's happened here is the the `write` domain of this instance of
+`Baz()` got assigned to the (default) `sys_clk` domain, and the `read`
+domain got assigned to a `pix_clk` domain (which presumably, you've
+created in the `ClockDomains` attribute, more on how to do that later). As
+you can see here, the `ClockDomainsRenamer` lets us go from the local
+names of the function to the instance names used by the actual design,
+based on a Python dictionary that has the format `{"submodule1_clock"
+: "actual1_clock", "submodule2_clock" : "actual2_clock", ...}`.
+
+The final re-assignment of `mybaz` to `mybaz` isn't mandatory, but since you
+never want to use the original instance of it, it's helpful to discard
+any possibility of confusing yourself with the old an new versions by
+re-assigning the modified object to its original name.
+
+There's one other trick for `ClockDomainsRenamer`. Quite often you're
+looking to actually rename the default `sys` clock to something else,
+because most modules are written just adding items to the base `sync`
+domain (and hence the default sys clock domain) This leads to this
+shortcut:
+
+```python
+myfoo = Foo()
+myfoo = ClockDomainsRenamer("pix")(myfoo)
+self.submodules += myfoo
+```
+
+The one argument is automatically expanded by the ClockDomainsRenamer to
+the dictionary `{"sys":"lone_argument_clk"}`.
+
+### Submodules
+
+Noticed how above, I was particular to include a line
+`self.submodules += myfoo` or similar at the end of every example?
+This has to do with the submodules attribute.
+
+Designs can be hierarchical in migen. That's a good thing, but you have
+to tell migen about the submodules, or else they don't do anything. You
+tell migen about a submodule -- and thus include it for flattening and
+netlisting -- by adding it to the `submodule` attribute. Forgetting to do
+so will silently fail, throwing no errors and leaving you wondering why
+the submodule you thought you included is outputting nothing but 0.
+
+Here's a simple example:
+
+```python
+myfoo = Foo()
+myfoo = ClockDomainsRenamer("pix")(myfoo)
+self.submodules += myfoo
+```
+
+versus
+
+```python
+myfoo = Foo()
+myfoo = ClockDomainsRenamer("pix")(myfoo)
+```
+
+What's the difference? In the first one, we remembered to add our module
+to the submodules list. In the second one, we created the submodule, did
+something to it, but didn't add it to the submodules list.
+
+The second one is perfectly valid Python syntax; it will compile and
+run, and the verilog generated will throw no errors, but if you look at
+the netlist, the entire contents of the `myfoo` instance is missing
+from the generated netlist.
+
+In other words, it's extremely easy to forget to add something to the
+submodules list, and forgetting to do so means the submodule is never
+flattened during the build process and thus never sent to the code
+generator. And because migen initializes all registers to 0, the absence
+of the module will result in perfectly valid verilog being generated
+that throws no errors.
+
+So I try to include that line in every example, even the short ones, to
+save you the headache and trouble. *[2026: with `LiteXModule` (`from litex.gen import *`), `self.myfoo = Foo()` registers the submodule automatically, so the explicit `self.submodules +=` line is optional, though still valid.]*
+
+One other confusing bit about adding something to submodules is that
+later references go through `self`. Easier to see code than explain:
+
+```python
+self.submodules.myfoo += Foo()
+self.comb += self.myfoo.subsignal.eq(othersignal)
+```
+
+In the example above, you added `Foo()` to `submodules.myfoo`, but later on
+you /reference/ it through `self.myfoo`.
+
+### Specials
+
+Specials are how migen handles certain design elements
+that don't fit into the comb/sync paradigm or have to pierce the
+abstraction layer and do something platform or implementation-specific.
+
+On the Xilinx platform, these are the specials I'm aware of:
+
+- Instantiating a verilog module or primitive
+- MultiReg
+- AsyncResetSynchronizer
+- DifferentialInput
+- DifferentialOutput
+- Memory
+
+You might be tempted to stick a special in the `submodules` attribute,
+but that won't work because their template class is `Special`, not `Module`.
+Like all the other attributes, you add to a special by just using the `+=`
+pattern:
+
+```python
+self.specials += MultiReg(consume.q, consume_wdomain, "write")
+self.specials += Instance("BUFG", i_I=self.pll_sys, o_O=self.cd_sys.clk)
+```
+
+#### Instances
+
+The `Instance` special is particularly handy. You
+use this to summon blocks like `BUFG`, `BUFIO`, `BUFR`, `PLLE2`, `MMCME2` and
+so forth. The format of an Instance special is as follows:
+
+```python
+Instance( "VERILOG_MODULE_NAME", ...list of parameters or ios.... )
+```
+
+So if a verilog module has a template like this:
+
+```verilog
+foo #(
+    .PARAM1("STRING_PARAM"),
+    .PARAM2(5.0)
+)
+foo_inst(
+    .A(A_THING),  // output: A
+    .B(B_THING),  // input: B
+    .C(C_THING),  // inout: C
+);
+```
+
+The Instance format would look like this:
+
+```python
+migen_sigA = Signal()
+migen_sigB = Signal()
+migen_sigC = Signal()
+self.specials += [
+Instance("foo",
+            p_PARAM1="STRING_PARAM",
+            p_PARAM2=5.0,
+            i_A=migen_sigA,
+            o_B=migen_sigB,
+            io_C=migen_sigC
+            ),
+]
+```
+
+If you're looking to instance a module that's your own verilog and not
+part of the Xilinx primitives, you can add the verilog file with a
+platform command:
+
+```python
+self.platform.add_source("full/path/to_module/module1.v")
+```
+
+This leaves the module heirarchy intact, and you also have to add all
+submodules referenced by your verilog to the path as well.
+
+Specials can also be used to refer to vendor IP.  eg.
+
+```python
+        # ila
+        platform.add_source("ila_0/ila_0.xci")
+        probe0 = Signal(6)
+        self.comb += probe0.eq(Cat(spi_pads.clk, spi_pads.cs_n, spi_pads.wp, spi_pads.hold, spi_pads.miso, spi_pads.mosi))
+        self.specials += [
+            Instance("ila_0", i_clk=self.crg.cd_sys.clk, i_probe0=probe0),
+            ]
+        platform.toolchain.additional_commands +=  [
+            "write_debug_probes -force {build_name}.ltx",
+        ]
+```
+
+#### MultiReg
+
+MultiReg is a one-bit synchronizer for crossing
+asynchronous domains. By default, it creates two registers that go into
+a `sys` clock domain, but you can change which domain it goes to by
+specifying an `odomain` parameter:
+
+```python
+self.specials += MultiReg( input_domainA, output_domainB, "pix" )
+```
+
+Will take signal `input_domainA`, instiate two registers in the `pix`
+domain, and the `output_domainB` will be synchronized accordingly. The
+reason this is in a special block is there are some attributes added to
+prevent retiming optimization from modifying the synchronizer structure:
+presumably if you did this just using `self.sync` operations you might not
+get the expected outcome after optimizations.
+
+Migen includes a whole bunch of clock-domain crossing tools, including a
+`PulseSynchronizer` and `Grey` counters. Take a look inside the
+`migen/genlib/cdc.py` file for some ideas.
+
+### FSMs
+
+Migen supports a native syntax for creating FSMs. You can
+create an FSM in the current module by invoking the FSM() function,
+and then using .act() accessors to delineate new states within the
+FSM. Here's a basic example of how this works.
+
+```python
+        fsm = FSM()
+        self.submodules.fsm = fsm   # need this to enable litescope debugging
+
+        fsm.act("WAIT_SOF",
+            reset_words.eq(1),
+            If(self.address_valid &
+               self.frame.sof,
+               NextState("TRANSFER_PIXELS")
+            )
+        )
+        fsm.act("TRANSFER_PIXELS",
+            self.transfer_enable.eq(1),
+            If(self.address_count == self.frame_length,
+               NextState("EOF")
+            )
+        )
+        fsm.act("EOF",
+            If(~dram_port.wdata.valid,
+                NextState("WAIT_SOF")
+            )
+        )
+```
+
+This FSM creates three states, WAIT_SOF, TRANSFER_PIXELS, and EOF, and cycles
+between them based on the conditions coded in the If() statements.
+
+> **Warning:** **Direct vs. NextValue** There are two ways to set outputs within
+> an FSM: direct, and NextValue(). The example above only uses the direct method.
+> Direct value settings clear to zero in every state where they are not
+> mentioned. Thus, the statement "self.transfer_enable.eq(1)" inside of "TRANSFER_PIXELS"
+> only sets transfer_enable to 1 during that state only, and in all other states,
+> the value is zero. Furthermore, transfer_enable is a result of an purely combinational
+> computation on the state bit, so it changes to 1 upon entering TRANSFER_PIXELS.
+> Alternatively, one can use NextValue(signal, value), as in,
+> "NextValue(self.transfer_enable, 1)". This macro does two things: (1) the value
+> is latched, so it persists even after leaving the state (it does not clear
+> to zero unless explicitly cleared) and (2) the value will not change until one
+> clock edge later.
+
+> **Caution:** It appears one can use both direct and NextValue at the same
+> time without triggering a compilation error. The behavior, however, depends on if there
+> is a previous NextValue() that could conflict with the direct setting. Which one "wins" depends upon
+> the ordering of the two statements in the top.v generate by Migen. At least
+> in one version, the synchronous statements are lower in the file than the
+> asynchronous statements, and thus the NextValue() call would override
+> the direct call in the case of a conflict. However, if there is no conflict
+> between NextValue and direct, this will cause the value to change upon entering
+> the state and it will persist until cleared.
+
+By convention, the first FSM.act() entry is also the
+reset state of the FSM. This is because as far as I can tell the state
+bits are encoded staring from 0 going up with each successive
+FSM.act() call, and FPGAs by default initialize their registers to
+0. If you want to explicitly designate a reset state, use the
+"reset_state=" argument when creating the FSM object, e.g.:
+
+```python
+   fsm = FSM(reset_state = "WAIT_SOF")
+```
+
+The default clock domain of an FSM is, as always, "sysclk". You can
+remap this using the ClockDomainsRenamer:
+
+```python
+   fsm = ClockDomainsRenamer("new_clk_domain")(FSM())
+```
+
+Alternatively if you want the entire module to be synchronous and in a
+different domain, don't rename the FSM immediately upon creation, but
+rename the entire module at the point where it is instantiated (e.g.
+allow all the self.sync's to be default (sysclk) and then remap sysclk
+for the whole domain using the ClockDomainsRenamer at one level up the
+tree).
+
+### ClockDomains
+
+To be written
+
+## Physical Constraints
+
+### Pin Constraints
+
+To be written -- how to add pin location constraints to your project.
+
+### Timing Constraints
+
+To be written -- how to add additional timing constraints to your
+project.
+
+## Timing Reports & Schematics
+
+To be written -- how to use Vivado to view timing reports and schematics.
+
+## Softcores
+
+### CSRs: Config and Status Registers
+
+Configuration and status registers are how you get a softcore to "peek" and "poke" memory.
+They map addresses to lines that you can wiggle or observe.
+
+The nomenclature of migen is:
+
+- "CSRStorage" = "output" (from CPU's perspective) = "write" or "stores"
+- "CSRStatus" = "input" (from CPU's perspective) = "read" or "loads"
+
+There's also a "generic" CSR which is both read and write. You can use this,
+but the width is limited to less than the CSR bus width.
+
+You can add CSRs to modules (but not the top level SoC instantiation), because CSR
+C-code APIs are auto-generated based on the module's name. No name, no API.
+
+> **Caution:** CSRs are a bit odd, by default they are byte-wide registers
+> that are on 32-bit word boundaries. So a "32-bit" CSR is actually
+> broken into four bytes spanning a total address space of 16 bytes. You can
+> zpecify 32-bit wide CSRs but you'll probably run into compatibility issues
+> with other IP librariers that have hard-coded the 8-bit assumption.
+> *[2026: `SoCCore` now defaults to `csr_data_width=32`, so a 32-bit CSR is a single 32-bit word; the byte-wide layout described here (and in the `csr.h` excerpt below) is what `csr_data_width=8` produces.]*
+
+> **Warning:** If you allocate too many CSRs, you can overflow the CSR address space width without warning. If you find your CPU isn't booting after a recompile, try adding the line "csr_address_width=15" to your BaseSoC arguments. The default width is 14 bits.
+
+Here's a very simple example of how to use CSRs to talk to an external IP
+block written in verilog.
+
+```python
+class I2Csnoop(Module, AutoCSR):
+    def __init__(self, pads):
+        self.edid_snoop_adr = CSRStorage(8)
+        self.edid_snoop_dat = CSRStatus(8)
+
+        reg_dout = Signal(8)
+        self.An = Signal(64)
+        self.Aksv14_write = Signal()
+        self.specials += [
+            Instance("i2c_snoop",
+                     i_SDA=~pads.sda,
+                     i_SCL=~pads.scl,
+                     i_clk=ClockSignal("eth"),
+                     i_reset=ResetSignal("eth"),
+                     i_i2c_snoop_addr=0x74,
+                     i_reg_addr=self.edid_snoop_adr.storage,
+                     o_reg_dout=reg_dout,
+                     o_An=self.An,
+                     o_Aksv14_write=self.Aksv14_write,
+                     )
+        ]
+        self.comb += self.edid_snoop_dat.status.eq(reg_dout)
+```
+
+Other sections talk more about using self.specials to create an
+external verilog block, but basically, there is a verilog module
+called i2c_snoop.v that's instantiated here, and the CPU is wired up
+to the snoop module to query what data has been captured by the
+snooper from a given address.  So, edid_snoop_adr is a CSRStorage(8)
+-- it's an "output" of the CPU that's 8 bits wide driving into the
+verilog block. And edid_snoop_dat is a CSRStatus(8) -- it's an "input"
+of the CPU that's 8 bits wide that reads the data presented by the
+verilog block. Note that all signals are assumed synchronous to the
+"sys" clock domain, but in this case i2c_snoop is plugged into the
+"eth" clock domain. For this purpose, it's OK because we guarantee at
+the firmware level we don't read the I2C block when the data is
+changing, but you will need to add MultiRegs or other forms of
+synchronizers if whatever you're driving from the CPU isn't in the
+"sys" clock domain.
+
+In order to trigger the auto-generation of the CSR code, you have to
+add it to the csr_peripherals block of your SoC. *[2026: this step is gone: the CSRs of any `AutoCSR` submodule attached to the SoC are collected automatically; `csr_map` on `SoCCore` now only reserves fixed CSR locations, and `csr_map_update`/`csr_peripherals` no longer exist.]* This is usually up near the
+top of your SoC definition, a bit like this:
+
+```python
+class VideoOverlaySoC(BaseSoC):
+
+    csr_peripherals = [
+        "i2c_snoop",  # if this doesn't exist, the APIs won't get generated
+        "analyzer",
+    ]
+    csr_map_update(BaseSoC.csr_map, csr_peripherals)
+
+    def __init__(self, platform, *args, **kwargs):
+        BaseSoC.__init__(self, platform, *args, **kwargs)
+
+        platform.add_source(os.path.join("overlay", "i2c_snoop.v"))
+        self.submodules.i2c_snoop = i2c_snoop = I2Csnoop(hdmi_in0_pads)  # the submodule name here must match the csr_peripherals string
+```
+
+You'll end up getting a set of CSR helper functions located in the
+csr.h file.  You want to use the helper functions because they hide
+the wart CSR space being byte-wide data strided on word boundaries.
+
+```c
+/* i2c_snoop */
+#define CSR_I2C_SNOOP_BASE 0xe000b000
+#define CSR_I2C_SNOOP_EDID_SNOOP_ADR_ADDR 0xe000b000
+#define CSR_I2C_SNOOP_EDID_SNOOP_ADR_SIZE 1
+static inline unsigned char i2c_snoop_edid_snoop_adr_read(void) {
+    unsigned char r = MMPTR(0xe000b000);
+    return r;
+}
+static inline void i2c_snoop_edid_snoop_adr_write(unsigned char value) {
+    MMPTR(0xe000b000) = value;
+}
+#define CSR_I2C_SNOOP_EDID_SNOOP_DAT_ADDR 0xe000b004
+#define CSR_I2C_SNOOP_EDID_SNOOP_DAT_SIZE 1
+static inline unsigned char i2c_snoop_edid_snoop_dat_read(void) {
+    unsigned char r = MMPTR(0xe000b004);
+    return r;
+}
+
+///// included here to illustrate the CSR space byte-to-word weirdness
+#define CSR_HDMI_IN1_DMA_SLOT1_ADDRESS_ADDR 0xe00088f8
+#define CSR_HDMI_IN1_DMA_SLOT1_ADDRESS_SIZE 4
+static inline unsigned int hdmi_in1_dma_slot1_address_read(void) {
+    unsigned int r = MMPTR(0xe00088f8);
+    r <<= 8;
+    r |= MMPTR(0xe00088fc);
+    r <<= 8;
+    r |= MMPTR(0xe0008900);
+    r <<= 8;
+    r |= MMPTR(0xe0008904);
+    return r;
+}
+static inline void hdmi_in1_dma_slot1_address_write(unsigned int value) {
+    MMPTR(0xe00088f8) = value >> 24;
+    MMPTR(0xe00088fc) = value >> 16;
+    MMPTR(0xe0008900) = value >> 8;
+    MMPTR(0xe0008904) = value;
+}
+```
+
+With these helper functions, dumping the memory space of the I2C snooper is
+quite easy:
+
+```c
+  int i ;
+  for( i = 0; i < 256; i++ ) {
+    if( (i % 16) == 0 ) {
+      wprintf( "\r\n %02x: ", i );
+    }
+    i2c_snoop_edid_snoop_adr_write( i );
+    wprintf( "%02x ", i2c_snoop_edid_snoop_dat_read() );
+  }
+```
+
+In addition to providing convenient APIs on the C-code firmware side,
+CSRs also provide some convenience on the hardware Python side.
+
+- You can specify the reset value by passing the reset=value parameter (for both
+  Storage and Status)
+- `.re` is a "write" strobe -- the .re attribute provides a single-cycle pulse when a CSRStorage is updated *[2026: now `.wr_stb`, `.re` stays as an alias]*
+- `.we` is a "read" strobe -- the .we attribute provides a single-cycle pulse when a CSRStatus is read *[2026: now `.rd_stb`, `.we` stays as an alias]*
+- **yes, you read those two lines above correctly. in Litex, .re is a write, and .we is a read.** I was not in the room when this was decided. *[2026: fixed since: the strobes and data are named from the software side, `.wr_stb`/`.wr_data` and `.rd_stb`/`.rd_data`, the old names being kept as aliases; see [CSR bus](CSR-Bus.md).]*
+- if write_from_dev=True is passed as a parameter to CSRStorage, the device can flip the storage bit (allowing it to work as an input, oddly enough), by providing data on .dat_w, and strobing .we. Difference between this and CSR is reads are not guaranteed atomic when CSRStorage is made writeable.
+
+If you're using a straight-up CSR (not a Storage or Status), the accessors
+for the stored value is the .r attribute, and the data you're sending back
+to the CPU is connected via the .w attribute.
+
+### Interrupts (aka Events)
+
+Interrupts are generated using the EventManager module. There's a few ways to use
+it, but here's one of the most straightforward methods I know of.
+
+To add an interrupt to a module, you will need an EventManager()
+submodule, plus one or more EventSourcePulse(), EventSourceProcess(),
+or EventSourceLevel() modules.
+
+EventSourcePulse() is a rising-edge triggered event. When a rising edge comes in,
+the corresponding .pending bit is set high. Write a 1 to .pending to clear the edge
+triggered event.
+
+EventSourceProcess() is a falling-edge triggered event. When a falling edge comes in,
+the corresponding .pending bit is set high. Write a 1 to .pending to clear the edge
+triggered event.
+
+EventSourceLevel() is a level-sensitive event. The CPU continues to
+receive the level-sensitive interrupt until the source causing the
+event is rectified (there is no "clear event" option -- if you don't
+lower the level, the CPU will jump right back into the ISR once you
+exit).
+
+Each EventSourceXXX() module is capable
+of taking in a trigger that results in an interrupt being dispatched
+to the CPU. The Python code looks a bit like this.
+
+```python
+class MyModule(Module, AutoCSR):
+  def __init__(self):
+        self.submodules.ev = EventManager()
+        self.ev.my_int1 = EventSourceProcess()
+        self.ev.my_int2 = EventSourceProcess()
+        self.ev.finalize()
+
+        self.comb += self.ev.my_int1.trigger.eq(falling_edge_interrupt_signal1)
+        self.comb += self.ev.my_int2.trigger.eq(falling_edge_interrupt_signal2)
+
+class MySoC(BaseSoC):
+    interrupt_map = {
+        "my_module" : 4,
+    }
+    interrupt_map.update(BaseSoC.interrupt_map)
+  def __init__(self, platform, *args, **kwargs):
+    self.submodules.my_module = my_module = MyModule()
+```
+
+This creates a module my_module which occupies a single interrupt
+vector (4) on the CPU with two sub-events that can be read out and
+handled by the firmware code. *[2026: interrupts are now declared with `self.irq.add("my_module", 4)` (or without a number to let the SoC allocate one); a class-level `interrupt_map` on `SoCCore` is still honoured as a set of fixed numbers.]*
+
+In the firmware, first you must add an ISR dispatch to your ISR table.
+There's typically a file called isr.c that has something like this in there:
+
+```c
+void isr(void)
+{
+    unsigned int irqs;
+
+    irqs = irq_pending() & irq_getmask();
+
+    if(irqs & (1 << UART_INTERRUPT))
+        uart_isr();
+
+#ifdef MY_MODULE_INTERRUPT
+    if(irqs & (1 << MY_MODULE_INTERRUPT))
+        my_module_isr();
+#endif
+}
+```
+
+It seems at least on lm32 and vexrisc SoC's, there's just a single
+interrupt line to the CPU, and this expands to one of 32 bits in
+an interrupt source register. This maps to the interrupt_map number
+provided in the Python code. The isr() routine is thus responsible
+for searching through the bits and dispatching accordingly.
+
+You also want to enable the interrupt, in some sort of init function:
+
+```c
+void my_module_init(void) {
+  // unmask the interrupts for MY_MODULE
+  unsigned int mask;
+  mask = irq_getmask();
+  mask |= 1 << MY_MODULE_INTERRUPT;
+  irq_setmask(mask);
+
+  my_module_ev_enable_write(1); // in addition to unmasking irq, you also need to enable the event handler
+}
+```
+
+Handling the isr itself looks a bit like this:
+
+```c
+void my_module_isr(void) {
+  unsigned int status;
+
+  status = my_module_ev_pending_read(); // you don't need to do this if you just have one interrupt source
+
+  // my_module_ev_pending_write(1); // You'd do this if you just had one interrupt
+
+  if( status & 1 ) {
+    printf("Hi! I got interrupt 1\n");
+    my_module_ev_pending_write(1);    // clear the interrupt so it doesn't keep on firing and wedge the CPU
+  } else if( status & 2 ) {
+    printf("Hi! I got interrupt 2\n");
+    my_module_ev_pending_write(2);
+  }
+
+  my_module_ev_enable_write(1);  // re-enable the event handler so we can catch the interrupt again
+}
+```
+
+### BaseSoC and Clockgen
+
+To be written -- simple walk-through of the
+basic stuff needed to implement an lm32 CPU with a clock generator
+
+### Memory
+
+Memory is a `special` in migen, as in, it doesn't fit into `self.comb`
+or `self.sync`, and requires platform-specific code to support. This one
+actually has some documentation in the Migen manual
+(https://m-labs.hk/migen/manual/fhdl.html#memories), but we expand
+upon it here with examples.
+
+The `Memory()` function takes the following arguments:
+
+- width (mandatory) - width in bits
+- depth (mandotory) - depth in width-wide units (so width=32, depth=16 is 64 bytes of memory)
+- init (optional) - an array of numbers which sets the initial value of the memory
+- name (optional) - override the default name of "mem" for the memory
+
+For example, this will make a 16-entry, 32-bit wide memory:
+
+```python
+   self.specials.mem = Memory( 32, 16 )
+```
+
+If you just included this one line of code in your design, it creates
+a memory object that has an implicit and automatically generated
+read/write interface to the CPU via wishbone, sharing a portion of CSR
+register space. You should find a reference to the memory inside
+build/software/include/generated/csr.h, and the memory will be
+automatically placed in the lowest CSR bank.
+
+This is pretty handy if you just want some scratchpad ram for your CPU,
+but more typically you want to interact with the memory from your own
+hardware. There's three typical configurations for this:
+
+1. Wishbone r/w, local logic read-only
+2. Wishbone read-only, local logic write-only
+3. No wishbone interface, just local logic read/write
+
+Basically, you're allowed just one write port without also inferring
+an arbiter. Although the RAMB36E1 primitive supports two write ports,
+the verilog template used to infer them is rejected by Vivado (as of
+2018.2).
+
+In general, to gain access to a Memory object from logic, you will
+call the `get_port()` function on the logic. This returns a "port"
+object, which contains the signals you need to connect to the memory.
+
+`Memory.get_port()` takes the following arguments:
+
+- **adr** `Signal(aw)`: input address to the RAM. Up to the caller to guarantee correct width.
+- **dat_r** `Signal(dw)`: output data from the RAM. Up to the caller to guarantee correct width.
+- **write_capable** boolean (default: False) - set to True if you need the
+  port to have write capability.
+- **async_read** boolean (default: False) - The master docs claim this
+  would infer an asynchronous read port, but block RAM doesn't support this.
+  So perhaps this uses distributed RAM, which would make it resource-inefficient?
+- **has_re** boolean (default: False) - adds a read clock enable, ignored
+  for asynchronous ports
+- **we_granularity** integer (default: 0) - infer write enable masks. The
+  width of the "we" signal grows automatically to be data width / we_granularity.
+  If zero, the "we" signal will write the entire word width.
+- **mode** range (default: WRITE_FIRST) - In synchronous memory, defines behavior
+  of simultaneous read/writes. One of WRITE_FIRST, READ_FIRST, NO_CHANGE. WRITE_FIST
+  means the simultaneously written value is returned. READ_FIRST means the previous
+  value is returned. NO_CHANGE means that during writes, the data signal holds its
+  previous value. Presumably if the address changes during a write the read value
+  would not update to reflect the new address.
+- **clock_domain** clockstring (default: "sys"): clock domain of the returned port object.
+
+The returned port object has the following signals:
+
+- self.**adr** `Signal(aw)` *implicit*: the adr argument
+- self.**dat_r** `Signal(dw)` *implicit*: the dat_r argument
+- self.**we** `Signal(dw/we_granularity)` *implicit*: write enable. Width depends
+  on the we_granularity parameter, defaults to a single bit.
+- self.**dat_w** `Signal(dw)` *implicit*: data to write to RAM
+- self.**re** `Signal()` *implicit*: read enable signal, if synchronous
+
+#### Wishbone r/w, logic ro
+
+This design pattern is fairly straightforward. Create the `Memory()` object,
+call `get_port()` on it with no arguments to create a `MemoryPort()` object,
+and then acess the port using the `.adr` and `.dat_r` `Signals()`.
+
+```python
+   self.specials.mem = Memory( data_width, depth )
+   self.specials.rdport = self.mem.get_port()
+   self.comb += self.rdport.adr.eq( some_address_signal )
+   self.comb += data_destination.eq( self.rdport.dat_r )
+```
+
+This creates a memory object in the CSR space that the CPU can
+write data to, and then your local logic can retrieve parameters
+out of this memory as needed by indexing into the address.
+
+#### Wishbone ro, logic wo
+
+This design pattern is a bit more complicated. Here, we fail to
+add `Memory()` as a "specials", but just keep the variable local
+to the function. This prevents it from being caught in the CSR
+"finalizer" sweep, so no wishbone CSR port is inferred, clearing
+the way for you to add your local logic port.
+
+Here's how you would make the memory in the logic module:
+
+```python
+   class Logic_with_memory(Module):
+      mem = Memory( data_width, depth )
+      self.specials.port = mem.get_port( write_capable=True )
+
+      # connect the write port to local logic
+      self.comb += [
+         self.port.adr.eq( local_adr ),
+         self.port.dat_w.eq( logic_write_data ),
+         self.port.we.eq( logic_write_enable_signal )
+      ]
+
+      # attach a wishbone interface to the Memory() object, with a read-only port
+      self.submodules.wb_sram_if = wishbone.SRAM(mem, read_only=True)
+
+      # get the wishbone Interface accessor object
+      self.bus = wishbone.Interface()
+
+      # build an address filter object. This is a migen expression returns 1
+      # when the address "a" matches the RAM address space. Useful for precisely
+      # targeting the RAM relative to other wishbone-connected objects within
+      # the logic, e.g. other RAM blocks or registers.
+      #
+      # This filter means the RAM object will occupy its entire own CSR block,
+      # with aliased copies of the RAM filling the entire block
+      def slave_filter(a):
+          return 1
+      # This filter constrains the RAM to just its own address space
+      decoder_offset = log2_int(sram_depth, need_pow2=False)
+      def slave_filter_noalias(a):
+          return a[decoder_offset:32 - decoder_offset] == 0
+
+      # connect the Wishbone bus to the Memory wishbone port, using the address filter
+      # to help decode the address.
+      # The decdoder address filter as a list with entries as follows:
+      #   (filter_function, wishbone_interface.bus)
+      # This is useful if you need to attach multiple local logic memories into the
+      # same wishbone address bank.
+      wb_con = wishbone.Decoder(self.bus, [(slave_filter, self.wb_sram_if.bus)], register=True)
+      # add the decoder as a submodule so it gets pulled into the finalize sweep
+      self.submodules += wb_con
+```
+
+And to integrate the logic module into your top level SoC code:
+
+```python
+   # Now we are at the top level SoC module, wherever that may be
+   class MySoC(SoCCore):
+     mem_map = {
+        "logic_memory": 0x30000000,  # this just needs to be a unique block
+     }
+     mem_map.update(SoCCore.mem_map)
+     def __init__(self, **kwargs):
+        # top-level logic stuff
+        # infer the logic block with memory
+        self.submodules.logicmem = Logic_with_memory() # the above function
+
+        # define the memory region size/location
+        # memdepth is the depth of the memory inferred in your logic block
+        # the length is in bytes, so for example if the data_width of your memory
+        # block is 32 bits, the total length is memdepth * 4
+        self.add_memory_region("logic_memory", self.mem_map["logic_memory"], memdepth * data_width//8, type='cached')
+
+        # add the wishbone slave mapping to the mem_map entry made above
+        self.add_wb_slave(self.mem_map["logic_memory"], self.logicmem.bus)
+
+```
+
+*[2026: `add_memory_region`/`add_wb_slave` (and `add_wb_master` used further down) have been replaced by `self.bus.add_slave(name, interface, SoCRegion(origin=..., size=..., cached=True))` and `self.bus.add_master(name, interface)`.]*
+
+#### No wishbone, logic r/w
+
+This design pattern is fairly straightforward. Just create the `Memory()`
+object, don't add it as a special, but create local read and write ports
+using `get_port()`.
+
+```python
+     storage = Memory(width, depth)
+     self.specials += storage
+
+     wrport = storage.get_port(write_capable=True)
+     self.specials += wrport
+     self.comb += [
+         wrport.adr.eq(produce),
+         wrport.dat_w.eq(self.din),
+         wrport.we.eq(1)
+     ]
+
+     rdport = storage.get_port()
+     self.specials += rdport
+     self.comb += [
+         rdport.adr.eq(consume),
+         self.dout.eq(rdport.dat_r)
+     ]
+```
+
+## Design Patterns
+
+A collection of design patterns enabled by the migen toolbox.
+
+### Timing Delays
+
+Timing delays -- inserting pipeline registers to
+equalize delays between control and data paths -- is a common task.
+There's a few ways to do it in Migen. Here's some examples.
+
+The simplest way to create a delay is to make it manually:
+
+```python
+sig = Signal()
+sig1 = Signal()
+sig2 = Signal()
+sig3 = Signal()
+self.sync += [
+    sig3.eq(sig2), # three clock cycles delay
+    sig2.eq(sig1),
+    sig1.eq(sig),
+]
+```
+
+This can get cumbersome for busses. Here's an example of creating a
+record that defines a bus, and then using a parameterizeable function
+that builds the delay pipe with a for loop.
+
+```python
+rgb_layout = [  # define the bus layout as a record
+    ("r", 8),
+    ("g", 8),
+    ("b", 8)
+]
+
+class TimingDelayRGB(Module):
+    def __init__(self, latency):
+        self.sink = stream.Endpoint(rgb_layout)    # "inputs"
+        self.source = stream.Endpoint(rgb_layout)  # "outputs"
+
+        for name in list_signals(rgb_layout):
+            s = getattr(self.sink, name)
+            for i in range(latency):
+                next_s = Signal(len(s))
+                self.sync += next_s.eq(s)          # self.sync means this module by default is using "sys" clock
+                s = next_s
+            self.comb += getattr(self.source, name).eq(s)
+
+class MyModule(Module):
+    def __init__(self):
+        timing_rgb_delay = TimingDelayRGB(4)
+        timing_rgb_delay = ClockDomainsRenamer("pix_o")(timing_rgb_delay)  # remap the default "sys" clock to local "pix_o" domain
+        self.submodules += timing_rgb_delay                   # if you forget this line, the timing delay won't be generated in the verilog netlist
+
+        self.hdmi_out0_rgb = hdmi_out0_rgb = stream.Endpoint(rgb_layout)
+        self.hdmi_out0_rgb_d = hdmi_out0_rgb_d = stream.Endpoint(rgb_layout)
+        self.comb += [
+            hdmi_out0_rgb.b.eq(core_source_data_d[0:8]),   # wire up the input record
+            hdmi_out0_rgb.g.eq(core_source_data_d[8:16]),
+            hdmi_out0_rgb.r.eq(core_source_data_d[16:24]),
+            hdmi_out0_rgb.valid.eq(core_source_valid_d),
+
+            timing_rgb_delay.sink.eq(hdmi_out0_rgb),       # wire the input record to the timingdelay element
+
+            hdmi_out0_rgb_d.eq(timing_rgb_delay.source)    # hdmi_out0_rgb_d is 4 cycles delayed from hdmi_out0_rgb
+        ]
+```
+
+So this uses a `record` with `r,g,b` fields, takes a latency parameter,
+and automatically iterates through the latency depth and creates a set
+of daisy-chained registers.
+
+Note that in the `TimingDelayRGB()` module, we're iterating through and
+using the same variable name, `next_s` over and over again. It would
+seem that this wouldn't make a delay, but rather a whole bunch of wires
+all tied to the same signal. However, `next_s` is just a temporary
+variable name, and the `Signal()` **object** assigned to it is always
+unique because every call to `Signal()` creates a brand new `Signal()`
+object.
+
+Breaking it down step by step:
+
+```python
+next_s = Signal(len(s))
+```
+
+Is creating a new `Signal()` object, with a globally unique ID, and
+temporarily binding it to `next_s`.
+
+```python
+self.sync += next_s.eq(s)
+```
+
+This adds the `next_s` `Signal` to the `sync` list. What happens is migen
+automatically sees that the object referenced by `next_s` is unique, and
+resolves this by internally appending a unique number to `next_s` to make
+the instance unique. If you look at the generated verilog, you'll see
+`next_s1`, `next_s2`, `next_s3`, ... and so forth as it "uniquefies" the
+instances added to the sync attribute list.
+
+```python
+s = next_s
+```
+
+This line just stashes the reference to the Signal so the next iteration
+of the loop can wire up the daisy chain.
+
+If instead of creating a new `Signal()` object and assigning it to `next_s`,
+but instead referencing an existing signal with the same globally unique
+ID, you would in fact have a whole series of `Signal`s just wire-OR'd
+together.
+
+Here's another design pattern for doing timing delays.
+
+```python
+for i in range(rgb2ycbcr.latency + chroma_downsampler.latency):
+    next_de = Signal()
+    next_vsync = Signal()
+    self.sync.pix += [
+        next_de.eq(de),
+        next_vsync.eq(vsync)
+    ]
+    de = next_de
+    vsync = next_vsync
+```
+
+This is an in-line approach to creating the delays, reasonably compact
+and doesn't require templates to be defined for every signal group.
+
+A final design pattern is to implement a synchronous buffer using a
+memory element to implement a delay:
+
+```python
+class _SyncBuffer(Module):
+    def __init__(self, width, depth):
+        self.din = Signal(width)
+        self.dout = Signal(width)
+        self.re = Signal()
+
+        produce = Signal(max=depth)
+        consume = Signal(max=depth)
+        storage = Memory(width, depth)
+        self.specials += storage
+
+        wrport = storage.get_port(write_capable=True)
+        self.specials += wrport
+        self.comb += [
+            wrport.adr.eq(produce),
+            wrport.dat_w.eq(self.din),
+            wrport.we.eq(1)
+        ]
+        self.sync += _inc(produce, depth)
+
+        rdport = storage.get_port(async_read=True)
+        self.specials += rdport
+        self.comb += [
+            rdport.adr.eq(consume),
+            self.dout.eq(rdport.dat_r)
+        ]
+        self.sync += If(self.re, _inc(consume, depth))
+```
+
+This uses the "Memory" paradigm plus pointer arithmetic. It has the
+advantage that the delay can be varied dynamically (not at compile time)
+and can also be more efficient for long delays, since instead of eating
+FD's for delays it's using a block RAM. It does require some additional
+logic to wrap around the `SyncBuffer` to let it "fill" first to the
+depth you need for the delay before draining it.
+
+### Module I/O
+
+How streams & records can be used for module I/O
+
+### Streams
+
+More about how streams a can be used (asyncfifo, upconverter, downconverter, etc.)
+
+### Records
+
+...yah...i don't even know this one really, but it seems
+important...
+
+### Multi-Domain Clocking
+
+Design patterns and strategies for dealing with multiple clock domains
+
+## Debugging
+
+### Litescope
+
+Litescope is the equivalent of the Xilinx ILA for Litex. It samples a
+set of signals into holding registers that can be read out via wishbone.
+Because it's wishbone-based, the data read out can occur via any
+wishbone bridge -- UART, ethernet, or PCI.
+
+Only simple trigger conditions are supported (signal equals 1 or 0, no
+edges or compound statements)
+
+So, the architecture of a litescope instantiation consists of two parts:
+the sampler, and the wishbone readout bridge.
+
+#### Litescope Sampler
+
+You'll need to modify three sections in your
+SoC description to add an analyzer. See below for the three sections
+called out:
+
+```python
+class MySoC(BaseSoC):
+    csr_peripherals += "analyzer"  ## 1. need this to create the wishbone interface
+    csr_map_update(BaseSoC.csr_map, csr_peripherals)
+
+    def __init__(self, ...):
+
+        # 2. add this inside your "init" function of your base SoC
+        from litescope import LiteScopeAnalyzer
+        analyzer_signals = [
+            signal1,
+            signal2,
+        ]
+        analyzer_depth = 128 # samples
+        analyzer_clock_domain = "sys"
+        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals,
+                                                     analyzer_depth,
+                                                     clock_domain=analyzer_clock_domain)
+
+    # 3. Add this function to your SoC definition to generate the analyzer definition file.
+    builder = Builder(soc, output_dir="build",
+                      compile_gateware=not args.nocompile_gateware,
+                      csr_csv="test/csr.csv")
+    vns = builder.build()
+    soc.analyzer.export_csv(vns, "test/analyzer.csv") # Export the current analyzer configuration
+
+```
+
+Basically, you assign the signals to the analyzer_signals domain, and
+then instantiate the LiteScopeAnalyzer(). Here's the arguments to
+LiteScopeAnalyzer:
+
+- analyzer_signals -- the array of signals to be sampled
+- depth -- in this case 128. Depth is limited by the capacity of your
+  FPGA (so it's width of analyzer_signals * depth < available memory)
+- sampler domain -- the name of tho clock domain that your signals are
+  coming from. `sys` by default.
+
+You also need to hook `do_exit()` of your SoC description to generate the
+`analyzer.csv` file. You should change the path to wherever your analyzer
+readout script is located (couple sections down for more on that one).
+You also need to add `analyzer` to the CSR peripherals list so it
+shows up in the firmware address space.  This function gets called
+automatically if it exists.
+
+#### Litescope Bridge
+
+You have many choices to extract data from the lightscope sampler. It's
+just another etherbone peripheral, so you could use the local softcore
+CPU to read out data. Or you can send commands over a bridge that
+translates e.g. UART, PCI express, or Ethernet to wishbone addresses and
+vice versa.
+
+Here's an example of a UART bridge:
+
+```python
+# 1. define the pins
+_io += [
+    ("serial", 1,
+        Subsignal("tx", Pins("B17")),
+        Subsignal("rx", Pins("A18")),
+        IOStandard("LVCMOS33")
+    ),
+]
+
+# 2. instantiate the bridge
+from litex.soc.cores.uart import UARTWishboneBridge
+
+self.submodules.bridge = UARTWishboneBridge(platform.request("serial",1), 100e6, baudrate=115200)
+self.add_wb_master(self.bridge.wishbone)
+```
+
+In this case, the first argument are the pads, the second is the sys
+clock frequency, and the third is the baud rate of the serial port.
+Apparently only 115200 is well-tested. You can try higher baud rates but
+you might have some bit errors.
+
+Here's an example of an Ethernet bridge:
+
+```python
+# 1. define the pins
+_io += [
+    # RMII PHY Pads
+    ("rmii_eth_clocks", 0,
+        Subsignal("ref_clk", Pins("D17"), IOStandard("LVCMOS33"))
+    ),
+    ("rmii_eth", 0,
+        Subsignal("rst_n", Pins("F16"), IOStandard("LVCMOS33")),
+        Subsignal("rx_data", Pins("A20 B18"), IOStandard("LVCMOS33")),
+        Subsignal("crs_dv", Pins("C20"), IOStandard("LVCMOS33")),
+        Subsignal("tx_en", Pins("A19"), IOStandard("LVCMOS33")),
+        Subsignal("tx_data", Pins("C18 C19"), IOStandard("LVCMOS33")),
+        Subsignal("mdc", Pins("F14"), IOStandard("LVCMOS33")),
+        Subsignal("mdio", Pins("F13"), IOStandard("LVCMOS33")),
+        Subsignal("rx_er", Pins("B20"), IOStandard("LVCMOS33")),
+        Subsignal("int_n", Pins("D21"), IOStandard("LVCMOS33")),
+    ),
+]
+
+# 2. instantiate the bridge
+from liteeth.phy.rmii import LiteEthPHYRMII
+from liteeth.core import LiteEthUDPIPCore
+from liteeth.frontend.etherbone import LiteEthEtherbone
+
+self.submodules.phy = phy = LiteEthPHYRMII(platform.request("rmii_eth_clocks"), platform.request("rmii_eth"))
+mac_address = 0x1337320dbabe
+ip_address="10.0.11.2"
+self.submodules.core = LiteEthUDPIPCore(self.phy, mac_address, convert_ip(ip_address), int(100e6))
+self.submodules.etherbone = LiteEthEtherbone(self.core.udp, 1234, mode="master")
+self.add_wb_master(self.etherbone.wishbone.bus)
+```
+
+> **Caution:** Etherbone only works with a *direct* network connection between the FPGA
+> and the host. NAT traversal seems to be broken, so if you're using a VM
+> to hold your litex build environment, try plugging a USB ethernet dongle
+> in and associating that directly with your VM, so you don't have to
+> traverse a NAT.
+
+The code above puts the ethernet bridge into the `sys` domain, which
+defaults to 100MHz. Because the etherbone packet engine contains a full
+stack for unpacking and responding to packets, timing might be tough to
+close at 100MHz. Here's an example of how to instatiate a
+reduced-frequency bridge, which seems to work just as well as the above
+code but doesn't have the timing closure issues. This assumes that the
+`eth` domain is set at 50MHz. In this design, the master PLL was
+modified to add a 50 MHz tap driving a `BUFG` to create the `clk_eth`
+domain.
+
+```python
+from liteeth.phy.rmii import LiteEthPHYRMII
+from liteeth.core import LiteEthUDPIPCore
+from liteeth.frontend.etherbone import LiteEthEtherbone
+
+phy = LiteEthPHYRMII(platform.request("rmii_eth_clocks"), platform.request("rmii_eth"))
+phy = ClockDomainsRenamer("eth")(phy)
+mac_address = 0x1337320dbabe
+ip_address="10.0.11.2"
+core = LiteEthUDPIPCore(phy, mac_address, convert_ip(ip_address), int(50e6), with_icmp=True)
+core = ClockDomainsRenamer("eth")(core)
+self.submodules += phy, core
+
+etherbone_cd = ClockDomain("etherbone")
+self.clock_domains += etherbone_cd
+self.comb += [
+    etherbone_cd.clk.eq(ClockSignal("sys")),
+    etherbone_cd.rst.eq(ResetSignal("sys"))
+]
+self.submodules.etherbone = LiteEthEtherbone(core.udp, 1234, mode="master", cd="etherbone")
+self.add_wb_master(self.etherbone.wishbone.bus)
+```
+
+There's no architectural reason why you can't have both a UART bridge
+and an etherbone bridge master in the same design. You could leave both
+in and just choose the interface you like to debug the chip.
+
+However, the extra hardware and complication in the wishbone fabric can
+cause timing closure and resource consumption issues.
+
+#### Litescope Host
+
+OK, now you've got an analyzer and a bridge. How do you actually pull
+the data out? There is a helper program called `litex_server` which is
+meant to be run on your host -- either on the computer with the UART
+adapter, or the other side of the ethernet connection. `litex_server` can
+drive a multiplicity of bridge interfaces, as specified by command line
+arguments:
+
+- `litex_server --udp --udp-ip 10.0.11.2 &` would start an ethernet server for
+  the above example
+- `litex_server --uart --uart-port /dev/ttyUSB0 --uart-baudrate 115200 &` would start a UART server,
+  assuming an FTDI available on `/dev/ttyUSB0`
+
+Once you've got the server running in the background, you can connect to
+it with a wishbone client program. For example, you can read not just
+the litescope ILA, but you can read out anything on the wishbone, such
+as the XADC if you have it instantiated in your SoC:
+
+```python
+#!/usr/bin/env python3
+from litex.tools.litex_client import RemoteClient
+
+wb = RemoteClient()
+wb.open()
+
+print("Temperature: ")
+t = wb.read(0xe0005800)
+t <<= 8
+t |= wb.read(0xe0005804)
+print(t * 503.975 / 4096 - 273.15, "C")
+
+wb.close()
+```
+
+To read out the analyzer, you can use this script:
+
+```python
+from litex.tools.litex_client import RemoteClient
+from litescope.software.driver.analyzer import LiteScopeAnalyzerDriver
+
+wb = RemoteClient()
+wb.open()
+
+analyzer = LiteScopeAnalyzerDriver(wb.regs, "analyzer", debug=True)
+
+analyzer.configure_subsampler(1)  ## increase this to "skip" cycles, e.g. subsample
+analyzer.configure_group(0)
+
+# trigger conditions will depend upon each other in sequence
+analyzer.add_falling_edge_trigger("soc_videooverlaysoc_hdmi_in0_timing_payload_vsync")
+analyzer.add_rising_edge_trigger("soc_videooverlaysoc_hdmi_in0_timing_payload_de")
+analyzer.add_trigger(cond={"soc_videooverlaysoc_hdmi_in0_timing_payload_hsync" : 1})
+
+analyzer.run(offset=32, length=128)  ### CHANGE THIS TO MATCH DEPTH
+analyzer.wait_done()
+analyzer.upload()
+analyzer.save("dump.vcd")
+
+wb.close()
+```
+
+Note that this assumes the files `analyzer.csv` and `csr.csv` are in
+the same directory. They are both kicked out by the Litex build
+environment, and `analyzer.csv` contains the fully specified names of the
+signals you're monitoring, which you should use to set trigger
+conditions.
+
+The same analyzer wishbone readout script works regardless of the bridge
+interface you're using. The `litex_server` takes care of all of that.
+
+Once you've got your `dump.vcd` file, you can view it with a program like
+`gtkwave`.
+
+#### FSM Support
+
+FSM support is relatively new as of July 2018. See this commit:
+
+https://github.com/enjoy-digital/litescope/commit/bfd06f819ee20f7678bbfe96d03cc960fcbc97e8
+
+Note that for FSM support to work, the FSM has to be explicitly named
+as a submodule so you can instantiate it in the analyzer section. In
+other words, this does not work:
+
+```python
+  fsm = FSM()
+  self.submodules += fsm
+```
+
+Because in this case, there's no explicit name for the FSM in the submodules tree, and referring
+to the "fsm" element of the submodule won't resolve reliably. However, this works:
+
+```python
+  fsm = FSM()
+  self.submodules.fsm = fsm
+```
+
+In this case, you can refer to the fsm by name because you've given it
+the name "fsm" in the submodule tree.
+
+### Netlist
+
+To be written: looking in `top.v` is often the fastest way
+to pick out subtle bugs in your Python code
+
+## IP Cores
+
+Docs about the IP cores.
+
+> **Caution:** Migen has a terrible abstraction layer for ports, in that it doesn't. Python offers a perfectly sensible way to define the inputs and outputs of a function, as in, f(a, b, c) would make you think the ports to a function f might just be a, b, and c. However, Migen coders severely abuse the ability in Python to, *post-facto*, reach through the function call abstraction and manipulate local variables within a Migen instance. Migen coders think this is a "feature" because it saves you the hell of modifying layers of Verilog function call templates to break out a deeply buried signal for debugging purposes or when refactoring code. However, it makes figuring out exactly what you can or can't do with IP in migen extremely hard, and most Migen coders make no attempt at all to document what the inputs and outputs of their IP is actually intended to be -- mostly by unwritten convention, familiar mostly to the authors of the IP.
+
+> **Caution:** But wait there's more. When specifying clocks, names can be global and referred to explicitly within implementations, or overridden through a completely separate mechanism using clock domain renamers. Or they may not be specified at all in which case they default to "sys"
+
+Here we try to unwind some of that, bit by bit. However, for the "ports" specification, I will refer to only the "typical" variables one might manipulate inside an IP core. Remember, technically, **every** signal inside an IP core can be manipulated using Migen (feature not bug, supposedly).
+
+So:
+
+- For "Ports", if listed as a simple name, then it's specifiable as a function parameter. Of course "Ports" are untyped in Python, thus since every type of object can be passed, every type of object has been passed. Sometimes it's a `Signal()`, sometimes it's a clock string, sometimes it's just a configuration flag. If not mentioned, it's a `Signal()`, but clarified on a case by case basis.
+- If listed as "implicit", then you need to access the port by reaching into the instantiated object, that is:
+
+```python
+   self.submodules.foo = FooModule(in_port, out_port)
+   self.comb += self.foo.implicit_signal.eq(1)  # set self.implicit_signal inside "foo" to 1
+```
+
+- If listed as "clock", then you need access via the clock & reset domains mechanism, that is:
+
+```python
+   foo = FooModule(in_port, out_port)
+
+   # in the case of two clocks inside foo named module_clock1, and module_clock2 that need to be
+   # mapped to external_clock1 and external_clock2, respectively:
+   foo = ClockDomainsRenamer({"module_clock1":"external_clock1", "module_clock2":"external_clock"})(foo)
+   # in the case of a single internal named clock called "myclock" that you want to connect to "fastclock":
+   foo = ClockDomainsRenamer({"myclock:fastclock"})
+   # in the case of no internally specified clock, but you want to assign a clock to the module, say, "extclk".
+   # The internal name defaults to "sys". So this is how to do it explicitly:
+   foo = ClockDomainsRenamer({"sys:"extclk"})
+   # But more typically, the "sys" is dropped and it's done just like this:
+   foo = ClockDomainsRenamer("extclk")
+
+   # don't forget to add the module to submodules after doing all the clock stuff!
+   self.submodules += foo
+```
+
+### MultiReg
+
+Instantiate 2 or more flip flops in a chain to synchronize between clock domains
+
+Class: `specials`
+
+Ports:
+
+- **i** `Signal()`: input (from an asynchronous clock domain)
+- **o** `Signal()`: output
+- **odmain** clockstring (default: "sys"): output clock domain
+- **n** integer (default 2): parameter, depth of flip flop chain
+- **reset** integer (default 0): parameter, reset value
+
+### PulseSynchronizer
+
+Attempt to synchronize signals between two disparate clock domains. Works only for clocks of similar frequencies.
+
+Class: `submodules`
+
+Ports:
+
+- **idomain** clockstring: input clock domain (typicaly a string, like "sys" for cd_sys)
+- **odomain** clockstring: output clock domain (also a string)
+- self.**i** `Signal()` *implicit*: input signal to synchronize
+- self.**o** `Signal()` *implicit*: output signal to synchronize
+
+Notes:
+
+I believe this block was designed to synchronize signals between similar-frequency, but asynchronous domains. That is, two 100 MHz clocks, but originating from different crystals. Generally the block's function make sense if the ratio of frequencies is within a factor of 2.
+
+However, if the idomain and odomain clocks are of very different frequencies (e.g. 20MHz to 100MHz), the following caveats have been observed:
+
+- idomain faster than odomain: short idomain pulses are lost. pulsing behavior of the output depends on relative timing of the input pulse to the output pulse
+- odmain faster than idomain: incoming pulses get turned into a pulse train toggling at the rate of the incoming pulse. e.g. even if you have a single idomain-synchronized pulse, at a minimum you will always get two odomain-synchronized pulses.
+
+### BusSynchronizer
+
+Synchronize a group of signals between clock domains.
+
+Class: `submodules`
+
+Ports:
+
+- **width** integer: parameter, width of the bus to synchronize
+- **idomain** clockstring: input clock domain (typicaly a string, like "sys" for cd_sys)
+- **odomain** clockstring: output clock domain (also a string)
+- **timeout** integer: parameter, max idomain cycles to wait before just declaring the bus is synchronized
+- self.**i** `Signal(width)` *implicit*: input signal to synchronize
+- self.**o** `Signal(width)` *implicit*: output signal to synchronize
+
+Notes:
+
+If width is 1, falls back to a simple MultiReg.
+
+Use a pair of PulseSynchronizers to create a ping/pong signal that
+frames a sampling window to update the bus that's away from the odomain's
+rising edge.
+
+There's a few hacks (like the timeout parameter) to try and get it to
+work with very disparate clock speeds and problems like reset glitches.
+I've had at least one difficult bug due to a failure of the module to
+work properly, but generally pretty handy especially if the input
+and output clock domains are close in frequency.
+
+### PWM
+
+Instantiate a PWM controller
+
+Class: `submodules`
+
+Project: https://github.com/timvideos/litex-buildenv
+
+Import: from gateware.PWM import pwm
+
+Ports:
+
+- **pwm** `Signal()`: PWM output signal
+- CSR enable (wo, 1) - write 1 to enable PWM output
+- CSR width (wo, 32) - width of PWM "high" in PWM clock units
+- CSR period (wo, 32) - width of total PWM cycle in PWM clock units
+
+Notes:
+
+The default clock units for the PWM module is whatever the "sys" domain is,
+but you can use a `ClockDomainsRenamer()` to change that.
+
+Output is guaranteed to be 0 when enable is not set.
+
+### ClassicLed
+
+Convenience macro for connecting a GPIO pin to a CSR (often useful
+for status LEDs)
+
+Class: `submodules`
+
+Project: https://github.com/timvideos/litex-buildenv
+
+Import: from gateware import pwm
+
+Ports:
+
+- pads PadGroup - PARAMETER, may be a variable-width `Signal()`
+- CSR out_write (wo, N) - automatic CSR to control GPIOs, based on width of PadGroup
+
+Notes:
+
+Connects the pads in the PadGroup to a CSR. Note that the mapping of pads
+to bits goes from "LSB ... MSB". The pads are typically derived by calling
+platform.request() to return the respective `Signal()`.
+
+## Simulation
+
+There are many simulation flows available in migen/litex. I've only used one, which relies on xvlog from the native Xilinx toolchain. I prefer this one because I have greater confidence that it simulates internal hard IP macros (like SERDES and PLL) correctly.
+
+I've prepared a simple template you can use to run simulations at https://github.com/AlphamaxMedia/netv2-fpga/tree/master/sim/sim_pulsesync.py
+
+This template simulates the PulseSynchronizer primitive that's part of the Migen CDC suite. It demonstrates how to create multiple clocks, connect them, and draw test vectors out of a Python array. Finally, the system automatically starts a GUI so you can run the simulation and browse the results in the native Vivado waveform environment.
+
+I did my best to incorporate documentation into the example file itself. Please note that it has the following external dependencies:
+
+- lxbuildenv_sim.py -- this is needed to force the Python runtime enviroment into a sane state
+- glbl.v -- this is Xilinx-specific and needed to setup the FPGA's internal global state
+- run/ -- this is where the actual run data is stored. The sim_pulsesync.py script will create a top.v and top_tb.v file in here, and invoke the simulator in this directory. Any data in this directory should be considered temporary.
+
+It's worth noting that one particular advantage of migen/litex "native" simulators is a shorter startup time. It takes about 20 seconds to start the Xilinx simulator on my system, plus you need to configure the GUI to run the simulation; but the native Python simulators are fully scriptable and can start generating results nearly instantaneously for small modules. So if you plan to go the route of success-through-simulation and iterate your way to a final piece of code, you may want to look into the native toolflows to speed your work flow.
+
+## Configuration
+
+LiteX/migen has the neat trick of being able to
+configure a SPI flash memory via JTAG, using the
+[SPI programming via boundary scan repo](https://github.com/quartiq/bscan_spi_bitstreams). Basically, it's a set of bitfiles that instantiate
+a `BSCANE2` block, couple it with a small state machine, and uses that to
+drive the SPI pins. On 7-series devices, the `CCLK` is dedicated, so it
+also instantiates a `STARTUPE2` block to drive the `CCLK`. It does a weird
+trick where it relies on the pad bond-outs to the SPI and JTAG pins to
+be invariant in terms of the on-die pads, so if you look at the code the
+pinout may not match your package but it doesn't matter since both SPI
+and JTAG are reserved pins that are invariant across all package options
+of a certain die type. One thing that is slightly suspect, however, is
+it calls for a 2.5V I/O. Haven't validated this thoroughly but it does
+seem to make the programming process a bit fussy; probing the SPINOR
+while programming, for example, might cause a bitstream error.
+
+Unfortunately, the design requires an older version of the `bscan-spi`
+protocol, so it doesn't work with the latest openocd. You will need to
+download and compile the [version of openocd maintained by m-labs](http://github.com/m-labs/openocd) until the `bscan_spi_bitstreams` repo is
+updated.
+
+## Glossary
+
+| LiteX term | Meaning |
+|------------|---------|
+| Gateware   | Bitstream. The stuff that goes into an FPGA |
+| Firmware   | Loadable application code, usually dropped into DRAM |
+| BIOS       | Bootstrapping code baked into the bitsream of the FPGA |

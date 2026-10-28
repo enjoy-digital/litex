@@ -21,7 +21,8 @@ The [Fomu](https://www.crowdsupply.com/sutajio-kosagi/fomu) is a tiny FPGA board
 The [iCEBreaker](https://www.crowdsupply.com/1bitsquared/icebreaker-fpga) is the first open source iCE40 FPGA development board designed for teachers and students. The iCEBreaker [target](https://github.com/litex-hub/litex-boards/blob/master/litex_boards/targets/icebreaker.py) integrated in [LiteX-Boards](https://github.com/litex-hub/litex-boards) provides a minimal LiteX SoC for the iCEBreaker with a CPU, its ROM (in SPI Flash), its SRAM, close to the others LiteX targets. A more complete example of LiteX SoC for the iCEBreaker with more features, examples to run C/Rust code on the RISC-V CPU and documentation can be found in the [iCEBreaker LiteX examples](https://github.com/icebreaker-fpga/icebreaker-litex-examples) tutorial.
 
 ### [LiteX for Hardware Engineers](LiteX-for-Hardware-Engineers.md)
-An introduction to LiteX written in 2018 by [bunnie](https://www.bunniestudios.com/) for engineers with a Verilog/Vivado background, with his tips; kept in this wiki with notes on what changed since.
+An introduction to LiteX written in 2018 by [bunnie](https://www.bunniestudios.com/) for engineers with a Verilog/Vivado background, with his tips; kept in this wiki with notes on what changed since. bunnie's original 2018 introduction is kept on
+[LiteX for Hardware Engineers (2018)](LiteX-for-Hardware-Engineers-2018.md).
 
 ### [Migen manual](https://m-labs.hk/migen/manual)
 The language LiteX and its cores are written in: `Module`, `Signal`, `If`/`Case`, `FSM`, `Record`, the specials and the simulator.

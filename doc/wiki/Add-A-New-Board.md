@@ -105,7 +105,7 @@ class Platform(LatticeiCE40Platform):
 - **`create_programmer()`**: `OpenFPGALoader("board_name")` or `OpenFPGALoader(cable=..., fpga_part=...)`,
   `OpenOCD("openocd_xc7_ft2232.cfg", "bscan_spi_xc7a35t.bit")`, `VivadoProgrammer()`,
   `USBBlaster()`, `IceStormProgrammer()`, `EcpprogProgrammer()`, `GowinProgrammer(devname)`,
-  `EfinixProgrammer()`, `DFUProg(vid, pid)`... ([programmers](FPGA-and-SPI-Flash-programmers.md)).
+  `EfinixProgrammer()`, `DFUProg(vid, pid)`... ([programmers](Load-And-Flash.md)).
 - **Vendor-specific settings** in `__init__`/`do_finalize`: `self.add_platform_command("set_property INTERNAL_VREF 0.675 [get_iobanks 34]")`
   (any toolchain command), `self.toolchain.bitstream_commands = ["set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]"]`,
   `self.toolchain.additional_commands = ["write_cfgmem ..."]` (Vivado), `add_period_constraint`
