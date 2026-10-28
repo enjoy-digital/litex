@@ -1,0 +1,25 @@
+$ litex_term /tmp/litex_pty0 --kernel=demo.bin
+litex> reboot
+...
+--================ Boot ================--
+Booting from serial...
+Press Q or ESC to abort boot completely.
+sL5DdSMmkekro
+[LITEX-TERM] Received firmware download request from the device.
+[LITEX-TERM] Uploading demo.bin to 0x40000000 (6136 bytes)...
+...
+|==================>  | 92%
+[LITEX-TERM] Upload complete (10.9KB/s).
+[LITEX-TERM] Booting the device.
+[LITEX-TERM] Done.
+Executing booted program at 0x40000000
+--============== Liftoff! ==============--
+LiteX minimal demo app built Oct 28 2026 12:32:01
+Available commands:
+help               - Show this command
+reboot             - Reboot CPU
+donut              - Spinning Donut demo
+helloc             - Hello C
+litex-demo-app> helloc
+Hello C demo...
+C: Hello, world!

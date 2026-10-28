@@ -33,7 +33,7 @@ import os
 
 from litex_diagram import *
 
-__all__ = ["Terminal", "capture", "CAPTURES", "TERM_BG", "TERM_FG", "TERM_DIM"]
+__all__ = ["Terminal", "capture", "CAPTURES", "PROMPTS", "TERM_BG", "TERM_FG", "TERM_DIM"]
 
 CAPTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures")
 
@@ -49,6 +49,8 @@ def capture(name, cols=80):
     for l in lines:
         if len(l) > cols:
             raise ValueError(f"{path}: line longer than {cols} columns: {l!r}")
+        if any(ord(c) < 32 for c in l):
+            raise ValueError(f"{path}: control character in a line (strip the escape codes): {l!r}")
     return lines
 
 

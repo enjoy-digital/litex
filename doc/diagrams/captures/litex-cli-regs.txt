@@ -1,0 +1,24 @@
+$ litex_server --uart --uart-port=/tmp/litex_pty0 &
+[CommUART] port: /tmp/litex_pty0 / baudrate: 115200 / tcp port: 1234
+$ litex_cli --ident
+LiteX Simulation 2026-10-28 12:54:37
+$ litex_cli --regs --filter ctrl
+0xf0000800 : 0x00000000 ctrl_reset
+0xf0000804 : 0x12345678 ctrl_scratch
+0xf0000808 : 0x00000000 ctrl_bus_errors
+$ litex_cli --write ctrl_scratch 0xcafe
+$ litex_cli --read ctrl_scratch
+0xf0000804 : 0x0000cafe
+$ python3 scratch.py
+scratch = 0x0000cafe
+scratch = 0x12345678
+sram[0:4] = ['0x30000', '0x3250', '0x3230', '0x0']
+sys_clk = 1000000 Hz
+$ litex_term crossover
+litex> mem_list
+Available memory regions:
+Region Origin     End        Size
+ROM    0x00000000 0x0001ffff 0x20000
+SRAM   0x10000000 0x10001fff 0x2000
+CSR    0xf0000000 0xf000ffff 0x10000
+litex>

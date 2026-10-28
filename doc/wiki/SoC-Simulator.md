@@ -41,9 +41,9 @@ A `--rom-init=firmware.bin` replaces the BIOS by your own code; `--sdram-init` p
 | `--with-ethernet`, `--with-etherbone`, `--ethernet-phy-model {sim,gmii,xgmii}`, `--local-ip`, `--remote-ip` | LiteEth on a TAP interface (`tap0`, needs `sudo`): the BIOS netboot, Linux networking, or an Etherbone bridge to `litex_server --udp` |
 | `--with-sdcard`, `--with-spi-flash --spi_flash-init=flash.bin`, `--with-i2c` | LiteSDCard, LiteSPI flash and an I2C SPD EEPROM model |
 | `--with-video-framebuffer`, `--with-video-terminal`, `--with-video-colorbars`, `--video-vsync` | The video cores displayed in an SDL window |
-| `--with-gpio`, `--with-analyzer` | GPIOs, a LiteScope analyzer (captured through Etherbone) |
+| `--with-gpio`, `--with-analyzer` | GPIOs, a LiteScope analyzer on the CPU buses (read through a bridge, below) |
 | `--with-jtagremote`, `--with-swdremote` | OpenOCD `remote_bitbang` servers on the CPU's JTAG/SWD (GDB on the simulated CPU) |
-| `--uart-tcp --uart-tcp-port=1234`, `--uart-pty --uart-pty-path=/tmp/litex_pty0` | The console on a TCP port or a pseudo-terminal (`litex_term /tmp/litex_pty0`) instead of stdin/stdout |
+| `--uart-tcp --uart-tcp-port=1234`, `--uart-pty --uart-pty-path=/tmp/litex_pty0` | The serial port on a TCP port or a pseudo-terminal (`litex_term /tmp/litex_pty0`) instead of stdin/stdout |
 
 The models are C modules in `litex/build/sim/core/modules/` (clocker, serial2console,
 serial2tcp, ethernet, gmii_ethernet, xgmii_ethernet, spdeeprom, jtagremote, swdremote, video,
@@ -68,13 +68,18 @@ and `--jobs` use several cores, `--opt-level` sets the Verilator optimization, `
 save and restore the simulation state to skip a long boot, `--verilator-extra-source` adds your
 own C++ to the simulator. `--non-interactive` is for CI.
 
-Inside the simulation, a [bridge](Host-Bridges.md) works as on hardware:
+Inside the simulation, a [bridge](Host-Bridges.md) works as on hardware, and UARTBone on the
+simulated serial port needs no root:
 
 ```sh
-litex_sim --with-etherbone --csr-csv=csr.csv          # sudo for the TAP interface
-litex_server --udp --udp-ip=192.168.1.50                # in another terminal
+litex_sim --uart-name=crossover+uartbone --uart-pty --csr-csv=csr.csv   # the serial port is the bridge, on /tmp/litex_pty0
+litex_server --uart --uart-port=/tmp/litex_pty0                          # in another terminal
 litex_cli --regs
+litex_term crossover                                                     # the BIOS console, through the bridge
 ```
+
+`--with-etherbone` (`sudo` for the TAP interface, then `litex_server --udp --udp-ip=192.168.1.50`)
+does the same over UDP, as a board with Ethernet would.
 
 ## QEMU co-simulation
 

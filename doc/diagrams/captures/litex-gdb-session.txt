@@ -1,0 +1,24 @@
+$ openocd -f jtag_remote.cfg -f riscv_jtag_tunneled.tcl &
+Info : JTAG tap: riscv.cpu tap/device found: 0x10003fff (mfg: 0x7ff, part: 0x3)
+Info : Examined RISC-V core; found 1 harts
+Info :  hart 0: XLEN=32, misa=0x40141105
+Info : Listening on port 3333 for gdb connections
+Ready for Remote Connections
+$ gdb-multiarch -q demo/demo.elf
+(gdb) target extended-remote localhost:3333
+Remote debugging using localhost:3333
+readchar_nonblock () at .../litex/soc/software/libbase/console.c:9
+9         return uart_read_nonblock();
+(gdb) break donut
+Breakpoint 1 at 0x400001ec: file donut.c, line 26.
+(gdb) continue
+Continuing.
+...
+Breakpoint 1, donut () at donut.c:26
+26        int sA=1024,cA=0,sB=1024,cB=0,_;
+(gdb) bt
+#0  donut () at donut.c:26
+#1  0x40000658 in donut_cmd () at main.c:142
+#2  console_service () at main.c:184
+#3  main () at main.c:206
+(gdb)
