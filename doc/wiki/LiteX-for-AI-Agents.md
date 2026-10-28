@@ -32,8 +32,9 @@ of the repository. [DeepWiki](https://deepwiki.com/enjoy-digital/litex) indexes 
    Ethernet, PCIe): `litex_server` + `litex_cli`/`RemoteClient`, LiteScope for signals.
 8. `litex_sim` runs the same SoC in Verilator ([SoC-Simulator](SoC-Simulator.md)); unit tests
    use the Migen simulator and `pytest`.
-9. 38 CPUs ([CPUs](CPUs.md)), 9 FPGA vendors ([Build-Backends](Build-Backends.md)), 250+ boards
-   (LiteX-Boards), the cores in their own repositories ([Cores ecosystem](Cores-Ecosystem.md)).
+9. 32 soft CPUs and 7 hard ones ([CPUs](CPUs.md), [Choosing a CPU](Choosing-A-CPU.md)), 9 FPGA
+   vendors ([Build backends](Build-Backends.md)), 250+ boards (LiteX-Boards), the cores in their
+   own repositories ([Cores ecosystem](Cores-Ecosystem.md)).
 10. BSD-2-Clause; development on `master`; releases `YYYY.04/.08/.12` ([CHANGES.md](https://github.com/enjoy-digital/litex/blob/master/CHANGES.md)).
 
 ## Repository map
@@ -67,15 +68,15 @@ litex/                              https://github.com/enjoy-digital/litex
 
 | You need | Look at |
 | --- | --- |
-| How a target is written | any `litex_boards/targets/*.py`; [Create a minimal SoC](Create-A-minimal-SoC.md); `litex/tools/litex_sim.py` for a simulated one |
-| The `add_*` helpers and their arguments | `litex/soc/integration/soc.py` (`LiteXSoC`, from line ~2210); [SoC builder](SoC-builder.md) |
-| The command-line options of a SoC/Builder | `soc_core_args()` and `builder_args()` in `soc.py`/`builder.py`; `python3 target.py --help` |
-| A CPU's variants, buses, flags | `litex/soc/cores/cpu/<name>/core.py` (`CPU_VARIANTS`, `GCC_FLAGS`, `periph_buses`, `mem_map`, `io_regions`); [CPUs](CPUs.md) |
-| A core's registers and interrupts | its `CSRStorage`/`CSRStatus`/`EventManager` attributes; the generated `csr.h` and `csr.csv` of a build |
+| How a target is written | any `litex_boards/targets/*.py`; [Create a minimal SoC](Create-A-minimal-SoC.md) |
+| The `add_*` helpers and their arguments | `litex/soc/integration/soc.py` (`LiteXSoC`); [SoC builder reference](SoC-Builder-Reference.md) |
+| The options of a SoC and of the Builder | `soc_core_args()` in `soc.py`, `builder_args()` in `builder.py`; `target.py --help` |
+| A CPU's variants, buses, flags | `litex/soc/cores/cpu/<name>/core.py` (`CPU_VARIANTS`, `GCC_FLAGS`, `periph_buses`) |
+| A core's registers and interrupts | its `CSRStorage`, `CSRStatus` and `EventManager` attributes; the `csr.h` and `csr.csv` of a build |
 | The generated outputs of a build | `build/<platform>/{csr.csv,csr.json,litex.log,gateware/,software/include/generated/}` |
 | The BIOS commands and boot methods | `litex/soc/software/bios/{main.c,boot.c,cmds/}`; [BIOS](BIOS.md) |
-| How a vendor toolchain is driven | `litex/build/<vendor>/<toolchain>.py` (`build_project`, `build_script`, `run_script`, `*_args`) |
-| The host-side API | `litex/tools/litex_client.py` (`RemoteClient`), `litex/tools/remote/comm_*.py`; [Host-Bridges](Host-Bridges.md) |
+| How a vendor toolchain is driven | `litex/build/<vendor>/<toolchain>.py` (`build_project`, `build_script`, `run_script`) |
+| The host-side API | `litex/tools/litex_client.py` (`RemoteClient`), `litex/tools/remote/comm_*.py` |
 | What changed recently | `CHANGES.md` (per release, with commit links) |
 
 ## Commands that answer questions fast
@@ -167,10 +168,17 @@ in a non-LiteX design, the generators ([Export](Export-To-Verilog.md)).
 
 ## The pages of this wiki
 
-Welcome ([Home](Home.md), [Installation](Installation.md), [The LiteX approach](LiteX-Approach.md),
-the ecosystems), Internals ([SoC builder](SoC-builder.md), [Cores](Cores.md), [CPUs](CPUs.md),
-the buses and [Streams](Streams.md), [Host bridges](Host-Bridges.md), [Build backends](Build-Backends.md),
-[BIOS](BIOS.md), [Tools](Tools.md), [Simulator](SoC-Simulator.md)), How to (minimal SoC, board,
-core, CPU, software, debugging), Advanced (complex SoC, PCIe, export, Linux/Zephyr/MicroPython/Renode),
-[Projects](Projects.md) and [Resources](Tutorials-Resources.md): the full list with one line
-each is [llms.txt](https://raw.githubusercontent.com/wiki/enjoy-digital/litex/llms.txt).
+Seven sections, in reading order: **Start here** (the six-page path: install, a minimal SoC,
+firmware, the host bridge, LiteScope, GDB), **Build your SoC** (boards, cores, CPUs, reuse,
+complex and PCIe SoCs, export, simulation, loading), **Run software on it** (OSes, BIOS,
+MicroPython, Zephyr, Linux), **How LiteX works** (the approach, the SoC builder, the CPUs, the
+buses and streams, the Verilog cheat sheet), **Reference** (CPUs, hard CPUs, the SoC builder
+tables, cores, backends, tools, documentation), **Projects and community**, and this page. The
+full list with one line each is [llms.txt](https://raw.githubusercontent.com/wiki/enjoy-digital/litex/llms.txt);
+each page ends with a `## Next` section pointing to the natural continuation.
+
+## Next
+
+- [Contributing to the wiki](Contributing-to-the-Wiki.md): the shape and the voice of a page, the checks.
+- [SoC builder reference](SoC-Builder-Reference.md): every argument and helper, with defaults.
+- [Create a minimal SoC](Create-A-minimal-SoC.md): the forty lines to start a task from.

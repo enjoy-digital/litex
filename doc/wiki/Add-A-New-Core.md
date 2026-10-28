@@ -73,7 +73,7 @@ What matters in it:
   `EventSourceProcess` (an edge), `EventSourceLevel` (follows a level); `finalize()` after the
   sources are declared; the manager provides the `status`/`pending`/`enable` CSRs and the
   `irq` output.
-- The `# # #` line separates the interface (what the user of the core sees) from the
+- The `# # #` line separates the interface (what a SoC sees of the core) from the
   implementation: the [coding style](https://github.com/enjoy-digital/litex/blob/master/doc/coding_style.md)
   describes the layout, the naming and the section banners of a LiteX file.
 - Logic in another clock domain: `self.sync.<cd> += ...` and `MultiReg`/`PulseSynchronizer`

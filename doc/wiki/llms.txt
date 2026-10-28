@@ -9,7 +9,7 @@
 
 This file indexes the LiteX wiki. The raw markdown of a page is at
 https://raw.githubusercontent.com/wiki/enjoy-digital/litex/<Page-Name>.md (sources: doc/wiki/ in
-the repository). Pages marked TODO are placeholders being written.
+the repository). Every page opens with what you get and ends with a Next section.
 
 ## Start here
 
@@ -37,26 +37,26 @@ the repository). Pages marked TODO are placeholders being written.
 ## Run software on it
 
 - [OSes-Ecosystem](https://github.com/enjoy-digital/litex/wiki/OSes-Ecosystem): what runs on a LiteX SoC: BIOS and bare metal, Zephyr/FreeRTOS/NuttX, MicroPython/Rust/MQuickJS, Linux (VexRiscv-SMP, NaxRiscv, VexiiRiscv, Rocket, hard CPUs), upstream drivers, simulation
-- [BIOS](https://github.com/enjoy-digital/litex/wiki/BIOS): the LiteX BIOS: start-up sequence, console commands, boot methods and order (serial, flash, rom, sdcard, sata, net), boot.json, configuration constants and Builder options, where the code is
+- [BIOS](https://github.com/enjoy-digital/litex/wiki/BIOS): the LiteX BIOS: a capture of the DRAM initialization, the start-up sequence, console commands, boot methods and order (serial, flash, rom, sdcard, sata, net), boot.json, configuration constants and Builder options, where the code is
 - [Run-MicroPython-On-Your-SoC](https://github.com/enjoy-digital/litex/wiki/Run-MicroPython-On-Your-SoC): the litex-hub MicroPython port: build the SoC, build MicroPython against it, load it; FuPy and CircuitPython are historical
 - [Run-Zephyr-On-Your-SoC](https://github.com/enjoy-digital/litex/wiki/Run-Zephyr-On-Your-SoC): Zephyr upstream boards litex_vexriscv/litex_vexiiriscv: build the SoC, generate the DTS overlay and config with litex_json2dts_zephyr, west build, load
-- [Run-Linux-On-Your-SoC](https://github.com/enjoy-digital/litex/wiki/Run-Linux-On-Your-SoC): Linux-on-LiteX-VexRiscv (the reference), the other CPUs (NaxRiscv, VexiiRiscv, Rocket, CVA6, OpenRISC, Microwatt, hard CPUs), the device tree generator and upstream drivers, OpenSBI, simulation, larger systems
+- [Run-Linux-On-Your-SoC](https://github.com/enjoy-digital/litex/wiki/Run-Linux-On-Your-SoC): Linux in three steps with Linux-on-LiteX-VexRiscv (build the SoC, get the images, boot) with a real boot log, the other CPUs (NaxRiscv, VexiiRiscv, Rocket, CVA6, OpenRISC, Microwatt, hard CPUs), the device tree generator and upstream drivers, OpenSBI, simulation, larger systems
 
 ## How LiteX works
 
 - [LiteX-Approach](https://github.com/enjoy-digital/litex/wiki/LiteX-Approach): how LiteX is built and used: Python + Migen, cores with stable stream/bus/CSR contracts, portable layering, simulation first, bridges and LiteScope on hardware, practical rules, releases
-- [SoC-builder](https://github.com/enjoy-digital/litex/wiki/SoC-builder): the SoC builder: a target in 40 lines, the classes, the address map, the bus/CSR/IRQ handlers, the add_* helpers, the Builder steps
+- [SoC-builder](https://github.com/enjoy-digital/litex/wiki/SoC-builder): the SoC builder: the target reduced to twelve lines, the classes, the address map, the bus and its handler, CSRs and interrupts, the helpers, the Builder steps
 - [Choosing-A-CPU](https://github.com/enjoy-digital/litex/wiki/Choosing-A-CPU): which CPU to pick (bare metal, Linux, FPU, GDB, CFU), the variants, how a CPU is integrated in the SoC
-- [Wishbone-Bus](https://github.com/enjoy-digital/litex/wiki/Wishbone-Bus): the Wishbone interface (signals, word/byte addressing, bursts), the interconnect blocks (shared, crossbar, converters, timeout, cache, CDC, bridges) and how a core joins the main bus
+- [Wishbone-Bus](https://github.com/enjoy-digital/litex/wiki/Wishbone-Bus): the Wishbone interface (signals, word/byte addressing, bursts, a timing diagram of a write and a read), the interconnect blocks (shared, crossbar, converters, timeout, cache, CDC, bridges), how a core joins the main bus
 - [AXI-Bus](https://github.com/enjoy-digital/litex/wiki/AXI-Bus): AXI4, AXI4-Lite and AXI4-Stream in LiteX: interfaces, interconnects, converters, bridges to Wishbone/CSR, where AXI appears (vendor IP, hard CPUs, big soft CPUs, LiteDRAM, standalone cores)
-- [CSR-Bus](https://github.com/enjoy-digital/litex/wiki/CSR-Bus): the CSR bus: control/status registers, addressing, csr_data_width, the software API
-- [Streams](https://github.com/enjoy-digital/litex/wiki/Streams): LiteX streams (valid/ready/first/last/payload/param), the generic blocks (FIFOs, CDC, converters, pipelines, monitors), packets, AXI-Stream/Avalon-ST mapping
+- [CSR-Bus](https://github.com/enjoy-digital/litex/wiki/CSR-Bus): the CSR bus (adr, re, we, dat_w, dat_r; one-cycle writes, two-cycle reads, a timing diagram), declaring CSRStorage/CSRStatus with fields, addresses and csr.csv, csr.h from software, simulation, options
+- [Streams](https://github.com/enjoy-digital/litex/wiki/Streams): LiteX streams (valid/ready/first/last/payload/param, a timing diagram of a packet with a stall), the generic blocks (FIFOs, CDC, converters, pipelines, monitors), packets, AXI-Stream/Avalon-ST mapping
 - [LiteX-for-Hardware-Engineers](https://github.com/enjoy-digital/litex/wiki/LiteX-for-Hardware-Engineers): the Verilog-to-LiteX cheat sheet: modules, always blocks, FSMs, instantiation, constraints, clocks, CDC, streams, CSRs, interrupts, buses, memories, testbenches, ILA, build flow
 - [LiteX-for-Hardware-Engineers-2018](https://github.com/enjoy-digital/litex/wiki/LiteX-for-Hardware-Engineers-2018): bunnie's 2018 introduction to LiteX for engineers coming from Verilog and Vivado, kept with dated notes (archive)
 
 ## Reference
 
-- [CPUs](https://github.com/enjoy-digital/litex/wiki/CPUs): the catalog of the soft CPUs (name, ISA, variants, Linux, JTAG, sources), the compilers, notes on common CPUs
+- [CPUs](https://github.com/enjoy-digital/litex/wiki/CPUs): the catalog of the soft CPUs by family (Linux-capable, MCU-class, tiny, other ISAs) with ISA, variants, options and sources, the emulator, CI, the compilers
 - [Hard-core-CPUs](https://github.com/enjoy-digital/litex/wiki/Hard-core-CPUs): hard CPUs: Zynq-7000, ZynqMP, Cyclone V HPS, Agilex HPS, EOS S3, Gowin EMCU/AE350
 - [SoC-Builder-Reference](https://github.com/enjoy-digital/litex/wiki/SoC-Builder-Reference): reference tables: the SoCCore arguments and their --options, the add_* helpers, the Builder options, the finalization checks
 - [Cores](https://github.com/enjoy-digital/litex/wiki/Cores): the in-tree cores of litex/soc/cores by theme (control, communication, memory, video, audio, clocking), their interfaces and SoC helpers, the EventManager IRQ model, litex.gen helpers
@@ -70,7 +70,7 @@ the repository). Pages marked TODO are placeholders being written.
 - [Projects](https://github.com/enjoy-digital/litex/wiki/Projects): projects built with LiteX in four groups: industrial projects (what funds LiteX, custom developments and support, LiteX-WR-NIC, PCIe SDR and SDI boards), Enjoy-Digital (framework, cores, TriXium, LiteX-M2SDR, USB3-PIPE, Acorn baseboard, ChromatiX, CamLink 4K...), LiteX-Hub collaborative projects, community projects
 - [Tutorials-Resources](https://github.com/enjoy-digital/litex/wiki/Tutorials-Resources): tutorials and workshops (FPGA 101, fjullien, Fomu, iCEBreaker), examples to read, articles and blog posts (LiteX Notes), talks and papers
 - [Feedback-Contribution-Support](https://github.com/enjoy-digital/litex/wiki/Feedback-Contribution-Support): how to report an issue (what to include), contribute a pull request, get support
-- [Contributing-to-the-Wiki](https://github.com/enjoy-digital/litex/wiki/Contributing-to-the-Wiki): the wiki is generated from doc/wiki in the repository, how to edit it, links, images, diagrams
+- [Contributing-to-the-Wiki](https://github.com/enjoy-digital/litex/wiki/Contributing-to-the-Wiki): the wiki is generated from doc/wiki in the repository: how to edit a page, the page shape and the voice, pictures, diagrams and captures, the local preview, the checks (--strict in CI)
 
 ## For AI agents
 

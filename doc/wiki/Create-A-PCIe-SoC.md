@@ -141,7 +141,7 @@ litepcie_dma_cleanup(&dma);
 The buffers are 8 KiB by default in a ring the driver manages (`DMA_BUFFER_SIZE`, zero-copy
 mmap optional); `litepcie_test record file` / `play file` are the reference programs. The
 `csr.h`/`soc.h`/`mem.h` of the SoC are copied into `driver/kernel/` by
-`generate_litepcie_software`, so the user code and the driver share the register map of the
+`generate_litepcie_software`, so your code and the driver share the register map of the
 exact build.
 
 ## As a standalone core

@@ -1,11 +1,11 @@
-LiteX has been used since 2012 by [Enjoy-Digital](https://enjoy-digital.fr) to build systems
-for clients and open-source products, and by a growing community for boards, instruments,
-research platforms and products of their own. This page lists them in four groups: the
-**industrial projects** LiteX was born from and lives from, the **Enjoy-Digital projects**
-(the framework, the cores and the systems we maintain), the **LiteX-Hub collaborative
-projects** (the shared repositories of the community), and the **community projects** built
-with LiteX elsewhere. Yours is missing? [Send a pull request](Contributing-to-the-Wiki.md) with a line
-and a link.
+What people build with LiteX, in four groups: the **industrial projects** LiteX was born from
+and lives from, the **Enjoy-Digital projects** (the framework, the cores and the systems we
+maintain), the **LiteX-Hub collaborative projects** (the shared repositories of the
+community), and the **community projects** built with LiteX elsewhere. Since 2012 LiteX has
+served [Enjoy-Digital](https://enjoy-digital.fr) for systems built with clients and for
+open-source products, and a growing community for boards, instruments, research platforms and
+products of their own. Yours is missing? [Send a pull request](Contributing-to-the-Wiki.md)
+with a line and a link.
 
 ## Industrial projects
 
@@ -144,36 +144,72 @@ Two of them in pictures: the alternative firmware/gateware of the SDS1104X-E sco
 [LiteX-Hub](https://github.com/litex-hub) hosts the repositories maintained with and by the
 community:
 
-| Project | What it is |
-| --- | --- |
-| [litex-boards](https://github.com/litex-hub/litex-boards) | The platforms and targets of 250+ boards from 9 FPGA vendors ([Add a new board](Add-A-New-Board.md)). |
-| [linux-on-litex-vexriscv](https://github.com/litex-hub/linux-on-litex-vexriscv), [linux-on-litex-rocket](https://github.com/litex-hub/linux-on-litex-rocket) | Linux on LiteX SoCs ([Run Linux](Run-Linux-On-Your-SoC.md)). |
-| [litespi](https://github.com/litex-hub/litespi), [litei2c](https://github.com/litex-hub/litei2c), [litehyperbus](https://github.com/litex-hub/litehyperbus), [litevideo](https://github.com/litex-hub/litevideo) | Cores maintained in the hub (the last two superseded by LiteX's HyperRAM and video cores). |
-| [zephyr-on-litex-vexriscv](https://github.com/litex-hub/zephyr-on-litex-vexriscv) | The SoC builder of the Zephyr `litex_vexriscv` platform (Antmicro). |
-| [fpga_101](https://github.com/litex-hub/fpga_101) | Lessons and labs to learn FPGAs with Migen/LiteX ([Tutorials](Tutorials-Resources.md)). |
-| [pythondata-cpu-*](https://github.com/litex-hub?q=pythondata-cpu), [pythondata-software-*](https://github.com/litex-hub?q=pythondata-software), [pythondata-misc-*](https://github.com/litex-hub?q=pythondata-misc) | The packaged sources of the 27 CPUs, picolibc and compiler-rt, and misc cores (USB OHCI, tapcfg), generated with [pythondata-auto](https://github.com/litex-hub/pythondata-auto). |
-| [wishbone-utils](https://github.com/litex-hub/wishbone-utils) | `wishbone-tool`, a Rust client for the bridges (Fomu heritage). |
-| [litex-renode](https://github.com/litex-hub/litex-renode), [cocotb_verilator_sim_example](https://github.com/litex-hub/cocotb_verilator_sim_example) | Simulation helpers and examples. |
-| [micropython](https://github.com/litex-hub/micropython), [linux](https://github.com/litex-hub/linux), [opensbi](https://github.com/litex-hub/opensbi), [picolibc](https://github.com/litex-hub/picolibc), [barebox](https://github.com/litex-hub/barebox) | The forks carrying the LiteX ports and patches. |
+- [litex-boards](https://github.com/litex-hub/litex-boards): the platforms and targets of
+  250+ boards from 9 FPGA vendors ([Add a new board](Add-A-New-Board.md)).
+- [linux-on-litex-vexriscv](https://github.com/litex-hub/linux-on-litex-vexriscv) and
+  [linux-on-litex-rocket](https://github.com/litex-hub/linux-on-litex-rocket): Linux on LiteX
+  SoCs ([Run Linux](Run-Linux-On-Your-SoC.md)).
+- [litespi](https://github.com/litex-hub/litespi), [litei2c](https://github.com/litex-hub/litei2c),
+  [litehyperbus](https://github.com/litex-hub/litehyperbus), [litevideo](https://github.com/litex-hub/litevideo):
+  cores maintained in the hub (the last two superseded by LiteX's HyperRAM and video cores).
+- [zephyr-on-litex-vexriscv](https://github.com/litex-hub/zephyr-on-litex-vexriscv): the SoC
+  builder of the Zephyr `litex_vexriscv` platform (Antmicro).
+- [fpga_101](https://github.com/litex-hub/fpga_101): lessons and labs to learn FPGAs with
+  Migen and LiteX ([Tutorials](Tutorials-Resources.md)).
+- [pythondata-cpu-*](https://github.com/litex-hub?q=pythondata-cpu), [pythondata-software-*](https://github.com/litex-hub?q=pythondata-software),
+  [pythondata-misc-*](https://github.com/litex-hub?q=pythondata-misc): the packaged sources of
+  the CPUs, picolibc and compiler-rt, and misc cores (USB OHCI, tapcfg), generated with
+  [pythondata-auto](https://github.com/litex-hub/pythondata-auto).
+- [wishbone-utils](https://github.com/litex-hub/wishbone-utils): `wishbone-tool`, a Rust
+  client for the bridges (Fomu heritage).
+- [litex-renode](https://github.com/litex-hub/litex-renode) and
+  [cocotb_verilator_sim_example](https://github.com/litex-hub/cocotb_verilator_sim_example):
+  simulation helpers and examples.
+- [micropython](https://github.com/litex-hub/micropython), [linux](https://github.com/litex-hub/linux),
+  [opensbi](https://github.com/litex-hub/opensbi), [picolibc](https://github.com/litex-hub/picolibc),
+  [barebox](https://github.com/litex-hub/barebox): the forks carrying the LiteX ports and patches.
 
 ## Community projects built with LiteX
 
 Organizations and companies:
 
-| Project | What it is |
-| --- | --- |
-| [Betrusted / Precursor](https://github.com/betrusted-io/betrusted-soc) and [Xous](https://github.com/betrusted-io/xous-core) | bunnie's open secure communicator: two LiteX SoCs (the Spartan-7 secure domain and the iCE40 embedded controller) running the Xous microkernel. |
-| [Antmicro](https://antmicro.com): [rowhammer-tester](https://github.com/antmicro/rowhammer-tester), [RDIMM](https://github.com/antmicro/rdimm-ddr5-tester)/[SO-DIMM DDR5 testers](https://github.com/antmicro/sodimm-ddr5-tester), [LPDDR4 test board](https://github.com/antmicro/lpddr4-test-board), [SDI-MIPI bridge](https://github.com/antmicro/sdi-mipi-bridge), [Renode](https://github.com/renode/renode) | DRAM test platforms built on LiteDRAM (DDR4/DDR5/LPDDR4 PHYs contributed upstream), a video converter, and the Renode simulator's LiteX support. |
-| [Google CFU Playground](https://github.com/google/CFU-Playground) | Custom function units for ML on VexRiscv in LiteX SoCs. |
-| [Efabless Caravel management SoC](https://github.com/efabless/caravel_mgmt_soc_litex) | The management SoC of the Caravel ASIC harness (SkyWater/OpenMPW) is a LiteX SoC. |
-| [MyriadRF LimeSDR_GW](https://github.com/myriadrf/LimeSDR_GW), [LimePSB RPCM](https://github.com/myriadrf/LimePSB_RPCM_GW) | The LiteX gateware of Lime Microsystems' SDR boards. |
-| [EEVengers ThunderScope](https://github.com/EEVengers/thunderscope_litex) | The oscilloscope's PCIe/Thunderbolt gateware. |
-| [SpinalHDL VexRiscv](https://github.com/SpinalHDL/VexRiscv), [NaxRiscv](https://github.com/SpinalHDL/NaxRiscv), [VexiiRiscv](https://github.com/SpinalHDL/VexiiRiscv) | The CPUs most used with LiteX, developed with LiteX as a main integration target. |
-| [MiSTeX](https://github.com/MiSTeX-devel/MiSTeX-ports) | The MiSTer retro-computing cores on other FPGA boards, with LiteX. |
-| [Fomu](https://github.com/im-tomu/foboot) and its [workshop](https://github.com/im-tomu/fomu-workshop), [OrangeCrab examples](https://github.com/orangecrab-fpga/orangecrab-examples), [iCEBreaker LiteX examples](https://github.com/icebreaker-fpga/icebreaker-litex-examples) | Small open boards whose reference designs and workshops are LiteX SoCs. |
-| [F4PGA examples](https://github.com/chipsalliance/f4pga-examples) | LiteX designs as benchmarks of the open-source Xilinx flow (CHIPS Alliance). |
-| [Signaloid C0-microSD](https://github.com/signaloid/Signaloid-C0-microSD-litex-integration), [iCE40 I2C integration](https://github.com/signaloid/iCE40-I2C-LiteX-integration) | LiteX integrations on Signaloid's iCE40 modules. |
-| [TimVideos HDMI2USB](https://github.com/timvideos/HDMI2USB-litex-firmware), [litex-buildenv](https://github.com/timvideos/litex-buildenv) | The video capture firmware and build environment that grew the early community (legacy). |
+- [Betrusted / Precursor](https://github.com/betrusted-io/betrusted-soc) and
+  [Xous](https://github.com/betrusted-io/xous-core): bunnie's open secure communicator, two
+  LiteX SoCs (the Spartan-7 secure domain and the iCE40 embedded controller) running the Xous
+  microkernel.
+- [Antmicro](https://antmicro.com): [rowhammer-tester](https://github.com/antmicro/rowhammer-tester),
+  the [RDIMM](https://github.com/antmicro/rdimm-ddr5-tester) and
+  [SO-DIMM DDR5 testers](https://github.com/antmicro/sodimm-ddr5-tester), the
+  [LPDDR4 test board](https://github.com/antmicro/lpddr4-test-board), the
+  [SDI-MIPI bridge](https://github.com/antmicro/sdi-mipi-bridge), [Renode](https://github.com/renode/renode):
+  DRAM test platforms built on LiteDRAM (DDR4, DDR5 and LPDDR4 PHYs contributed upstream), a
+  video converter, and the Renode simulator's LiteX support.
+- [Google CFU Playground](https://github.com/google/CFU-Playground): custom function units for
+  ML on VexRiscv in LiteX SoCs.
+- [Efabless Caravel management SoC](https://github.com/efabless/caravel_mgmt_soc_litex): the
+  management SoC of the Caravel ASIC harness (SkyWater, OpenMPW) is a LiteX SoC.
+- [MyriadRF LimeSDR_GW](https://github.com/myriadrf/LimeSDR_GW) and
+  [LimePSB RPCM](https://github.com/myriadrf/LimePSB_RPCM_GW): the LiteX gateware of Lime
+  Microsystems' SDR boards.
+- [EEVengers ThunderScope](https://github.com/EEVengers/thunderscope_litex): the oscilloscope's
+  PCIe and Thunderbolt gateware.
+- [SpinalHDL VexRiscv](https://github.com/SpinalHDL/VexRiscv), [NaxRiscv](https://github.com/SpinalHDL/NaxRiscv),
+  [VexiiRiscv](https://github.com/SpinalHDL/VexiiRiscv): the CPUs most used with LiteX,
+  developed with LiteX as a main integration target.
+- [MiSTeX](https://github.com/MiSTeX-devel/MiSTeX-ports): the MiSTer retro-computing cores on
+  other FPGA boards, with LiteX.
+- [Fomu](https://github.com/im-tomu/foboot) and its [workshop](https://github.com/im-tomu/fomu-workshop),
+  the [OrangeCrab examples](https://github.com/orangecrab-fpga/orangecrab-examples), the
+  [iCEBreaker LiteX examples](https://github.com/icebreaker-fpga/icebreaker-litex-examples):
+  small open boards whose reference designs and workshops are LiteX SoCs.
+- [F4PGA examples](https://github.com/chipsalliance/f4pga-examples): LiteX designs as
+  benchmarks of the open-source Xilinx flow (CHIPS Alliance).
+- [Signaloid C0-microSD](https://github.com/signaloid/Signaloid-C0-microSD-litex-integration)
+  and [iCE40 I2C integration](https://github.com/signaloid/iCE40-I2C-LiteX-integration): LiteX
+  integrations on Signaloid's iCE40 modules.
+- [TimVideos HDMI2USB](https://github.com/timvideos/HDMI2USB-litex-firmware) and
+  [litex-buildenv](https://github.com/timvideos/litex-buildenv): the video capture firmware and
+  build environment that grew the early community (legacy).
 
 Individuals and smaller projects: [LiteX-CNC](https://github.com/Peter-van-Tol/LiteX-CNC) and
 [litehm2](https://github.com/sensille/litehm2) (LinuxCNC on LiteX boards),
@@ -196,3 +232,10 @@ workflows), [nix-litex](https://github.com/lschuermann/nix-litex) (Nix packaging
 [A Trustworthy, Libre, Self-Hosting 64-bit RISC-V Linux Computer](https://www.contrib.andrew.cmu.edu/~somlo/BTCP/)
 (Rocket + LiteX, building its own bitstream with the open toolchain). The
 [`litex` topic on GitHub](https://github.com/topics/litex) has more.
+
+## Next
+
+- [Feedback, contribution, support](Feedback-Contribution-Support.md): custom developments and support for your own project.
+- [Cores ecosystem](Cores-Ecosystem.md): the cores these projects are built on.
+- [Tutorials and resources](Tutorials-Resources.md): the projects documented as tutorials.
+- [LiteX on the Acorn CLE 215+](Use-LiteX-on-the-Acorn-CLE-215.md): the cheapest way to join.

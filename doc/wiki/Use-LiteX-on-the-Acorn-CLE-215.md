@@ -51,7 +51,7 @@ If not already done, make sure to install LiteX by following the [LiteX installa
 
 ## Make a SATA Adapter (optional)
 
-It's possible to easily create a SATA Adapter using a spare PCIe X1 to USB3 connector (from a PCIe riser kit) and a SATA cable as demonstrated recently:
+You can make a SATA adapter from a spare PCIe X1 to USB3 connector (from a PCIe riser kit) and a SATA cable as demonstrated recently:
 
 <a href="https://twitter.com/enjoy_digital/status/1320747775626272769" rel="SATA Adapter">![SATA Adapter](https://user-images.githubusercontent.com/1450143/101599464-157c3180-39fa-11eb-8334-d15985037a26.png)</a>
 
