@@ -1,0 +1,27 @@
+$ litex_sim --with-sdram
+...
+--================ SoC =================--
+CPU:		VexRiscv @ 1MHz
+BUS:		wishbone 32-bit data/32-bit addr
+CSR:		32-bit data big ordering
+ROM:		128.0KiB
+SRAM:		8.0KiB
+L2:		8.0KiB
+SDRAM:		64.0MiB 32-bit @ 1MT/s (CL-2 CWL-2)
+MAIN RAM:	64.0MiB
+--=========== Initialization ===========--
+Initializing SDRAM @0x40000000...
+Switching SDRAM to software control.
+Switching SDRAM to hardware control.
+Memtest at 0x40000000 (8.0KiB)...
+Memtest OK
+Memspeed at 0x40000000 (Sequential, 8.0KiB)...
+  Write speed: 1.6MiB/s
+   Read speed: 491.5KiB/s
+--================ Boot ================--
+Booting from serial...
+sL5DdSMmkekro
+Timeout
+No boot medium found
+--============== Console ===============--
+litex>

@@ -1,8 +1,9 @@
-`litex_sim` builds a complete LiteX SoC for [Verilator](https://www.veripool.org/verilator/) and
-runs it on your computer: the same CPU, BIOS, buses and cores as on a board, with C++ models
-for the outside world (serial console, DRAM chips, Ethernet through a TAP interface, SD card,
-SPI flash, a video window...). It is the way to try LiteX without a board, to develop and debug
-firmware, to run the test suite in CI, and to look at the waveforms of a whole SoC.
+You run your SoC on your computer before touching a board: `litex_sim` builds it for
+[Verilator](https://www.veripool.org/verilator/) with the same CPU, BIOS, buses and cores, and
+C++ models for the outside world (the serial console, DRAM chips, Ethernet on a TAP interface,
+an SD card, a SPI flash, a video window). It is how you try LiteX without hardware, develop and
+debug firmware, run the test suite in CI, and look at the waveforms of a whole SoC. Renode and
+QEMU take over when you need speed rather than cycles.
 
 ![The LiteX simulation](images/litex-simulation.svg)
 
@@ -37,15 +38,15 @@ A `--rom-init=firmware.bin` replaces the BIOS by your own code; `--sdram-init` p
 | Option | Model |
 | --- | --- |
 | `--cpu-type`, `--cpu-variant`, `--integrated-*` | Any CPU that Verilator accepts (the CI boots the BIOS on more than 20 of them), the memories |
-| `--with-sdram --sdram-module=MT48LC16M16 --sdram-data-width=32`, `--with-sdram-bist`, `--sdram-from-spd-dump` | LiteDRAM with a DRAM model (SDRAM/DDR modules of the LiteDRAM catalog, or from an SPD dump), the L2 cache options (`--l2-size`, `--l2-bursting`) |
-| `--with-ethernet`, `--with-etherbone`, `--ethernet-phy-model {sim,gmii,xgmii}`, `--local-ip`, `--remote-ip` | LiteEth on a TAP interface (`tap0`, needs `sudo`): the BIOS netboot, Linux networking, or an Etherbone bridge to `litex_server --udp` |
+| `--with-sdram --sdram-module=MT48LC16M16`, `--with-sdram-bist`, `--sdram-from-spd-dump` | LiteDRAM with a DRAM model (the LiteDRAM catalog, or an SPD dump); `--l2-size`, `--l2-bursting` |
+| `--with-ethernet`, `--with-etherbone`, `--ethernet-phy-model`, `--local-ip`, `--remote-ip` | LiteEth on a TAP interface (`tap0`, needs `sudo`): netboot, Linux networking, Etherbone |
 | `--with-sdcard`, `--with-spi-flash --spi_flash-init=flash.bin`, `--with-i2c` | LiteSDCard, LiteSPI flash and an I2C SPD EEPROM model |
 | `--with-video-framebuffer`, `--with-video-terminal`, `--with-video-colorbars`, `--video-vsync` | The video cores displayed in an SDL window |
 | `--with-gpio`, `--with-analyzer` | GPIOs, a LiteScope analyzer on the CPU buses (read through a bridge, below) |
 | `--with-jtagremote`, `--with-swdremote` | OpenOCD `remote_bitbang` servers on the CPU's JTAG/SWD (GDB on the simulated CPU) |
-| `--uart-tcp --uart-tcp-port=1234`, `--uart-pty --uart-pty-path=/tmp/litex_pty0` | The serial port on a TCP port or a pseudo-terminal (`litex_term /tmp/litex_pty0`) instead of stdin/stdout |
+| `--uart-tcp --uart-tcp-port=1234`, `--uart-pty --uart-pty-path=/tmp/litex_pty0` | The serial port on a TCP port or a pseudo-terminal (`litex_term /tmp/litex_pty0`) |
 
-The models are C modules in `litex/build/sim/core/modules/` (clocker, serial2console,
+Read the first column for the option, the second for what it models. The models are C modules in `litex/build/sim/core/modules/` (clocker, serial2console,
 serial2tcp, ethernet, gmii_ethernet, xgmii_ethernet, spdeeprom, jtagremote, swdremote, video,
 sim_perf, qemu_axi); a `SimConfig` in the target picks them (`sim_config.add_module("serial2console", "serial")`)
 and `SimPlatform` declares the pads. Your own target can be simulated the same way: give it a
@@ -149,9 +150,14 @@ Unknown cores are not modeled (their accesses are silenced).
 ## Other simulators
 
 - The Migen simulator (`run_simulation`) and `pytest` for the unit tests of a core, with Python
-  models of the other side (`test/` in every repository).
-- [Renode](#renode): a model of the SoC built from `csr.json`, to run Linux/Zephyr images
-  fast, without the gateware.
-- The vendor simulators and cocotb can be used on the generated Verilog
-  (`--no-compile-gateware` to generate only); `litex-hub/cocotb_verilator_sim_example` is an
-  example.
+  models of the other side (`test/` in every repository): [Add a new core](Add-A-New-Core.md).
+- The vendor simulators and cocotb on the generated Verilog (`--no-compile-gateware` to
+  generate only); [cocotb_verilator_sim_example](https://github.com/litex-hub/cocotb_verilator_sim_example)
+  shows a CPU-less SoC driven from cocotb.
+
+## Next
+
+- [Create a minimal SoC](Create-A-minimal-SoC.md): the SoC `litex_sim` runs, on a board.
+- [Write firmware for it](Write-Firmware-For-Your-SoC.md): your program in the simulated SoC.
+- [Control it from the host](Host-Bridges.md) and [LiteScope](Use-LiteScope-To-Debug-A-SoC.md): the bridge and the analyzer, in simulation too.
+- [Debug the CPU with GDB](Debug-With-GDB.md): OpenOCD on the simulated TAP.

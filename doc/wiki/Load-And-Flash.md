@@ -1,9 +1,9 @@
-`--load` writes the bitstream in the FPGA (lost at power off) and `--flash` in the SPI flash
-the FPGA boots from, through the programmer the platform declares in `create_programmer()`
-(`litex_boards/platforms/<board>.py`). Most boards use one of the two open-source tools below;
-the vendor programmers (Vivado, Quartus `quartus_pgm`, Gowin `programmer_cli`, Efinity,
-Diamond `pgrcmd`, Libero, TangDynasty) and a few board-specific ones (`iceprog`, `ecpprog`,
-`ecpdap`, `ujprog`/`fujprog`, `tinyprog`, DFU) are also wrapped in `litex/build/<vendor>/programmer.py`.
+You load a bitstream in the FPGA with `--load` (gone at power off) and write it in the SPI
+flash the FPGA boots from with `--flash`, through the programmer the platform declares in
+`create_programmer()`. Most boards use one of the two open-source tools below; the vendor
+programmers (Vivado, Quartus, Gowin, Efinity, Diamond, Libero, TangDynasty) and a few
+board-specific ones (`iceprog`, `ecpprog`, `ecpdap`, `ujprog`, `tinyprog`, DFU) are wrapped the
+same way in `litex/build/<vendor>/programmer.py`.
 
 ```sh
 python3 -m litex_boards.targets.digilent_arty --build --load      # SRAM
@@ -71,3 +71,10 @@ variable selects another binary.
 
 Permissions: on Linux, the USB cables need udev rules (openFPGALoader ships `99-openfpgaloader.rules`,
 OpenOCD `60-openocd.rules`) or `sudo`.
+
+## Next
+
+- [Create a minimal SoC](Create-A-minimal-SoC.md): `--build --load` on your first target.
+- [Add a new board](Add-A-New-Board.md): `create_programmer()` in a platform of yours.
+- [Write firmware for it](Write-Firmware-For-Your-SoC.md): the firmware next to the bitstream in the flash.
+- [Build backends](Build-Backends.md): the toolchains the programmers come with.

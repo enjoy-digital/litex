@@ -55,6 +55,7 @@ DIAGRAMS = {
     "litescope-capture":       1600,   # Terminal capture (terminal.py).
     "litescope-wave":          2400,   # Timing diagram (wave.py) from captures/litescope-ibus.vcd.
     "litex-gdb-session":       1600,   # Terminal capture (terminal.py).
+    "litex-bios-dram":         1600,   # Terminal capture (terminal.py).
     "litex-csr-wave":          1800,   # Timing diagram (wave.py).
     "litex-wishbone-wave":     1800,   # Timing diagram (wave.py).
     "litex-stream-wave":       1800,   # Timing diagram (wave.py).

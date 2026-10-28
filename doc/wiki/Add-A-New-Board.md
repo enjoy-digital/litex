@@ -1,12 +1,10 @@
-A board is two Python files in [LiteX-Boards](https://github.com/litex-hub/litex-boards)
-(or in your project): the **platform** (`litex_boards/platforms/<vendor>_<board>.py`: the
-FPGA, the pins, the I/O standards, the connectors, the default clock, the programmer, the
-vendor-specific constraints) and the **target** (`litex_boards/targets/<vendor>_<board>.py`:
-a reference SoC using what the board has, with options). 258 boards from 9 vendors follow this
-pattern; copy the closest one.
-
-You need: the FPGA part number, the schematic or pinout (clock, UART, LEDs, buttons, DRAM,
-Ethernet PHY, flash, connectors), the I/O voltages per bank, and the cable/programmer.
+You will have your board in LiteX: two Python files, the **platform** (the FPGA, the pins, the
+I/O standards, the connectors, the default clock, the programmer) and the **target** (a
+reference SoC using what the board has, with options), and the BIOS prompt on its serial port.
+258 boards from 9 vendors follow this pattern in [LiteX-Boards](https://github.com/litex-hub/litex-boards);
+copy the closest one. An hour with the schematic at hand: the FPGA part number, the pinout
+(clock, UART, LEDs, buttons, DRAM, Ethernet PHY, flash, connectors), the I/O voltages per bank,
+the cable.
 
 ## 1. The platform
 
@@ -130,13 +128,7 @@ of LiteX-Boards (sections in order: imports, `_CRG`, `BaseSoC`, `main()`; option
 A7 one, shortened:
 
 ```python
-from litex_boards.platforms import digilent_arty
-
-from litex.soc.cores.clock import *
-from litex.soc.cores.led import LedChaser
-from litex.soc.integration.soc_core import *
-from litex.soc.integration.builder import *
-
+# Imports: the ones of the minimal SoC, plus the DRAM and Ethernet cores.
 from litedram.modules import MT41K128M16
 from litedram.phy import s7ddrphy
 from liteeth.phy.mii import LiteEthPHYMII
@@ -144,10 +136,10 @@ from liteeth.phy.mii import LiteEthPHYMII
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
-    def __init__(self, platform, sys_clk_freq, with_dram=True):
+    def __init__(self, platform, sys_clk_freq):
         self.rst          = Signal()
         self.cd_sys       = ClockDomain()
-        self.cd_sys4x     = ClockDomain()      # LiteDRAM: 4x the system clock, + a 90° phase, + 200 MHz for IDELAYCTRL
+        self.cd_sys4x     = ClockDomain()      # LiteDRAM: 4x the system clock, a 90 degree copy, 200 MHz for IDELAYCTRL
         self.cd_sys4x_dqs = ClockDomain()
         self.cd_idelay    = ClockDomain()
         self.cd_eth       = ClockDomain()
@@ -164,95 +156,33 @@ class _CRG(LiteXModule):
         pll.create_clkout(self.cd_eth,       25e6)
         self.comb += platform.request("eth_ref_clk").eq(self.cd_eth.clk)
         platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin)   # the input clock is asynchronous to sys
-
         self.idelayctrl = S7IDELAYCTRL(self.cd_idelay)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, variant="a7-35", toolchain="vivado", sys_clk_freq=100e6,
-        with_ethernet  = False,
-        with_etherbone = False,
-        eth_ip         = "192.168.1.50",
-        with_spi_flash = False,
-        with_led_chaser = True,
-        **kwargs):
-        platform = digilent_arty.Platform(variant=variant, toolchain=toolchain)
-
-        # CRG --------------------------------------------------------------------------------------
-        self.crg = _CRG(platform, sys_clk_freq, with_dram=(kwargs.get("integrated_main_ram_size", 0) == 0))
-
-        # SoCCore ----------------------------------------------------------------------------------
+    def __init__(self, sys_clk_freq=100e6, with_ethernet=False, with_etherbone=False, eth_ip="192.168.1.50", **kwargs):
+        platform = digilent_arty.Platform()
+        self.crg = _CRG(platform, sys_clk_freq)
         SoCCore.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on Arty A7", **kwargs)
 
         # DDR3 SDRAM -------------------------------------------------------------------------------
         if not self.integrated_main_ram_size:
-            self.ddrphy = s7ddrphy.A7DDRPHY(platform.request("ddram"),
-                memtype      = "DDR3",
-                nphases      = 4,
-                sys_clk_freq = sys_clk_freq)
-            self.add_sdram("sdram",
-                phy           = self.ddrphy,
-                module        = MT41K128M16(sys_clk_freq, "1:4"),
-                l2_cache_size = kwargs.get("l2_size", 8192))
+            self.ddrphy = s7ddrphy.A7DDRPHY(platform.request("ddram"), memtype="DDR3", nphases=4, sys_clk_freq=sys_clk_freq)
+            self.add_sdram("sdram", phy=self.ddrphy, module=MT41K128M16(sys_clk_freq, "1:4"), l2_cache_size=8192)
 
         # Ethernet / Etherbone ---------------------------------------------------------------------
         if with_ethernet or with_etherbone:
-            self.ethphy = LiteEthPHYMII(
-                clock_pads = self.platform.request("eth_clocks"),
-                pads       = self.platform.request("eth"))
+            self.ethphy = LiteEthPHYMII(clock_pads=platform.request("eth_clocks"), pads=platform.request("eth"))
             if with_etherbone:
                 self.add_etherbone(phy=self.ethphy, ip_address=eth_ip, with_ethmac=with_ethernet)
             elif with_ethernet:
                 self.add_ethernet(phy=self.ethphy, local_ip=eth_ip)
 
-        # SPI Flash --------------------------------------------------------------------------------
-        if with_spi_flash:
-            from litespi.modules import S25FL128L
-            from litespi.opcodes import SpiNorFlashOpCodes as Codes
-            self.add_spi_flash(mode="4x", module=S25FL128L(Codes.READ_1_1_4), rate="1:2", with_master=True)
+        self.leds = LedChaser(pads=platform.request_all("user_led"), sys_clk_freq=sys_clk_freq)
 
-        # Leds -------------------------------------------------------------------------------------
-        if with_led_chaser:
-            self.leds = LedChaser(pads=platform.request_all("user_led"), sys_clk_freq=sys_clk_freq)
-
-# Build --------------------------------------------------------------------------------------------
-
-def main():
-    from litex.build.parser import LiteXArgumentParser
-    parser = LiteXArgumentParser(platform=digilent_arty.Platform, description="LiteX SoC on Arty A7.")
-    parser.add_target_argument("--flash",         action="store_true",       help="Flash bitstream.")
-    parser.add_target_argument("--variant",       default="a7-35",           help="Board variant (a7-35 or a7-100).")
-    parser.add_target_argument("--sys-clk-freq",  default=100e6, type=float, help="System clock frequency.")
-    ethopts = parser.target_group.add_mutually_exclusive_group()
-    ethopts.add_argument("--with-ethernet",  action="store_true", help="Enable Ethernet support.")
-    ethopts.add_argument("--with-etherbone", action="store_true", help="Enable Etherbone support.")
-    parser.add_target_argument("--eth-ip",         default="192.168.1.50", help="Ethernet/Etherbone IP address.")
-    parser.add_target_argument("--with-spi-flash", action="store_true",    help="Enable SPI Flash (MMAPed).")
-    args = parser.parse_args()
-
-    soc = BaseSoC(
-        variant        = args.variant,
-        toolchain      = args.toolchain,
-        sys_clk_freq   = args.sys_clk_freq,
-        with_ethernet  = args.with_ethernet,
-        with_etherbone = args.with_etherbone,
-        eth_ip         = args.eth_ip,
-        with_spi_flash = args.with_spi_flash,
-        **parser.soc_argdict
-    )
-    builder = Builder(soc, **parser.builder_argdict)
-    if args.build:
-        builder.build(**parser.toolchain_argdict)
-    if args.load:
-        prog = soc.platform.create_programmer()
-        prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
-    if args.flash:
-        prog = soc.platform.create_programmer()
-        prog.flash(0, builder.get_bitstream_filename(mode="flash"))
-
-if __name__ == "__main__":
-    main()
+# Build: the main() of the minimal SoC, with --with-ethernet, --with-etherbone, --eth-ip and
+# --with-spi-flash added to the parser and passed to BaseSoC; the full file is in LiteX-Boards.
 ```
 
 The DRAM needs the PHY of the FPGA family (`s7ddrphy.A7DDRPHY`, `K7DDRPHY`, `usddrphy.USPDDRPHY`,
@@ -288,3 +218,10 @@ reference.
 - In the pull request: which options were tested on hardware (BIOS, DRAM memtest, Ethernet,
   flash), the toolchain version, a photo or the board's link; the maintainers do not have
   every board.
+
+## Next
+
+- [Create a complex SoC](Create-A-Complex-SoC.md): the DRAM, Ethernet, flash and SD card the target above adds, one by one.
+- [Build backends](Build-Backends.md): the vendor platform classes, the toolchains and their options.
+- [Load and flash](Load-And-Flash.md): the programmer `create_programmer()` returns.
+- [Control it from the host](Host-Bridges.md): the second step of the bring-up order.

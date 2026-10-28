@@ -1,14 +1,16 @@
-What runs on the CPU of a LiteX SoC, from the BIOS to Linux. LiteX generates the software
-support from the SoC itself: C headers (`csr.h`, `soc.h`, `mem.h`), linker regions
-(`memory.x`), the `csr.csv/json/svd` descriptions and the device trees for Linux, Zephyr and
-Renode (`litex_json2dts_linux`, `litex_json2dts_zephyr`, `litex_json2renode`), so that the
-software always matches the hardware configuration. Pick what fits the job:
+From the BIOS to Linux, pick what runs on the CPU of your SoC: bare metal for control
+firmware, an RTOS when you need a scheduler and a driver model, MicroPython or Rust to script
+it, Linux for the full software ecosystem. Whatever you pick, the software support comes from
+the SoC itself: the C headers (`csr.h`, `soc.h`, `mem.h`), the linker regions, the `csr.csv`,
+`csr.json` and `csr.svd` descriptions and the device trees for Linux, Zephyr and Renode are
+generated from your design, so the software always matches the hardware. Read the first
+column, the third says what each one is good for:
 
 | | Runs on | Good for |
 | --- | --- | --- |
 | [BIOS and bare metal](#bios-and-bare-metal) | every CPU | bring-up, control firmware, the smallest SoCs |
-| [RTOS](#rtos): [Zephyr](https://www.zephyrproject.org/), [FreeRTOS](https://github.com/enjoy-digital/freertos-on-litex), [NuttX](https://nuttx.apache.org/) | VexRiscv, VexiiRiscv (Zephyr) and other RV32 cores | real-time firmware with a scheduler and a driver model |
-| [Scripting and others](#micropython-rust-and-others): [MicroPython](https://github.com/litex-hub/micropython), Rust, [MQuickJS](https://github.com/enjoy-digital/mquickjs-on-litex) | RV32 cores | scripting the SoC, memory-safe firmware |
+| [RTOS](#rtos): Zephyr, FreeRTOS, NuttX | VexRiscv, VexiiRiscv (Zephyr) and other RV32 cores | real-time firmware with a scheduler and a driver model |
+| [MicroPython, Rust and others](#micropython-rust-and-others) | RV32 cores | scripting the SoC, memory-safe firmware |
 | [Linux](#linux) | VexRiscv-SMP, NaxRiscv, VexiiRiscv, Rocket, Mor1kx, BlackParrot, Microwatt, hard CPUs | the full software ecosystem, networking, storage |
 
 ## BIOS and bare metal
@@ -75,7 +77,14 @@ is the template: console, LEDs, a donut. See
   [Debian](https://github.com/roryt12/RISCV64-Debian-Linux-on-FPGA-with-Litex) (archived),
   [Xous](https://github.com/betrusted-io/xous-core) (the Precursor microkernel, on a LiteX SoC).
 
-Simulation of the software without a board: `litex_sim` runs the SoC with its BIOS and
-firmware in Verilator ([SoC-Simulator](SoC-Simulator.md)), [Renode](SoC-Simulator.md)
-runs Linux/Zephyr images on a model of the SoC, and the QEMU co-simulation runs the CPU in
-QEMU against the simulated gateware.
+Without a board: `litex_sim` runs the SoC with its BIOS and firmware in Verilator,
+[Renode](SoC-Simulator.md#renode) runs the Linux and Zephyr images on a model of the SoC, and
+the QEMU co-simulation runs the CPU in QEMU against the simulated gateware
+([SoC simulator](SoC-Simulator.md)).
+
+## Next
+
+- [Write firmware for it](Write-Firmware-For-Your-SoC.md): bare metal, the template and the boot methods.
+- [Run Zephyr on your SoC](Run-Zephyr-On-Your-SoC.md), [Run MicroPython](Run-MicroPython-On-Your-SoC.md), [Run Linux](Run-Linux-On-Your-SoC.md): the three paths in detail.
+- [BIOS](BIOS.md): what runs first, whatever you pick.
+- [Choosing a CPU](Choosing-A-CPU.md): the CPU each one needs.

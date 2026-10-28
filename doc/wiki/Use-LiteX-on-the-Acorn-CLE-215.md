@@ -1,4 +1,7 @@
-The Acorn CLE 215+ is a cryptocurrency mining accelerator card from SQRL that can be repurposed as a generic FPGA PCIe development board:
+You turn an Acorn CLE 215+, a cryptocurrency mining card from SQRL found for a few tens of
+euros on eBay, into a generic PCIe FPGA development board: an Artix-7 200T with a gigabyte of
+DDR3 and four GTP transceivers on an M.2 connector, running a LiteX SoC, Linux and PCIe. An
+afternoon with a soldering iron for the adapters, then the usual LiteX commands.
 
 <div>
 <img src="https://user-images.githubusercontent.com/1450143/101366194-f0c27580-38a4-11eb-9d90-830d9c98dfec.png" width="400">
@@ -18,7 +21,7 @@ It features:
  
  The Acorn CLE215+ is in fact the [NiteFury](https://github.com/RHSResearchLLC/NiteFury-and-LiteFury) board with more memory: 1GB instead of 512MB. Both NiteFury and LiteFury boards are really interesting boards, but what makes the Acorn CLE215+ even more interesting is that it's available for very cheap: from ~60 euros to 100 euros on eBay at the time we write this Wiki page... The boards can be found at these prices since no longer useful in  cryptocurrency mining... but still interesting for us as FPGA dev boards :)
 
-# Prepare your Acorn CLE215+ for LiteX
+## Prepare your Acorn CLE215+ for LiteX
 ![enter image description here](https://user-images.githubusercontent.com/1450143/101524205-ee861700-3989-11eb-9f17-b77a39ce4339.JPG)
 To use the Acorn CLE215+ as a LiteX development board, the following hardware is recommended:
  - A PCIe 1X to 16X powered riser adapter card (ex [this one](https://www.amazon.fr/Mini%C3%A8re-renforc%C3%A9e-extension-Adaptateur-dalimentation/dp/B0721MG66S))
@@ -30,7 +33,7 @@ To use the Acorn CLE215+ as a LiteX development board, the following hardware is
 
 An extra PCIe riser + SATA cable will be useful if you want to create SoCs with LiteSATA.
 
-## Prepare the JTAG and Serial adapters
+### Prepare the JTAG and Serial adapters
 The Acorn exposes the JTAG pins and general purpose IOs to 6-pin Pico-EZmate connectors. We need to create adapters for both connectors. The JTAG will be used to program the FPGA and the second connector for IOs (UART in our case):
 
 ![enter image description here](https://user-images.githubusercontent.com/1450143/101597785-77876780-39f7-11eb-92a3-99b27e82e02b.png)
@@ -46,7 +49,7 @@ You can now mount the cable adapters on the board and the board on the PCIe adap
 
 If not already done, make sure to install LiteX by following the [LiteX installation guide](Installation.md) and you are ready to use LiteX your board!
 
-# Make a SATA Adapter (optional)
+## Make a SATA Adapter (optional)
 
 It's possible to easily create a SATA Adapter using a spare PCIe X1 to USB3 connector (from a PCIe riser kit) and a SATA cable as demonstrated recently:
 
@@ -57,7 +60,7 @@ To create the SATA adapter, cut a SATA cable in half and solder it to the PCIe X
 
 This adapter will allow you to use LiteSATA on FPGA boards with a PCIe connector through a PCIe riser and USB3 cable. P/N polarity will automatically be detected/corrected by LiteSATA, so is not important when building the adapter.
 
-# Run LiteX-Boards example
+## Run LiteX-Boards example
 
 You are now ready to use LiteX on your board, let's first run a classical LiteX SoC on the board:
 
@@ -67,7 +70,7 @@ This will build a LiteX SoC with CPU/ROM/SRAM/DDR3 and load if to the board. At 
 
 You can explore the [LiteX wiki](Home.md) or [LiteX-Boards](https://github.com/litex-hub/litex-boards) to discover what can already be done and play with it.
 
-# Run Linux-on-LiteX-VexRiscv example
+## Run Linux-on-LiteX-VexRiscv example
 
 Now let's try to run Linux on the board using [Linux-on-LiteX-VexRiscv](https://github.com/litex-hub/linux-on-litex-vexriscv) project as demonstrated here:
 <a href="https://twitter.com/enjoy_digital/status/1329744466907979778" rel="Linux">
@@ -97,7 +100,7 @@ And you should see linux booting:
 
 Since the SoC integrates LiteSATA, it's also possible to boot over SATA with the optional SATA adapter, you can copy the Linux images directly to the SATA drive by following [this guide](Write-Firmware-For-Your-SoC.md#sd-card-and-sata), plug the SATA drive and should see the system booting directly from SATA.
 
-# Acorn Giveaway
+## Acorn Giveaway
 ![https://user-images.githubusercontent.com/1450143/144005083-9dc62efa-a875-4abd-a3f5-4129e34267d2.png](https://user-images.githubusercontent.com/1450143/144005083-9dc62efa-a875-4abd-a3f5-4129e34267d2.png)
 
 You received your Acorn from the [giveway](https://twitter.com/enjoy_digital/status/1461353848388284422) and/or want to reproduce the results on your Acorn? Please use the following instructions.
@@ -138,7 +141,7 @@ A `./litepcie_util flash_reload` will reload the bitstream from SPI Flash and a 
 
 > Note: Be careful of the **0x400000 offset** to only update the Operational bitstream.
 
-# PCIe
+## PCIe
 
 The target builds a PCIe Gen2 X4 SoC with LitePCIe (exclusive with `--with-sata`: the GTPs are shared), its Linux driver and user tools:
 
@@ -151,7 +154,7 @@ The target builds a PCIe Gen2 X4 SoC with LitePCIe (exclusive with `--with-sata`
 
 `--pcie-ndmas`, `--pcie-address-width` and `--pcie-with-dma-status`/`--pcie-with-dma-monitor` configure the DMAs. The host also reaches the SoC bus through the BAR without the driver (`litex_server --pcie --pcie-bar=<id>`, [Host-Bridges](Host-Bridges.md)), and `--with-jtagbone`/`--with-spi-sdcard` add a JTAG bridge and an SD card. The [LiteX Acorn Baseboard](https://github.com/enjoy-digital/litex-acorn-baseboard) (and its Mini version) adds a serial port, Ethernet, SFP cages, HDMI, SD card and more around the Acorn: `litex_boards.targets.litex_acorn_baseboard` and `litex_acorn_baseboard_mini`.
 
-# Going Further...
+## Going Further...
 
 In this guide, we demonstrated a classical LiteX SoC with a CPU/ROM/RAM/DDR3 on the Acorn CLE 215+. The design is only using a fraction of the FPGA and leaves plenty of room for the user, so it already makes it a very nice and cheap FPGA development board. The NiteFury and LiteFury boards (and the Acorn CLE-101) can also be used: `--variant=cle-101` or `--variant=cle-215` select them (`cle-215+` is the default).
 
@@ -164,3 +167,10 @@ A quad-core VexRiscv-SMP with DDR3 / PCIe Gen2 X4 has also been demonstrated on 
 Boards with very similar capabilities are already supported by the open-source 7-Series flows ([F4PGA](https://f4pga.org/) and [openXC7](https://github.com/openXC7), `--toolchain=openxc7`; the Arty for example, which is lacking GTPs), so building these designs with a full open-source toolchain is getting closer!
 
 Pretty exciting to see what can now be done with open-source hardware and less than 100$/€ nowadays no ? :)
+
+## Next
+
+- [Create a PCIe SoC](Create-A-PCIe-SoC.md): what `--with-pcie` builds on this board.
+- [Run Linux on your SoC](Run-Linux-On-Your-SoC.md): the Linux-on-LiteX-VexRiscv flow in general.
+- [Load and flash](Load-And-Flash.md): JTAG and the multiboot flash.
+- [Projects](Projects.md): the Acorn baseboards and the other boards built around it.
