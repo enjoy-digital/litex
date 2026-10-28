@@ -12,12 +12,14 @@
 import os
 import operator
 import collections
+import collections.abc
+import inspect
 import inspect
 from functools import wraps
 
 from migen.fhdl.structure import *
 from migen.fhdl.structure import (_Value, _Statement,
-                                  _Operator, _Slice, _ArrayProxy,
+                                  _Operator, _Slice, _Part, _ArrayProxy,
                                   _Assign, _Fragment)
 from migen.fhdl.bitcontainer import value_bits_sign
 from migen.fhdl.tools import (list_targets, list_signals,
@@ -167,11 +169,21 @@ class Evaluator:
                     return operands[0] - operands[1]
             elif node.op == "m":
                 return operands[1] if operands[0] else operands[2]
+            elif node.op == "~":
+                # Inversion of an unsigned value: width of its operand (not an infinite number of
+                # ones, ex: ~ of a 1-bit Signal at 1 is 0).
+                nbits, signed = value_bits_sign(node.operands[0])
+                return ~operands[0] if signed else (~operands[0]) & (2**nbits - 1)
             else:
                 return str2op[node.op](*operands)
         elif isinstance(node, _Slice):
             v = self.eval(node.value, postcommit)
             idx = range(node.start, node.stop)
+            return sum(((v >> i) & 1) << j for j, i in enumerate(idx))
+        elif isinstance(node, _Part):
+            v = self.eval(node.value, postcommit)
+            offset = self.eval(node.offset, postcommit)
+            idx = range(offset, offset + node.width)
             return sum(((v >> i) & 1) << j for j, i in enumerate(idx))
         elif isinstance(node, Cat):
             shift = 0
@@ -224,6 +236,15 @@ class Evaluator:
             # set them to the new value
             value &= 2**(node.stop - node.start)-1
             full_value |= value << node.start
+            self.assign(node.value, full_value)
+        elif isinstance(node, _Part):
+            full_value = self.eval(node.value, True)
+            offset = self.eval(node.offset, True)
+            start = offset
+            stop = offset + node.width
+            full_value &= ~((2**stop-1) - (2**start-1))
+            value &= 2**(stop - start)-1
+            full_value |= value << start
             self.assign(node.value, full_value)
         elif isinstance(node, _ArrayProxy):
             idx = min(len(node.choices) - 1, self.eval(node.key))
@@ -395,7 +416,7 @@ class Simulator:
             self.evaluator.execute([x])
             return None
         else:
-            raise ValueError
+            raise ValueError("Invalid simulator exec/eval request", x)
 
     def _process_generators(self, cd):
         exhausted = []
@@ -415,7 +436,15 @@ class Simulator:
                             raise ValueError("Unknown simulator command: '{}'"
                                              .format(request))
                     else:
-                        reply = self._evalexec_nested_lists(request)
+                        try:
+                            reply = self._evalexec_nested_lists(request)
+                        except Exception as e:
+                            tb = inspect.getframeinfo(generator.gi_frame)
+                            print("While evaluating the following generator, an error occurred:")
+                            print("  File {}, line {}, in {}".format(tb.filename, tb.lineno, tb.function))
+                            for c in tb.code_context or []:
+                                print("    ", c.lstrip())
+                            raise
                 except StopIteration:
                     exhausted.append(generator)
                     break
