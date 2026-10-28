@@ -1,144 +1,87 @@
-# Litex Documentation: Document your LiteX SoC Automatically
+LiteX generates the register-level documentation of a SoC from the design itself: every
+`CSRStorage`/`CSRStatus` with its fields and descriptions, the memory map, the interrupts and
+the module descriptions, as a [Sphinx](https://www.sphinx-doc.org/) project with register
+diagrams, plus the `.svd` file used by `svd2rust` and the debuggers. The documentation is
+always in sync with the hardware, since it comes from the same Python objects as `csr.h`.
 
-Litex lets you take a synthesized SoC and generate full
-register-level documentation.  Additionally, it will generate `.svd` files,
-suitable for use with various header generation programs.
+## Generating it
 
-## Required Software
+With the Builder, on any target:
 
-You must have `sphinx` and `sphinx.wavedrom` installed in order to build
-the documentation.  These can be installed with pip:
-
+```sh
+pip3 install sphinx sphinxcontrib-wavedrom
+python3 target.py --build --no-compile-gateware --doc        # generates build/<platform>/doc/ and runs sphinx-build
+xdg-open build/<platform>/doc/_build/html/index.html
 ```
-$ pip3 install sphinxcontrib-wavedrom sphinx
-```
 
-## Usage
-
-To document your modules, import the `doc` module and call `doc.generate_docs(soc, path)`.
-You can also generate an SVD file.  For example:
+`--soc-svd soc.svd` writes the SVD (also `generate_svd(soc, path)` from Python). From a script,
+after the build:
 
 ```python
 from litex.soc.doc import generate_docs, generate_svd
 
-...
-    soc = BaseSoC(platform)
-    builder = Builder(soc)
-    vns = builder.build()
-    soc.do_exit(vns)
-    generate_docs(soc, "build/documentation")
-    generate_svd(soc, "build/software")
+builder = Builder(soc)
+builder.build()
+generate_docs(soc, "build/documentation", project_name="My SoC", author="LiteX User")
+generate_svd(soc, "build/software")
 ```
 
-After you build your design, you will have a Sphinx documentation source available
-in the above directory.  To build this into a target document, use `sphinx-build`.
+then `sphinx-build -M html build/documentation/ build/documentation/_build`. `generate_docs`
+takes `sphinx_extensions=[...]` and `sphinx_extra_config="..."` to extend `conf.py` (mathjax,
+for example) and `from_scratch=False` to keep a customized `conf.py`.
 
-For example, if `sphinx-build` is in your path, you can run:
+## Documenting your registers
 
-`sphinx-build -M html build/documentation/ build/documentation/_build`
-
-`sphinx-build` may be located in `~/.local/bin/` depending on your installation environment.
-
-You can then verify the contents by opening the file `build/documentation/_build/html/index.html`
-
-## Documenting your Registers
-
-You can add documentation to your registers by defining your `CSRStorage` and `CSRStatus` registers with an additional `field` list.  For example:
+Give the registers and their fields a description: `CSRStorage`/`CSRStatus` accept
+`description=` and a `fields=[CSRField(...)]` list; a field has a `name`, a `size` (1 by
+default), an `offset` (after the previous field by default), a `reset` value, a `description`,
+`pulse=True` for self-clearing bits, an `access` (`CSRAccess.ReadWrite`, `WriteOnly`,
+`ReadOnly`) and optional `values` (a list of `(value, [short name], description)` tuples):
 
 ```python
 self.bitbang = CSRStorage(4, fields=[
-    CSRField("mosi", description="Output value for MOSI..."
-    CSRField("clk", description="Output value for SPI CLK..."
-    CSRField("cs_n", description="Output value for SPI C..."
-    CSRField("dir", description="Sets the dir...", values=[
+    CSRField("mosi", description="Output value for MOSI."),
+    CSRField("clk",  description="Output value for SPI CLK."),
+    CSRField("cs_n", description="Output value for SPI CS_n."),
+    CSRField("dir",  description="Direction of the SPI pins.", values=[
         ("0", "OUT", "SPI pins are all output"),
-        ("1", "IN", "SPI pins are all input"),
+        ("1", "IN",  "SPI pins are all input"),
     ])
-], description="""Bitbang controls for SPI output.  Only
-    standard 1x SPI is supported, and as a result all
-    four wires are ganged together.  This means that it
-    is only possible to perform half-duplex operations,
-    using this SPI core.""")
+], description="""Bitbang controls for SPI output. Only standard 1x SPI is supported, and as
+    a result all four wires are ganged together: half-duplex operations only.""")
 ```
 
-There are several interesting properties here:
+The fields also give you the `<reg>_<field>_read()`/`_write()` accessors in `csr.h` and the
+`CSR_<MOD>_<REG>_<FIELD>_OFFSET/SIZE` defines ([CSR-Bus](CSR-Bus.md)).
 
-* The first argument to a `CSRStorage` or `CSRStatus` is the bit width.
-* You can pass a list of `CSRField` objects, which will get turned into bit fields
-* Both `CSRStorage` and `CSRStatus` support a freeform `description` property that will be used to describe the overall register.
+## Documenting a module
 
-A `CSRField` object has the following properties:
-
-* `name`: The short name of the register.  This should be just a few characters long, as it will be used in the register diagram as well as accessor objects.  **Required**
-* `size`: The size of this field.  This is optional, and defaults to `1`
-* `offset`: The offset of this particular field.  If unspecified, defaults to following the previous field.  Use this to add gaps to your register definitions, for example to have reserved fields.
-* `reset`: If specified, the value of this field at reset.  Defaults to `0`.
-* `description`: A textual description of this register.  This is optional, but should be specified because it provides critical information to the user about what this field does.
-* `pulse`: If `True`, then this value is `1` only for one clock cycle after the user writes a `1` to this field.  This is especially useful for `START` bits used to initiate operations, or `RESET` bits used to clear an operation.
-* `access`: The accessibility of this field.  One of `CSRAccess.ReadWrite`, `CSRAccess.WriteOnly`, or `CSRAccess.ReadOnly`
-* `values`: If present, a list of tuples of values.  The first field is the numeric value, with `x` for `don't care`.  The second field, if present, is the short name of the value.  The final field is a textual description of the value.  For example:
-
-```python
-    [
-        ("0b0000", "disable the timer"),
-        ("0b0001", "slow", "slow timer"),
-        ("0b1xxx", "fast timer"),
-    ]
-```
-
-## Further Module Documentation
-
-You can add additional documentation to your module with the `ModuleDoc` class.  Add it to your base object.
-
-**To use further Module Documentation, your Module must inherit from `AutoDoc`**.  For example:
+A module that inherits `AutoDoc` (every `LiteXModule` does) can carry `ModuleDoc` sections:
 
 ```python
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
-class DocExample(Module, AutoCSR, AutoDoc):
-    def __init__(self):
-        self.mydoc = ModuleDoc("Some documentation")
-```
 
-You may pass a single string to the constructor, in which case the first line becomes the title, or you may pass a separate `title` and `body` parameters to the constructor.  For example:
+class DocExample(LiteXModule):
+    """Automatically Documented Module
 
-```python
-    self.intro = ModuleDoc("""Introduce ModuleDoc
-
-    This is an example of how to document using ModuleDoc.  An additional
-    section will get added to the output documentation for this module,
-    with the title ``Introduce ModuleDoc`` and with this paragraph
-    as a body""")
-```
-
-Note that the default documentation format is `rst`. You can switch to markdown by passing `format="markdown"` to the constructor, however support is not very good.
-
-### External Documentation
-
-You can have external documentation by passing `file` to the constructor.
-For example:
-
-```python
-    self.extra_doc = ModuleDoc(file="extra_doc.rst")
-```
-
-This will be included at build-time.
-
-### Using Python Docstrings
-
-You can also simply have your module inherit from `ModuleDoc`, in which case
-the documentation will be taken from the docstring.  For example:
-
-```python
-from litex.soc.integration.doc import AutoDoc, ModuleDoc
-class DocExample(Module, AutoCSR, AutoDoc, ModuleDoc):
-    """
-    Automatically Documented Module
-
-    This module will be automatically documented, and included in the
-    generated module documentation output.  You can add additional
-    ModuleDoc objects to this module, in order to add further subsections
-    to the output docs.
+    The docstring of a module that also inherits ModuleDoc becomes its documentation.
     """
     def __init__(self):
-        pass
+        self.intro = ModuleDoc("""Introduce ModuleDoc
+
+        A ModuleDoc attribute adds a section with this title and this paragraph as its body.""")
+        self.extra = ModuleDoc(file="extra_doc.rst")      # or from a file, included at build time
 ```
+
+The text is reStructuredText by default (`format="markdown"` is possible, with limited
+support); the first line is the title, or pass `title=` and `body=`. Register listings use
+`sphinxcontrib.wavedrom`, which is why it must be installed.
+
+## What the output contains
+
+- An index with the SoC summary and the memory map (`mem.h` regions).
+- One page per module with CSRs: its `ModuleDoc` sections, then each register with its address,
+  the wavedrom bit-field diagram, the fields and their values.
+- The interrupt table.
+- The SVD describes the same registers for the tools that read CMSIS-SVD (Rust `svd2rust`,
+  debuggers, register viewers).

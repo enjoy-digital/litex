@@ -126,7 +126,28 @@ def lint_with(path, verbose=False):
         polys.append([tuple(map(float, p.split(","))) for p in e.get("points").split()])
     paths = [[tuple(map(float, p.split(","))) for p in re.findall(r"[-\d.]+,[-\d.]+", e.get("d"))]
              for e in root.iter(SVG + "path")]
+    images = [(float(e.get("x")), float(e.get("y")), float(e.get("x")) + float(e.get("width")),
+               float(e.get("y")) + float(e.get("height"))) for e in root.iter(SVG + "image")]
     issues = 0
+    # Embedded images (the logos) must not touch a box, an arrow or a label.
+    for im in images:
+        rm = inflate(im, MARGIN)
+        for pts in polys:
+            for a, b in zip(pts, pts[1:] + pts[:1]):
+                if seg_rect(a[0], a[1], b[0], b[1], rm):
+                    print(f"{_set}: image at {im[0]:.0f},{im[1]:.0f}-{im[2]:.0f},{im[3]:.0f} meets box edge ({a[0]:.0f},{a[1]:.0f})-({b[0]:.0f},{b[1]:.0f})")
+                    issues += 1
+                    break
+        for pts in paths:
+            for a, b in zip(pts, pts[1:]):
+                if seg_rect(a[0], a[1], b[0], b[1], rm):
+                    print(f"{_set}: image at {im[0]:.0f},{im[1]:.0f} meets arrow ({a[0]:.0f},{a[1]:.0f})-({b[0]:.0f},{b[1]:.0f})")
+                    issues += 1
+                    break
+        for tb in texts:
+            if overlap(rm, tb[:4]):
+                print(f"{_set}: image at {im[0]:.0f},{im[1]:.0f} overlaps text '{tb[4]}'")
+                issues += 1
     for tb in texts:
         r = tb[:4]
         rm = inflate(r, MARGIN)
@@ -148,7 +169,7 @@ def lint_with(path, verbose=False):
             if overlap(inflate(a[:4], 1.5), b[:4]):
                 print(f"{_set}: OVERLAP text '{a[4]}' / '{b[4]}'")
                 issues += 1
-    print(f"{path} ({_set}): {len(texts)} texts, {len(polys)} boxes, {len(paths)} arrows, {issues} issue(s)")
+    print(f"{path} ({_set}): {len(texts)} texts, {len(polys)} boxes, {len(paths)} arrows, {len(images)} images, {issues} issue(s)")
     if verbose:
         for tb in sorted(texts, key=lambda t: t[2]-t[0], reverse=True)[:12]:
             print(f"  {tb[2]-tb[0]:6.1f} px  '{tb[4]}'")

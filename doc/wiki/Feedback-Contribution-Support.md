@@ -1,10 +1,10 @@
 ## **Feedback / Contribution / Support**
 
 Feedback, contributions greatly help improving open-source projects and any contribution to LiteX is welcome:
-- You create a design with LiteX, **it works** and you are happy with it?  Please **let us know**, we could list it as a [useful resource](Tutorials-Resources.md#useful-resources)! It could be used as an example and help other users.
+- You create a design with LiteX, **it works** and you are happy with it? Please **let us know**, we could list it as a [useful resource](Tutorials-Resources.md#examples-to-read) or a [project](Projects.md)! It could be used as an example and help other users.
 - You try to use LiteX but it **does not work**, we could certainly help if you create an **issue**, but please have a look at the list of **things we'll need to know** to be able to help you.
 - You've seen things that could be **improved** or have some **ideas** you think would be useful for the project? **Please share it with us**. If you don't feel confident enough to modify the code yourself, feel free to **create an issue describing your idea(s)** and describe how it could improve the project. If you think you are able to do the modification yourself, feel free to **try and create a Pull Request**. Even if this is not perfect, this would be welcomed and we will help you understand how you could eventually improve it or could do the modification for you. 
-- etc..
+- The documentation is wrong, outdated or missing something? This wiki is generated from the `doc/wiki` directory of the LiteX repository: [send a pull request](Contributing-to-the-Wiki.md), even for a one line fix.
 
 It's also possible you will think of things we would never have figured out ourselves or things you are expert in and would implement better than us and that's what we think make open-source so rewarding: **everyone learn from each other**!
 
@@ -35,11 +35,11 @@ If you are testing a design you created with the tools or developing  a new feat
 
 If you **have an idea** and think you can **implement it**, please go ahead, **that's how you'll learn and progress!** We encourage you to do so and will **always welcome contributions**, we can help to make sure it can be merged if useful for the whole project. If before doing the hard work you have doubts it will be possible to merge your work since maybe not useful for the whole project or too specific, please feel free to first create an issue to discuss this.
 
-LiteX does not have strict coding rules, please just try (if possible) to a use coding style close to the already existing files.
+Please use a coding style close to the already existing files: the [coding style](https://github.com/enjoy-digital/litex/blob/master/doc/coding_style.md) and [architectural style](https://github.com/enjoy-digital/litex/blob/master/doc/architectural_style.md) documents describe it (file layout, HDL conventions, where a device-specific piece of code belongs), with commit messages of the form `module: Description of the change.`. Say in the pull request what was tested (simulation, which board) and what was not.
 
 ## **Support**
 
-While LiteX is an open-source project and we are really enjoying working on it, the team doing the development/maintenance is still small and often have others obligations since the initial goal of LiteX was to create custom FPGA based systems with it, so please understand if we need a few days to respond. The community is also growing and helping and a dedicated freenode channel can be found at [#litex at irc.libera.chat](https://web.libera.chat/).
+While LiteX is an open-source project and we are really enjoying working on it, the team doing the development/maintenance is still small and often have others obligations since the initial goal of LiteX was to create custom FPGA based systems with it, so please understand if we need a few days to respond. The community is also growing and helping: join us on [Discord](https://discord.gg/PkJwjDbxeG) or on IRC at [#litex at irc.libera.chat](https://web.libera.chat/#litex).
 
 We have the chance to have clients trusting us and funding systems built with LiteX or new developments but please consider that most of us can only answer you on working days and also need to spend weekend/holidays with our family and friends to come back with fresh minds and ideas!
 

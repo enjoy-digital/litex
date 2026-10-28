@@ -1,25 +1,73 @@
-LiteX relies on several external tools to load the FPGA bitstream in SRAM or flash it in SPI Flash. This page provide information to install them.
+`--load` writes the bitstream in the FPGA (lost at power off) and `--flash` in the SPI flash
+the FPGA boots from, through the programmer the platform declares in `create_programmer()`
+(`litex_boards/platforms/<board>.py`). Most boards use one of the two open-source tools below;
+the vendor programmers (Vivado, Quartus `quartus_pgm`, Gowin `programmer_cli`, Efinity,
+Diamond `pgrcmd`, Libero, TangDynasty) and a few board-specific ones (`iceprog`, `ecpprog`,
+`ecpdap`, `ujprog`/`fujprog`, `tinyprog`, DFU) are also wrapped in `litex/build/<vendor>/programmer.py`.
 
-## OpenOCD
+```sh
+python3 -m litex_boards.targets.digilent_arty --build --load      # SRAM
+python3 -m litex_boards.targets.digilent_arty --build --flash     # SPI flash (when the target has --flash)
+```
 
-OpenOCD is used in LiteX to load bitstream in SRAM or flash SPI-Flash on most of the suported Xilinx/Lattice devices. Please use and install **our fork of OpenOCD** for the boards using the OpenOCD programmer:
-
-    git clone https://github.com/enjoy-digital/openocd
-    cd openocd  
-    ./bootstrap  
-    ./configure --enable-ftdi  
-    make  
-    sudo make install
+A programmer can also be used from Python: `prog = platform.create_programmer();
+prog.load_bitstream("build/<board>/gateware/<board>.bit")`, `prog.flash(0, "<board>.bin")`.
 
 ## openFPGALoader
 
-openFPGALoader is an awesome FPGA loader tool developed by @trabucayre that supports most of the boards used by the open-FPGA communities (and also the more exotic ones!). We are relying on it in LiteX for an increasing number of boards (Gowin, Efinix boards) and already switched to it for some ECP5 boards. You can use **upstream openFPGALoader** with LiteX:
+[openFPGALoader](https://github.com/trabucayre/openFPGALoader) (by @trabucayre) supports most
+boards of the open-FPGA communities, the exotic ones included, with the usual cables (FTDI,
+Digilent, DirtyJTAG, ...): it is the default programmer of most LiteX-Boards targets (Xilinx,
+Lattice, Gowin, Efinix, CologneChip, Intel). Use the upstream version:
 
-    apt-get install libftdi1-2 libftdi1-dev libhidapi-hidraw0 libhidapi-dev libudev-dev cmake pkg-config make g++
-    git clone https://github.com/trabucayre/openFPGALoader
-    cd openFPGALoader
-    mkdir build
-    cd build
-    cmake ../
-    make
-    sudo make install
+```sh
+sudo apt install openfpgaloader                      # Debian/Ubuntu (a recent release), or build it:
+sudo apt install libftdi1-2 libftdi1-dev libhidapi-hidraw0 libhidapi-dev libudev-dev cmake pkg-config make g++
+git clone https://github.com/trabucayre/openFPGALoader && cd openFPGALoader
+mkdir build && cd build && cmake ../ && make && sudo make install
+openFPGALoader --detect                              # the cable and the device
+```
+
+In a platform: `OpenFPGALoader(board="arty_a7_35t")`, or `OpenFPGALoader(cable="ft2232", fpga_part="xc7a35t")`
+with `--freq`, `--index-chain`, `--ftdi-serial` when needed; `flash()` takes the address and
+accepts the tool's `--unprotect-flash`/`--verify`/external flash options.
+
+## OpenOCD
+
+[OpenOCD](https://openocd.org/) loads bitstreams on Xilinx and Lattice devices and flashes the
+SPI flash through JTAG with the bscan SPI proxy bitstreams (downloaded on first use from
+[quartiq/bscan_spi_bitstreams](https://github.com/quartiq/bscan_spi_bitstreams) into `~/.litex`).
+It is also the JTAG transport of the [JTAGBone bridge](Host-Bridges.md) and of the
+[CPU debugging](JTAG-GDB-Debugging-with-VexRiscv-CPU.md) with GDB. The upstream OpenOCD works;
+our fork adds a few cables and fixes:
+
+```sh
+git clone https://github.com/enjoy-digital/openocd && cd openocd
+./bootstrap && ./configure --enable-ftdi && make && sudo make install
+```
+
+In a platform: `OpenOCD("openocd_xc7_ft2232.cfg", "bscan_spi_xc7a35t.bit")`; the configuration
+files are in the `prog/` directory of LiteX and of LiteX-Boards, and the `OPENOCD` environment
+variable selects another binary.
+
+## Vendor tools and others
+
+- **Vivado** (`VivadoProgrammer(flash_part="n25q256-3.3v-spi-x1_x2_x4")`): JTAG through the
+  hardware manager, flashing through Vivado's flash programming; `vivado_path`/`vivado_ver` when
+  several versions are installed.
+- **Quartus** (`USBBlaster(cable_name="USB-Blaster")`): `quartus_pgm` with the `.sof`; `.rbf`
+  and `.svf` can be generated for other tools.
+- **Gowin** (`GowinProgrammer(devname, cable=...)`): `programmer_cli` of the Gowin EDA, SRAM
+  and flash (`fifile`/`mcufile` for the EMCU devices), GWU2X or FT2CH cables.
+- **Efinix** (`EfinixProgrammer`): Efinity's `ftdi_program.py` (JTAG) and `jtag_bridge` for the
+  flash; `EfinixAtmelProgrammer` for the boards with the Atmel USB bridge.
+- **Lattice**: `IceStormProgrammer` (`iceprog`, iCE40), `EcpprogProgrammer`/`EcpDapProgrammer`
+  (ECP5), `UJProg`/`fujprog` (ULX3S), `TinyProgProgrammer` (TinyFPGA), `LatticeProgrammer`
+  (`pgrcmd` with an `.xcf`), `OpenOCDJTAGProgrammer` (SVF through OpenOCD).
+- **DFU** (`DFUProg(vid, pid, alt)`): boards with a DFU bootloader (OrangeCrab, Fomu, ...):
+  `dfu-suffix` then `dfu-util --download`.
+- **Microsemi** (`LiberoProgrammer`), **Anlogic** (`TangDynastyProgrammer`), **Xilinx** legacy
+  (`iMPACT`, `XC3SProg`, `UrJTAG`, `Adept`).
+
+Permissions: on Linux, the USB cables need udev rules (openFPGALoader ships `99-openfpgaloader.rules`,
+OpenOCD `60-openocd.rules`) or `sudo`.

@@ -1,5 +1,3 @@
-# Acorn CLE 215+
-
 The Acorn CLE 215+ is a cryptocurrency mining accelerator card from SQRL that can be repurposed as a generic FPGA PCIe development board:
 
 <div>
@@ -85,11 +83,13 @@ To build the SoC, first get the Linux-on-LiteX-VexRiscv project:
     
 And build the Acorn CLE215+ target:
 
-    python3 make.py --board=acorn_cle_215 --build --load
+    python3 make.py --board=acorn --build --load
 
 You can then load the Linux images to the board over UART with:
 
-    litex_term /dev/ttyUSBX --images=images.json --speed=1e6
+    litex_term jtag --jtag-config=openocd_xc7_ft2232.cfg --images=images/boot.json
+
+(The `acorn` board of Linux-on-LiteX-VexRiscv has no serial port and uses the JTAG UART; with the [LiteX Acorn Baseboard](https://github.com/enjoy-digital/litex-acorn-baseboard), `--board=acorn_baseboard_mini` has a real UART: `litex_term /dev/ttyUSBX --images=images/boot.json`.)
 
 And you should see linux booting:
 
@@ -111,7 +111,8 @@ The design has been initially generated and over JTAG with:
 
 The Linux driver is then available at `build/acorn_pcie/driver` and can be loaded with:
 
-    cd kernel
+    cd build/acorn_pcie/driver/kernel
+    make
     sudo ./init.sh
 
 A `/dev/ttyLXU0` UART is created and can be used with LiteX-Term:
@@ -129,23 +130,37 @@ The Acorns are flashed with a Multiboot bitstream composed of a Fallback bitstre
 ![enter image description here](https://user-images.githubusercontent.com/1450143/144006990-730a81bf-aedb-4310-a11a-f9dd97315cc3.png)
 Updating the Operational bitstream over PCIe is possible with:
 
-    cd user
+    cd build/acorn_pcie/driver/user
+    make
     ./litepcie_util flash_write acorn_pcie_operational.bin 0x400000
 
 A `./litepcie_util flash_reload` will reload the bitstream from SPI Flash and a PCIe rescan or reboot the computer will allow you to use the new bitstream.
 
 > Note: Be careful of the **0x400000 offset** to only update the Operational bitstream.
 
+# PCIe
+
+The target builds a PCIe Gen2 X4 SoC with LitePCIe (exclusive with `--with-sata`: the GTPs are shared), its Linux driver and user tools:
+
+    python3 -m litex_boards.targets.sqrl_acorn --uart-name=crossover --with-pcie --driver --build --load
+    cd build/sqrl_acorn/driver/kernel && make && sudo ./init.sh      # the LitePCIe kernel module (and /dev/ttyLXU0 for the crossover UART)
+    cd ../user && make
+    ./litepcie_util info                                             # the SoC identifier and the PCIe link
+    ./litepcie_util scratch_test
+    ./litepcie_util dma_test                                         # DMA loopback bandwidth
+
+`--pcie-ndmas`, `--pcie-address-width` and `--pcie-with-dma-status`/`--pcie-with-dma-monitor` configure the DMAs. The host also reaches the SoC bus through the BAR without the driver (`litex_server --pcie --pcie-bar=<id>`, [Host-Bridges](Host-Bridges.md)), and `--with-jtagbone`/`--with-spi-sdcard` add a JTAG bridge and an SD card. The [LiteX Acorn Baseboard](https://github.com/enjoy-digital/litex-acorn-baseboard) (and its Mini version) adds a serial port, Ethernet, SFP cages, HDMI, SD card and more around the Acorn: `litex_boards.targets.litex_acorn_baseboard` and `litex_acorn_baseboard_mini`.
+
 # Going Further...
 
-In this guide, we demonstrated a classical LiteX SoC with a CPU/ROM/RAM/DDR3 on the Acorn CLE 215+. The design is only using a fraction of the FPGA and leaves plenty of room for the user, so it already makes it a very nice and cheap FPGA development board. The NiteFury and LiteFury boards can also be used and will just require changing the FPGA device in the platform file and DDR3 chip in the target file.
+In this guide, we demonstrated a classical LiteX SoC with a CPU/ROM/RAM/DDR3 on the Acorn CLE 215+. The design is only using a fraction of the FPGA and leaves plenty of room for the user, so it already makes it a very nice and cheap FPGA development board. The NiteFury and LiteFury boards (and the Acorn CLE-101) can also be used: `--variant=cle-101` or `--variant=cle-215` select them (`cle-215+` is the default).
 
-The board also exposes 4 GTP transceivers on the M2 connector which makes it very interesting to explore high speed serial links. We already demonstrated LiteSATA operation over a GTP (with 3 of them still available for user...), but it's also possible to build a Gen2 X4 PCIe design with LitePCIe on this board by following instructions in the LiteX-Boards [target](https://github.com/litex-hub/litex-boards/blob/master/litex_boards/targets/acorn_cle_215.py) or explore low level layers of high speed serial links with LiteICLink [bench design](https://github.com/enjoy-digital/liteiclink/blob/master/bench/serdes/acorn_cle_215.py), etc...
+The board also exposes 4 GTP transceivers on the M2 connector which makes it very interesting to explore high speed serial links. We already demonstrated LiteSATA operation over a GTP (with 3 of them still available for user...), but it's also possible to build a Gen2 X4 PCIe design with LitePCIe on this board by following instructions in the LiteX-Boards [target](https://github.com/litex-hub/litex-boards/blob/master/litex_boards/targets/sqrl_acorn.py) or explore low level layers of high speed serial links with LiteICLink [bench design](https://github.com/enjoy-digital/liteiclink/blob/master/bench/serdes/sqrl_acorn.py), etc...
 
-A quad-core VexRiscv-SMP with DDR3 / PCIe Gen2 X4 has also been demonstrated on this board and should be soon available in Linux-on-LiteX-VexRiscv project:
+A quad-core VexRiscv-SMP with DDR3 / PCIe Gen2 X4 has also been demonstrated on this board and is available in Linux-on-LiteX-VexRiscv (`--board=acorn_pcie`):
 <a href="https://twitter.com/enjoy_digital/status/1257985111469015040" rel="VexRiscv-SMP">
 ![VexRiscv-SMP](https://user-images.githubusercontent.com/1450143/101612799-592b6700-3a0b-11eb-9d3f-94f255cae8f7.png)</a>
 
-Since boards with very similar capabilities are already supported by [Symbiflow](https://symbiflow.github.io/) (the Arty for example for but which is lacking GTPs) we could imagine building these designs with a full open-source toolchain in a very near future!
+Boards with very similar capabilities are already supported by the open-source 7-Series flows ([F4PGA](https://f4pga.org/) and [openXC7](https://github.com/openXC7), `--toolchain=openxc7`; the Arty for example, which is lacking GTPs), so building these designs with a full open-source toolchain is getting closer!
 
 Pretty exciting to see what can now be done with open-source hardware and less than 100$/€ nowadays no ? :)

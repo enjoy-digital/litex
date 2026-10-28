@@ -1,6 +1,6 @@
 ## Introduction
 
-This guide explores how to leverage JTAG debugging with LiteX for RISC-V CPUs such as VexRiscv-SMP, NaxRiscv or future VexiiRiscv CPUs which are commonly used within LiteX SoCs/projects. We'll look at setting up JTAG for both simulations and physical hardware implementations, using exposed/external JTAG IO pins but also internal features like BSCANE2 on Xilinx FPGAs.
+This guide explores how to leverage JTAG debugging with LiteX for RISC-V CPUs such as VexRiscv-SMP, NaxRiscv or VexiiRiscv CPUs which are commonly used within LiteX SoCs/projects. We'll look at setting up JTAG for both simulations and physical hardware implementations, using exposed/external JTAG IO pins but also internal features like BSCANE2 on Xilinx FPGAs.
 
 ![](https://github.com/enjoy-digital/litex/assets/1450143/9a652208-58c2-4c96-8ba7-d8330c1b6a54)
 
@@ -128,8 +128,8 @@ File required to communicate with the target (`jtag_remote.cfg`) is:
 ```cfg
 adapter speed 10000
 adapter driver remote_bitbang
-remote_bitbang_host localhost
-remote_bitbang_port 44853
+remote_bitbang host localhost
+remote_bitbang port 44853
 ```
 
 To initiate OpenOCD:
@@ -179,7 +179,6 @@ soc.comb += [
     jtag.tdo.eq(soc.cpu.jtag_tdo)
 ]
 # Timing constraints for JTAG clock
-soc.platform.add_platform_command("create_clock -period 10.000 -name jtag_tck [get_nets jtag_tck_IBUF]")
 soc.platform.add_platform_command("create_clock -name jtag_tck -period 20.0 [get_nets jtag_tck]")
 soc.platform.add_false_path_constraints(soc.crg.cd_sys.clk, jtag.tck)
 ```
@@ -189,7 +188,7 @@ soc.platform.add_false_path_constraints(soc.crg.cd_sys.clk, jtag.tck)
 Compile and load the gateware/firmware onto the FPGA with the JTAG debugging features enabled. This step ensures that the FPGA is correctly programmed and ready for JTAG interaction.
 
 ```bash
-./digilent_arty.py --cpu-type=vexriscv_smp --with-rvc --with-privileged-debug --hardware-breakpoints 4 --jtag-tap --build --load
+python3 -m litex_boards.targets.digilent_arty --cpu-type=vexriscv_smp --with-rvc --with-privileged-debug --hardware-breakpoints=4 --jtag-tap --build --load
 ```
 ### Setting up OpenOCD
 
@@ -227,9 +226,13 @@ Using BSCANE2, a built-in JTAG capability of some Xilinx FPGAs, eliminates the n
 
 ### Preparing the Target Hardware
 
+LiteX does it for you: the `--with-cpu-jtag-debug` option (`soc.add_cpu_jtag_debug(chain=4, clk_freq=10e6, clock_domain="sys")` in a target) instantiates the BSCANE2 primitive on the USER4 chain, connects it to the CPU's JTAG instruction interface and adds the timing constraints. `--cpu-jtag-debug-chain` picks another USER chain (JTAGBone uses USER1, both can coexist), `--cpu-jtag-debug-clk-freq` the maximum TCK frequency used for the timing analysis. Zynq devices are not supported (their TAP belongs to the PS).
+
+The equivalent by hand, if you need to see the wiring:
+
 ```python3
 from litex.soc.cores.jtag import XilinxJTAG
-soc.jtag = jtag = XilinxJTAG(XilinxJTAG.get_primitive(soc.platform.device), chain=4)
+soc.jtag = jtag = XilinxJTAG(XilinxJTAG.get_primitive(soc.platform.device), chain=4, platform=soc.platform)
 soc.comb += [
     soc.cpu.jtag_reset.eq(jtag.reset),
     soc.cpu.jtag_capture.eq(jtag.capture),
@@ -237,7 +240,7 @@ soc.comb += [
     soc.cpu.jtag_update.eq(jtag.update),
     soc.cpu.jtag_clk.eq(jtag.tck),
     soc.cpu.jtag_tdi.eq(jtag.tdi),
-    soc.cpu.jtag_enable.eq(True),
+    soc.cpu.jtag_enable.eq(jtag.sel),
     jtag.tdo.eq(soc.cpu.jtag_tdo),
 ]
 ```
@@ -247,7 +250,7 @@ soc.comb += [
 Compile and load the gateware/firmware onto the FPGA with the JTAG debugging features enabled. This step ensures that the FPGA is correctly programmed and ready for JTAG interaction.
 
 ```bash
-./digilent_arty.py --cpu-type=vexriscv_smp --with-rvc  --with-privileged-debug --hardware-breakpoints 4 --build --load
+python3 -m litex_boards.targets.digilent_arty --cpu-type=vexriscv_smp --with-rvc --with-privileged-debug --hardware-breakpoints=4 --with-cpu-jtag-debug --build --load
 ```
 
 ### Setting up OpenOCD
@@ -261,10 +264,10 @@ Interface configuration (`digilent_arty.cfg`):
 # SPDX-License-Identifier: MIT
 
 adapter driver ftdi
-ftdi_vid_pid 0x0403 0x6010
-ftdi_channel 0
-ftdi_layout_init 0x00e8 0x60eb
-ftdi_tdo_sample_edge falling
+ftdi vid_pid 0x0403 0x6010
+ftdi channel 0
+ftdi layout_init 0x00e8 0x60eb
+ftdi tdo_sample_edge falling
 
 reset_config none
 adapter speed 5000
@@ -286,3 +289,24 @@ Finally, connect GDB to the OpenOCD server to start debugging the FPGA. Use the 
 ```bash
 gdb-multiarch -q demo/demo.elf -ex "target extended-remote localhost:3333"
 ```
+
+## CPU debug through any bridge: `--cpu-jtag-debug-transport=csr` and `litex_jtag`
+
+When the FPGA has no free USER chain, no JTAG cable, or the JTAG port is not reachable (a remote board, a PCIe card), the debug TAP can be driven through CSRs over the LiteX [bridge](Host-Bridges.md) instead of the FPGA's JTAG port:
+
+```bash
+python3 -m litex_boards.targets.digilent_arty --cpu-type=vexriscv_smp --with-privileged-debug --hardware-breakpoints=4 \
+    --with-cpu-jtag-debug --cpu-jtag-debug-transport=csr --with-etherbone --build --load
+litex_server --udp                       # or --uart, --jtag, --pcie: any transport
+litex_jtag --csr-csv=build/digilent_arty/csr.csv    # an OpenOCD remote_bitbang server on 127.0.0.1:3335
+openocd -c "adapter driver remote_bitbang" -c "remote_bitbang host 127.0.0.1" -c "remote_bitbang port 3335" -f riscv.cfg
+gdb-multiarch -q demo/demo.elf -ex "target extended-remote localhost:3333"
+```
+
+`litex_jtag` bit-bangs the `cpu_jtag_debug` CSRs (`--csr-name` if renamed) through `litex_server` (`--host`, `--port`); slower than a cable, but it works everywhere the bridge does (also from the simulation with `--with-etherbone`).
+
+## CPU options
+
+- **VexRiscv-SMP**: `--with-privileged-debug` (the RISC-V debug module), `--hardware-breakpoints=N`, `--jtag-tap` (an external TAP on pins, as in the first hardware example) or `--with-cpu-jtag-debug` (BSCAN), `--with-swd-debug` (SWD instead of JTAG, with the `swdremote` module in simulation: `--with-swdremote`).
+- **NaxRiscv** and **VexiiRiscv**: `--with-jtag-tap` (external TAP on pins) or `--with-jtag-instruction` (the tunneled TAP used by `--with-cpu-jtag-debug`); the same OpenOCD scripts apply.
+- The LiteX repository documents the mechanism in [doc/cpu_jtag_debug.md](https://github.com/enjoy-digital/litex/blob/master/doc/cpu_jtag_debug.md); the OpenOCD configuration files of the usual cables are in `prog/` (`openocd_xc7_ft232.cfg`, `openocd_xc7_ft2232.cfg`, `openocd_xc7_ft4232.cfg`).

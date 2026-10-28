@@ -1,97 +1,193 @@
-# LiteX industrial projects
+LiteX has been used since 2012 by [Enjoy-Digital](https://enjoy-digital.fr) to build systems
+for clients and open-source products, and by a growing community for boards, instruments,
+research platforms and products of their own. This page lists them in four groups: the
+**industrial projects** LiteX was born from and lives from, the **Enjoy-Digital projects**
+(the framework, the cores and the systems we maintain), the **LiteX-Hub collaborative
+projects** (the shared repositories of the community), and the **community projects** built
+with LiteX elsewhere. Yours is missing? [Send a pull request](Contributing-to-the-Wiki.md) with a line
+and a link.
 
-LiteX is developed and used by Enjoy-Digital since 2012 to co-develop full-systems with our partners and provide an convenient and efficient solutions to create SoCs on FPGA based systems. Here are some of the last project we worked on with our partners:
+## Industrial projects
 
-## PCIe Software Defined Radio board with 2 Artix7, PCIe Gen2 X8 and 2 AD937X. 
+LiteX was born in industrial projects and still lives from them: since 2012,
+[Enjoy-Digital](https://enjoy-digital.fr) co-develops complete FPGA systems with its clients,
+and this work funds the development of LiteX and of the cores. It also keeps us pragmatic: real
+boards, industry standards and deadlines call for practical and efficient solutions, while
+leaving room for the R&D we like (USB3 without external PHY, White Rabbit, PCIe PTM, LLMs
+decoded on FPGA...). Here are some of the projects we worked on with our clients.
+
+### White Rabbit PCIe NIC on the SPEC-A7, for the Warsaw University of Technology
+
+[LiteX-WR-NIC](https://github.com/enjoy-digital/litex_wr_nic): a White Rabbit PCIe NIC
+(sub-nanosecond synchronization over Ethernet) on the SPEC-A7 board: LiteX, LitePCIe with PTM,
+LiteEth and the White Rabbit PTP core, with a PTM demonstration against an Intel I225. Open
+source end to end.
+
+<img src="https://raw.githubusercontent.com/enjoy-digital/litex_wr_nic/main/doc/spec_a7.jpg" width="500">
+
+### PCIe Software Defined Radio board with 2 Artix7, PCIe Gen2 X8 and 2 AD937X
 <div>
 <img src="http://enjoy-digital.fr/experience/pcie_ad937x.jpg" width="520">
 <img src="https://pbs.twimg.com/media/EjtsRYtX0AE72A1?format=jpg&name=medium" width="250">
 </div>
 
-The SoC is built with LiteX, [LitePCIe](https://github.com/enjoy-digital/litepcie) is used for the communication with the Host and [LiteJESD204B](https://github.com/enjoy-digital/litejesd204b) is used between the AD937Xs and FPGAs. 
+The SoC is built with LiteX, [LitePCIe](https://github.com/enjoy-digital/litepcie) is used for the communication with the Host and [LiteJESD204](https://github.com/enjoy-digital/litejesd204) is used between the AD937Xs and FPGAs.
 
-## PCIe 3G SDI board with Artix7, PCIe Gen2 X4. 
+### PCIe 3G SDI board with Artix7, PCIe Gen2 X4
 <p align="center"><img src="http://enjoy-digital.fr/experience/pcie_3g_sdi.jpg" width="600"></p>
 
 The SoC is built with LiteX, [LitePCIe](http://github.com/enjoy-digital/litepcie) is used to communicate with the Host and the Xilinx TripleRateSDI core is wrapped with custom datapath modules and gearboxes to make efficient use of the PCIe bus without any external buffering.
 
-More projects can be found at [Enjoy-Digital website](http://enjoy-digital.fr/).
+More projects can be found on the [Enjoy-Digital website](https://enjoy-digital.fr/).
 
-Even if these projects are still unfortunately proprietary, LiteX has been originally developed to create these systems and most of the open-source features/cores come directly from these projects. Working on these systems allow us to keep track of the industry standards/constraints, force us to be practical, use efficient solutions and motivate us to continue improving the tools/adding new features, because that's what we like: creating systems!
+Most of these systems stay proprietary, but most of the open-source features and cores come
+directly from them: when something developed for a client is generic enough (a core, a PHY, a
+tool, a CPU integration), we look with the client at how to bring it back into the generic
+projects. This is how LiteX, LitePCIe, LiteEth or LiteDRAM grew, and how the client gets a
+feature maintained upstream rather than a fork. We love working on concrete problems and
+systems: for custom developments or personalized support on LiteX, contact us at
+[florent@enjoy-digital.fr](mailto:florent@enjoy-digital.fr).
 
-# LiteX open-source projects
+## Enjoy-Digital projects
 
-Collections of projects with LiteX involved that could be useful for users to better understand LiteX, go further and/or find some inspiration.
+### The framework and the cores
 
-## [LiteX-Acorn-Baseboard](https://github.com/enjoy-digital/litex-acorn-baseboard)
+[LiteX](https://github.com/enjoy-digital/litex) and the cores ecosystem:
+[LiteDRAM](https://github.com/enjoy-digital/litedram), [LiteEth](https://github.com/enjoy-digital/liteeth),
+[LitePCIe](https://github.com/enjoy-digital/litepcie), [LiteNVMe](https://github.com/enjoy-digital/litenvme),
+[LiteSATA](https://github.com/enjoy-digital/litesata), [LiteSDCard](https://github.com/enjoy-digital/litesdcard),
+[LiteICLink](https://github.com/enjoy-digital/liteiclink), [LiteJESD204](https://github.com/enjoy-digital/litejesd204),
+[LiteScope](https://github.com/enjoy-digital/litescope), [LiteDSP](https://github.com/enjoy-digital/litedsp)
+and [USB3-PIPE / usb3_core](https://github.com/enjoy-digital/usb3_pipe): see the [Cores ecosystem](Cores-Ecosystem.md).
+Software ports: [FreeRTOS on LiteX](https://github.com/enjoy-digital/freertos-on-litex),
+[MQuickJS on LiteX](https://github.com/enjoy-digital/mquickjs-on-litex). Infrastructure:
+[LiteX hardware CI](https://github.com/enjoy-digital/litex_hw_ci) (the designs run on real
+boards).
 
-The LiteX-Acorn-Baseboards are baseboards developed around the SQRL's Acorn board (or Nite/LiteFury) expanding their possibilities.
-<div>
-<img src="https://raw.githubusercontent.com/enjoy-digital/litex-acorn-baseboard/master/hardware/acorn-baseboard-mini-proto.jpg" width="600">
-</div>
+### Systems and products
 
-## [Linux-on-LiteX-VexRiscv](https://github.com/litex-hub/linux-on-litex-vexriscv)
-<div>
-<img src="https://linuxgizmos.com/files/gsd_orangecrab_frontback.jpg" width="300">
-<img src="https://web.archive.org/web/20200113121328im_/https://pbs.twimg.com/media/ENtF6OWXUAEwlA7.jpg" width="450">
-</div>
- 
- - Have an FPGA board with 32MB of RAM and want to test Linux on it? 
- - Want to study/explore a RISC-V Linux capable SoC?
- - Want to create a full autonomous SoC with LiteX and its peripherals (SPI, I2C, SDCard, FrameBuffer, etc...) managed by Linux?
+**[TriXium](https://github.com/enjoy-digital/trixium)**: ternary LLMs (PrismML's Bonsai models,
+1.7B to 27B parameters) decoded entirely on second-hand FPGA cards (Kintex-7, Virtex
+UltraScale+ with DDR4 or HBM2, Efinix Ti375), open source end to end: LiteX, LitePCIe,
+LiteDRAM, VexiiRiscv provide the SoC and the memory controllers, the inference core and
+firmware were developed with an AI agent guided by Enjoy-Digital. Documented with the
+simulation-first method and the LiteX-style diagrams this wiki now uses.
 
-[Linux-on-LiteX-VexRiscv](https://github.com/litex-hub/linux-on-litex-vexriscv) project demonstrates how to create a Linux capable SoC with [VexRiscv](https://github.com/SpinalHDL/VexRiscv) CPU, a 32-bits Linux Capable RISC-V CPU written in Spinal HDL. A SoC around the VexRiscv CPU is created using LiteX as the SoC builder and LiteX's cores written in Migen Python DSL (LiteDRAM, LiteEth, LiteSDCard). All the components used to create the SoC are open-source and the flexibility of Spinal HDL/Migen allow targeting easily very various FPGA devices/boards: Lattice, Altera, Xilinx, Microsemi FPGAs with SDRAM/DDR/DDR2/DDR3/DDR4 RAMs, RMII/MII/RGMII/1000BASE-X Ethernet PHYs. On Lattice ECP5 FPGAs, the [open source toolchain](https://github.com/SymbiFlow/prjtrellis) allows creating full open-source SoC with open-source cores **and** toolchain!
+<img src="https://raw.githubusercontent.com/enjoy-digital/trixium/main/doc/images/trixium-project.png" width="700">
 
-This project demonstrates **how high level HDLs (Spinal HDL, Migen) enable new possibilities and complement each other**. Results shown there are the results of a productive collaboration between open-source communities.ant to test easily control LiteX cores.
+**[LiteX-M2SDR](https://github.com/enjoy-digital/litex_m2sdr)**: an M.2 software defined radio
+board (Artix-7, AD9361 2T2R up to 61.44 MSPS, PCIe Gen2 x1/x2/x4 with PTM, SATA, Ethernet
+and White Rabbit options) with its LitePCIe-based driver, tools, SoapySDR module and GNU Radio
+support; used with srsRAN, Amarisoft and research projects.
 
-## [NeTV2](https://www.crowdsupply.com/alphamax/netv2)
-<div>
-<img src="https://bunniefoo.com/netv2/netv2-slogan-white.png" width="480">
-<img src="http://enjoy-digital.fr/experience/netv2.jpg" width="400">
-</div>
+<img src="https://github.com/user-attachments/assets/c3007b14-0c55-4863-89fa-749082692b4f" width="700">
 
-The NeTV2 is a HDMI capture/playback board based on an Xilinx Artix7 FPGA.
+**[USB3-PIPE and usb3_core](https://github.com/enjoy-digital/usb3_pipe)**: USB 3.0 SuperSpeed
+for FPGAs without any external chip: the PIPE PHY (LTSSM, 8b/10b, scrambling) on the FPGA
+transceivers and a complete USB3 device core (link/protocol layers, endpoints, CDC-ACM, UVC
+camera, mass storage, composite devices), 446 MB/s bulk, also exported as a standalone core;
+[AgentLab](https://github.com/enjoy-digital/usb3_pipe/blob/master/doc/agentlab.md), a USB3
+instrument giving software agents consoles, GPIOs, a logic analyzer and JTAG on a device under
+test, is built on it.
 
-The [official SoC](https://github.com/AlphamaxMedia/netv2-fpga) is doing an overlay (up to 1080p60) from the Raspberry Pi 3B+ on an HDMI stream with or without HDCP. The SoC of the Artix7 FPGA is built with LiteX, a VexRiscv CPU is used for the control, [LiteDRAM](https://github.com/enjoy-digital/litedram) as the DDR3 controller to store the CPU firmware and the do HDMI buffering and [LiteVideo](https://github.com/enjoy-digital/litevideo) for the HDMI playback/capture.
+<img src="https://raw.githubusercontent.com/enjoy-digital/usb3_pipe/master/doc/acorn_baseboard_sfp2usb_0.jpg" width="700">
 
-The [libre SoC](https://github.com/enjoy-digital/netv2) makes use of the PCIe Gen2 X4 connector of the board with [LitePCIe](https://github.com/enjoy-digital/litepcie) to create a HDMI capture/playback device.
+**[LiteX Acorn Baseboard](https://github.com/enjoy-digital/litex-acorn-baseboard)** (and
+Mini): baseboards turning the SQRL Acorn (and NiteFury/LiteFury) mining cards into FPGA
+development boards: serial, Ethernet, SFP cages, HDMI, SD card, SATA/USB3 through the M.2
+connector; the development target of several projects here
+([Use LiteX on the Acorn](Use-LiteX-on-the-Acorn-CLE-215.md)).
 
-## [Fomu](https://www.crowdsupply.com/sutajio-kosagi/fomu)
-<img src="https://web.archive.org/web/20211212031954im_/https://www.crowdsupply.com/img/9023/updated-fomu-penny_png_project-body.jpg" width="600">
+<img src="https://raw.githubusercontent.com/enjoy-digital/litex-acorn-baseboard/master/hardware/acorn-baseboard-mini-sqrl-acorn.jpg" width="600">
 
-The [Fomu](https://www.crowdsupply.com/sutajio-kosagi/fomu) is a tiny FPGA board that fits in your USB port. The SoC of the FPGA is built with LiteX,  a custom version of [VexRiscv](https://github.com/SpinalHDL/VexRiscv) CPU is used for the control and the [ValentyUSB](https://github.com/im-tomu/valentyusb) core allows the board to communicate with the Host computer and emulate various USB devices. Fomu demonstrates how iCE40 designs can be **tiny** and **powerful**: Fomu can run Micropython/Zephyr on its RISC-V CPU while allowing **software debug** over GDB and **gateware debug** over the USB bridge and is able to **reprogram itself** directly from USB with [Foboot](https://github.com/im-tomu/foboot). The [Fomu Workshop](https://workshop.fomu.im/en/latest/) workshop is also a great introduction to FPGA design.
+**[ChromatiX](https://github.com/enjoy-digital/chromatix)**: the ModRetro Chromatic's FPGA
+design (a Game Boy-compatible handheld on a Gowin GW5A) freed and rebuilt with LiteX, with
+the USB 2.0 soft PHY, Doom at 31 fps and a spectrum analyzer from the ESP32
+([blog posts](https://enjoy-digital.github.io/)). **[CamLink 4K](https://github.com/enjoy-digital/camlink_4k)**:
+the Elgato Cam Link 4K capture dongle (ECP5, FX3) rebuilt with open-source LiteX gateware and
+bare-metal FX3 firmware.
 
-## [A Trustworthy, Libre, Self-Hosting 64bit RISC-V Linux Computer](http://www.contrib.andrew.cmu.edu/~somlo/BTCP/)
+<img src="https://raw.githubusercontent.com/enjoy-digital/chromatix/main/doc/images/chromatix.jpg" width="340"> <img src="https://raw.githubusercontent.com/enjoy-digital/camlink_4k/main/doc/images/camlink_4k-inside.jpg" width="340">
 
-Adding the [Rocket Chip](https://github.com/chipsalliance/rocket-chip) (64-bit RISC-V CPU) to the LiteX ecosystem, this project is capable of booting a *nearly* unmodified 64-bit upstream Linux kernel (with only the LiteEth network driver currently patched in).
+**[ThunderScope](https://github.com/EEVengers/thunderscope_litex)** (gateware for the
+EEVengers Thunderbolt/PCIe oscilloscope, now maintained upstream by EEVengers),
+**[XTRX](https://github.com/enjoy-digital/litex_xtrx)** and [xtrx_julia](https://github.com/enjoy-digital/xtrx_julia)
+(an alternative LitePCIe gateware and software for the LimeSDR XTRX, with Julia Computing),
+**[LimeSDR_GW](https://github.com/myriadrf/LimeSDR_GW)** (the LiteX gateware of the LimeSDR
+Mini v2, XTRX and LimeSDR boards, with MyriadRF/Lime Microsystems),
+**[PCIe Screamer](https://github.com/enjoy-digital/pcie_screamer)** and
+**[PCIe Analyzer](https://github.com/enjoy-digital/pcie_analyzer)** (PCIe TLP experiments and
+a PCIe interposer/capture board), **[ColorLite](https://github.com/enjoy-digital/colorlite)**
+(a remote control/monitoring system on the 15$ Colorlight 5A-75B, a LiteEth tutorial),
+**[NeTV2](https://www.crowdsupply.com/alphamax/netv2)** (the HDMI capture/overlay board of
+bunnie: the [official SoC](https://github.com/AlphamaxMedia/netv2-fpga) is a LiteX SoC with
+VexRiscv, LiteDRAM and LiteVideo), **[litecompute_sdr_poc](https://github.com/enjoy-digital/litecompute_sdr_poc)**
+(FPGA accelerators for SDR with LiteX).
 
-Targeted toward the [ECP5-5G-Versa](https://www.latticesemi.com/en/Products/DevelopmentBoardsAndKits/ECP55GVersaDevKit) and the [TrellisBoard](https://github.com/daveshah1/TrellisBoard) (but also known to work on the [Nexys 4 DDR](https://store.digilentinc.com/nexys-a7-fpga-trainer-board-recommended-for-ece-curriculum/)), the ultimate goal is to boot a Linux distro (e.g., [Fedora](https://fedoraproject.org/wiki/Architectures/RISC-V)), and use native riscv64 builds of the Libre FPGA toolchain ([yosys](https://github.com/YosysHQ/yosys)/[trellis](https://github.com/SymbiFlow/prjtrellis)/[nextpnr](https://github.com/YosysHQ/nextpnr)) to build the underlying FPGA-based computer's **_own_** bitstream!
+<img src="https://user-images.githubusercontent.com/1450143/179495534-4c54973b-9203-4893-9eaa-d9177413e9bf.png" width="500">
 
-For the latest details, check out [http://www.contrib.andrew.cmu.edu/~somlo/BTCP](http://www.contrib.andrew.cmu.edu/~somlo/BTCP).
+Tests and bring-ups that became reference material: [litex_mister_test](https://github.com/enjoy-digital/litex_mister_test)
+(MiSTer on a Cyclone V HPS), [litex_agilex5_test](https://github.com/enjoy-digital/litex_agilex5_test),
+[aduivo_forgix_test](https://github.com/enjoy-digital/aduivo_forgix_test), [litepcie_ptm_test](https://github.com/enjoy-digital/litepcie_ptm_test),
+[litex_openwrt_test](https://github.com/enjoy-digital/litex_openwrt_test), [fk33_hbm2_test](https://github.com/enjoy-digital/fk33_hbm2_test),
+[litex_verilog_axi_test](https://github.com/enjoy-digital/litex_verilog_axi_test), [litex_soc_gen_test](https://github.com/enjoy-digital/litex_soc_gen_test),
+[litex_vexriscv_smp_usb_host_test](https://github.com/enjoy-digital/litex_vexriscv_smp_usb_host_test), and the others under
+[github.com/enjoy-digital](https://github.com/enjoy-digital?tab=repositories).
 
-## [Betrusted.io](https://betrusted.io/)
-<img src="https://betrusted.io/assets/images/betrusted-banner.png" width="600">
+## LiteX-Hub collaborative projects
 
-Betrusted is a protected place for your private matters. It’s built from the ground up to be checked by anyone, but sealed only by you. Betrusted is more than just a secure CPU – it is a system complete with screen and keyboard, because privacy begins and ends with the user.
+[LiteX-Hub](https://github.com/litex-hub) hosts the repositories maintained with and by the
+community:
 
-Betrusted prototypes are built around two FPGAs SoC built with LiteX: The iCE40 based [Embedded controller](https://github.com/betrusted-io/betrusted-ec) SoC and the Spartan7 based [Secure Domain](https://github.com/betrusted-io/betrusted-soc) SoC.
+| Project | What it is |
+| --- | --- |
+| [litex-boards](https://github.com/litex-hub/litex-boards) | The platforms and targets of 250+ boards from 9 FPGA vendors ([Add a new board](Add-A-New-Board.md)). |
+| [linux-on-litex-vexriscv](https://github.com/litex-hub/linux-on-litex-vexriscv), [linux-on-litex-rocket](https://github.com/litex-hub/linux-on-litex-rocket) | Linux on LiteX SoCs ([Run Linux](Run-Linux-On-Your-SoC.md)). |
+| [litespi](https://github.com/litex-hub/litespi), [litei2c](https://github.com/litex-hub/litei2c), [litehyperbus](https://github.com/litex-hub/litehyperbus), [litevideo](https://github.com/litex-hub/litevideo) | Cores maintained in the hub (the last two superseded by LiteX's HyperRAM and video cores). |
+| [zephyr-on-litex-vexriscv](https://github.com/litex-hub/zephyr-on-litex-vexriscv) | The SoC builder of the Zephyr `litex_vexriscv` platform (Antmicro). |
+| [fpga_101](https://github.com/litex-hub/fpga_101) | Lessons and labs to learn FPGAs with Migen/LiteX ([Tutorials](Tutorials-Resources.md)). |
+| [pythondata-cpu-*](https://github.com/litex-hub?q=pythondata-cpu), [pythondata-software-*](https://github.com/litex-hub?q=pythondata-software), [pythondata-misc-*](https://github.com/litex-hub?q=pythondata-misc) | The packaged sources of the 27 CPUs, picolibc and compiler-rt, and misc cores (USB OHCI, tapcfg), generated with [pythondata-auto](https://github.com/litex-hub/pythondata-auto). |
+| [wishbone-utils](https://github.com/litex-hub/wishbone-utils) | `wishbone-tool`, a Rust client for the bridges (Fomu heritage). |
+| [litex-renode](https://github.com/litex-hub/litex-renode), [cocotb_verilator_sim_example](https://github.com/litex-hub/cocotb_verilator_sim_example) | Simulation helpers and examples. |
+| [micropython](https://github.com/litex-hub/micropython), [linux](https://github.com/litex-hub/linux), [opensbi](https://github.com/litex-hub/opensbi), [picolibc](https://github.com/litex-hub/picolibc), [barebox](https://github.com/litex-hub/barebox) | The forks carrying the LiteX ports and patches. |
 
-<div>
-<img src="https://bunniefoo.com/precursor/precursor_lte_module_example.jpg" width="400">
-<img src="https://user-images.githubusercontent.com/1450143/98281974-cf1c5880-1f9d-11eb-8e5a-277723d6f1c9.png" width="400">
-</div>
+## Community projects built with LiteX
 
-## [USB3 PIPE](https://github.com/enjoy-digital/usb3_pipe)
-<img src="https://raw.githubusercontent.com/enjoy-digital/usb3_pipe/master/doc/breakout_board.jpg" width="600">
+Organizations and companies:
 
-Current solutions for USB3 connectivity with an FPGA require the use of an external SerDes chip ([TI TUSB1310A - SuperSpeed 5 Gbps USB 3.0 Transceiver with PIPE and ULPI Interfaces](http://www.ti.com/product/TUSB1310A)) or external FIFO chip ([FTDI FT60X](https://www.ftdichip.com/Products/ICs/FT600.html) or Cypress [FX3](https://www.cypress.com/products/ez-usb-fx3-superspeed-usb-30-peripheral-controller)). The aim of this project is to experiment with [High Speed Transceivers (SERDES)](https://en.wikipedia.org/wiki/Multi-gigabit_transceiver) of popular FPGAs to create a [USB3.0 PIPE interface](https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/phy-interface-pci-express-sata-usb30-architectures-3.1.pdf) and see if it's possible to just use the transceivers of the FPGA for the USB3 connectivity and have the USB3 PIPE directly implemented in the fabric (and then avoid any external chip!)
+| Project | What it is |
+| --- | --- |
+| [Betrusted / Precursor](https://github.com/betrusted-io/betrusted-soc) and [Xous](https://github.com/betrusted-io/xous-core) | bunnie's open secure communicator: two LiteX SoCs (the Spartan-7 secure domain and the iCE40 embedded controller) running the Xous microkernel. |
+| [Antmicro](https://antmicro.com): [rowhammer-tester](https://github.com/antmicro/rowhammer-tester), [RDIMM](https://github.com/antmicro/rdimm-ddr5-tester)/[SO-DIMM DDR5 testers](https://github.com/antmicro/sodimm-ddr5-tester), [LPDDR4 test board](https://github.com/antmicro/lpddr4-test-board), [SDI-MIPI bridge](https://github.com/antmicro/sdi-mipi-bridge), [Renode](https://github.com/renode/renode) | DRAM test platforms built on LiteDRAM (DDR4/DDR5/LPDDR4 PHYs contributed upstream), a video converter, and the Renode simulator's LiteX support. |
+| [Google CFU Playground](https://github.com/google/CFU-Playground) | Custom function units for ML on VexRiscv in LiteX SoCs. |
+| [Efabless Caravel management SoC](https://github.com/efabless/caravel_mgmt_soc_litex) | The management SoC of the Caravel ASIC harness (SkyWater/OpenMPW) is a LiteX SoC. |
+| [MyriadRF LimeSDR_GW](https://github.com/myriadrf/LimeSDR_GW), [LimePSB RPCM](https://github.com/myriadrf/LimePSB_RPCM_GW) | The LiteX gateware of Lime Microsystems' SDR boards. |
+| [EEVengers ThunderScope](https://github.com/EEVengers/thunderscope_litex) | The oscilloscope's PCIe/Thunderbolt gateware. |
+| [SpinalHDL VexRiscv](https://github.com/SpinalHDL/VexRiscv), [NaxRiscv](https://github.com/SpinalHDL/NaxRiscv), [VexiiRiscv](https://github.com/SpinalHDL/VexiiRiscv) | The CPUs most used with LiteX, developed with LiteX as a main integration target. |
+| [MiSTeX](https://github.com/MiSTeX-devel/MiSTeX-ports) | The MiSTer retro-computing cores on other FPGA boards, with LiteX. |
+| [Fomu](https://github.com/im-tomu/foboot) and its [workshop](https://github.com/im-tomu/fomu-workshop), [OrangeCrab examples](https://github.com/orangecrab-fpga/orangecrab-examples), [iCEBreaker LiteX examples](https://github.com/icebreaker-fpga/icebreaker-litex-examples) | Small open boards whose reference designs and workshops are LiteX SoCs. |
+| [F4PGA examples](https://github.com/chipsalliance/f4pga-examples) | LiteX designs as benchmarks of the open-source Xilinx flow (CHIPS Alliance). |
+| [Signaloid C0-microSD](https://github.com/signaloid/Signaloid-C0-microSD-litex-integration), [iCE40 I2C integration](https://github.com/signaloid/iCE40-I2C-LiteX-integration) | LiteX integrations on Signaloid's iCE40 modules. |
+| [TimVideos HDMI2USB](https://github.com/timvideos/HDMI2USB-litex-firmware), [litex-buildenv](https://github.com/timvideos/litex-buildenv) | The video capture firmware and build environment that grew the early community (legacy). |
 
-## [PCIe Analyzer](https://github.com/enjoy-digital/pcie_analyzer)
-<img src="https://github.com/enjoy-digital/pcie_analyzer/raw/master/doc/banner.jpg" width="600">
-
-The aim of this project is to create a PCIe interposer + FPGA capture board for PCIe signals capture and analysis with cheap hardware.
-
-## [Chubby75](https://github.com/q3k/chubby75)
-<img src="https://github.com/q3k/chubby75/raw/master/5a-75b/images/cl-5a-75b-v61-front-annotated.jpg" width="600">
-
-Chubby75 project documents cheap FPGA based led controllers (15$ shipping included) that can be repurposed as FPGA development boards with 2x 1Gbps interfaces / Spartan6 or ECP5 FPGAs / SDRAM, be used as GPIOs over network devices or for their original purpose: control led panels for a [led cube](https://github.com/NiklasFauth/colorlight-led-cube) :) LiteX and [LiteEth](https://github.com/enjoy-digital/liteeth) have been tested on the reversed pinout and boards are supported in [LiteX-boards](https://github.com/litex-hub/litex-boards).
+Individuals and smaller projects: [LiteX-CNC](https://github.com/Peter-van-Tol/LiteX-CNC) and
+[litehm2](https://github.com/sensille/litehm2) (LinuxCNC on LiteX boards),
+[openfpga-litex](https://github.com/agg23/openfpga-litex) (a RISC-V platform for the Analogue
+Pocket), [icepi-zero-c64](https://github.com/m1nl/icepi-zero-c64) and [gamebub-litex](https://github.com/AEW2015/gamebub-litex)
+(retro consoles), [litex_imgui_usb_demo](https://github.com/suarezvictor/litex_imgui_usb_demo)
+(soft USB and ImGui), [eurorack-pmod-litex](https://github.com/apfaudio/eurorack-pmod-litex)
+(audio DSP with Rust firmware), [rust-litex-hal](https://github.com/pepijndevos/rust-litex-hal) and
+[rust-litex](https://github.com/tomtor/rust-litex) (Rust on LiteX), [SucreLA](https://github.com/fallen/SucreLA)
+(a logic analyzer), [hBPF](https://github.com/rprinz08/hBPF) (eBPF in hardware),
+[litex-template](https://github.com/sergachev/litex-template) (a project template, Zynq/ZynqMP
+workflows), [nix-litex](https://github.com/lschuermann/nix-litex) (Nix packaging),
+[LiteInjector](https://github.com/labsticc-arcad/LiteInjector) (fault injection, Lab-STICC),
+[liteethercat](https://github.com/romanetz/liteethercat) (EtherCAT slave), [ledwall](https://github.com/siegeld/ledwall),
+[probehive](https://github.com/JanHaan/probehive) (a multi-target CMSIS-DAP probe),
+[tang_computer](https://github.com/kami4ka/tang_computer) (Linux on the Tang Primer 20K),
+[begonia-pciesim](https://github.com/jingyi-iii/begonia-pciesim) (LitePCIe + QEMU co-simulation),
+[panog2_linux](https://github.com/skiphansen/panog2_linux) (Linux on Pano Logic G2),
+[Chubby75](https://github.com/q3k/chubby75) (the reverse-engineered Colorlight boards),
+[A Trustworthy, Libre, Self-Hosting 64-bit RISC-V Linux Computer](https://www.contrib.andrew.cmu.edu/~somlo/BTCP/)
+(Rocket + LiteX, building its own bitstream with the open toolchain). The
+[`litex` topic on GitHub](https://github.com/topics/litex) has more.
