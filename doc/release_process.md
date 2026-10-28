@@ -84,6 +84,14 @@ Useful scoping options:
 ./litex_release.py --release 2026.08 --dry-run --pypi --test-pypi
 ```
 
+Check the documentation the same way CI does on every pull request (the wiki is generated from
+`doc/wiki/`, the diagrams from `doc/diagrams/`):
+
+```sh
+python3 doc/wiki_sync.py check --strict
+python3 doc/diagrams/build.py --check
+```
+
 Override flags exist for deliberate exceptions after manual review:
 `--allow-dirty`, `--allow-branch-mismatch`, `--allow-unpushed` and
 `--allow-invalid-tag`.
@@ -239,6 +247,14 @@ python3 setup.py --version
 
 `setuptools` normalizes versions such as `2026.08` to `2026.8` when queried
 with `setup.py --version`; keep `setup.py` using the release tag string.
+
+Update the release mentions of the documentation, in a pull request after the tag:
+
+- `doc/wiki/Installation.md`: the `--tag=2026.08` and `pip install litex==2026.08` examples.
+- `README.md`: the `## 2026.08 highlights` section (outside the block generated from
+  `doc/wiki/Home.md`; `python3 doc/wiki_sync.py check` fails if the block drifts).
+
+The `wiki` workflow publishes `doc/wiki/` to the GitHub wiki on the next push to `master`.
 
 ## Remaining Manual Checks
 
