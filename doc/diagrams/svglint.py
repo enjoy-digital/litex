@@ -9,14 +9,15 @@
 """Geometry lint for the generated diagram SVGs: every <text> is measured with Carlito (the metric
 twin of Calibri, the diagrams' first font) and with Liberation Sans (Arial metrics, the fallback
 of viewers without Calibri/Carlito, about 10% wider) and checked against the box outlines
-(polygons with a stroke), the arrows (paths) and the other texts. Crossings and near misses
-(closer than MARGIN px) are listed; a clean diagram prints "0 issue(s)" for both fonts. The SVGs
-are embedded as they are in the wiki pages, so a label must fit with either font.
+(polygons with a stroke), the arrows (paths and polylines) and the other texts. Crossings and near
+misses (closer than MARGIN px) are listed; a clean diagram prints "0 issue(s)" for both fonts. The
+SVGs are embedded as they are in the wiki pages, so a label must fit with either font. Monospace
+texts (terminal captures, bus values) are measured with Liberation Mono and DejaVu Sans Mono.
 
     python3 doc/diagrams/svglint.py doc/wiki/images/litex-overview.svg [...] [-v] [--fonts DIR]
 
 -v also lists the widest texts, to size boxes. Needs Pillow and the fonts (Debian/Ubuntu:
-fonts-crosextra-carlito, fonts-liberation; --fonts adds a directory holding the .ttf files).
+fonts-crosextra-carlito, fonts-liberation, fonts-dejavu-core; --fonts adds a directory holding the .ttf files).
 """
 
 import argparse
@@ -36,9 +37,18 @@ FONT_SETS = {
     "Liberation Sans": {(None, None): "LiberationSans-Regular", ("bold", None): "LiberationSans-Bold",
                         (None, "italic"): "LiberationSans-Italic", ("bold", "italic"): "LiberationSans-BoldItalic"},
 }
+# Texts with a monospace font-family (terminal captures, bus values) are measured with Liberation
+# Mono next to Carlito, and with DejaVu Sans Mono (the widest common fallback) next to Liberation Sans.
+MONO_SETS = {
+    "Carlito":         {(None, None): "LiberationMono-Regular", ("bold", None): "LiberationMono-Bold",
+                        (None, "italic"): "LiberationMono-Italic", ("bold", "italic"): "LiberationMono-BoldItalic"},
+    "Liberation Sans": {(None, None): "DejaVuSansMono", ("bold", None): "DejaVuSansMono-Bold",
+                        (None, "italic"): "DejaVuSansMono-Oblique", ("bold", "italic"): "DejaVuSansMono-BoldOblique"},
+}
 FONT_DIRS = ["/usr/share/fonts/truetype/crosextra/", "/usr/share/fonts/crosextra/",
              "/usr/share/fonts/truetype/liberation/", "/usr/share/fonts/liberation/",
              "/usr/share/fonts/truetype/liberation2/", "/usr/share/fonts/liberation-sans/",
+             "/usr/share/fonts/truetype/dejavu/", "/usr/share/fonts/dejavu/",
              "/usr/local/share/fonts/", os.path.expanduser("~/.fonts/"), os.path.expanduser("~/.local/share/fonts/")]
 SVG    = "{http://www.w3.org/2000/svg}"
 MARGIN = 4.0
@@ -53,12 +63,13 @@ def font_path(name):
             return p
     return None
 
-def font(w, s, size):
-    k = (_set, w, s, size)
+def font(w, s, size, mono=False):
+    k = (_set, w, s, size, mono)
     if k not in _cache:
-        p = font_path(FONT_SETS[_set][(w, s)])
+        name = (MONO_SETS if mono else FONT_SETS)[_set][(w, s)]
+        p = font_path(name)
         if p is None:
-            sys.exit(f"svglint.py: {_set} fonts not found (apt install fonts-crosextra-carlito fonts-liberation, or --fonts DIR)")
+            sys.exit(f"svglint.py: {name} not found (apt install fonts-crosextra-carlito fonts-liberation fonts-dejavu-core, or --fonts DIR)")
         _cache[k] = ImageFont.truetype(p, int(round(size)))
     return _cache[k]
 
@@ -69,7 +80,7 @@ def text_bbox(el):
     anchor = el.get("text-anchor", "start")
     w, s = el.get("font-weight"), el.get("font-style")
     t = el.text or ""
-    f = font(w, s, size)
+    f = font(w, s, size, mono="mono" in el.get("font-family", "").lower())
     adv = f.getlength(t)
     asc, desc = f.getmetrics()
     ib = f.getbbox(t)
@@ -126,6 +137,10 @@ def lint_with(path, verbose=False):
         polys.append([tuple(map(float, p.split(","))) for p in e.get("points").split()])
     paths = [[tuple(map(float, p.split(","))) for p in re.findall(r"[-\d.]+,[-\d.]+", e.get("d"))]
              for e in root.iter(SVG + "path")]
+    # Polylines are connections too, except the signal traces of the timing diagrams (class "wave"):
+    # their values sit between the traces by design.
+    paths += [[tuple(map(float, p.split(","))) for p in e.get("points").split()]
+              for e in root.iter(SVG + "polyline") if "wave" not in (e.get("class") or "")]
     images = [(float(e.get("x")), float(e.get("y")), float(e.get("x")) + float(e.get("width")),
                float(e.get("y")) + float(e.get("height"))) for e in root.iter(SVG + "image")]
     issues = 0

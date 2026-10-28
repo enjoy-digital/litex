@@ -312,7 +312,7 @@ jobs:
       - name: Install Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y fonts-crosextra-carlito fonts-liberation python3-pil
+          sudo apt-get install -y fonts-crosextra-carlito fonts-liberation fonts-dejavu-core python3-pil
 
       - name: Check wiki sources
         run: python3 doc/wiki_sync.py check

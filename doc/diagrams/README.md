@@ -13,7 +13,7 @@ diagram is about), grey orthogonal arrows (thick for data paths), Calibri/Carlit
 and the LiteX logo at the bottom. Same generator as the USB3-PIPE and TriXium diagrams.
 
 ```sh
-sudo apt install fonts-crosextra-carlito fonts-liberation python3-pil   # Carlito = Calibri metrics
+sudo apt install fonts-crosextra-carlito fonts-liberation fonts-dejavu-core python3-pil   # Carlito = Calibri metrics
 python3 doc/diagrams/build.py                 # SVGs + lint
 python3 doc/diagrams/build.py --only NAME     # one diagram
 python3 doc/diagrams/build.py --check         # what CI runs: SVGs up to date, lint clean
@@ -40,3 +40,21 @@ python3 doc/diagrams/svglint.py doc/wiki/images/NAME.svg -v   # lists the widest
 
 The SVG stays editable by hand (Inkscape or XML) for a quick fix, but the script is the source:
 port the change back before committing, or `--check` will flag the difference.
+
+## Terminal captures and timing diagrams
+
+Two helpers draw the other pictures the pages need, in the same style and with the same checks:
+
+- [`terminal.py`](terminal.py): a terminal session as a dark box of monospace text. The text
+  lives in [`captures/<name>.txt`](captures/) (80 columns, about 25 lines, an `...` line where
+  output is skipped; freeze what changes from run to run: dates, hashes, timings) and the script
+  is a few lines: `LINES = capture("name")`, `W, H = Terminal.size(LINES)`,
+  `Terminal(d).draw(24, 24, LINES)`, then the caption and the footer. See
+  [`litex-sim-boot.py`](litex-sim-boot.py). Lines starting with a prompt (`$ `, `litex> `) are bold.
+- [`wave.py`](wave.py): a timing diagram from the transitions written in the script:
+  `Wave(d, x, y, cycles=10).clock("sys_clk").bit("we", "0010000000").bus("adr", {2: "0x04", 3: None})`.
+  See [`litex-csr-wave.py`](litex-csr-wave.py).
+
+Monospace text uses Liberation Mono (Cousine and DejaVu Sans Mono have the same width, the lint
+measures with Liberation Mono and DejaVu Sans Mono); a capture is a text file, not a screenshot,
+so it is diffable, reviewable and a few KB.

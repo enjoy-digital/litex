@@ -26,7 +26,13 @@ Conventions (pages render both in the repository view and on the wiki):
   relatively (`images/x.svg`).
 - Links to files of the repository use absolute https://github.com/enjoy-digital/litex/blob/master/...
   URLs (the wiki cannot resolve `../`).
-- `llms.txt` lists every page (one line each) for agents: `check` keeps it complete.
+- `llms.txt` lists every page (one line each) for agents: `check` keeps it complete, its sections
+  follow the sidebar's, the 'Moved to' stubs sit under its last heading.
+- The page shape (no first-level heading, an opening paragraph, tables of at most 4 columns and
+  100 characters per cell, no pasted --help, at most 3 alerts, a closing `## Next` section) is
+  checked by `check` as warnings; `check --strict` makes them errors.
+- The README's shared block (between `<!-- readme:begin -->` and `<!-- readme:end -->`) is
+  generated from the same block of Home.md by `readme`; `check` fails when it is out of date.
 
     python3 doc/wiki_sync.py check                      # sources are consistent (CI)
     python3 doc/wiki_sync.py preview --serve             # the wiki as HTML in your browser (pip install markdown)
@@ -53,6 +59,15 @@ PAGE_EXTS = (".md", ".asciidoc")
 NAME_RE   = re.compile(r"^[A-Za-z0-9._()+,-]+$")   # ASCII only; ( ) , are legacy (they break markdown links).
 SIZE_FAIL = 300*1024   # No large binaries in the repository: host pictures on GitHub issues.
 SIZE_WARN = 100*1024
+
+# The one line "Moved to [...](Page.md)." pages: kept for the links from outside, never in the sidebar.
+STUBS = {"Document-a-SoC", "Firmware", "OS-support", "Related-Projects", "Soft-CPU",
+         "Reuse-a-(System)Verilog,-VHDL,-Amaranth,-Spinal-HDL,-Chisel-core"}
+OPTIONAL_NEXT = {"Home", "LiteX-for-AI-Agents"}   # Content pages without a closing "## Next" section.
+UNLISTED      = set()                             # Content pages allowed out of _Sidebar.md (archives).
+ALERTS        = {"NOTE", "TIP", "WARNING"}
+README        = os.path.normpath(os.path.join(ROOT, "..", "..", "README.md"))
+README_BEGIN, README_END = "<!-- readme:begin -->", "<!-- readme:end -->"
 
 # Sources -------------------------------------------------------------------------------------------
 
@@ -83,6 +98,76 @@ def strip_code(text):
     text = re.sub(r"~~~.*?~~~", "", text, flags=re.S)
     return re.sub(r"`[^`\n]*`", "", text)
 
+def strip_fences(text):
+    """Markdown text without the fenced code blocks; inline code kept, its characters masked."""
+    text = re.sub(r"```.*?```", "", text, flags=re.S)
+    text = re.sub(r"~~~.*?~~~", "", text, flags=re.S)
+    return re.sub(r"`[^`\n]*`", lambda m: "x"*len(m.group(0)), text)
+
+def fences(text):
+    """The fenced code blocks of a markdown text, as lists of lines (fences excluded)."""
+    return [m.group(1).split("\n") for m in re.finditer(r"```[^\n]*\n(.*?)```", text, flags=re.S)]
+
+def stub_target(text):
+    """The page a 'Moved to [...](Page.md).' stub points to."""
+    m = re.match(r"Moved to \[[^\]]*\]\(([^)#\s]+)", text.strip())
+    return os.path.splitext(m.group(1))[0] if m else None
+
+def check_style(n, text, report, err):
+    """The page shape: no first-level heading, an opening paragraph, narrow tables, no pasted --help,
+    a few alerts, a closing ## Next section. report() is warn or err (check --strict)."""
+    body = strip_code(text)
+    if re.search(r"^# ", body, flags=re.M) or re.search(r"^=+\s*$", body, flags=re.M):
+        report(f"{n}: first-level heading in the page (the wiki shows the page name as its title, use ##)")
+    first, count = None, 0
+    for l in body.split("\n"):
+        t = l.strip()
+        if t.startswith("#"):
+            break
+        if not t or t.startswith(("<p", "</p", "<img", "![", "[![", "<!--", "<div", "</div")):
+            continue
+        if first is None:
+            first = t
+        count += 1
+    if first is None or first.startswith(("|", ">", "```", "~~~", "- ", "* ")):
+        report(f"{n}: no opening paragraph before the first heading (start with what the reader gets)")
+    elif count < 2:
+        report(f"{n}: the opening is one line, say what the reader gets in two or three")
+    if n not in OPTIONAL_NEXT:
+        h2 = re.findall(r"^## +(.+?)\s*$", body, flags=re.M)
+        if not h2 or h2[-1] != "Next":
+            report(f"{n}: the last section is not '## Next' (3-5 links on where to go)")
+        elif len(re.findall(r"^- \[[^\]]+\]\([A-Za-z0-9][^)\s]*\.md", body[body.rfind("## Next"):], flags=re.M)) < 2:
+            report(f"{n}: '## Next' needs at least two '- [Page](Page.md): why' bullets")
+    wide, long = [], []
+    for l in strip_fences(text).split("\n"):
+        if not l.startswith("|"):
+            continue
+        cells = [c.strip() for c in l.strip().strip("|").split("|")]
+        if all(re.fullmatch(r":?-{3,}:?", c) for c in cells if c):
+            continue
+        if len(cells) > 4:
+            wide.append(len(cells))
+        if max(len(c) for c in cells) > 100:
+            long.append(max(len(c) for c in cells))
+    if wide:
+        report(f"{n}: {len(wide)} table row(s) with more than 4 columns (up to {max(wide)})")
+    if long:
+        report(f"{n}: {len(long)} table cell(s) longer than 100 characters (up to {max(long)}): split the table or move the details below it")
+    for block in fences(text):
+        if len(block) > 60:
+            report(f"{n}: a code block of {len(block)} lines (60 at most: show what matters)")
+        elif len(block) > 12 and re.search(r"^(usage:|options:|optional arguments:)", "\n".join(block), flags=re.M | re.I):
+            report(f"{n}: pasted --help output ({len(block)} lines): show the options the reader needs")
+    kinds = re.findall(r"^> \[!(\w+)\]", body, flags=re.M)
+    for k in kinds:
+        if k not in ALERTS:
+            report(f"{n}: alert [!{k}] (NOTE, TIP or WARNING)")
+    if len(kinds) > 3:
+        report(f"{n}: {len(kinds)} alerts (3 at most)")
+    for m in re.finditer(r"\b(FIXME|TODO|XXX)\b", body):
+        err(f"{n}: {m.group(1)} left in the page text")
+
 def anchors(text):
     """GitHub's anchors for the headings of a markdown text."""
     seen, out = {}, set()
@@ -104,12 +189,14 @@ HTML_IMG_RE = re.compile(r"<img\b[^>]*\bsrc=\"([^\"]+)\"")
 HTML_A_RE   = re.compile(r"<a\b[^>]*\bhref=\"([^\"]+)\"")
 REF_RE   = re.compile(r"^\[[^\]]+\]:\s*(\S+)", flags=re.M)
 
-def check(external=False):
+def check(external=False, strict=False):
     files = list_files()
     pgs   = pages(files)
     errors, warnings = [], []
     err  = errors.append
     warn = warnings.append
+    report = err if strict else warn   # The page shape checks.
+    inbound = {}                       # page -> pages linking to it (the sidebar counts).
 
     for required in ("Home.md", "_Sidebar.md", "_Footer.md", "llms.txt"):
         if required not in files:
@@ -133,6 +220,7 @@ def check(external=False):
     texts = {n: open(os.path.join(ROOT, f), encoding="utf-8").read() for n, f in pgs.items()}
     page_anchors = {n: anchors(t) for n, t in texts.items() if pgs[n].endswith(".md")}
     externals = set()
+    sidebar   = texts.get("_Sidebar", "")
 
     for n, text in texts.items():
         if not pgs[n].endswith(".md"):
@@ -161,6 +249,8 @@ def check(external=False):
             if path in files:
                 if path.endswith(PAGE_EXTS):
                     target = os.path.splitext(path)[0]
+                    if target != n:
+                        inbound.setdefault(target, set()).add(n)
                     if anchor and target in page_anchors and anchor not in page_anchors[target]:
                         err(f"{n}: anchor #{anchor} not found in {path}")
                 elif kind == "image" and not path.startswith("images/"):
@@ -170,14 +260,51 @@ def check(external=False):
                 err(f"{n}: link ]({dest}) to a page without its extension, use ]({pgs[path]}{'#' + anchor if anchor else ''})")
             else:
                 err(f"{n}: broken link/image ]({dest})")
+        if not n.startswith("_") and n not in STUBS:
+            check_style(n, text, report, err)
+
+    # Stubs: one line pages, listed in STUBS, pointing to a real page, out of the sidebar.
+    found = {n for n, f in pgs.items() if texts_is_stub(os.path.join(ROOT, f))}
+    for n in sorted(found - STUBS):
+        err(f"{n}: a 'Moved to' page not listed in STUBS (doc/wiki_sync.py)")
+    for n in sorted(STUBS - found):
+        err(f"{n}: listed in STUBS but not a one line 'Moved to' page")
+    for n in sorted(found):
+        t = stub_target(texts[n])
+        if t in STUBS:
+            err(f"{n}: points to another stub ({t}), point to the final page")
+        if f"]({pgs[n]})" in sidebar:
+            err(f"_Sidebar: {n} is a stub, remove it from the sidebar")
+    # Every content page is in the sidebar (or UNLISTED) and reachable from another page.
+    for n, f in pgs.items():
+        if n.startswith("_") or n in STUBS:
+            continue
+        if n not in UNLISTED and f"]({f})" not in sidebar and f"]({f}#" not in sidebar:
+            err(f"_Sidebar: page {n} is not in the sidebar (or add it to UNLISTED in doc/wiki_sync.py)")
+        if n != "Home" and not (inbound.get(n, set()) - STUBS):
+            warn(f"{n}: no page links to it")
 
     if "llms.txt" in files:
         llms = open(os.path.join(ROOT, "llms.txt"), encoding="utf-8").read()
+        moved = llms.find("\n## Moved")
         for n in pgs:
             if n.startswith("_"):
                 continue
-            if f"{WIKI_URL}/{n}" not in llms:
+            pos = llms.find(f"{WIKI_URL}/{n})")
+            if pos < 0:
                 err(f"llms.txt: page {n} not listed")
+            elif n in STUBS and (moved < 0 or pos < moved):
+                err(f"llms.txt: the stub {n} belongs under the '## Moved ...' heading")
+            elif n not in STUBS and moved >= 0 and pos > moved:
+                err(f"llms.txt: {n} is listed under '## Moved ...' but is not a stub")
+        sections = re.findall(r"^\* ([^\[\n]+?)\s*$", sidebar, flags=re.M)
+        heads = [h for h in re.findall(r"^## +(.+?)\s*$", llms, flags=re.M) if not h.startswith("Moved")]
+        if sections and heads != sections:
+            err(f"llms.txt: its sections {heads} must follow the sidebar's {sections}")
+
+    known = set(pgs)
+    if readme_block(known) is not None and not readme(write=False):
+        err(f"README.md: its shared block differs from Home.md's, run: python3 {os.path.basename(__file__)} readme")
 
     if external:
         for u in sorted(externals):
@@ -198,18 +325,19 @@ def check(external=False):
 
 # Render --------------------------------------------------------------------------------------------
 
-def rewrite_links(text, known, absolute_images=False, ext=""):
-    """Wiki form of a page: `](Page.md#a)` -> `](Page#a)` for the known pages (`](Page.html#a)` with ext=".html")."""
+def rewrite_links(text, known, absolute_images=False, ext="", prefix=""):
+    """Wiki form of a page: `](Page.md#a)` -> `](Page#a)` for the known pages (`](Page.html#a)` with
+    ext=".html", `](<prefix>Page#a)` with a prefix such as the wiki URL)."""
     exts = "|".join(e[1:] for e in PAGE_EXTS)
     def sub(m):
         name = m.group(2)
         if name in known:
-            return f"{m.group(1)}{name}{ext}{m.group(4) or ''}{m.group(5)}"
+            return f"{m.group(1)}{prefix}{name}{ext}{m.group(4) or ''}{m.group(5)}"
         return m.group(0)
     text = re.sub(r"(\]\()([A-Za-z0-9][A-Za-z0-9._-]*)\.(" + exts + r")(#[^)\s]*)?(\))", sub, text)
     def sub_ref(m):
         name = m.group(2)
-        return f"{m.group(1)}{name}{ext}{m.group(4) or ''}" if name in known else m.group(0)
+        return f"{m.group(1)}{prefix}{name}{ext}{m.group(4) or ''}" if name in known else m.group(0)
     text = re.sub(r"(^\[[^\]]+\]:\s*)([A-Za-z0-9][A-Za-z0-9._-]*)\.(" + exts + r")(#\S*)?$", sub_ref, text, flags=re.M)
     if absolute_images:
         text = re.sub(r"(\]\(|src=\")images/", r"\1" + RAW_URL + "/images/", text)
@@ -237,6 +365,35 @@ def render(out, clean=False, absolute_images=False):
         else:
             shutil.copyfile(src, dst)
     print(f"rendered {len(files)} files to {out}")
+
+def readme_block(known):
+    """The README's shared block, generated from the marked block of Home.md (None without markers):
+    the page links become absolute wiki URLs, the images point into doc/wiki/images/."""
+    home = open(os.path.join(ROOT, "Home.md"), encoding="utf-8").read()
+    if README_BEGIN not in home or README_END not in home:
+        return None
+    block = home.split(README_BEGIN, 1)[1].split(README_END, 1)[0]
+    block = rewrite_links(block, known, prefix=WIKI_URL + "/")
+    return re.sub(r"(\]\(|src=\")images/", r"\1doc/wiki/images/", block)
+
+def readme(write=True):
+    """Rewrite the README's shared block from Home.md; returns True when the README was already up to date."""
+    block = readme_block(set(pages()))
+    if block is None:
+        raise SystemExit(f"Home.md has no {README_BEGIN} / {README_END} markers")
+    text = open(README, encoding="utf-8").read()
+    if README_BEGIN not in text or README_END not in text:
+        raise SystemExit(f"{README} has no {README_BEGIN} / {README_END} markers")
+    head, rest = text.split(README_BEGIN, 1)
+    tail = rest.split(README_END, 1)[1]
+    new = head + README_BEGIN + block + README_END + tail
+    if write:
+        if new != text:
+            open(README, "w", encoding="utf-8").write(new)
+            print(f"{README}: shared block updated from Home.md")
+        else:
+            print(f"{README}: already up to date")
+    return new == text
 
 def diff(wiki):
     """git diff --stat between a wiki clone (without its .git) and the rendered sources."""
@@ -420,10 +577,12 @@ def preview(out, serve=False, port=8000, browser=True, ref=None):
 # Main ----------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX wiki sources: check, render, diff.")
+    parser = argparse.ArgumentParser(description="LiteX wiki sources: check, preview, render, diff, readme.")
     sub = parser.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("check", help="Check the sources (links, images, names, llms.txt).")
     p.add_argument("--external", action="store_true", help="Also HEAD-request the external links and images (slow, not in CI).")
+    p.add_argument("--strict", action="store_true", help="The page shape warnings (opening, tables, Next...) become errors.")
+    sub.add_parser("readme", help="Regenerate the README's shared block from Home.md.")
     p = sub.add_parser("preview", help="Render the pages to HTML (sidebar, footer) and open them in the browser.")
     p.add_argument("--out", default=os.path.join(tempfile.gettempdir(), "litex-wiki-preview"), help="Output directory.")
     p.add_argument("--serve", action="store_true", help="Serve the directory on localhost and open the browser.")
@@ -438,7 +597,9 @@ def main():
     p.add_argument("--wiki", required=True, help="Clone of https://github.com/enjoy-digital/litex.wiki.git")
     args = parser.parse_args()
     if args.cmd == "check":
-        sys.exit(0 if check(args.external) else 1)
+        sys.exit(0 if check(args.external, args.strict) else 1)
+    if args.cmd == "readme":
+        readme()
     if args.cmd == "preview":
         preview(args.out, args.serve, args.port, browser=not args.no_browser, ref=args.ref)
     if args.cmd == "render":

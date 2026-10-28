@@ -46,6 +46,8 @@ DIAGRAMS = {
     "litex-complex-soc":       2800,
     "litex-pcie-soc":          2800,
     "litex-standalone-core":   2800,
+    "litex-sim-boot":          1600,   # Terminal capture (terminal.py).
+    "litex-csr-wave":          1800,   # Timing diagram (wave.py).
 }
 
 def run(cmd, **kw):

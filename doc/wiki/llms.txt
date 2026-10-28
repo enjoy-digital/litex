@@ -11,7 +11,7 @@ This file indexes the LiteX wiki. The raw markdown of a page is at
 https://raw.githubusercontent.com/wiki/enjoy-digital/litex/<Page-Name>.md (sources: doc/wiki/ in
 the repository). Pages marked TODO are placeholders being written.
 
-## Welcome
+## Welcome to LiteX
 
 - [Home](https://github.com/enjoy-digital/litex/wiki/Home): what LiteX is, the design flow diagram, where to go next, the ecosystem, examples, quick start, community
 - [Installation](https://github.com/enjoy-digital/litex/wiki/Installation): install LiteX with litex_setup.py (venv, configs minimal/standard/full, --gcc, --update/--tag), build a board target or litex_sim, uninstall, troubleshooting
@@ -24,7 +24,7 @@ the repository). Pages marked TODO are placeholders being written.
 - [Contributing-to-the-Wiki](https://github.com/enjoy-digital/litex/wiki/Contributing-to-the-Wiki): the wiki is generated from doc/wiki in the repository, how to edit it, links, images, diagrams
 - [LiteX-for-Hardware-Engineers](https://github.com/enjoy-digital/litex/wiki/LiteX-for-Hardware-Engineers): an introduction to LiteX for engineers used to Verilog and Vivado (2018, by bunnie)
 
-## Internals
+## LiteX's internals
 
 - [Cores](https://github.com/enjoy-digital/litex/wiki/Cores): the in-tree cores of litex/soc/cores by theme (control, communication, memory, video, audio, clocking), their interfaces and SoC helpers, the EventManager IRQ model, litex.gen helpers
 - [CPUs](https://github.com/enjoy-digital/litex/wiki/CPUs): every supported CPU (38) with ISA, bus, variants and sources; choosing a CPU; variants and +extensions; how add_cpu integrates a CPU (buses, memory buses, DMA bus, IO regions, reset address, interrupts); compilers
@@ -56,9 +56,8 @@ the repository). Pages marked TODO are placeholders being written.
 - [Use-LiteScope-To-Debug-A-SoC](https://github.com/enjoy-digital/litex/wiki/Use-LiteScope-To-Debug-A-SoC): capture internal signals with the LiteScope logic analyzer through a bridge
 - [JTAG-GDB-Debugging-with-VexRiscv-CPU](https://github.com/enjoy-digital/litex/wiki/JTAG-GDB-Debugging-with-VexRiscv-CPU): OpenOCD + GDB on a VexRiscv SoC
 - [JTAG-GDB-Debugging-with-VexRiscv-SMP-NaxRiscv-VexiiRiscv-CPUs](https://github.com/enjoy-digital/litex/wiki/JTAG-GDB-Debugging-with-VexRiscv-SMP-NaxRiscv-VexiiRiscv-CPUs): OpenOCD + GDB on VexRiscv-SMP, NaxRiscv and VexiiRiscv SoCs
-- [Document-a-SoC](https://github.com/enjoy-digital/litex/wiki/Document-a-SoC): moved to SoC-Documentation
 
-## How to (advanced)
+## How to (Advanced)
 
 - [Create-A-complex-SoC-With-Cores-From-The-Ecosystem](https://github.com/enjoy-digital/litex/wiki/Create-A-complex-SoC-With-Cores-From-The-Ecosystem): the Linux-capable Arty SoC step by step: LiteDRAM, LiteEth, LiteSDCard/SATA, LiteSPI, video, PCIe, what each add_* brings (regions, CSRs, IRQs, BIOS commands, boot methods, Linux drivers), from the SoC to Linux
 - [Run-MicroPython-CircuitPython-On-Your-SoC](https://github.com/enjoy-digital/litex/wiki/Run-MicroPython-CircuitPython-On-Your-SoC): the litex-hub MicroPython port: build the SoC, build MicroPython against it, load it; FuPy and CircuitPython are historical
@@ -72,10 +71,11 @@ the repository). Pages marked TODO are placeholders being written.
 
 - [LiteX-for-AI-Agents](https://github.com/enjoy-digital/litex/wiki/LiteX-for-AI-Agents): a map of LiteX for an agent working in or with it: what LiteX is, the repository layout, the key classes, the commands that answer questions fast, the conventions, how to verify a change, pitfalls, using LiteX from a project
 
-## Moved or legacy pages (kept for their links)
+## Moved pages (kept for their links)
 
 - [Soft-CPU](https://github.com/enjoy-digital/litex/wiki/Soft-CPU): moved to CPUs
 - [Reuse-a-(System)Verilog,-VHDL,-Amaranth,-Spinal-HDL,-Chisel-core](https://github.com/enjoy-digital/litex/wiki/Reuse-a-(System)Verilog,-VHDL,-Amaranth,-Spinal-HDL,-Chisel-core): moved to Reuse-a-SystemVerilog-VHDL-Amaranth-Spinal-HDL-Chisel-core
 - [Firmware](https://github.com/enjoy-digital/litex/wiki/Firmware): moved to OSes-Ecosystem
 - [OS-support](https://github.com/enjoy-digital/litex/wiki/OS-support): moved to OSes-Ecosystem
 - [Related-Projects](https://github.com/enjoy-digital/litex/wiki/Related-Projects): moved to Projects
+- [Document-a-SoC](https://github.com/enjoy-digital/litex/wiki/Document-a-SoC): moved to SoC-Documentation
