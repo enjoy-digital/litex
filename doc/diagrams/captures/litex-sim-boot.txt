@@ -1,0 +1,36 @@
+$ litex_sim
+INFO:SoC:Creating SoC... (2026-10-28 10:53:23)
+...
+INFO:SoC:Finalized SoC:
+...
+        __   _ __      _  __
+       / /  (_) /____ | |/_/
+      / /__/ / __/ -_)>  <
+     /____/_/\__/\__/_/|_|
+   Build your hardware, easily!
+
+ (c) Copyright 2012-2026 Enjoy-Digital
+ (c) Copyright 2007-2015 M-Labs
+
+ BIOS built on Oct 28 2026 10:53:26
+ BIOS CRC passed (817e9fa9)
+
+ LiteX git sha1: 114306dfe
+
+--================ SoC =================--
+CPU:		VexRiscv @ 1MHz
+BUS:		wishbone 32-bit data/32-bit addr
+CSR:		32-bit data big ordering
+ROM:		128.0KiB
+SRAM:		8.0KiB
+
+--================ Boot ================--
+Booting from serial...
+Press Q or ESC to abort boot completely.
+sL5DdSMmkekro
+Timeout
+No boot medium found
+
+--============== Console ===============--
+
+litex>

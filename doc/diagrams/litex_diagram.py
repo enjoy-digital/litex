@@ -37,10 +37,11 @@ import argparse
 import base64
 import os
 
-__all__ = ["Diagram", "cli", "FONT", "STROKE", "TEXT", "ARROW", "THICK",
+__all__ = ["Diagram", "cli", "FONT", "MONO", "STROKE", "TEXT", "ARROW", "THICK",
            "MEM", "HARD", "GROUP", "FPGA", "BOARD", "KEY", "WHITE"]
 
 FONT = "Calibri, Carlito, 'Liberation Sans', Arial, Helvetica, sans-serif"
+MONO = "'Liberation Mono', Cousine, 'DejaVu Sans Mono', Menlo, Consolas, monospace"   # Terminal captures, bus values.
 
 # Palette: outlines/text/arrows and the box fills, from light (boundaries) to dark (memories).
 STROKE, TEXT, ARROW, THICK = "#7f7f7f", "#1a1a1a", "#595959", "#8c8c8c"
@@ -95,12 +96,14 @@ class Diagram:
         if lines:
             self.text_lines((x1 + x2)/2, (y1 + y2)/2, lines)
 
-    def text(self, x, y, t, size=13, anchor="middle", weight=None, style=None, fill=TEXT, rotate=None):
-        """One line of text with its baseline at y. rotate: degrees around (x, y), +-90 for vertical."""
+    def text(self, x, y, t, size=13, anchor="middle", weight=None, style=None, fill=TEXT, rotate=None, family=None):
+        """One line of text with its baseline at y. rotate: degrees around (x, y), +-90 for vertical.
+        family: another font stack (MONO for terminal text; the spaces are then preserved)."""
         attrs = f'x="{x}" y="{y}" font-size="{size}" text-anchor="{anchor}" fill="{fill}"'
         if weight: attrs += f' font-weight="{weight}"'
         if style:  attrs += f' font-style="{style}"'
         if rotate: attrs += f' transform="rotate({rotate} {x} {y})"'
+        if family: attrs += f' font-family="{family}" xml:space="preserve"'
         self.out.append(f'  <text {attrs}>{_esc(t)}</text>')
 
     def text_lines(self, cx, cy, lines, anchor="middle"):
