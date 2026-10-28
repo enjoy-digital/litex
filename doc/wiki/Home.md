@@ -50,6 +50,36 @@ LiteX provides all the common components required to easily create an FPGA Core/
 ```
 Your design is two Python files: the *platform* describes the board (pins, clocks, connectors, toolchain, programmer) and the *target* describes your SoC (CPU, memories, peripherals, cores from the ecosystem); [LiteX-Boards](https://github.com/litex-hub/litex-boards) has 250+ of them. The Builder generates the Verilog and the constraints, runs the toolchain (or Verilator), builds the BIOS and writes the software support: `csr.h`, `soc.h`, `mem.h`, `memory.x`, `csr.csv/json/svd`, the device trees. The host tools (`litex_term`, `litex_server` and `litex_cli` through a UART, JTAG, Ethernet or PCIe bridge, LiteScope, GDB) then control and debug the running SoC.
 
+# LiteX's cores ecosystem
+
+LiteX already supports various softcores CPUs: VexRiscv, Rocket, LM32, Mor1kx, PicoRV32, BlackParrot and is compatible with the LiteX's Cores Ecosystem:
+
+| Name | Build Status | Description |
+| --- | --- | --- |
+| [LiteX-Boards](https://github.com/litex-hub/litex-boards) | [![](https://github.com/litex-hub/litex-boards/workflows/ci/badge.svg)](https://github.com/litex-hub/litex-boards/actions) | Boards support |
+| [LiteDRAM](https://github.com/enjoy-digital/litedram) | [![](https://github.com/enjoy-digital/litedram/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litedram/actions) | DRAM |
+| [LiteEth](https://github.com/enjoy-digital/liteeth) | [![](https://github.com/enjoy-digital/liteeth/workflows/ci/badge.svg)](https://github.com/enjoy-digital/liteeth/actions) | Ethernet |
+| [LitePCIe](https://github.com/enjoy-digital/litepcie) | [![](https://github.com/enjoy-digital/litepcie/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litepcie/actions) | PCIe |
+| [LiteNVMe](https://github.com/enjoy-digital/litenvme) | [![](https://github.com/enjoy-digital/litenvme/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litenvme/actions) | NVMe |
+| [LiteSATA](https://github.com/enjoy-digital/litesata) | [![](https://github.com/enjoy-digital/litesata/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litesata/actions) | SATA |
+| [LiteSDCard](https://github.com/enjoy-digital/litesdcard) | [![](https://github.com/enjoy-digital/litesdcard/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litesdcard/actions) | SD card |
+| [LiteICLink](https://github.com/enjoy-digital/liteiclink) | [![](https://github.com/enjoy-digital/liteiclink/workflows/ci/badge.svg)](https://github.com/enjoy-digital/liteiclink/actions) | Inter-Chip communication |
+| [LiteJESD204](https://github.com/enjoy-digital/litejesd204) | [![](https://github.com/enjoy-digital/litejesd204/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litejesd204/actions) | JESD204B/JESD204C |
+| [LiteDSP](https://github.com/enjoy-digital/litedsp) | [![](https://github.com/enjoy-digital/litedsp/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litedsp/actions) | RF/DSP blocks (WIP) |
+| [LiteSPI](https://github.com/litex-hub/litespi) | [![](https://github.com/litex-hub/litespi/workflows/ci/badge.svg)](https://github.com/litex-hub/litespi/actions) | SPI/SPI-Flash |
+| [LiteI2C](https://github.com/litex-hub/litei2c) | [![](https://github.com/litex-hub/litei2c/workflows/ci/badge.svg)](https://github.com/litex-hub/litei2c/actions) | I2C core |
+| [LiteScope](https://github.com/enjoy-digital/litescope) | [![](https://github.com/enjoy-digital/litescope/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litescope/actions) | Logic analyzer |
+
+# Examples of designs built with LiteX:
+Custom PCIe SDI Capture/Playback board built around LitePCIe and integrated with LiteX, allowing full control of the SDI flow and very low latency.
+![](https://user-images.githubusercontent.com/1450143/103343791-282fd680-4a8d-11eb-82bd-c068ac1ad293.png)
+Alternative firmware/gateware for the SDS1104X-E Scope:
+![](https://user-images.githubusercontent.com/1450143/124901562-6977e480-dfe2-11eb-9071-4344d1146968.png)
+HBM2 test infrastructure on Forest Kitten 33:
+![](https://user-images.githubusercontent.com/1450143/124902018-d4c1b680-dfe2-11eb-89c4-8b498605c34d.png)
+
+To discover more products/projects built with LiteX, visit the [projects page](Projects.md).
+
 # Try it in ten minutes
 
 ```sh
