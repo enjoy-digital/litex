@@ -105,8 +105,6 @@ We share this project under a permissive BSD 2-Clause License, inspired by our f
 | **Reference** | [CPUs](https://github.com/enjoy-digital/litex/wiki/CPUs), [Hard core CPUs](https://github.com/enjoy-digital/litex/wiki/Hard-core-CPUs), [SoC builder reference](https://github.com/enjoy-digital/litex/wiki/SoC-Builder-Reference), [Cores](https://github.com/enjoy-digital/litex/wiki/Cores), [Cores ecosystem](https://github.com/enjoy-digital/litex/wiki/Cores-Ecosystem), [Build backends](https://github.com/enjoy-digital/litex/wiki/Build-Backends), [Tools](https://github.com/enjoy-digital/litex/wiki/Tools), [SoC documentation](https://github.com/enjoy-digital/litex/wiki/SoC-Documentation) |
 | **Projects and community** | [Projects](https://github.com/enjoy-digital/litex/wiki/Projects), [Tutorials and resources](https://github.com/enjoy-digital/litex/wiki/Tutorials-Resources), [Feedback, contribution, support](https://github.com/enjoy-digital/litex/wiki/Feedback-Contribution-Support), [Contributing to the wiki](https://github.com/enjoy-digital/litex/wiki/Contributing-to-the-Wiki) |
 | **For AI agents** | [LiteX for AI agents](https://github.com/enjoy-digital/litex/wiki/LiteX-for-AI-Agents) |
-
-Have fun! :wink:
 <!-- readme:end -->
 
 ## 2026.08 highlights

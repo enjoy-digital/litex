@@ -18,7 +18,10 @@ from terminal import Terminal, capture
 
 NAME  = "litex-bios-dram"
 LINES = capture(NAME)
-W, H  = Terminal.size(LINES)
+COLS  = Terminal.fit(LINES)
+TITLE, SUBTITLE = ("The BIOS brings up a DRAM, then boots",
+                   "initialization, memtest and memspeed come before the boot methods")
+W, H  = Terminal.size(LINES, cols=COLS, caption=(TITLE, SUBTITLE))
 
 DESC = ("A terminal running litex_sim --with-sdram: the BIOS summary lists the CPU, the bus, the CSR width, "
         "the ROM, the SRAM, the L2 cache and a 64 MiB SDRAM; the initialization switches the SDRAM to software "
@@ -26,9 +29,8 @@ DESC = ("A terminal running litex_sim --with-sdram: the BIOS summary lists the C
         "finds no boot medium and drops to the litex> prompt.")
 
 def draw(d):
-    w, h = Terminal(d).draw(24, 24, LINES)
-    d.caption(24 + w/2, 24 + h + 48, "The BIOS brings up a DRAM, then boots",
-              "initialization, memtest and memspeed come before the boot methods")
+    w, h = Terminal(d, cols=COLS).draw_centered(W, 24, LINES)
+    d.caption(W/2, 24 + h + 48, TITLE, SUBTITLE)
     d.footer()
 
 if __name__ == "__main__":

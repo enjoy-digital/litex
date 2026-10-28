@@ -103,6 +103,4 @@ We share this project under a permissive BSD 2-Clause License, inspired by our f
 | **Reference** | [CPUs](CPUs.md), [Hard core CPUs](Hard-core-CPUs.md), [SoC builder reference](SoC-Builder-Reference.md), [Cores](Cores.md), [Cores ecosystem](Cores-Ecosystem.md), [Build backends](Build-Backends.md), [Tools](Tools.md), [SoC documentation](SoC-Documentation.md) |
 | **Projects and community** | [Projects](Projects.md), [Tutorials and resources](Tutorials-Resources.md), [Feedback, contribution, support](Feedback-Contribution-Support.md), [Contributing to the wiki](Contributing-to-the-Wiki.md) |
 | **For AI agents** | [LiteX for AI agents](LiteX-for-AI-Agents.md) |
-
-Have fun! :wink:
 <!-- readme:end -->
