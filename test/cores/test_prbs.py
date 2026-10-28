@@ -108,14 +108,15 @@ class TestPRBS(unittest.TestCase):
             run_simulation(dut, [generator(dut), checker(dut, 1024)])
             self.assertEqual(dut._errors, 0)
 
-    def _prbsrx_errors(self, pause, saturation, cycles=40):
-        # Feed data that is not PRBS7 and return the error counter after each cycle.
-        dut     = PRBSRX(width=8, errors_width=4, with_errors_saturation=saturation)
+    def _prbsrx_errors(self, pause, saturation, cycles=40, errors_width=4):
+        # Feed data that is not PRBS7 and return the error counter after each cycle; pause is a
+        # constant, or a function of the cycle.
+        dut     = PRBSRX(width=8, errors_width=errors_width, with_errors_saturation=saturation)
         history = []
         def testbench():
-            yield dut.config.eq(1)
-            yield dut.pause.eq(pause)
+            yield dut.config.eq(PRBS_CONFIG_PRBS7)
             for i in range(cycles):
+                yield dut.pause.eq(pause(i) if callable(pause) else pause)
                 yield dut.i.eq((i*37) & 0xff)
                 yield
                 history.append((yield dut.errors))
@@ -124,10 +125,18 @@ class TestPRBS(unittest.TestCase):
 
     def test_prbs_rx_pause(self):
         # Errors are counted while running...
-        self.assertGreater(self._prbsrx_errors(pause=0, saturation=False)[-1], 0)
+        self.assertTrue(any(h > 0 for h in self._prbsrx_errors(pause=0, saturation=False)))
         # ...and not while paused.
-        self.assertEqual(self._prbsrx_errors(pause=1, saturation=False)[-1], 0)
-        self.assertEqual(self._prbsrx_errors(pause=1, saturation=True)[-1], 0)
+        self.assertEqual(max(self._prbsrx_errors(pause=1, saturation=False)), 0)
+        self.assertEqual(max(self._prbsrx_errors(pause=1, saturation=True)),  0)
+
+    def test_prbs_rx_pause_resume(self):
+        # The counter stops during a pause and resumes after it (the pause is synchronized, so the
+        # window checked leaves a few cycles on each side).
+        history = self._prbsrx_errors(pause=lambda i: 16 <= i < 32, saturation=False, cycles=48, errors_width=8)
+        self.assertGreater(history[15], 0)
+        self.assertEqual(len(set(history[20:32])), 1)
+        self.assertGreater(history[-1], history[32])
 
     def test_prbs_rx_errors_saturation(self):
         # With saturation, the counter reaches its maximum and stays there.
@@ -137,4 +146,3 @@ class TestPRBS(unittest.TestCase):
         # Without it, the counter wraps around.
         wrapped = self._prbsrx_errors(pause=0, saturation=False)
         self.assertNotEqual(wrapped, sorted(wrapped))
-
