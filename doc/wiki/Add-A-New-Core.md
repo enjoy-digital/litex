@@ -64,8 +64,9 @@ What matters in it:
 - **`LiteXModule`** (`from litex.gen import *`) is `Module` + `AutoCSR` + `AutoDoc`:
   `self.x = Module()` adds a submodule, the CSRs are collected by attribute name, the
   docstrings and `description=` end up in the documentation.
-- **CSRs**: `CSRStorage` is written by software and read by the logic (`.storage`, `.re`
-  pulses on a write), `CSRStatus` is written by the logic (`.status`) and read by software;
+- **CSRs**: `CSRStorage` is written by software and read by the logic (`.storage`, `.wr_stb`
+  pulses on a write), `CSRStatus` is written by the logic (`.status`) and read by software
+  (`.rd_stb` pulses on a read);
   `fields=[CSRField(...)]` for bit fields, `reset=` for the reset value, `size` up to 64 bits
   (wider registers are split in sub-registers automatically). Keep the names short and
   lowercase: the software sees `<core>_<register>`.

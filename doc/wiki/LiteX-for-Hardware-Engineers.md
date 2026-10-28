@@ -791,9 +791,9 @@ CSRs also provide some convenience on the hardware Python side.
 
 - You can specify the reset value by passing the reset=value parameter (for both
   Storage and Status)
-- `.re` is a "write" strobe -- the .re attribute provides a single-cycle pulse when a CSRStorage is updated
-- `.we` is a "read" strobe -- the .we attribute provides a single-cycle pulse when a CSRStatus is read
-- **yes, you read those two lines above correctly. in Litex, .re is a write, and .we is a read.** I was not in the room when this was decided.
+- `.re` is a "write" strobe -- the .re attribute provides a single-cycle pulse when a CSRStorage is updated *[2026: now `.wr_stb`, `.re` stays as an alias]*
+- `.we` is a "read" strobe -- the .we attribute provides a single-cycle pulse when a CSRStatus is read *[2026: now `.rd_stb`, `.we` stays as an alias]*
+- **yes, you read those two lines above correctly. in Litex, .re is a write, and .we is a read.** I was not in the room when this was decided. *[2026: fixed since: the strobes and data are named from the software side, `.wr_stb`/`.wr_data` and `.rd_stb`/`.rd_data`, the old names being kept as aliases; see [CSR bus](CSR-Bus.md).]*
 - if write_from_dev=True is passed as a parameter to CSRStorage, the device can flip the storage bit (allowing it to work as an input, oddly enough), by providing data on .dat_w, and strobing .we. Difference between this and CSR is reads are not guaranteed atomic when CSRStorage is made writeable.
 
 If you're using a straight-up CSR (not a Storage or Status), the accessors
