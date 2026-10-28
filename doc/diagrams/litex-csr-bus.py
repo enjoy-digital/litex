@@ -17,7 +17,7 @@ from litex_diagram import *
 W, H = 1400, 600
 
 DESC = ("The CSR bus of a LiteX SoC. The CSR bridge (Wishbone2CSR or AXILite2CSR) turns accesses to "
-        "the csr region of the main bus into CSR bus cycles (adr, we, dat_w, dat_r, 8 or 32-bit data, "
+        "the csr region of the main bus into CSR bus cycles (adr, re, we, dat_w, dat_r, 8 or 32-bit data, "
         "one write cycle, two read cycles). The CSRBankArray gives every core with registers a bank at "
         "a location of csr_paging bytes (0x800 by default): bank index times paging plus the register "
         "index times 4. A register wider than the bus is split in sub-registers. On the right, what one "
@@ -30,7 +30,7 @@ def draw(d):
     d.arrow([(170, 140), (170, 180)], double=True, thick=True)
     d.box(40, 180, 300, 250, lines=[("CSR bridge", 16, "bold"), ("Wishbone2CSR / AXILite2CSR", 12), ("add_csr_bridge(), automatic", 12)])
     d.arrow([(170, 250), (170, 290)], double=True, thick=True)
-    d.box(40, 290, 300, 370, fill=GROUP, lines=[("CSR bus", 16, "bold"), ("adr · we · dat_w · dat_r", 12), ("csr_data_width 8 / 32 · 14-bit address", 12), ("1 cycle write, 2 cycles read", 12)])
+    d.box(40, 290, 300, 370, fill=GROUP, lines=[("CSR bus", 16, "bold"), ("adr · re · we · dat_w · dat_r", 12), ("csr_data_width 8 / 32 · 14-bit address", 12), ("1 cycle write, 2 cycles read", 12)])
     d.arrow([(300, 330), (360, 330)], double=True, thick=True)
 
     # Middle: banks.
@@ -54,7 +54,7 @@ def draw(d):
 
     # Right: from the declaration.
     d.box(940, 60, 1360, 140, fill=KEY, lines=[("self.scratch = CSRStorage(32, reset=0x12345678,", 12, "bold"), ("    description=\"Scratch register.\")", 12, "bold"), ("in any LiteXModule (AutoCSR)", 11)])
-    outs = [("Gateware", "a 32-bit register on the CSR bus, .storage / .re to the logic"),
+    outs = [("Gateware", "a 32-bit register on the CSR bus, .storage / .wr_stb to the logic"),
             ("csr.h", "ctrl_scratch_read() / ctrl_scratch_write(v), CSR_CTRL_SCRATCH_ADDR"),
             ("csr.csv / json / svd", "csr_register,ctrl_scratch,0xf0000004,1,rw + fields and values"),
             ("Host tools", "bus.regs.ctrl_scratch.read(), litex_cli --regs, LiteScope"),

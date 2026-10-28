@@ -10,7 +10,7 @@ Fear not, because LiteX has a solution to these complications - the Control Stat
 
 **The Simplicity of the CSR Bus**
 
-The [CSR Bus](https://github.com/enjoy-digital/litex/blob/master/litex/soc/interconnect/csr_bus.py), LiteX's version of a local bus, takes a minimalist approach to interface signals, featuring only `adr`, `we`, `dat_w`, and `dat_r`signals. This lightweight bus operates in the `sys_clk` domain of the SoC, completing **writes in a single cycle** and **reads in two cycles**. This straightforward approach streamlines your design process.
+The [CSR Bus](https://github.com/enjoy-digital/litex/blob/master/litex/soc/interconnect/csr_bus.py), LiteX's version of a local bus, takes a minimalist approach to interface signals, featuring only `adr`, `re`, `we`, `dat_w` and `dat_r` signals. This lightweight bus operates in the `sys_clk` domain of the SoC, completing **writes in a single cycle** and **reads in two cycles**. This straightforward approach streamlines your design process.
 
 **From CSR Bus to Main Bus: The Perfect Blend**
 
@@ -22,216 +22,218 @@ But the CSR Bus is only half the story. The real stars of the show are the CSRs.
 
 Et voilà! With CSRs and the CSR Bus, you now have a simple, straightforward way to define registers in a design, making the process as easy as pie. Embrace the simplicity and focus on what truly matters - creating amazing digital systems!
 
-## Understanding the CSR Bus: A Closer Look
+## The CSR bus
 
-The CSR Bus serves as the communication bus between the SoC and the individual CSRs within LiteX. It operates in the sys_clk domain of the SoC.
+| Signal | Width | Driven by | Role |
+| --- | --- | --- | --- |
+| `adr` | `csr_address_width` (14 by default) | the bridge | The address of a register slot, in 32-bit words. |
+| `re` | 1 | the bridge | Read strobe, high for one cycle: the slot at `adr` is being read. |
+| `we` | 1 | the bridge | Write strobe, high for one cycle: `dat_w` goes into the slot at `adr`. |
+| `dat_w` | `csr_data_width` (32 by default, 8 possible) | the bridge | The data written. |
+| `dat_r` | `csr_data_width` | the banks | The data read, valid the cycle after the address (the banks OR their outputs, a bank that is not selected drives 0). |
 
-Featuring a minimalist design with only `adr` (address), `we` (write enable), `dat_w` (data write), and `dat_r` (data read) interface signals, the CSR Bus simplifies the interface mechanism. This means that writing to the CSR Bus is completed within a single cycle, while reading is executed in two cycles.
+No handshake and no wait state: a write takes one cycle, a read two (the address, then the data),
+everything in the `sys` clock domain. The bus has a single master, the **CSR bridge**
+(`Wishbone2CSR` or `AXILite2CSR`, added by `SoC.add_csr_bridge()` without you noticing): it turns
+the accesses to the `csr` region of the main bus into CSR cycles and holds the main bus while the
+data comes back. The slaves are the **banks**: at build time, `CSRBankArray` scans the SoC for the
+modules that declare registers and gives each of them a `CSRBank`, selected by the upper bits of
+`adr`.
 
-**Primary Bus to CSR**
+The CSR bus is small on purpose. Software touches the registers of a core a few times per second,
+far from the throughput of the main bus, so a fixed-latency bus with no handshake costs almost no
+logic, routes easily, and lets every register of every core be declared, generated and accessed the
+same way. Memory and DMAs stay on the main bus ([Wishbone](Wishbone-Bus.md), [AXI](AXI-Bus.md)).
 
-In the context of the LiteX ecosystem, the CSR Bus bridges the Primary Bus in the SoC and the user-defined CSRs.
+> LiteX CSRs have nothing to do with the CSRs of the RISC-V ISA (`mstatus`, `mie`...): those are
+> registers inside the CPU, reached with `csrr`/`csrw`; LiteX CSRs are memory-mapped registers of
+> the SoC, reached with loads and stores.
 
-This connection is established via a bridge, which serves as a translator between the two buses: It convert the Primary Bus complex interface to the streamlined CSR Bus interface.
+## Declaring registers
 
-**The Data Flow**
+A register is an attribute of a module: `LiteXModule` includes `AutoCSR`, which collects the `CSR*`
+attributes of the module and of its submodules. Software sees them as `<module>_<attribute>`. A
+small PWM core with the usual kinds of registers:
 
-When data is written to the CSR Bus from the SoC via the Primary Bus, the takes the data from the bus, along with the address and forwards it to the CSR Bus. This process happens within a single cycle.
+```python
+from migen import *
+from litex.gen import *
+from litex.soc.interconnect.csr import *
 
-When data is read from the CSR Bus, the process is slightly different. The address is first forwarded from the Wishbone bus to the CSR Bus in one cycle. In the next cycle, the data at that address is read from the CSR Bus and sent back through the bridge to the Wishbone bus.
+class PWM(LiteXModule):
+    def __init__(self, width=16):
+        self.control = CSRStorage(fields=[
+            CSRField("enable", size=1, offset=0,  description="Enable the output."),
+            CSRField("period", size=width, offset=16, reset=1000, description="Period, in sys_clk cycles."),
+        ])
+        self.duty   = CSRStorage(width, reset=500, description="High time, in sys_clk cycles.")
+        self.status = CSRStatus(fields=[CSRField("level", size=1, description="Current output level.")])
+        self.out    = Signal()
 
-## Diving into CSRs: Exploring the Different Types
+        # # #
 
-As previously exposed, Control Status Registers (CSRs) in LiteX can be thought of as bridges to data scattered across your system. They allow this data to be accessed, inspected, and manipulated, all while keeping the complexities at bay. LiteX offers several types of CSRs, each designed for a specific use-case:
-
-* `CSRConstant`: When you have a value that's constant and unchanging, like a hardware version number or a device identification code, CSRConstant is your tool of choice. This read-only CSR ensures that the stored value is immutable and accessible for reading, providing a constant reference point within the system.
-
-* `CSRStatus`: When you need to expose a piece of data from the logic side for the CPU to read, `CSRStatus` steps in. This CSR is read-only and is commonly used to share hardware status updates, sensor readings, or debug values with the CPU.
-
-* `CSRStorage`: `CSRStorage` allows the CPU to write data or instructions that the hardware can pick up and act upon. This could be a configuration parameter, a control signal, or any other form of directive that the hardware needs to function or change its behavior. The CPU can also read back from `CSRStorage`.`CSRStorage` has an override feature that allows data to be modified from the logic side, this is used in very specific cases.
-
-Depending on whether you're working with constant values, status updates, or CPU-to-hardware communication, there's a CSR designed to meet your needs.
-
-# Developer's Overview
-
-## 1. LiteX CSR definition and terminology
-
-LiteX CSRs are MMIO Configuration/Status Registers used to interact with
-and control various hardware peripheral devices included on a LiteX SoC.
-NOTE: LiteX CSRs are *NOT* to be confused with the concept of CSRs as
-defined within the RISC-V ISA! To further complicate things, it is
-entirely possible for the LiteX SoC to be configured with a RISC-V soft
-CPU, in which case the term "CSR" will be used in a RISC-V specific way
-when discussing the CPU's behavior and internals, and in a LiteX specific
-way (see below) when discussing "hardware peripheral MMIO registers" that
-belong to the SoC, and are accessed by the CPU at the direction of various
-pieces of system software (e.g., the Bios, bootloader, or OS kernel).
-
-## 2. LiteX CSR Addressing
-
-### 2.1. CSR Address Space: Base Address and `csr_address_width`
-
-LiteX CSRs are placed in an MMIO segment starting at a Base Address
-(`mem_map["csr"]` in `litex/soc/integration/soc_core.py:SoCCore:__init__()`).
-The default Base Address is 0x82000000, but can (and often is) overridden
-by other components (usually CPUs) as they are added to the SoC setup.
-
-The size of the CSR segment, and also the number of bits dedicated to
-accessing LiteX CSRs is dictated by `csr_address_width` (search for
-`self.register_mem("csr", ...)` in `litex/soc/integration/soc_core.py`). 
-The `register_mem` function will also ensure that our CSR segment does
-not overlap with any other reserved segment in the overall `mem_map` of
-the SoC.
-
-E.g., assuming an address space of 32 bits, if the LiteX CSR Base Address
-occupies the 8 MSBits, that leaves the remaining 24 bits for addressing
-actual MMIO registers within the CSR segment. However, assuming that the
-smallest addressable individual memory location is 32-bit wide, that also
-removes the 2 LSBits (ignored by the Wishbone interface, as per thedefault
-`adr_width=30` in `litex/soc/interconnect/wishbone.py:Interface:__init__()`),
-leaving the actual number of bits for addressing individual CSR elements
-(`csr_address_width`) to be max. 22.
-
-**FIXME**: should Wishbone ignore 3 LSBs when `data_width == 64`?
-
-CSR segment alignment (i.e., that the Base Address is aligned to allow for at
-least `csr_address_width` variable bits to address individual (sub)registers)
-is enforced in `litex/soc/integration/common.py:mem_decoder()`, which is
-referenced in `SoCCore:add_wb_slave()`, used to connect the entire CSR
-subsystem to the Wishbone bus.
-
-**FIXME**: when the main RAM is connected to the CPU directly (via AXI), bypassing 
-the Wishbone bus, alignment is NOT enforced (this FIXME does not have anything
-to do with CSRs per se, but wanted to make sure I remember)
-
-### 2.2. CSR Bank ID
-
-All CSRs that belong to the same hardware device are grouped together in
-a "bank", and given a common ID or "map address". 
-
-Bank IDs are allocated in `SoCCore:add_csr()` where one (weak) sanity
-check ensures an ID can't exceed `2^csr_address_width-1` (which would
-reflect the extreme/degenerate case in which each bank contains exactly
-one addressable element). CSR Banks are allocated the next available ID
-in a natural sequence starting at 0.
-
-Bank IDs (as variable name `mapaddr`) are then multiplied by 0x800 (i.e.,
-left-shifted by 11 bits) and added to the CSR Base Address to determine
-the physical bank address in the CPU's physical address space. This means
-that, effectively, we are allowed bits [23..11], or 13 bits worth of bank
-IDs (remember, bits [31..24] are reserved for the overall CSR segment's
-Base Address).
-
-**FIXME**: The left-shift amount (and basically the number of bits of
-`csr_address_width` allocated to the Bank ID) should be derived and/or
-asserted programmatically, from named parameters!
-
-A CSR Bank is selected (see `litex/soc/interconnect/csr_bus.py:CSRBank()`)
-if its Bank ID (as parameter `address`) matches the CSR Bus address
-MSBits, starting with bit 9 and up (See the Figure below for a graphic
-example of how CSR Bus address bits are matched up against the address
-bits of the CPU's MMIO Bus).
-NOTE: Some CSRs are implemented as simple SRAM memories, without being
-backed by actual hardware. In such cases, the "bank" is selected in a
-similar way in `litex/soc/interconnect/csr_bus.py:SRAM()`
-
-```
-Alignment (CPU XLen): 32
-CSR Base Address = 0xe000_0000
-csr_address_width = 14
-UART Bank ID = 0x04
-uart.ev_enable intra-bank "subreg." offset: 5
-uart.ev_enable MMIO addr: 0xe000_2014:
-
-<-------------------------- CPU MMIO Address ------------------------->
-<- CSR Base -->
------------ --- --- --- ----------- ----------- ----------- -----------
-31 30 29 28 27- 23- 19- 15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
------------ --- --- --- ----------- ----------- ----------- -----------
- 1  1  1  0  00  00  00  0  0  1  0  0  0  0  0  0  0  0  1  0  1  0  0
------------ --- --- --- ----------- ----------- ----------- -----------
-                <⋅⋅⋅⋅⋅⋅ <--- Bank ---> <------- CSRsubreg ------>
-                ⋅⋅⋅ ⋅⋅⋅ == =========== -- ----------- -----------
-                21- 17- 13 12 11 10 09 08 07 06 05 04 03 02 01 00
-                ⋅⋅⋅ ⋅⋅⋅ ----- ----------- ----------- -----------
-                         0  0  1  0  0  0  0  0  0  0  0  1  0  1
-                ⋅⋅⋅ ⋅⋅⋅ ----- ----------- ----------- -----------
-                <-------------- CSR Bus Address ---------------->
+        counter = Signal(width)
+        self.sync += [
+            If(~self.control.fields.enable | self.control.wr_stb,   # Restart on a write to control.
+                counter.eq(0)
+            ).Elif(counter == self.control.fields.period - 1,
+                counter.eq(0)
+            ).Else(
+                counter.eq(counter + 1)
+            ),
+            self.out.eq(self.control.fields.enable & (counter < self.duty.storage)),
+        ]
+        self.comb += self.status.fields.level.eq(self.out)
 ```
 
-### 2.3. Intra-Bank CSR (sub)register selection and `csr_data_width`
+In a SoC, `self.pwm = PWM()` is all it takes: the registers are mapped, the bank and the bridge are
+generated, the software headers and the map files are written ([Add a new core](Add-A-New-Core.md)
+for the whole flow, interrupts included).
 
-Within a CSR Bank, registers are stored in "slices" or "subregisters" of
-up to `csr_data_width` bits. Supported values for `csr_data_width` are
-8, 16, 32, and 64.
+What each kind of register gives to the logic:
 
-**FIXME**: 64 doesn't work ATM!
+| Register | Software | Logic |
+| --- | --- | --- |
+| `CSRStorage(size=1, reset=0, fields=[], reset_less=False, atomic_write=False, write_from_dev=False)` | reads and writes | `.storage` holds the value; `.wr_stb` is high for one cycle after each write by software. With `write_from_dev=True`, the logic can also update the value through `.dat_w` and `.we`. |
+| `CSRStatus(size=1, reset=0, fields=[], read_only=True, reset_less=False)` | reads (and writes with `read_only=False`) | `.status` is driven by the logic; `.rd_stb` is high for one cycle after each read by software (clear a flag on read, pop a FIFO...). With `read_only=False`, `.wr_data` and `.wr_stb` give what software wrote. |
+| `CSR(size=1)` | reads and writes, up to `csr_data_width` bits | The raw register the two others are built on: `.wr_data`/`.wr_stb` from software, `.rd_data`/`.rd_stb` to software, nothing stored. |
+| `CSRConstant(value)` | a constant | Nothing in the gateware: the value goes to `csr.h`, `csr.csv`... (a version, a parameter). |
+| `CSRGap(count=1)` | reserved slots | Nothing: keeps addresses free in a bank whose layout must not move. |
 
-**FIXME**: must WB `soc_bus` also be 64bit for `csr-data-width=64` to work?
+The strobes and the data are named from the software side: `wr_*` for what software writes, `rd_*`
+for what it reads. The historical names still work as aliases, but beware when you meet them in
+older cores: `re` was the *write* strobe and `we` the *read* strobe (with `r`/`w` for the data),
+named from the inside of the register. New code uses `wr_stb`/`rd_stb`.
 
-**FIXME**: setting `soc_bus = wishbone.Interface(data_width=64)` in
-       `SoCCore:__init__()` isn't working right now, so maybe just disallow
-       `csr_data_width > 32` for the time being, and resolve to fix this in
-       the future?
+**Fields.** `fields=[CSRField(...)]` splits a register in named bit fields: `self.control.fields.enable`
+in the logic, `CSR_PWM_CONTROL_ENABLE_OFFSET`/`_SIZE` in C, a row in the documentation.
+`CSRField(name, size=1, offset=None, reset=0, description=None, pulse=False, access=None, values=None)`:
+`offset` places the field (the next free bits otherwise), `pulse=True` makes a 1-bit field high for a
+single cycle after the write (a "start" bit), `access=CSRAccess.ReadOnly/ReadWrite/WriteOnly`
+documents and checks the direction, `values=[("0b0", "off"), ("0b1", "on")]` documents the encodings.
 
-A register with more than `csr_data_width` bits is spread across multiple
-adjacent "subregisters", with subregisters holding more significant bits
-stored at lower addresses, in a way similar to the Big Endian model.
+**Wide registers.** A register wider than `csr_data_width` takes several consecutive slots, most
+significant word first (`csr_ordering=big`; `little` reverses it). Software accesses them word by
+word, so the value is not read or written atomically: `CSRStorage(atomic_write=True)` buffers the
+words and commits them together on the last one, and a wide `CSRStatus` that changes continuously
+is latched first (the timer does this: write `update_value`, then read `value`).
 
-Within a subregister, bits are stored in CPU-native endianness. This is
-a consequence of how data wires are interpreted _inside_ the CPU, and
-_not_ a feature of the LiteX SoC gateware itself!
+**Reset.** `reset=` sets the value after reset; `reset_less=True` removes the reset logic for
+registers whose value is always written before being used.
 
-Regardless of whether they fit in a single subregister or require being
-spread across multiple subregisters, all registers in a CSR Bank will be
-laid out as a sequence of adjacent subregisters, and the number of bits
-required to enumerate all subregisters will be counted as `decode_bits`
-(see `litex/soc/interconnect/csr.py:GenericBank()`).
+## Addresses
 
-**FIXME**: we should probably assert that `decode_bits` plus the number
-of bits dedicated to representing the Bank ID should be less than or equal
-to `csr_address_width` minus any LSBs ignored due to `alignment > 32`!
+- The `csr` region of the main bus (`mem_map["csr"]`, `0xf0000000` for most CPUs) is
+  `2^(csr_address_width + 2)` bytes: 64 KiB by default.
+- Every module with registers gets a **location** of `csr_paging` bytes (0x800: 2 KiB, 512 slots of
+  4 bytes), allocated in the alphabetical order of the modules unless pinned
+  (`self.csr.add("uart", n=2)` before the SoC is finalized, or `reserved_csrs` for a fixed map).
+- Inside the location, the registers follow their declaration order, one 4-byte slot each (a slot
+  carries `csr_data_width` bits: 32 by default, 8 for the historical width).
 
-Once a bank is matched, see the latter part of the `__init__()` method
-in `litex/soc/interconnect/csr_bus.py:CSRBank()` for how an individual
-subregister is selected based on the lesser bits of the provided CSR Bus
-address.
+So `address = CSR_BASE + location × csr_paging + slot × 4`. In the example above, `pwm` is the
+third module of its SoC: location 2, `0xf0001000`; `control` is at `0xf0001000`, `duty` at
+`0xf0001004`, `status` at `0xf0001008`. With 14 address bits and 2 KiB pages, 32 locations are
+available; `--csr-address-width=15` doubles them, `--csr-paging` changes the page size (0x400 to
+0x4000).
 
-## 3. CSR Software Programmer's API
+The map is printed at the end of the build and written for every tool: `csr.csv` and `csr.json`
+(always; `--soc-csv`/`--soc-json` choose the path), `csr.svd` (`--soc-svd`), and `csr.h` for the
+BIOS and the firmware:
 
-Accessors for CSR (sub)registers are provided in `litex/soc/software/include/hw/common.h`.
+```
+csr_base,ctrl,0xf0000000,,
+csr_base,identifier_mem,0xf0000800,,
+csr_base,pwm,0xf0001000,,
+csr_base,timer0,0xf0001800,,
+csr_base,uart,0xf0002000,,
+...
+csr_register,pwm_control,0xf0001000,1,rw
+csr_register,pwm_duty,0xf0001004,1,rw
+csr_register,pwm_status,0xf0001008,1,ro
+```
 
-The address of an individual CSR subregister must always be aligned at the native CPU word width (which means that `csr_data_width <= cpu_word_width` must always hold true). Accessors for individual (simple) CSR
-subregisters are provided as
+## From software
+
+`software/include/generated/csr.h` has the addresses, the fields and an accessor per register:
+
 ```c
-#define MMPTR(a) (*((volatile unsigned long *)(a)))
+/* PWM Registers */
+#define CSR_PWM_BASE (CSR_BASE + 0x1000L)
+#define CSR_PWM_CONTROL_ADDR (CSR_BASE + 0x1000L)
+#define CSR_PWM_CONTROL_SIZE 1
+#define CSR_PWM_DUTY_ADDR (CSR_BASE + 0x1004L)
+#define CSR_PWM_DUTY_SIZE 1
+#define CSR_PWM_STATUS_ADDR (CSR_BASE + 0x1008L)
+#define CSR_PWM_STATUS_SIZE 1
 
-static inline void csr_write_simple(unsigned long v, unsigned long a)
-{
-        MMPTR(a) = v;
+/* PWM Fields */
+#define CSR_PWM_CONTROL_ENABLE_OFFSET 0
+#define CSR_PWM_CONTROL_ENABLE_SIZE 1
+#define CSR_PWM_CONTROL_PERIOD_OFFSET 16
+#define CSR_PWM_CONTROL_PERIOD_SIZE 16
+#define CSR_PWM_STATUS_LEVEL_OFFSET 0
+#define CSR_PWM_STATUS_LEVEL_SIZE 1
+
+/* PWM Access Functions */
+static inline uint32_t pwm_control_read(void) {
+	return csr_read_simple((CSR_BASE + 0x1000L));
 }
-
-static inline unsigned long csr_read_simple(unsigned long a)
-{
-        return MMPTR(a);
+static inline void pwm_control_write(uint32_t v) {
+	csr_write_simple(v, (CSR_BASE + 0x1000L));
 }
+...
 ```
-with the use of `unsigned long` and `unsigned long *` ensuring that the appropriate alignment (matching the CPU word width) is used, regardless of the underlying architecture.
 
-These `csr_[read|write]_simple()` accessors are used to auto-generate the appropriate "access-and-shift" methods for full LiteX CSRs (of up to 64 bits in size, and which may be potentially spread across multiple adjacent simple CSRs) found in `<build_dir>/software/include/generated/csr.h` (the LiteX Python code responsible for generating `csr.h` is found in `litex/soc/integration/export.py:get_csr_header()`).
-
-Besides `csr_[read|write]_simple()`, `litex/soc/software/include/hw/common.h` also provides accessors capable of handling 8/16/32/64-bit wide "compound" LiteX CSRs automatically (regardless of `csr_data_width` or `csr_alignment`), in the form of `csr_[rd|wr]_uint[8|16|32|64]()`. These accessors are all based upon
 ```c
-static inline uint64_t _csr_rd(volatile unsigned long *a, int csr_bytes)
-static inline void _csr_wr(volatile unsigned long *a, uint64_t v, int csr_bytes)
+pwm_duty_write(300);
+pwm_control_write((1000 << CSR_PWM_CONTROL_PERIOD_OFFSET) | (1 << CSR_PWM_CONTROL_ENABLE_OFFSET));
+printf("level: %d\n", pwm_status_read() & 1);
 ```
-which internally access simple CSRs by indexing the address as an array (`a[i]`) rather than dereferencing a pointer (`*a`), but which results in the same load/store CPU opcodes once compiled to binary form.
 
-Finally, (mainly for compound LiteX CSRs wider than 64 bits), a set of automatic accessors is provided which treat the compound CSR as an array or buffer of standard unsigned C integer elements (of 8, 16, 32, or 64 bits each). These accessors are named `csr_[rd|wr]_buf_uint[8|16|32|64]()`. For example, if we wish to treat a 256-bit compound LiteX CSR (starting at address `a`) as an array of 8 32-bit elements, we would use
-```c
-static inline void csr_rd_buf_uint32(unsigned long a, uint32_t *buf, int cnt)
-static inline void csr_wr_buf_uint32(unsigned long a, const uint32_t *buf, int cnt)
+`csr_read_simple()`/`csr_write_simple()` (`hw/common.h`) are plain 32-bit loads and stores. The
+accessors of wide registers gather the words themselves (`csr_rd_uint64()`-style helpers,
+`csr_rd_buf_uint32()` beyond 64 bits), so the firmware is the same whatever `csr_data_width`;
+`SIZE` is the number of slots of a register. Per-field accessors (`pwm_control_enable_read()`...)
+exist too, off by default (`with_fields_access_functions` in `litex/soc/integration/export.py`).
+
+The same map serves every other side: the Linux device tree is generated from `csr.json`
+(`litex_json2dts_linux`), the host tools read `csr.csv` (`litex_cli --regs`,
+`bus.regs.pwm_duty.write(300)` with `RemoteClient` through a [bridge](Host-Bridges.md)), and
+LiteScope and the documentation (`--doc`) are built from it.
+
+## In simulation
+
+The registers have helpers for the Migen simulator, so a core is tested through its software
+interface without a SoC:
+
+```python
+def generator(dut):
+    yield from dut.duty.write(3)                     # 3 cycles high...
+    yield from dut.control.write((8 << 16) | 1)      # ...out of 8, enabled.
+    for _ in range(16):
+        yield
+        print((yield dut.out), end="")
+    print(" level:", (yield from dut.status.read()))
+
+dut = PWM()
+run_simulation(dut, generator(dut))
 ```
-making sure that `buf` has room for at least 8 32-bit integers, and setting `cnt = 8`.
 
-**NOTE**: Reports exist that using "automatic" accessors for compound LiteX CSRs results in suboptimal code under certain circumstances. However, testing with `vexriscv`, `gcc 9.2.0`, and the standard LiteX bios CFLAGS, resulted in the generation of identical opcodes to "shift-and-access" accessors based on `csr_[read|write]_simple()`. It is expected that, with newer gcc versions the number of problems will diminish over time, but YMMV!
+`CSRStorage.write()` sets the value and pulses `wr_stb`, `CSRStatus.read()` returns the value and
+pulses `rd_stb`. `test/interconnect/test_csr.py` and `test_csr_bus.py` exercise the registers, the
+banks and the bridge the same way; the [SoC Simulator](SoC-Simulator.md) runs the whole SoC with
+its software.
+
+## Options
+
+| Option | Default | Effect |
+| --- | --- | --- |
+| `--csr-data-width` | 32 | Bits carried by a slot (8 or 32). |
+| `--csr-address-width` | 14 | Width of `adr`: the size of the `csr` region (`2^(n+2)` bytes) and the number of locations (14 to 18). |
+| `--csr-paging` | 0x800 | Bytes per location (0x400 to 0x4000). |
+| `--csr-ordering` | big | Order of the words of a wide register (`big` or `little`). |
+| `--soc-csv`, `--soc-json`, `--soc-svd` | | Where to write the map (`--csr-csv`... are the old spellings). |
+
+[SoC builder](SoC-builder.md) describes the handler behind this (`self.csr`), and
+[Add a new core](Add-A-New-Core.md) the interrupts (`EventManager`), which are CSRs too.
