@@ -85,7 +85,7 @@ def _instance_generate_verilog(instance, ns, add_data_file):
         if len(inouts) and (io is inouts[0]):
             r += "\n\t// InOuts.\n"
         name_inst   = io.name
-        name_design = _generate_expression(ns, io.expr)[0]
+        name_design = _generate_expression(ns, io.expr, need=len(io.expr))[0] # Port: expression width.
         first = False
         r += f"\t.{name_inst}{' '*(ident-len(name_inst))} ({name_design})"
     if not first:
