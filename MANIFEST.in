@@ -2,6 +2,8 @@ graft litex
 include CHANGES.md
 include CONTRIBUTORS
 graft doc
+prune doc/wiki
+prune doc/diagrams
 
 exclude litex_setup.py
 

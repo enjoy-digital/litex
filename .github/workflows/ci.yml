@@ -300,3 +300,22 @@ jobs:
           python3 -m pytest -v -n auto --durations=0 \
             --splits 4 --group ${{ matrix.group }} \
             --splitting-algorithm least_duration
+
+  # Wiki sources and diagrams (doc/wiki/, doc/diagrams/): links resolve, no large binaries, the
+  # generated SVGs match their scripts and their labels fit (see doc/wiki_sync.py, doc/diagrams/).
+  docs:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-crosextra-carlito fonts-liberation python3-pil
+
+      - name: Check wiki sources
+        run: python3 doc/wiki_sync.py check
+
+      - name: Check diagrams
+        run: python3 doc/diagrams/build.py --check
