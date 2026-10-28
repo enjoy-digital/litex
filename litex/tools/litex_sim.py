@@ -171,6 +171,7 @@ class SimSoC(SoCCore):
         ethernet_local_ip      = "192.168.1.50",
         ethernet_remote_ip     = "192.168.1.100",
         with_etherbone         = False,
+        with_uartbone          = False,
         with_analyzer          = False,
         sdram_module           = "MT48LC16M16",
         sdram_init             = [],
@@ -211,6 +212,18 @@ class SimSoC(SoCCore):
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq,
             ident = "LiteX Simulation",
             **kwargs)
+
+        # UARTBone ---------------------------------------------------------------------------------
+        # A host bridge on the simulated serial port (--uart-name=uartbone or crossover+uartbone):
+        # litex_server --uart reaches it through the PTY of --uart-pty.
+        if with_uartbone:
+            from litex.soc.cores.uart import RS232PHYModel, UARTBone
+            self.uartbone_phy = RS232PHYModel(platform.request("serial"))
+            self.uartbone     = UARTBone(
+                phy           = self.uartbone_phy,
+                clk_freq      = sys_clk_freq,
+                address_width = self.bus.address_width)
+            self.bus.add_master(name="uartbone", master=self.uartbone.wishbone)
 
         # BIOS Config ------------------------------------------------------------------------------
         # FIXME: Expose?
@@ -458,7 +471,7 @@ def sim_args(parser):
     # UART.
     parser.add_argument("--uart-tcp",      action="store_true",            help="Use serial2tcp external module for UART.")
     parser.add_argument("--uart-tcp-port", type=int, default=1234,         help="TCP port for serial2tcp (default: 1234).")
-    parser.add_argument("--uart-pty",      action="store_true",            help="Create a PTY bridged to the UART TCP port (requires socat).")
+    parser.add_argument("--uart-pty",      action="store_true",            help="Create a PTY bridged to the UART TCP port (requires socat); with --uart-name=crossover+uartbone, litex_server --uart on this PTY is a host bridge.")
     parser.add_argument("--uart-pty-path", default="/tmp/litex_pty0",      help="Path for UART PTY (default: /tmp/litex_pty0).")
 
     # DRAM.
@@ -542,8 +555,20 @@ def main():
     # Configuration --------------------------------------------------------------------------------
 
     # UART.
-    if soc_kwargs["uart_name"] == "serial":
+    uart_name     = soc_kwargs["uart_name"]
+    with_uartbone = soc_kwargs.pop("with_uartbone", False) or uart_name in ["uartbone", "crossover+uartbone"]
+    if with_uartbone:
+        # The simulated serial port becomes the host bridge (--with-uartbone, --uart-name=uartbone or
+        # crossover+uartbone), reached with litex_server --uart on the PTY (--uart-pty) or on the TCP
+        # port (--uart-tcp); the CPU console, if any, is the crossover UART (litex_term crossover).
+        if not (args.uart_tcp or args.uart_pty):
+            parser.error("UARTBone in simulation requires --uart-pty (or --uart-tcp).")
+        soc_kwargs["uart_name"] = "crossover"
+        if uart_name == "uartbone":
+            soc_kwargs["with_uart"] = False
+    elif uart_name == "serial":
         soc_kwargs["uart_name"] = "sim"
+    if with_uartbone or uart_name == "serial":
         # TCP-based UART bridge (serial2tcp).
         if args.uart_tcp or args.uart_pty:
             port = args.uart_tcp_port
@@ -656,6 +681,7 @@ def main():
         ethernet_local_ip      = args.local_ip,
         ethernet_remote_ip     = args.remote_ip,
         with_etherbone         = args.with_etherbone,
+        with_uartbone          = with_uartbone,
         with_analyzer          = args.with_analyzer,
         with_i2c               = args.with_i2c,
         with_jtag              = args.with_jtagremote,

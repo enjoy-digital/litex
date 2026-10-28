@@ -1,285 +1,166 @@
-When developing a new core/interface or bringing up a new system composed of various cores, things are often not behaving as expected... This could be due to various reasons like a bug in a core, a miss interpretation of a specification, difference in interpretation between developers, etc...
+You will capture the internal signals of your running SoC with LiteScope, a logic analyzer in
+the gateware: arm it on an event, upload the samples through the host bridge and open them in
+GTKWave. It is what simulation gives you, on the real hardware, in real time, for a few block
+RAMs. Ten minutes after [the host bridge](Host-Bridges.md), in simulation or on a board.
 
-To understand why the design is not behaving correctly, the internal signals of the FPGA need to be observed, in a similar way signals are observed during simulation to help/assist design.
+## 1. Add an analyzer to the SoC
 
-The difference between hardware and simulation is that on hardware the signals have to be captured in real time, without perturbing the system, and with the limited resources available in the FPGA.
-
-[LiteScope](https://github.com/enjoy-digital/litescope) is a small footprint and configurable embedded FPGA logic analyzer that has been developed for that purpose and we'll explain in the following sections how to integrate it in the SoC and how to use it.
-
-# Add a bridge to your SoC:
-
-With LiteScope, we want to capture internal signals of our design, store their values in an embedded memory of the FPGA and upload these datas to a Host PC to visualize them and debug/understand the issue.
-
-To use LiteScope in LiteX, the first step is then to add a bridge connection between the Host PC and our FPGA board to allow the Host PC to access the main bus of our SoC and interact with it.
-
-LiteX provides native bridges that can operate over a [UART](Host-Bridges.md#add-a-uartbone-bridge-to-your-soc), [Ethernet](Host-Bridges.md#add-an-ethernet-bridge-to-your-soc) or [PCIe](Host-Bridges.md#add-a-pcie-bridge-to-your-soc) and the integration of these bridges in the SoC is explained in the [Use a Host Bridge to control/debug a SoC documentation](Host-Bridges.md).
-
-The other bridges work the same way: JTAGBone (`--with-jtagbone`, `litex_server --jtag`, no pins needed), PCIe (`litex_server --pcie`), USB (`litex_server --usb`): see [Host-Bridges](Host-Bridges.md).
-
-# Add a LiteScope Analyzer to your SoC:
-
-Let's say we have a CPU in our design and want to be able to visualize the Wishbone accesses of the Instruction and Data buses, the first thing we do is creating the list of Migen signals we want to be observe:
-
-```python3
-analyzer_signals = [
-    # IBus (could also just added as self.cpu.ibus)
-    self.cpu.ibus.stb,
-    self.cpu.ibus.cyc,
-    self.cpu.ibus.adr,
-    self.cpu.ibus.we,
-    self.cpu.ibus.ack,
-    self.cpu.ibus.sel,
-    self.cpu.ibus.dat_w,
-    self.cpu.ibus.dat_r,
-    
-    # DBus (could also just added as self.cpu.dbus)
-    self.cpu.dbus.stb,
-    self.cpu.dbus.cyc,
-    self.cpu.dbus.adr,
-    self.cpu.dbus.we,
-    self.cpu.dbus.ack,
-    self.cpu.dbus.sel,
-    self.cpu.dbus.dat_w,
-    self.cpu.dbus.dat_r,
-]
-```
-
-Then we create the Litescope Analyzer that will be able to capture these signals:
-
-```python3
+```python
 from litescope import LiteScopeAnalyzer
+
+analyzer_signals = [
+    self.cpu.ibus.stb, self.cpu.ibus.cyc, self.cpu.ibus.adr, self.cpu.ibus.ack, self.cpu.ibus.dat_r,   # the instruction bus
+    self.cpu.dbus.stb, self.cpu.dbus.cyc, self.cpu.dbus.adr, self.cpu.dbus.we,  self.cpu.dbus.dat_w,   # the data bus
+]
 self.analyzer = LiteScopeAnalyzer(analyzer_signals,
     depth        = 512,
     clock_domain = "sys",
     samplerate   = sys_clk_freq,
-    csr_csv      = "analyzer.csv"
-)
+    csr_csv      = "analyzer.csv")
 ```
 
-The Analyzer is configured with a `depth` of *512* samples, doing the capture in the *sys* `clock domain` of the SoC and exporting the its configuration (`csr_csv`) to *analyzer.csv* file that will be used by the software during the trigger/capture.
+Any Migen signal goes in the list, and a record too (`[self.cpu.ibus, self.cpu.dbus]` captures
+every field). `depth` samples of all the signals are stored in block RAM (depth × width bits),
+in the `clock_domain` of the signals; `analyzer.csv`, written at build time, tells the client
+the names and the layout. The SoC needs a [bridge](Host-Bridges.md) for the host to reach it.
+This analyzer is built into `litex_sim`, so no board is needed to try it:
 
-> Note: Since samples are stored in embedded block rams of the FPGA, the depth will be limited by the number of available block rams in your design/FPGA. The total number of bits used for the capture is len(analyzer_signals)*depth.
-
-> Note: LiteScope also accepts Migen's Records, so in our example we could just have used:  `analyzer_signals = [self.cpu.ibus, self.cpu.dbus]` but it would have been less understandable. 
-
-We can now build our SoC and start using the Analyzer!
-# Use the Analyzer:
-
-Now that the SoC is instrumented and built, we can start using the analyzer. The first step is to run the LiteX server on the Host to allow communicating with the SoC and execute scripts. The previous example is integrated in [LiteX Sim](https://github.com/enjoy-digital/litex/blob/master/litex/tools/litex_sim.py) and we are going to use it here.
-
-The simulation can be run with `litex_sim --with-etherbone --with-analyzer` and the LiteX server started with `litex_server --udp --udp-ip=192.168.1.50`.
-
-## With LiteScope's Client:
-To do our captures, we'll first use `litescope_cli` that is directly installed with LiteScope.
-
-Let's just do a first immediate capture of the internals signals:
-```python3
-$litescope_cli 
-No trigger, immediate capture.
-[running]...
-[uploading]...
-[====================>] 100%
-[writing to dump.vcd]...
+```sh
+litex_sim --with-analyzer --uart-name=crossover+uartbone --uart-pty --csr-csv csr.csv   # terminal 1
+litex_server --uart --uart-port=/tmp/litex_pty0                                          # terminal 2
 ```
 
-> Note:`litescope_cli` will by default use a local `analyzer.csv` Analyzer description file (File generated by Litescope during design elaboration). You can point to another description file with the `--csv` argument.
+On a board: the snippet above in your target, `--uart-name=crossover+uartbone --build --load`,
+`litex_server --uart --uart-port=/dev/ttyUSB1`.
 
-And open it with GTKWave:
+## 2. A first capture
+
+```sh
+litescope_cli --list                 # the signals of the analyzer, as the design named them
+litescope_cli                        # no trigger: an immediate capture into dump.vcd
+gtkwave dump.vcd
+```
+
+Without a trigger, the capture is the state of the signals at that moment: some activity on
+the data bus (the BIOS polling the UART), nothing on the instruction bus, whose code is in the
+cache. Not much to see yet, but the whole chain works:
+
 <p align="center"><img src="https://user-images.githubusercontent.com/1450143/98357623-c4a5a180-2025-11eb-9b91-de04e41a86c3.png"></p>
 
-... OK, nothing really interesting here since that was just an immediate capture but this gives us an easy way to look at the current status of the internal signals, we just see that there is some activity on the Data Bus and nothing on the Instruction Bus.
+The names depend on the design and on the LiteX version, so `--list` first: the screenshots of
+this page date from 2020, when the signals were called `soc_simsoc_cpu_ibus_stb`; the commands
+use today's names. A name is matched exactly, or as a regular expression when it matches one
+signal (`-r ibus_stb` is enough). `--csv` and `--csr-csv` point to the files when they are not
+in the current directory, `--host` and `--port` to another `litex_server`.
 
-Now let's try triggering on a specific event, to get the list of signals that can be used as trigger the `--list` argument can be used:
-```python3
-$litescope_cli --list
-soc_simsoc_cpu_ibus_stb
-soc_simsoc_cpu_ibus_cyc
-soc_simsoc_cpu_ibus_adr
-soc_simsoc_cpu_ibus_we
-soc_simsoc_cpu_ibus_ack
-soc_simsoc_cpu_ibus_sel
-soc_simsoc_cpu_ibus_dat_w
-soc_simsoc_cpu_ibus_dat_r
-soc_simsoc_cpu_dbus_stb
-soc_simsoc_cpu_dbus_cyc
-soc_simsoc_cpu_dbus_adr
-soc_simsoc_cpu_dbus_we
-soc_simsoc_cpu_dbus_ack
-soc_simsoc_cpu_dbus_sel
-soc_simsoc_cpu_dbus_dat_w
-soc_simsoc_cpu_dbus_dat_r
-```
-The names depend on the design and on the LiteX version: always check them with `--list` (a substring such as `ibus_stb` is enough for `-r`/`-v`, `--list --group=N` shows another group).
-The LiteX simulation is running and we are able to interact with the BIOS, let's configure the analyzer to trigger on `ibus_stb`rising edge and press enter, this will cause the CPU to fetch some data on the instruction bus and should trigger the capture:
+## 3. Trigger on an event
 
-```python3
-$litescope_cli -r soc_simsoc_cpu_ibus_stb
-Exact: soc_simsoc_cpu_ibus_stb
-Rising edge: soc_simsoc_cpu_ibus_stb
-[running]...
+```sh
+litescope_cli -r simsoc_ibus_stb     # a rising edge trigger: the analyzer waits...
+litex_term crossover                 # ...press Enter in the console: the CPU fetches code
+gtkwave dump.vcd
 ```
-The trigger condition has been configured and the analyzer is now waiting for trigger condition to happen, let's press Enter in the BIOS console:
+
+The BIOS waits for your keys in a loop that fits in the instruction cache, so `ibus_stb` stays
+low until a command runs new code: pressing Enter in the console is enough.
 
 <p align="center"><img src="https://user-images.githubusercontent.com/1450143/80379942-144d2880-889f-11ea-9200-434ab7828c74.png"></p>
 
-```python3
-[uploading]...
-[====================>] 100%
-[writing to dump.vcd]...
-```
-The trigger condition has been found and `litescope_cli` is now uploading capture data to the Host to generate our dump.
+![litescope_cli: list, trigger, capture](images/litescope-capture.svg)
+
+*The signals, a rising-edge trigger, the upload: 512 samples in `dump.vcd`, 32 of them before
+the edge (`--offset`).*
+
+Drawn from `dump.vcd`, this is what the capture holds:
+
+![A LiteScope capture of the CPU instruction bus](images/litescope-wave.svg)
+
+*The CPU refills a cache line: `cyc` and `stb` rise, four words from `0xfd8`, one `ack` each.*
+
+Et voilà! The same capture in GTKWave, with the trigger in the middle of the window:
 
 <p align="center"><img src="https://user-images.githubusercontent.com/1450143/98355087-f7e63180-2021-11eb-92ce-62d598b8d524.png"></p>
 
-We effectively see that the capture occurred `ibus_stb`'s rising edge.
+## 4. Trigger on a value
 
-We'll now trigger on a specific bus value: we can try to use `mem_write` command of the BIOS to write a specific value to the RAM and try to trigger on this specific write:
-
-Let's say we want to trig on `dbus_dat_w = 0x12345678`:
-```python3
-litescope_cli -v soc_simsoc_cpu_dbus_dat_w 0x12345678
-Condition: soc_simsoc_cpu_dbus_dat_w == 0x12345678
-[running]...
+```sh
+litescope_cli -v simsoc_dbus_dat_w 0x12345678                                  # a value...
+litescope_cli -v simsoc_dbus_dat_w 0x12345678 -v simsoc_dbus_adr 0x04000000   # ...and another (AND)
+litescope_cli -v simsoc_dbus_dat_w 0x123456xx                                  # x: don't care nibbles
+litescope_cli -f simsoc_dbus_ack --offset 256 --length 512                     # a falling edge, more history
 ```
-We then write `0x5aa55aa5` to `0x40000000`:
+
+Arm the first one, then write to the RAM from the BIOS console: `mem_write 0x40000000
+0x5aa55aa5` does nothing, as expected...
 
 <img src="https://user-images.githubusercontent.com/1450143/98356435-e0a84380-2023-11eb-980c-fc03b456a818.png">
 
-Nothing happening on `litescope_cli`, as expected...
-
-Now let's write: `0x12345678` to `0x40000000`:
+...and `mem_write 0x40000000 0x12345678` triggers:
 
 <img src="https://user-images.githubusercontent.com/1450143/98360517-397ada80-202a-11eb-9972-b72ec12789c4.png">
 
-Now it's triggering:
-```python3
-[uploading]...
-[====================>] 100%
-[writing to dump.vcd]...
-```
-And we effectively see that the capture occured on the configured trigger:
-
 <img src="https://user-images.githubusercontent.com/1450143/98361518-fa4d8900-202b-11eb-82e0-a33f3af82ff6.png">
 
-With our previous trigger we were only checking the data bus value, if we also want to check the address we can use:
-```python3
-litescope_cli -v soc_simsoc_cpu_dbus_dat_w 0x12345678 -v soc_simsoc_cpu_dbus_adr 0x10000000
-```
-It's also possible to ignore a part of the value with `x`: 
-```python3
-litescope_cli -v soc_simsoc_cpu_dbus_dat_w 0x123456xx
-```
-That will ignore the last byte and so will trig for any `0x123456xx` value.
+(`0x40000000` is the main RAM of a SoC with `--with-sdram`; the SRAM of the default simulation
+is at `0x10000000`.) `--offset` is the number of samples kept before the trigger, `--length`
+the number stored (the depth by default), `--subsampling N` keeps one sample every N cycles,
+`--rle` enables the run-length encoding (`with_rle=True` in the analyzer) to span long idle
+periods, `--group` selects a capture group when the analyzer was given several lists
+(`{0: [...], 1: [...]}`), `--gui` opens a live viewer. `litescope_cli --help` has the rest.
 
-To get the full list of supported triggers/features of litescope_cli you can use `--help`:
+## 5. A script of your own
 
-```
-litescope_cli --help
-usage: litescope_cli [-h] [-r RISING_EDGE] [-f FALLING_EDGE]
-                     [-v TRIGGER VALUE] [-l] [--host HOST] [--port PORT]
-                     [--csv CSV] [--csr-csv CSR_CSV] [--group GROUP]
-                     [--subsampling SUBSAMPLING] [--rle] [--offset OFFSET]
-                     [--length LENGTH] [--dump DUMP] [--gui]
+`litescope_cli` covers most needs; a script is the way to capture inside a test sequence:
 
-LiteScope Client utility
-
-options:
-  -h, --help            show this help message and exit
-  -r RISING_EDGE, --rising-edge RISING_EDGE
-                        Add rising edge trigger.
-  -f FALLING_EDGE, --falling-edge FALLING_EDGE
-                        Add falling edge trigger.
-  -v TRIGGER VALUE, --value-trigger TRIGGER VALUE
-                        Add conditional trigger with given value.
-  -l, --list            List signal choices.
-  --host HOST           Host ip address
-  --port PORT           Host bind port.
-  --csv CSV             Analyzer CSV file.
-  --csr-csv CSR_CSV     SoC CSV file.
-  --group GROUP         Capture group to use from analyzer.csv.
-  --subsampling SUBSAMPLING
-                        Keep one sample every N scope clock cycles.
-  --rle                 Enable analyzer run-length encoding.
-  --offset OFFSET       Pre-trigger sample count.
-  --length LENGTH       Stored sample/word count to capture; default is
-                        analyzer depth.
-  --dump DUMP           Capture Filename.
-  --gui                 Run Gui.
-```
-
-`--group` selects a capture group (a dict of signal lists passed to `LiteScopeAnalyzer`), `--subsampling N` keeps one sample every N cycles, `--rle` enables the run-length encoding (`with_rle=True` in the analyzer) to capture longer bursts, `--offset` the number of pre-trigger samples, `--gui` a live viewer. `--host`/`--port`/`--csr-csv` point to another `litex_server` or build directory.
-
-## With custom user scripts:
-
-Using `litescope_cli` is recommended and should cover most of the use cases. It is however possible to also use custom scripts to control the analyzer and do the triggering with it.
-
-To analyze the instruction bus of the CPU, we create the following `litescope_analyzer.py` script:
-
-```python3
+```python
 #!/usr/bin/env python3
-
-import sys
-import argparse
-
 from litex import RemoteClient
 from litescope import LiteScopeAnalyzerDriver
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--ibus_stb",  action="store_true", help="Trigger on IBus Stb rising edge.")
-parser.add_argument("--ibus_adr",  default=0x00000000,  help="Trigger on IBus Adr value.")
-parser.add_argument("--offset",    default=128,         help="Capture Offset.")
-parser.add_argument("--length",    default=512,         help="Capture Length.")
-args = parser.parse_args()
+bus = RemoteClient()
+bus.open()
 
-wb = RemoteClient()
-wb.open()
-
-# # #
-
-analyzer = LiteScopeAnalyzerDriver(wb.regs, "analyzer", debug=True)
+analyzer = LiteScopeAnalyzerDriver(bus.regs, "analyzer", debug=True)
 analyzer.configure_group(0)
-if args.ibus_stb:
-	analyzer.add_rising_edge_trigger("soc_simsoc_cpu_ibus_stb")
-elif args.ibus_adr:
-    analyzer.configure_trigger(cond={"soc_simsoc_cpu_ibus_adr": int(args.ibus_adr, 0)})
-else:
-    analyzer.configure_trigger(cond={})
-analyzer.run(offset=int(args.offset), length=int(args.length))
-
+analyzer.add_rising_edge_trigger("simsoc_ibus_stb")          # or: analyzer.configure_trigger(cond={"simsoc_ibus_adr": 0x0})
+analyzer.run(offset=128, length=512)
+# ... do what should fire the trigger: a register write, a command, a packet ...
 analyzer.wait_done()
 analyzer.upload()
 analyzer.save("dump.vcd")
 
-# # #
-
-wb.close()
-
+bus.close()
 ```
-This script will allow us to trigger on a `ibus_stb` rising edge or on a specific `ibus_adr` value.
 
-The LiteX simulation is running and we are able to interact with the BIOS, let's configure the analyzer to trigger on `ibus_stb`rising edge and press enter, this will cause the CPU to fetch some data on the instruction bus and will trigger the capture:
+With the rising edge on `ibus_stb` and Enter pressed in the console, the capture is the one of
+step 3, with 128 samples of history this time:
 
-<p align="center"><img src="https://user-images.githubusercontent.com/1450143/80379942-144d2880-889f-11ea-9200-434ab7828c74.png"></p>
-
-```console
-$./litescope_analyzer.py --ibus_stb
-[running]...
-[uploading]...
-|====================>| 100%
-[writing to dump.vcd]...
-```
-We can then open the wave with GTKWave and analyze the access:
 <p align="center"><img src="https://user-images.githubusercontent.com/1450143/80379951-1911dc80-889f-11ea-829c-8c820e4e1d01.png"></p>
 
-Now let's trigger on `ibus_adr=0x00000000` (which is the reset address of the CPU) and run the reboot command of the BIOS:
+Triggering on `ibus_adr == 0x0`, the reset address, and running `reboot` in the console shows
+the CPU restarting:
+
 <p align="center"><img src="https://user-images.githubusercontent.com/1450143/80379955-1b743680-889f-11ea-9151-d05700cea637.png"></p>
 
-```console
-$./litescope_analyzer.py --ibus_adr=0x00000000
-[running]...
-[uploading]...
-|====================>| 100%
-[writing to dump.vcd]...
-```
-We can then open the wave with GTKWave and analyze the access:
 <p align="center"><img src="https://user-images.githubusercontent.com/1450143/80379959-1d3dfa00-889f-11ea-8f04-23b4ca910fc1.png"></p>
+
+Triggering on a register of your core while the host writes it shows your core reacting, cycle
+by cycle.
+
+## 6. Sizing it
+
+- The block RAM budget is depth × the sum of the signal widths: 512 samples of two 32-bit
+  buses with their handshakes fit in a handful of 36 Kb blocks; a wide payload asks for a
+  smaller depth or `--rle`.
+- Put the analyzer in the clock domain of the signals (`clock_domain="eth_rx"`): the samples
+  cross to the `sys` domain inside LiteScope.
+- `samplerate` only sets the timescale of the VCD.
+- Several analyzers, or groups in one, keep the capture focused; the host reads them one at a
+  time.
+
+## Next
+
+- [Debug the CPU with GDB](Debug-With-GDB.md): the next step of the path, breakpoints in the firmware.
+- [Control it from the host](Host-Bridges.md): the bridge the samples come through.
+- [Add a new core](Add-A-New-Core.md): simulate the core first, capture it on hardware after.
+- [SoC simulator](SoC-Simulator.md): when a VCD of the whole simulated SoC (`--trace`) is the better tool.

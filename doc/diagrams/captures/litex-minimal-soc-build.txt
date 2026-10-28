@@ -1,0 +1,28 @@
+$ python3 minimal_soc.py --build --no-compile-gateware
+INFO:SoC:Creating SoC... (2026-10-28 12:26:19)
+...
+INFO:SoC:Finalized SoC:
+INFO:SoC:32-bit wishbone Bus, 4.0GiB Address Space.
+Bus Regions: (3)
+rom                 : Origin: 0x00000000, Size: 0x00020000, Mode:  RX, Cached:  True, Linker: False
+sram                : Origin: 0x10000000, Size: 0x00002000, Mode: RWX, Cached:  True, Linker: False
+csr                 : Origin: 0xf0000000, Size: 0x00010000, Mode:  RW, Cached: False, Linker: False
+Bus Masters: (2)
+- cpu_bus0          : rw
+- cpu_bus1          : rw
+Bus Slaves: (3)
+- rom               : r
+- sram              : rw
+- csr               : rw
+INFO:SoC:32-bit CSR Bus, 32-bit Aligned, 16.0KiB Address Space, 2048B Paging, big Ordering (Up to 32 Locations).
+CSR Locations: (5)
+- ctrl           : 0
+- identifier_mem : 1
+- leds           : 2
+- timer0         : 3
+- uart           : 4
+...
+ OBJCOPY  bios.bin
+INFO:SoC:Auto-Resizing ROM rom from 0x20000 to 0x603c.
+$ ls build/digilent_arty
+csr.csv  csr.json  gateware  litex.log  software

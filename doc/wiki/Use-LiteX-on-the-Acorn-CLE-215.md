@@ -95,7 +95,7 @@ And you should see linux booting:
 
 ![enter image description here](https://user-images.githubusercontent.com/1450143/101607488-f636d180-3a04-11eb-9002-2d6ee301a1ff.jpeg)
 
-Since the SoC integrates LiteSATA, it's also possible to boot over SATA with the optional SATA adapter, you can copy the Linux images directly to the SATA drive by following [this guide](Write-Firmware-For-Your-SoC.md#sdcardsata-boot), plug the SATA drive and should see the system booting directly from SATA.
+Since the SoC integrates LiteSATA, it's also possible to boot over SATA with the optional SATA adapter, you can copy the Linux images directly to the SATA drive by following [this guide](Write-Firmware-For-Your-SoC.md#sd-card-and-sata), plug the SATA drive and should see the system booting directly from SATA.
 
 # Acorn Giveaway
 ![https://user-images.githubusercontent.com/1450143/144005083-9dc62efa-a875-4abd-a3f5-4129e34267d2.png](https://user-images.githubusercontent.com/1450143/144005083-9dc62efa-a875-4abd-a3f5-4129e34267d2.png)

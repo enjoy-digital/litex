@@ -27,9 +27,42 @@ leaves out of its crossing checks (values sit between the traces by design); the
 checked against each other.
 """
 
+import re
+
 from litex_diagram import *
 
-__all__ = ["Wave"]
+__all__ = ["Wave", "from_vcd"]
+
+def from_vcd(path, period=1):
+    """The value of every signal of a VCD at each cycle: {name: [v0, v1, ...]}, a cycle being `period`
+    VCD time steps (a LiteScope dump has two per sample). A bit is "0", "1" or "x"; a bus is an int,
+    None while undefined. The VCD excerpts live in doc/diagrams/captures/."""
+    ids, cur, t, rows = {}, {}, None, []
+    for line in open(path, encoding="utf-8"):
+        line = line.strip()
+        m = re.match(r"\$var\s+\w+\s+(\d+)\s+(\S+)\s+(\S+)", line)
+        if m:
+            ids[m.group(2)] = m.group(3)
+            continue
+        if line.startswith("#"):
+            if t is not None:
+                rows.append((t, dict(cur)))
+            t, cur = int(line[1:]), {}
+        elif line.startswith("b") and " " in line:
+            v, i = line[1:].split()
+            cur[ids[i]] = None if ("x" in v or "z" in v) else int(v, 2)
+        elif len(line) >= 2 and line[0] in "01xz" and line[1:] in ids:
+            cur[ids[line[1:]]] = line[0] if line[0] in "01" else "x"
+    if t is not None:
+        rows.append((t, dict(cur)))
+    out, state, k = {n: [] for n in ids.values()}, {}, 0
+    for c in range(rows[-1][0]//period + 1):
+        while k < len(rows) and rows[k][0] <= c*period:
+            state.update(rows[k][1])
+            k += 1
+        for n in out:
+            out[n].append(state.get(n))
+    return out
 
 GRID = "#d9d9d9"
 
@@ -50,6 +83,20 @@ class Wave:
         """values: {cycle: label}: the label holds until the next key; None means idle (a mid line);
         the cycles before the first key are idle."""
         self.rows.append(("bus", name, values)); return self
+
+    def bit_samples(self, name, values, start=0):
+        """A bit row from per-cycle values (from_vcd), from cycle `start`."""
+        v = values[start:start + self.cycles]
+        return self.bit(name, "".join("x" if x is None else str(x) for x in v))
+
+    def bus_samples(self, name, values, start=0, fmt="0x{:x}"):
+        """A bus row from per-cycle values (from_vcd): one label per run of equal values."""
+        d, prev = {}, object()
+        for c, x in enumerate(values[start:start + self.cycles]):
+            if x != prev:
+                d[c] = None if x is None else fmt.format(x)
+                prev = x
+        return self.bus(name, d)
 
     @property
     def width(self):

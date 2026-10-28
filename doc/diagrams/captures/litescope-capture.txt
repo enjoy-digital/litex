@@ -1,0 +1,17 @@
+$ litescope_cli --list
+simsoc_ibus_stb
+simsoc_ibus_cyc
+simsoc_ibus_adr
+simsoc_ibus_we
+...
+simsoc_dbus_dat_w
+simsoc_dbus_dat_r
+$ litescope_cli -r simsoc_ibus_stb
+Exact: simsoc_ibus_stb
+Rising edge: simsoc_ibus_stb
+analyzer: run (offset=32, length=512)
+analyzer: wait_done (delay=0.2s)
+analyzer: upload (words=508)
+analyzer: [====================] 100%
+analyzer: write dump.vcd
+$ gtkwave dump.vcd
