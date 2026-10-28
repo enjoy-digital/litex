@@ -1,18 +1,22 @@
-Where to learn Migen and LiteX, examples to read, and what has been written and said about
-LiteX. The wiki itself: start with [Installation](Installation.md), [Create a minimal SoC](Create-A-minimal-SoC.md)
-and [The LiteX approach](LiteX-Approach.md).
+Where to learn Migen and LiteX beyond this wiki: the tutorials and workshops, the projects
+worth reading as examples, the articles and the talks. The wiki's own path starts with
+[Installation](Installation.md) and [Create a minimal SoC](Create-A-minimal-SoC.md); come here
+when you want a course, a worked example on a given board, or the story behind a feature.
 
 ## Tutorials and workshops
 
 ### [FPGA 101](https://github.com/litex-hub/fpga_101)
-Lessons/Labs given to students to discover FPGAs and learn Migen/LiteX through a hands-on approach. These tutorials are covering the Migen's basics (syntax/simulations) through common SoC cores: Clock generation, 7-Segments displays, etc... and then the LiteX's basics through the integration of these cores in a SoC. It demonstrates and explains how to control these cores from an Host PC through a bridge (UART) and then directly from a RISC-V Soft-CPU implemented in the FPGA.
-
-These tutorials should help users understand the possibilities of Migen/LiteX and give the basics to create their own Migen cores/LiteX SoCs.
+Lessons and labs given to students to discover FPGAs and learn Migen and LiteX hands-on: the
+basics of Migen (syntax, simulation) through common SoC cores (clock generation, 7-segment
+displays...), then the basics of LiteX through the integration of these cores in a SoC, driven
+first from a host PC through a UART bridge, then from a RISC-V soft CPU in the FPGA. Enough to
+create your own Migen cores and LiteX SoCs.
 
 > **Note:** The labs are based on the Nexys4DDR (now named NexysA7) but can be easily adapted to others boards; the inexpensive boards of [LiteX-Boards](https://github.com/litex-hub/litex-boards) that work with the open-source toolchains are good candidates.
 
 ### [fjullien's training](https://github.com/fjullien/migen_litex_tutorials)
-A series of tutorials by fjullien focused on teaching Migen and LiteX. These hands-on labs help users understand FPGA design, SoC integration, and the creation of custom cores using Migen, alongside building complete systems with LiteX.
+A series of hands-on labs by fjullien on Migen and LiteX: FPGA design, custom cores in Migen,
+SoC integration and complete systems with LiteX.
 
 ### [Fomu Workshop](https://workshop.fomu.im/en/latest/)
 The [Fomu](https://www.crowdsupply.com/sutajio-kosagi/fomu) is a tiny FPGA board that fits in your USB port. The SoC of the FPGA is built with LiteX and the workshop provides a hands-on approach to control the peripherals from a Host PC through the board's USB bridge and then demonstrates how to create a RISC-V SoC with a [VexRiscv](https://github.com/SpinalHDL/VexRiscv) CPU and load/execute/debug C/Rust core with it and control the peripherals of the board.
@@ -21,7 +25,8 @@ The [Fomu](https://www.crowdsupply.com/sutajio-kosagi/fomu) is a tiny FPGA board
 The [iCEBreaker](https://www.crowdsupply.com/1bitsquared/icebreaker-fpga) is the first open source iCE40 FPGA development board designed for teachers and students. The iCEBreaker [target](https://github.com/litex-hub/litex-boards/blob/master/litex_boards/targets/icebreaker.py) integrated in [LiteX-Boards](https://github.com/litex-hub/litex-boards) provides a minimal LiteX SoC for the iCEBreaker with a CPU, its ROM (in SPI Flash), its SRAM, close to the others LiteX targets. A more complete example of LiteX SoC for the iCEBreaker with more features, examples to run C/Rust code on the RISC-V CPU and documentation can be found in the [iCEBreaker LiteX examples](https://github.com/icebreaker-fpga/icebreaker-litex-examples) tutorial.
 
 ### [LiteX for Hardware Engineers](LiteX-for-Hardware-Engineers.md)
-An introduction to LiteX written in 2018 by [bunnie](https://www.bunniestudios.com/) for engineers with a Verilog/Vivado background, with his tips; kept in this wiki with notes on what changed since. bunnie's original 2018 introduction is kept on
+The Verilog-to-LiteX cheat sheet, and bunnie's 2018 introduction for engineers with a Verilog
+and Vivado background, kept with notes on what changed since:
 [LiteX for Hardware Engineers (2018)](LiteX-for-Hardware-Engineers-2018.md).
 
 ### [Migen manual](https://m-labs.hk/migen/manual)
@@ -82,3 +87,10 @@ A template for a LiteX project outside LiteX-Boards, with the Zynq and ZynqMP wo
 - [Self-hosting Fedora on a LiteX + Rocket FPGA computer](https://www.contrib.andrew.cmu.edu/~somlo/BTCP/self_hosting_fedora.html), Gabriel Somlo, FOSDEM 2023.
 
 Something missing? [Add it](Contributing-to-the-Wiki.md).
+
+## Next
+
+- [Create a minimal SoC](Create-A-minimal-SoC.md): the wiki's own first lab.
+- [Projects](Projects.md): more examples, from products to weekend projects.
+- [LiteX for Hardware Engineers](LiteX-for-Hardware-Engineers.md): the cheat sheet for a Verilog reader.
+- [Feedback, contribution, support](Feedback-Contribution-Support.md): where to ask once the reading is done.

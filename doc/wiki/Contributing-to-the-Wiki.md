@@ -32,18 +32,22 @@ Every page has the same shape, so a reader always knows where to look:
 
 | Part | What it holds |
 | --- | --- |
-| Opening (no heading) | Two to four lines: what you will have or understand at the end, who it is for, the page it pairs with. |
-| Visual | The diagram of a concept page, or the terminal capture of the first result on a how-to page, with an italic caption line. |
-| Try it | One to three commands and their real output (15 lines at most, `...` where output is skipped), then one sentence on what you are looking at. |
-| Body | Numbered steps on a how-to page, each ending with a visible result; a few named sections on a concept page. Short paragraphs, code before explanations. |
-| Tables | Four columns at most, cells of a line, one sentence before the table saying how to read it. Longer lists go in a `<details>` block or on a reference page. |
+| Opening (no heading) | Two to four lines: what you will have or understand at the end, who it is for. |
+| Visual | The diagram of a concept page, or the terminal capture of the first result, with a caption. |
+| Try it | One to three commands and their real output (15 lines at most), then what you are looking at. |
+| Body | Numbered steps ending with a visible result, or a few named sections; code before explanations. |
+| Tables | Four columns at most, cells of a line, one sentence before the table saying how to read it. |
 | `## Next` | Three to five `- [Page](Page.md): why you go there.` bullets, the natural continuation first. |
+
+Longer lists go in a `<details>` block (as bullets or code, so that the cells stay short) or
+on a reference page.
 
 Alerts are for shortcuts and caveats, three per page at most: `> [!TIP]` for a shortcut,
 `> [!NOTE]` for a caveat, `> [!WARNING]` when hardware or data is at risk.
 
 > [!TIP]
-> `python3 doc/wiki_sync.py check` tells you when a page drifts from this shape.
+> `python3 doc/wiki_sync.py check --strict` tells you when a page drifts from this shape; CI
+> runs it on every pull request.
 
 <details>
 <summary>The three kinds of pages</summary>
@@ -115,11 +119,17 @@ plain quotes.
 ## Checking before a pull request
 
 ```sh
-python3 doc/wiki_sync.py check            # links, images, names, llms.txt; the page shape as warnings
-python3 doc/wiki_sync.py check --strict   # the page shape as errors
+python3 doc/wiki_sync.py check --strict   # links, images, names, llms.txt, the page shape
 python3 doc/diagrams/build.py --check     # diagrams match their scripts, labels fit
 python3 doc/wiki_sync.py render --out /tmp/wiki   # the exact tree the sync pushes to the wiki
 ```
 
-The same checks run in CI on the pull request. After the merge, the `wiki` workflow pushes the
+Without `--strict`, the page shape is reported as warnings instead of errors. The same checks
+run in CI on the pull request, with `--strict`. After the merge, the `wiki` workflow pushes the
 pages to the wiki (a few seconds); its log reports any direct wiki edit it overwrote.
+
+## Next
+
+- [Feedback, contribution, support](Feedback-Contribution-Support.md): the other ways to help.
+- [LiteX for AI agents](LiteX-for-AI-Agents.md): the page an agent reads before editing anything.
+- [Home](Home.md): what the whole wiki looks like from the top.
