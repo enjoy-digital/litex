@@ -115,7 +115,7 @@ community:
 | [pythondata-cpu-*](https://github.com/litex-hub?q=pythondata-cpu), [pythondata-software-*](https://github.com/litex-hub?q=pythondata-software), [pythondata-misc-*](https://github.com/litex-hub?q=pythondata-misc) | The packaged sources of the 27 CPUs, picolibc and compiler-rt, and misc cores (USB OHCI, tapcfg), generated with [pythondata-auto](https://github.com/litex-hub/pythondata-auto). |
 | [wishbone-utils](https://github.com/litex-hub/wishbone-utils) | `wishbone-tool`, a Rust client for the bridges (Fomu heritage). |
 | [litex-renode](https://github.com/litex-hub/litex-renode), [cocotb_verilator_sim_example](https://github.com/litex-hub/cocotb_verilator_sim_example) | Simulation helpers and examples. |
-| [micropython](https://github.com/litex-hub/micropython), [linux](https://github.com/litex-hub/linux), [opensbi](https://github.com/litex-hub/opensbi), [picolibc](https://github.com/litex-hub/picolibc), [valentyusb](https://github.com/litex-hub/valentyusb), [barebox](https://github.com/litex-hub/barebox) | The forks carrying the LiteX ports and patches. |
+| [micropython](https://github.com/litex-hub/micropython), [linux](https://github.com/litex-hub/linux), [opensbi](https://github.com/litex-hub/opensbi), [picolibc](https://github.com/litex-hub/picolibc), [barebox](https://github.com/litex-hub/barebox) | The forks carrying the LiteX ports and patches. |
 
 ## Industrial projects
 
