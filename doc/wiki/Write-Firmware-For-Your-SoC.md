@@ -159,7 +159,10 @@ Executing booted program at 0x40f00000
 --============= Liftoff! ===============--
 ```
 
-A Linux image loads in a few seconds this way ([Run Linux](Run-Linux-On-Your-SoC.md)).
+A Linux image loads in a few seconds this way ([Run Linux](Run-Linux-On-Your-SoC.md)), here on
+an Arty A7:
+
+<p align="center"><img src="https://web.archive.org/web/20221207075844im_/https://cdn10.bigcommerce.com/s-7gavg/product_images/attribute_rule_images/6425_zoom_1527801259.png" width="400"></p>
 
 ### SPI flash
 
@@ -190,9 +193,11 @@ host:
 <p align="center"><img src="https://pbs.twimg.com/media/EaPya68XgAEEKvB?format=png&name=small" width="500"></p>
 
 As on the [OrangeCrab](https://groupgets.com/campaigns/710-orangecrab), whose SD card slot boots
-Linux this way ([recording](https://asciinema.org/a/cFQ7JRH96mgJNcuI0Ntey663H)):
+Linux this way:
 
 <p align="center"><img src="https://raw.githubusercontent.com/gregdavill/OrangeCrab/main/documentation/hugo-files/static/docs/r0.2/orangeCrab-1.jpg" width="500"></p>
+
+[![asciicast](https://asciinema.org/a/cFQ7JRH96mgJNcuI0Ntey663H.svg)](https://asciinema.org/a/cFQ7JRH96mgJNcuI0Ntey663H)
 
 ### ROM
 
