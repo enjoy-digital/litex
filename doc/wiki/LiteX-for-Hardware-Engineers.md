@@ -1,42 +1,66 @@
-*The cheat sheet maps the Verilog and Vivado concepts to their LiteX counterparts as of today and
-links to the current pages. bunnie's 2018 introduction for engineers coming from Verilog, kept
-with dated notes, is on [its own page](LiteX-for-Hardware-Engineers-2018.md).*
+You know Verilog and Vivado and you want to know what each of your habits becomes in LiteX:
+this cheat sheet maps them one by one, with the page to read for each. The long version, bunnie's
+2018 introduction for engineers coming from Verilog, kept with dated notes, is on
+[its own page](LiteX-for-Hardware-Engineers-2018.md); the reasons behind the choices are on
+[The LiteX approach](LiteX-Approach.md).
 
-## Verilog to LiteX: the cheat sheet
+```sh
+python3 -m litex_boards.targets.digilent_arty --build --no-compile-gateware
+less build/digilent_arty/gateware/digilent_arty.v        # what Migen made of the Python: a flat netlist with readable names
+```
 
-| In Verilog / Vivado | In LiteX / Migen | Where to read more |
+## Verilog to LiteX
+
+Read the first column for what you do today, the second for what you write instead:
+
+| In Verilog and Vivado | In LiteX and Migen | Read more |
 | --- | --- | --- |
-| `module` with ports and parameters | a Python class deriving from `LiteXModule` (`from litex.gen import *`); the ports are `Signal` attributes, the parameters are constructor arguments | [Add a new core](Add-A-New-Core.md) |
-| `wire`/`reg`, bit widths, signedness | `Signal(n)`, `Signal((n, True))` for signed; widths are checked at elaboration, narrower values are zero/sign extended | [Migen manual](https://m-labs.hk/migen/manual) |
+| `module` with ports and parameters | A class deriving from `LiteXModule`; the ports are `Signal` attributes, the parameters arguments. | [Add a new core](Add-A-New-Core.md) |
+| `wire`, `reg`, widths, signedness | `Signal(n)`, `Signal((n, True))` for signed; widths checked at elaboration, values extended. | [Migen manual](https://m-labs.hk/migen/manual) |
 | `assign` | `self.comb += a.eq(b)` | |
-| `always @(posedge clk)` | `self.sync += a.eq(b)` in the `sys` clock domain, `self.sync.<domain> += ...` in another one; the reset is implicit (synchronous, `Signal(reset=...)` for the value) | [What is Migen?](LiteX-for-Hardware-Engineers-2018.md#what-is-migen) |
-| `if`/`case`, the ternary operator | `If(...).Elif(...).Else(...)`, `Case(sel, {...})`, `Mux(sel, a, b)`; `Cat()`, `Replicate()`, slices `a[7:0]` | |
-| a state machine | `FSM()` with `fsm.act("STATE", ...)`, `NextState()`, `NextValue()` | [FSMs](LiteX-for-Hardware-Engineers-2018.md#fsms) |
-| `generate` loops, parameterized logic | plain Python `for`/`if` building the statements and submodules | |
-| instantiation of a netlist, an IP core, a primitive | `Instance("name", i_a=..., o_b=..., p_PARAM=...)`; sources added with `platform.add_source()`, IP cores with the toolchain's own calls | [Reuse a core](Reuse-An-Existing-Core.md) |
-| `.xdc` pins and timing constraints | the platform file (`Pins`, `IOStandard`, `Misc`), `platform.add_period_constraint()`, `platform.add_false_path_constraints()`, `platform.add_platform_command()` for the rest | [Add a new board](Add-A-New-Board.md), [Build backends](Build-Backends.md) |
-| clocks, PLL/MMCM, resets | `ClockDomain`, a CRG module with `S7PLL`/`S7MMCM`/`USMMCM`/`ECP5PLL`/... from `litex.soc.cores.clock`; `ResetInserter()`, `ClockDomainsRenamer()` | [SoC builder](SoC-builder.md) |
-| clock domain crossing: synchronizers, async FIFOs | `MultiReg`, `PulseSynchronizer`, `BusSynchronizer` (Migen), `stream.AsyncFIFO`, `stream.ClockDomainCrossing` | [Streams](Streams.md) |
-| an AXI-Stream style data path | `stream.Endpoint(layout)` with `valid`/`ready`/`first`/`last`/`payload`, and the generic FIFOs, converters, packetizers | [Streams](Streams.md) |
-| memory-mapped control registers | `CSRStorage`/`CSRStatus` with `CSRField`; the software side is generated in `csr.h` | [CSR bus](CSR-Bus.md) |
-| interrupts | an `EventManager` in the core, `self.irq.add("core")` in the SoC | [Add a new core](Add-A-New-Core.md) |
-| the bus fabric (AXI interconnect) | Wishbone or AXI/AXI-Lite, `self.bus.add_master()`/`add_slave()`, shared bus or crossbar, width and burst converters | [Wishbone](Wishbone-Bus.md), [AXI](AXI-Bus.md) |
-| block RAM | `Memory(width, depth, init=...)` with `get_port()` in a core; `add_ram()`/`add_rom()` in a SoC | [SoC builder](SoC-builder.md) |
-| a testbench | `run_simulation(dut, generator)` with Python generators for a core; `litex_sim` (Verilator) for a whole SoC | [SoC Simulator](SoC-Simulator.md) |
-| an ILA (ChipScope, SignalTap) | LiteScope, read through a UART/JTAG/Ethernet/PCIe bridge, no CPU needed | [Use LiteScope](Use-LiteScope-To-Debug-A-SoC.md) |
-| the Vivado project and Tcl flow | the Builder: `python3 target.py --build --load` writes the Verilog, the constraints and the Tcl, runs the toolchain and loads the board | [Build backends](Build-Backends.md) |
-| a top level with a MicroBlaze/Zynq | `SoCCore` with a soft CPU (VexRiscv by default) or the hard CPU of the device | [CPUs](CPUs.md), [Create a minimal SoC](Create-A-minimal-SoC.md) |
+| `always @(posedge clk)` | `self.sync += a.eq(b)` in the `sys` domain, `self.sync.<domain> += ...` in another one. | [What is Migen?](LiteX-for-Hardware-Engineers-2018.md#what-is-migen) |
+| the reset | Implicit and synchronous; `Signal(reset=...)` gives the value, `ResetInserter()` a reset of yours. | |
+| `if`, `case`, the ternary operator | `If(...).Elif(...).Else(...)`, `Case(sel, {...})`, `Mux(sel, a, b)`; `Cat()`, slices `a[7:0]`. | |
+| a state machine | `FSM()` with `fsm.act("STATE", ...)`, `NextState()`, `NextValue()`. | [FSMs](LiteX-for-Hardware-Engineers-2018.md#fsms) |
+| `generate` loops, parameterized logic | Plain Python `for` and `if` building the statements and the submodules. | |
+| a netlist, an IP core, a primitive | `Instance("name", i_a=..., o_b=..., p_PARAM=...)`; `platform.add_source()` for the files. | [Reuse a core](Reuse-An-Existing-Core.md) |
+| `.xdc` pins and constraints | The platform file (`Pins`, `IOStandard`, `Misc`); `add_period_constraint()` and the false paths. | [Add a new board](Add-A-New-Board.md) |
+| the rest of the `.xdc` | `platform.add_platform_command("...")`, passed to the toolchain as is. | [Build backends](Build-Backends.md) |
+| clocks, PLL and MMCM, resets | `ClockDomain`; a CRG module with `S7PLL`, `S7MMCM`, `ECP5PLL`... from `litex.soc.cores.clock`. | [SoC builder](SoC-builder.md) |
+| clock domain crossing | `MultiReg`, `PulseSynchronizer`, `BusSynchronizer`; `stream.AsyncFIFO`, `stream.ClockDomainCrossing` | [Streams](Streams.md) |
+| an AXI-Stream data path | `stream.Endpoint(layout)` with `valid`, `ready`, `first`, `last`, `payload`; FIFOs, converters... | [Streams](Streams.md) |
+| memory-mapped control registers | `CSRStorage`, `CSRStatus` with `CSRField`; the software side is generated in `csr.h`. | [CSR bus](CSR-Bus.md) |
+| interrupts | An `EventManager` in the core, `self.irq.add("core")` in the SoC. | [Add a new core](Add-A-New-Core.md) |
+| the bus fabric (AXI interconnect) | Wishbone or AXI, `self.bus.add_master()` and `add_slave()`; shared bus or crossbar, converters. | [Wishbone](Wishbone-Bus.md), [AXI](AXI-Bus.md) |
+| block RAM | `Memory(width, depth, init=...)` with `get_port()` in a core; `add_ram()`, `add_rom()` in a SoC. | [SoC builder](SoC-builder.md) |
+| a testbench | `run_simulation(dut, generator)` with Python generators; `litex_sim` (Verilator) for a whole SoC. | [SoC simulator](SoC-Simulator.md) |
+| an ILA (ChipScope, SignalTap) | LiteScope, read through a UART, JTAG, Ethernet or PCIe bridge, no CPU needed. | [Use LiteScope](Use-LiteScope-To-Debug-A-SoC.md) |
+| the Vivado project and the Tcl flow | The Builder: `python3 target.py --build --load` writes Verilog, constraints and Tcl, runs the tools. | [Build backends](Build-Backends.md) |
+| a top level with a MicroBlaze or a Zynq | `SoCCore` with a soft CPU (VexRiscv by default) or the hard CPU of the device. | [CPUs](CPUs.md), [Create a minimal SoC](Create-A-minimal-SoC.md) |
 
-Reading the generated Verilog is the quickest way to see what Migen does with your code:
-`build/<platform>/gateware/<platform>.v` is a flat netlist with readable names
+## Ten lines of Migen
+
+```python
+from migen import *
+from litex.gen import *
+
+class Blink(LiteXModule):
+    def __init__(self, led, period=100_000_000):
+        counter = Signal(max=period)                         # a register wide enough for period-1
+        self.sync += If(counter == period - 1,               # the sys clock domain, implicit reset
+                        counter.eq(0), led.eq(~led)
+                     ).Else(counter.eq(counter + 1))
+```
+
+Everything is a Python object until the build: a `Signal` is a wire or a register depending on
+whether it is assigned in `comb` or `sync`, a statement list is logic, a class instance a module
+with its submodules. Reading `build/<platform>/gateware/<platform>.v` after a build is the
+fastest way to see what Migen made of your code: a flat netlist with readable names
 (`<module>_<signal>`), next to the generated constraints and the toolchain script.
 
-This is an introduction to LiteX written by and for hardware engineers
-who have experience designing FPGAs using Verilog and Vivado.
+## Next
 
-> **Note:** Experienced Python engineers can skip this and [read the source code](https://github.com/m-labs/migen) for
-> documentation. *[2026: LiteX's own `litex_setup.py`/`litex_repos.py` now clone Migen from https://git.m-labs.hk/M-Labs/migen rather than from GitHub.]*
-
-The long version, from the point of view of a Verilog designer discovering LiteX in 2018 (Migen,
-CSRs, interrupts, memories, design patterns), is bunnie's
-[LiteX for Hardware Engineers (2018)](LiteX-for-Hardware-Engineers-2018.md).
+- [Add a new core](Add-A-New-Core.md): your first core, registers and interrupt included.
+- [LiteX for Hardware Engineers (2018)](LiteX-for-Hardware-Engineers-2018.md): bunnie's long version, Migen, CSRs, interrupts and memories from a Verilog point of view.
+- [The LiteX approach](LiteX-Approach.md): why Python, why Migen, why these interfaces.
+- [Reuse an existing core](Reuse-An-Existing-Core.md): your Verilog, VHDL or SystemVerilog as it is.

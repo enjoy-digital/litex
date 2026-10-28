@@ -46,6 +46,8 @@ DIAGRAMS = {
     "litex-complex-soc":       2800,
     "litex-pcie-soc":          2800,
     "litex-standalone-core":   2800,
+    "litex-cpu-families":      2800,
+    "litex-cores-map":         2800,
     "litex-sim-boot":          1600,   # Terminal capture (terminal.py).
     "litex-minimal-soc-build": 1600,   # Terminal capture (terminal.py).
     "litex-term-boot":         1600,   # Terminal capture (terminal.py).
@@ -54,6 +56,8 @@ DIAGRAMS = {
     "litescope-wave":          2400,   # Timing diagram (wave.py) from captures/litescope-ibus.vcd.
     "litex-gdb-session":       1600,   # Terminal capture (terminal.py).
     "litex-csr-wave":          1800,   # Timing diagram (wave.py).
+    "litex-wishbone-wave":     1800,   # Timing diagram (wave.py).
+    "litex-stream-wave":       1800,   # Timing diagram (wave.py).
 }
 
 def run(cmd, **kw):

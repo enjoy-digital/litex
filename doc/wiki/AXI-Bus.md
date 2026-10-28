@@ -1,63 +1,85 @@
-[AXI](https://developer.arm.com/documentation/ihi0022/latest/) (Advanced eXtensible Interface,
-from Arm's AMBA) is the bus of the vendor IPs, the hard CPUs (Zynq, Agilex and Cyclone V HPS)
-and the high-performance soft CPUs (NaxRiscv, VexiiRiscv, Rocket, CVA6, OpenC906). LiteX
-implements AXI4, AXI4-Lite and AXI4-Stream in `litex/soc/interconnect/axi/`, with the same
-building blocks as Wishbone (interconnects, converters, bridges, SRAM, CDC, timeout), and a SoC
-can use `--bus-standard=axi-lite` or `axi` for its main bus, or mix masters and slaves of
-different standards: the [SoC builder](SoC-builder.md) inserts the bridges.
+[AXI](https://developer.arm.com/documentation/ihi0022/latest/) is what the vendor IPs, the
+hard CPUs (Zynq, Agilex and Cyclone V HPS) and the big soft CPUs (NaxRiscv, VexiiRiscv, Rocket,
+CVA6, OpenC906) speak, and LiteX speaks it too: AXI4, AXI4-Lite and AXI4-Stream in
+`litex/soc/interconnect/axi/`, with the same interconnects, converters, bridges, SRAM, CDC and
+timeout as Wishbone. You meet it when you add one of those, when you pick
+`--bus-standard=axi-lite` or `axi` for the main bus, or when you export a core for a Vivado or
+Quartus block design; the [SoC builder](SoC-builder.md) inserts the bridges so that masters and
+slaves of different standards share one SoC.
 
 ![AXI in LiteX](images/litex-axi.svg)
 
+*AXI4 for memory traffic, AXI4-Lite for control, AXI4-Stream for data paths; bridges to and
+from Wishbone wherever the two meet.*
+
+```sh
+python3 -m litex_boards.targets.digilent_arty --cpu-type=naxriscv --build --no-compile-gateware   # an AXI-Lite CPU on a Wishbone bus: the bridge is added for you
+```
+
 ## The three flavours
 
-| | Interface | Channels | Use |
-| --- | --- | --- | --- |
-| **AXI4-Lite** | `AXILiteInterface(data_width=32, address_width=32)` | `aw`, `w`, `b`, `ar`, `r` (no bursts, no IDs) | Control: CSRs and simple peripherals; the bus of vendor IP control ports; `--bus-standard=axi-lite`. |
-| **AXI4** (full) | `AXIInterface(data_width, address_width, id_width=1, version="axi4"\|"axi3", bursting)` | The five channels with bursts (`len`, `size`, `burst`), IDs, responses | Memory traffic: DMAs, DRAM (LiteDRAM AXI port), the HPS bridges, the big CPUs; `--bus-standard=axi`. |
-| **AXI4-Stream** | `AXIStreamInterface(data_width, keep_width, id_width, dest_width, user_width)` | One channel: `tvalid`/`tready`/`tlast`/`tdata`/`tkeep`/`tid`/`tdest`/`tuser` | Data paths: it is a LiteX [stream](Streams.md) endpoint (payload `data`/`keep`, params `id`/`dest`/`user`), so it connects to any stream directly. |
+Pick from the first column: Lite for control, full for memory, Stream for data.
 
-Every channel of an AXI interface is itself a stream endpoint (`axi.aw.valid`,
-`axi.aw.addr`...), which is why the stream blocks (FIFOs, CDCs, pipelines) apply to AXI.
-AXI addressing is always in bytes.
+| Flavour | Channels | Use |
+| --- | --- | --- |
+| **AXI4-Lite** | `aw`, `w`, `b`, `ar`, `r`; no bursts, no IDs | Control: CSRs, simple peripherals, the control port of a vendor IP. |
+| **AXI4** | The five channels with bursts (`len`, `size`, `burst`), IDs, responses | Memory: DMAs, the LiteDRAM AXI port, the HPS bridges, the big CPUs. |
+| **AXI4-Stream** | One channel: `tvalid`, `tready`, `tlast`, `tdata`, `tkeep`, `tid`, `tdest`, `tuser` | Data paths: a LiteX [stream](Streams.md) endpoint, it connects to any stream directly. |
 
 ```python
 from litex.soc.interconnect.axi import *
 
 axi_lite = AXILiteInterface(data_width=32, address_width=32)
-axi      = AXIInterface(data_width=128, address_width=32, id_width=4)
-axis     = AXIStreamInterface(data_width=64, user_width=1)
+axi      = AXIInterface(data_width=128, address_width=32, id_width=4, version="axi4")   # or "axi3"
+axis     = AXIStreamInterface(data_width=64, user_width=1)                              # payload data/keep, params id/dest/user
 
 # The ports of a Verilog AXI core: name them axi_*, LiteX connects them:
-self.specials += Instance("my_axi_core", **axi.get_ios("s_axi"))         # or axi.connect_to_pads(pads, mode="slave")
+self.specials += Instance("my_axi_core", **axi.get_ios("s_axi"))   # or axi.connect_to_pads(pads, mode="slave")
 ```
+
+Every channel of an AXI interface is itself a stream endpoint (`axi.aw.valid`, `axi.aw.addr`...),
+which is why the stream blocks (FIFOs, CDCs, pipelines) apply to AXI. AXI addressing is always
+in bytes.
 
 ## The building blocks
 
-| AXI4-Lite (`axi_lite.py`) | AXI4 (`axi_full.py`) | Purpose |
-| --- | --- | --- |
-| `AXILiteInterconnectShared`, `AXILiteCrossbar`, `AXILiteInterconnectPointToPoint` | `AXIInterconnectShared`, `AXICrossbar`, `AXIInterconnectPointToPoint` | Interconnects (shared bus or crossbar, with `AXILiteArbiter`/`AXIArbiter` and `AXILiteDecoder`/`AXIDecoder`; the AXI arbiter can interleave transactions by ID). |
-| `AXILiteSRAM` | `AXISRAM` | A block RAM on the bus. |
-| `AXILiteConverter` (`AXILiteUpConverter`/`DownConverter`) | `AXIConverter` (`AXIUpConverter`/`DownConverter`), `AXIBurst2Beat` | Data width conversion; burst to single-beat conversion for simple slaves. |
-| `AXILiteClockDomainCrossing`, `AXILiteTimeout` | `AXIClockDomainCrossing`, `AXITimeout` | Clock domain crossing, timeout. |
-| `AXILiteRemapper`, `AXILiteOffset` | `AXIRemapper`, `AXIOffset` | Address remapping. |
-| `AXILite2CSR` | | The bridge to the [CSR bus](CSR-Bus.md) (used when the main bus is AXI-Lite). |
-| `AXILite2Wishbone`, `Wishbone2AXILite` | `AXI2Wishbone`, `Wishbone2AXI`, `AXI2AXILite`, `AXILite2AXI` | The bridges between standards (`axi_lite_to_wishbone.py`, `axi_full_to_wishbone.py`, `axi_full_to_axi_lite.py`). |
+The AXI4-Lite blocks are in `axi_lite.py`, the AXI4 ones in `axi_full.py`, with the same names
+and an `AXILite` or `AXI` prefix:
 
-The SoC bus handler uses them automatically: a Wishbone CPU on an AXI main bus gets a
-`Wishbone2AXI`, an AXI-Lite vendor IP on a Wishbone bus an `AXILite2Wishbone`, and widths are
-converted on the way (`SoCBusHandler.add_adapter`). `--bus-low-latency` selects the
-lower-latency bridges where available.
+| Block | AXI4-Lite and AXI4 | Purpose |
+| --- | --- | --- |
+| Interconnects | `InterconnectShared`, `Crossbar`, `InterconnectPointToPoint` | Shared bus or crossbar, with their `Arbiter` and `Decoder`. |
+| Memory | `AXILiteSRAM`, `AXISRAM` | A block RAM on the bus. |
+| Converters | `Converter` (`Up`, `Down`), `AXIBurst2Beat` | Data width conversion; bursts to single beats for simple slaves. |
+| Timing | `ClockDomainCrossing`, `Timeout` | Clock domain crossing, timeout. |
+| Addresses | `Remapper`, `Offset` | Address remapping. |
+| To CSR | `AXILite2CSR` | The bridge to the [CSR bus](CSR-Bus.md) when the main bus is AXI-Lite. |
+| To Wishbone | `AXILite2Wishbone`, `AXI2Wishbone` and back | The bridges between standards. |
+| Lite to full | `AXI2AXILite`, `AXILite2AXI` | Between the two AXI flavours. |
+
+The bus handler uses them for you: a Wishbone CPU on an AXI main bus gets a `Wishbone2AXI`,
+an AXI-Lite vendor IP on a Wishbone bus an `AXILite2Wishbone`, and the widths are converted on
+the way (`SoCBusHandler.add_adapter`). `--bus-low-latency` selects the lower-latency bridges
+where they exist. The AXI arbiter can interleave transactions by ID.
 
 ## Where AXI appears in a LiteX SoC
 
-- **Vendor and hard IP**: Zynq-7000/ZynqMP PS ports, the Cyclone V and Agilex HPS bridges,
-  Xilinx MIG and HBM2, Efinix DDR: LiteX adds them as AXI masters or slaves of the main bus.
-- **CPUs**: NaxRiscv/VexiiRiscv (AXI-Lite peripheral bus, AXI memory and DMA buses), Rocket,
-  CVA6, OpenC906, VeeR, Cortex-M, the MIPS cores.
-- **LiteDRAM**: `LiteDRAMAXIPort`/`LiteDRAMAXI2Native` give AXI ports on the crossbar for the
-  CPUs' memory buses and DMAs, with full bursts.
+- **Vendor and hard IP**: the Zynq-7000 and ZynqMP PS ports, the Cyclone V and Agilex HPS
+  bridges, Xilinx MIG and HBM2, Efinix DDR: LiteX adds them as AXI masters or slaves of the
+  main bus.
+- **CPUs**: NaxRiscv and VexiiRiscv (AXI-Lite peripheral bus, AXI memory and DMA buses),
+  Rocket, CVA6, OpenC906, VeeR, Cortex-M, the MIPS cores.
+- **LiteDRAM**: `LiteDRAMAXIPort` and `LiteDRAMAXI2Native` give AXI ports on the crossbar for
+  the CPUs' memory buses and the DMAs, with full bursts.
 - **Standalone cores**: `litex_soc_gen --bus-standard=axi-lite` and the `*_gen` generators
-  export the control bus as AXI-Lite and the data paths as AXI-Stream for integration in a
-  Vivado/Quartus block design ([Export](Export-To-Verilog.md)).
-- **Custom logic**: a core with an `AXILiteInterface` and `add_slave`, or a DMA with an
+  export the control bus as AXI-Lite and the data paths as AXI-Stream, for a block design
+  ([Export to Verilog](Export-To-Verilog.md)).
+- **Your logic**: a core with an `AXILiteInterface` and `add_slave`, or a DMA with an
   `AXIInterface` and `add_master`, exactly as with [Wishbone](Wishbone-Bus.md).
+
+## Next
+
+- [Wishbone bus](Wishbone-Bus.md): the default main bus, and the same blocks on it.
+- [Streams](Streams.md): what an AXI-Stream is on the LiteX side.
+- [Reuse an existing core](Reuse-An-Existing-Core.md): a Verilog AXI core in your SoC.
+- [Export to Verilog](Export-To-Verilog.md): a LiteX core with AXI ports in a vendor flow.

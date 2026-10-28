@@ -1,10 +1,16 @@
-LiteX has support for several vendor hard CPU integrations: Xilinx Zynq-7000 (`zynq7000`), Xilinx UltraScale+ MPSoC (`zynqmp`), Intel Cyclone V SoC HPS (`cyclonev_hps`), Intel Agilex 3/5/7 HPS (`agilex_hps`), QuickLogic EOS S3 (`eos_s3`), Gowin EMCU (`gowin_emcu`) and Gowin AE350 (`gowin_ae350`). The CPU wrappers live in `litex/soc/cores/cpu/*/core.py` and are selected with `--cpu-type=<name>`; they are the `hardcore` category of the [CPUs](CPUs.md) page.
+Your FPGA may already contain a CPU: the Arm cores of a Zynq, a ZynqMP, a Cyclone V or an
+Agilex HPS, the Cortex-M of a QuickLogic EOS S3 or a Gowin EMCU, the RISC-V AE350 of a Gowin
+GW5AST. LiteX drives them with `--cpu-type=zynq7000`, `zynqmp`, `cyclonev_hps`, `agilex_hps`,
+`eos_s3`, `gowin_emcu` or `gowin_ae350`: the LiteX BIOS runs on them and your cores sit on their
+bus like on a soft CPU's. The wrappers are in `litex/soc/cores/cpu/*/core.py`, the `hardcore`
+category of the [CPU catalog](CPUs.md).
 
-A hard CPU is a processor block already present in the FPGA/SoC silicon. This differs from a softcore CPU, which is synthesized into the FPGA fabric from HDL. Hard CPUs generally have vendor-specific boot, clocking, memory and peripheral configuration flows, while softcores are generated as part of the LiteX gateware.
-
-The common supported use case is running the LiteX BIOS and accessing LiteX CSRs/peripherals from the hard CPU. Full board workflows still depend on vendor tools and board-specific PS/IP configuration, boot-image generation and programming steps.
-
-Hard CPUs are less flexible than softcores, but application-class hard CPUs are generally much more powerful: they can run faster, usually have hardened caches/peripherals and often include hardware floating-point/SIMD support. They are useful when a design needs both FPGA fabric flexibility and more CPU processing than a small softcore can reasonably provide.
+A hard CPU is a processor block in the silicon, a soft CPU is synthesized into the fabric. The
+hard one is much faster when it is an application-class core (hardened caches and peripherals,
+floating point, SIMD), and less flexible: its boot, clocking, memory and peripheral setup follow
+the vendor's flow, and a complete board workflow still needs the vendor tools for the boot
+images and the programming. Pick one when the design needs the fabric and more CPU than a soft
+core gives.
 
 The table below gives a rough comparison against a `vexriscv` `standard` softcore running at 100MHz. It is only an order-of-magnitude guide; real results depend on clocking, memory path, caches, compiler options and workload.
 
@@ -21,7 +27,7 @@ The table below gives a rough comparison against a `vexriscv` `standard` softcor
 
 The characteristics below summarize the hard CPU blocks used by LiteX. Maximum frequencies are vendor/device-family figures; the actual LiteX target clocking can be lower and depends on the exact device, speed grade, board and PS/IP configuration.
 
-# Xilinx Zynq-7000
+## Xilinx Zynq-7000
 
 Demonstrated on [Digilent Zedboard](https://github.com/litex-hub/litex-boards/blob/master/litex_boards/targets/digilent_zedboard.py).
 Select with `--cpu-type=zynq7000`. The integration uses the PS7 AXI GP master as the LiteX peripheral/CSR bus and can be configured from a PS7 preset, XCI or target-specific configuration.
@@ -31,7 +37,7 @@ Main characteristics: 28nm 7 Series SoC FPGA with a 32-bit Arm Cortex-A9 process
 As any complete workflow on Zynq devices requires a number of tools, scripts and build steps besides the software and gateware binaries built by LiteX, refer to [this repository](https://github.com/sergachev/litex-template/tree/main/digilent_zedboard) for a complete implementation and details.
 The serial terminal is on the USB-UART.
 
-# Xilinx UltraScale+ MPSoC
+## Xilinx UltraScale+ MPSoC
 
 Demonstrated on [Xilinx KV260](https://github.com/litex-hub/litex-boards/blob/master/litex_boards/targets/xilinx_kv260.py).
 Select with `--cpu-type=zynqmp`. The integration uses a PS AXI HPM master as the LiteX peripheral/CSR bus and can source a ZynqMP preset from the board target.
@@ -41,7 +47,7 @@ Main characteristics: 16nm FinFET+ UltraScale+ MPSoC with up to a quad-core 64-b
 Refer to the readme in [this repository](https://github.com/sergachev/litex-template/) for a workflow allowing execution via JTAG.
 The serial terminal is on the USB-UART.
 
-# Intel Cyclone V SoC HPS
+## Intel Cyclone V SoC HPS
 
 Demonstrated on the Terasic DE10-Nano / MiSTer ([target](https://github.com/litex-hub/litex-boards/blob/master/litex_boards/targets/terasic_de10nano.py))
 and the DE1-SoC. Select with `--cpu-type=cyclonev_hps`. The HPS-to-FPGA lightweight AXI3
@@ -57,7 +63,7 @@ FPGA-to-HPS interrupts map to Linux `GIC_SPI 40-71`.
 Main characteristics: 28nm SoC FPGA with a dual-core 32-bit Arm Cortex-A9 (up to 925 MHz),
 hardened DDR controller and peripherals, AXI bridges in both directions.
 
-# Intel Agilex HPS
+## Intel Agilex HPS
 
 Initial support for the Agilex 3, 5 and 7 HPS: `--cpu-type=agilex_hps --cpu-variant=agilex5`
 (or `agilex3`, `agilex7`). The Platform Designer HPS (and optional HPS EMIF) system is
@@ -71,7 +77,7 @@ Main characteristics: Agilex 7 with four Cortex-A53, Agilex 5 with two Cortex-A7
 Cortex-A55, Agilex 3 with two Cortex-A55, 64-bit Arm with hardened memory controllers and
 peripherals (Quartus Pro required).
 
-# QuickLogic EOS S3
+## QuickLogic EOS S3
 
 Demonstrated on [QuickLogic QuickFeather](https://github.com/litex-hub/litex-boards/blob/master/litex_boards/targets/quicklogic_quickfeather.py).
 Use `python lib/litex-boards/litex_boards/targets/quicklogic_quickfeather.py --build` with the path to [QORC SDK](https://github.com/QuickLogic-Corp/qorc-sdk) provided in the `QORC_SDK` environment variable to implement. Refer to [this repository](https://github.com/sergachev/litex-template) for an example.
@@ -79,7 +85,7 @@ The serial terminal is on pins J3.2/J3.3.
 
 Main characteristics: low-power sensor-processing SoC with an Arm Cortex-M4F MCU up to 80MHz, up to 512KB SRAM, a Flexible Fusion Engine and a small embedded programmable-logic block. The LiteX wrapper exposes the EOS S3 Wishbone interface to the LiteX interconnect.
 
-# Gowin EMCU
+## Gowin EMCU
 
 Demonstrated on [Sipeed Tang Nano 4K](https://github.com/litex-hub/litex-boards/blob/master/litex_boards/targets/sipeed_tang_nano_4k.py).
 To implement, use `python litex-boards/litex_boards/targets/sipeed_tang_nano_4k.py --cpu-type=gowin_emcu --build`.
@@ -87,7 +93,7 @@ Program with Gowin Programmer in MCU mode using `project.fs` and `bios.bin`. Loo
 
 Main characteristics: Gowin LittleBee FPGA SoC device with a 32-bit Arm Cortex-M3 hard CPU, an AHB-Lite-style MCU subsystem, on-chip memories and small FPGA fabric. Current GW1NSR-4C datasheets list the Cortex-M3 AHB/APB clocks up to 80MHz.
 
-# Gowin AE350
+## Gowin AE350
 
 Initial support is available for the Gowin AE350 hard RISC-V CPU.
 It can be selected with `--cpu-type=gowin_ae350` on supported Gowin targets, including [Sipeed Tang Mega 138K](https://github.com/litex-hub/litex-boards/blob/master/litex_boards/targets/sipeed_tang_mega_138k.py) and [Sipeed Tang Mega 138K Pro](https://github.com/litex-hub/litex-boards/blob/master/litex_boards/targets/sipeed_tang_mega_138k_pro.py).
@@ -95,3 +101,9 @@ For example: `python litex-boards/litex_boards/targets/sipeed_tang_mega_138k.py 
 
 Main characteristics: GW5AST-138 22nm SRAM FPGA with hardened AndesCore A25 RISC-V CPU IP and AE350 peripheral subsystem, exposed by Gowin as the `RiscV AE350_SOC` hard processor and listed up to 800MHz. The integration exposes the hard CPU to LiteX through AHB/Wishbone bridges and uses a 32-bit RISC-V toolchain.
 
+## Next
+
+- [Choosing a CPU](Choosing-A-CPU.md): soft or hard, and which soft one.
+- [CPUs](CPUs.md): the catalog of the soft CPUs.
+- [Control it from the host](Host-Bridges.md): `litex_server --devmem` from the Linux of the hard CPU.
+- [Build backends](Build-Backends.md): the vendor toolchains these devices need.

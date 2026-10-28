@@ -1,18 +1,27 @@
-The build backends are the part of LiteX that knows the FPGA toolchains: for each vendor, a
-*platform* class describes the device, the I/Os and the constraints, and a *toolchain* class
-generates the project files and scripts, runs the tools and names the bitstream. A LiteX design
-never calls a vendor tool itself: the same target builds with Vivado or with Yosys/nextpnr,
-and the vendor primitives (I/O buffers, DDR registers, clock managers, SerDes...) are reached
-through generic specials that each backend implements. This is what makes the
-[cores](Cores-Ecosystem.md) portable ([the LiteX approach](LiteX-Approach.md)).
+Your target builds with Vivado today and with Yosys and nextpnr tomorrow without a change: the
+build backends hide the toolchains. For each vendor, a platform class describes the device, the
+I/Os and the constraints, and a toolchain class writes the project files and scripts, runs the
+tools and names the bitstream; a design never calls a vendor tool itself, and reaches the
+vendor primitives (I/O buffers, DDR registers, clock managers) through generic specials each
+backend implements. This is what keeps the [cores](Cores-Ecosystem.md) portable
+([The LiteX approach](LiteX-Approach.md)).
 
 ![The LiteX build flow](images/litex-build-flow.svg)
+
+*The Builder writes the Verilog, the constraints and a script for the toolchain of the
+platform, then runs it; the same target, nine vendors.*
+
+```sh
+python3 -m litex_boards.targets.lattice_ecp5_evn --toolchain=trellis --build     # Yosys, nextpnr, Project Trellis
+python3 -m litex_boards.targets.lattice_ecp5_evn --toolchain=diamond --build     # the vendor tool, same target
+python3 -m litex_boards.targets.digilent_arty --toolchain=vivado --help | grep -A20 "Vivado toolchain options"
+```
 
 ## Platforms and toolchains
 
 A platform file (`litex_boards/platforms/<board>.py`, or your own) instantiates the vendor
-platform with the device name, the I/O list (`Pins`, `IOStandard`, `Misc`, `Subsignal`
-constraints), the connectors, the default clock, and says which programmer to use:
+platform with the device name, the I/O list, the connectors, the default clock, and says which
+programmer to use:
 
 ```python
 from litex.build.generic_platform import *
@@ -46,81 +55,106 @@ class Platform(XilinxPlatform):
 
 The design requests its pins from it (`platform.request("serial")`), adds sources and
 constraints (`add_source`, `add_period_constraint`, `add_false_path_constraint`,
-`add_platform_command`), and `--toolchain` selects among the toolchains the family supports.
-[Add a new board](Add-A-New-Board.md) is the step by step page.
+`add_platform_command`), and `--toolchain` selects among the toolchains the family supports;
+[Add a new board](Add-A-New-Board.md) is the step by step page. Pick your vendor in the first
+column:
 
-| Vendor (`litex/build/`) | Platform classes | Families | Toolchains (`--toolchain`) | How the tool is found | Programmers |
-| --- | --- | --- | --- | --- | --- |
-| `xilinx` | `XilinxPlatform`, `XilinxSpartan6Platform`, `Xilinx7SeriesPlatform`, `XilinxUSPlatform`, `XilinxUSPPlatform` | Spartan-6, 7-Series, UltraScale, UltraScale+ | Spartan-6: `ise`; 7-Series: `vivado`, `yosys+nextpnr`, `openxc7`, `f4pga`; UltraScale(+): `vivado` | `vivado`/`ise` in the `PATH`, or `LITEX_ENV_VIVADO`/`LITEX_ENV_ISE` pointing to the install (its `settings64.sh` is sourced); openxc7 needs `CHIPDB`, F4PGA `F4PGA_INSTALL_DIR` | `VivadoProgrammer` (JTAG and flash through Vivado), `OpenFPGALoader`, `OpenOCD`, `XC3SProg`, `UrJTAG`, `iMPACT`, `Adept` |
-| `altera` | `AlteraPlatform` | Cyclone IV/V/10, MAX 10, Stratix V, Arria, Agilex 3/5/7 | `quartus` (`--synth-tool quartus_map|quartus_syn`) | `quartus_map`/`quartus_syn` in the `PATH` | `USBBlaster` (`quartus_pgm`), `OpenFPGALoader` |
-| `lattice` | `LatticePlatform`, `LatticeiCE40Platform`, `LatticeECP5Platform`, `LatticeNexusPlatform` | iCE40, ECP5, Nexus (CrossLink-NX, Certus-NX) | iCE40: `icestorm`; ECP5: `trellis`, `diamond`; Nexus: `oxide`, `radiant` | `yosys`/`nextpnr-*` in the `PATH`; `diamondc` or `pnmainc` for the vendor tools (WSL supported) | `OpenFPGALoader`, `OpenOCDJTAGProgrammer`, `IceStormProgrammer` (`iceprog`), `EcpprogProgrammer`, `EcpDapProgrammer`, `UJProg`, `TinyProgProgrammer`, `LatticeProgrammer` (`pgrcmd`), `DFUProg` |
-| `gowin` | `GowinPlatform(device, devicename=...)` | GW1N, GW2A, GW5A | `gowin` (Gowin EDA), `apicula` (Yosys + nextpnr-himbaechel) | `gw_sh` in the `PATH` (also `gw_sh.exe` from WSL) | `GowinProgrammer` (`programmer_cli`), `OpenFPGALoader` |
-| `efinix` | `EfinixPlatform` | Trion, Titanium, Topaz | `efinity` | `LITEX_ENV_EFINITY` pointing to the install, or `efx_run.py` in the `PATH` | `EfinixProgrammer` (`ftdi_program.py`), `EfinixAtmelProgrammer`, `OpenFPGALoader` |
-| `colognechip` | `CologneChipPlatform` | GateMate A1/A2/A4 | `colognechip` (Yosys + `p_r`), `peppercorn` (Yosys + nextpnr) | `yosys`, `p_r`/`nextpnr-himbaechel` in the `PATH` | `OpenFPGALoader` |
-| `microsemi` | `MicrosemiPlatform` | IGLOO2, PolarFire, ProASIC3 | `libero_soc` | `libero` in the `PATH` | `LiberoProgrammer` |
-| `quicklogic` | `QuickLogicPlatform` | EOS S3 | `f4pga` | `f4pga` in the `PATH` | (QORC SDK tools) |
-| `anlogic` | `AnlogicPlatform` | Eagle, Elf | `td` (TangDynasty) | `td` in the `PATH` | `TangDynastyProgrammer` |
-| `sim` | `SimPlatform` | | `verilator` | `verilator` in the `PATH` | [SoC-Simulator](SoC-Simulator.md) |
+| Vendor (`litex/build/`) | Families | `--toolchain` | Programmers |
+| --- | --- | --- | --- |
+| `xilinx` | Spartan-6, 7-Series, UltraScale, UltraScale+ | `ise`; `vivado`, `yosys+nextpnr`, `openxc7`, `f4pga`; `vivado` | Vivado, openFPGALoader, OpenOCD, XC3SProg, UrJTAG, iMPACT, Adept |
+| `altera` | Cyclone IV, V and 10, MAX 10, Stratix V, Arria, Agilex 3, 5 and 7 | `quartus` | USB-Blaster (`quartus_pgm`), openFPGALoader |
+| `lattice` | iCE40, ECP5, Nexus (CrossLink-NX, Certus-NX) | `icestorm`; `trellis`, `diamond`; `oxide`, `radiant` | openFPGALoader, OpenOCD, iceprog, ecpprog, ecpdap, ujprog, tinyprog, pgrcmd, DFU |
+| `gowin` | GW1N, GW2A, GW5A | `gowin`, `apicula` | Gowin programmer, openFPGALoader |
+| `efinix` | Trion, Titanium, Topaz | `efinity` | Efinix programmer, openFPGALoader |
+| `colognechip` | GateMate A1, A2, A4 | `colognechip`, `peppercorn` | openFPGALoader |
+| `microsemi` | IGLOO2, PolarFire, ProASIC3 | `libero_soc` | Libero |
+| `quicklogic` | EOS S3 | `f4pga` | the QORC SDK tools |
+| `anlogic` | Eagle, Elf | `td` (TangDynasty) | TangDynasty programmer |
+| `sim` | | `verilator` | [SoC simulator](SoC-Simulator.md) |
 
-The open-source flows share the Yosys/nextpnr options (`--yosys-abc9`, `--yosys-flow3`,
+<details>
+<summary>How each tool is found</summary>
+
+- **Vivado, ISE**: `vivado` or `ise` in the `PATH`, or `LITEX_ENV_VIVADO` and `LITEX_ENV_ISE`
+  pointing to the install (its `settings64.sh` is sourced); openxc7 needs `CHIPDB`, F4PGA
+  `F4PGA_INSTALL_DIR`.
+- **Quartus**: `quartus_map` or `quartus_syn` in the `PATH` (`--synth-tool`).
+- **Yosys and nextpnr flows** (icestorm, trellis, oxide, apicula, peppercorn, yosys+nextpnr):
+  `yosys` and `nextpnr-*` in the `PATH`.
+- **Diamond, Radiant**: `diamondc` or `pnmainc` in the `PATH` (WSL supported).
+- **Gowin EDA**: `gw_sh` in the `PATH` (also `gw_sh.exe` from WSL).
+- **Efinity**: `LITEX_ENV_EFINITY` pointing to the install, or `efx_run.py` in the `PATH`.
+- **CologneChip**: `yosys`, then `p_r` or `nextpnr-himbaechel` in the `PATH`.
+- **Libero**: `libero` in the `PATH`; **TangDynasty**: `td` in the `PATH`; **F4PGA**: `f4pga`.
+
+</details>
+
+The open-source flows share the Yosys and nextpnr options (`--yosys-abc9`, `--yosys-flow3`,
 `--yosys-nowidelut`, `--yosys-slang` for SystemVerilog sources, `--nextpnr-seed`,
-`--nextpnr-timingstrict`, `--nextpnr-ignoreloops`) plus the packer ones (`--ecppack-compress`,
-`--ecppack-freq`, `--ecppack-bootaddr`, `--ecppack-spimode` for ECP5; `--nexus-es-device`;
-`--force-die`/`--strategy` for GateMate). Vivado has `--vivado-synth-directive`,
-`--vivado-place-directive`, `--vivado-route-directive` and the other directives,
+`--nextpnr-timingstrict`, `--nextpnr-ignoreloops`) and the packer ones (`--ecppack-compress`,
+`--ecppack-freq`, `--ecppack-bootaddr`, `--ecppack-spimode` on ECP5, `--nexus-es-device`,
+`--force-die` and `--strategy` on GateMate). Vivado has its directives
+(`--vivado-synth-directive`, `--vivado-place-directive`, `--vivado-route-directive`...),
 `--vivado-max-threads`, `--vivado-report-level`, `--synth-mode yosys` (Yosys synthesis, Vivado
-P&R) and `--no-project-mode`; Efinity `--synth-mode speed|area|area2` and its packing/retiming
-options; Radiant `--synth-mode synplify|yosys`. `python3 target.py --toolchain=<x> --help` lists
-them. The build scripts and project files are written in `build/<platform>/gateware/`
-(`build_<platform>.sh`, `.tcl`, `.xdc`/`.lpf`/`.cst`/`.sdc`/`.pcf`...) and can be re-run by
-hand. `--build-backend edalize` hands the generated files to [Edalize](https://github.com/olofk/edalize)
+place and route) and `--no-project-mode`; Efinity `--synth-mode speed|area|area2`; Radiant
+`--synth-mode synplify|yosys`. `python3 target.py --toolchain=<x> --help` lists them.
+
+The scripts and project files land in `build/<platform>/gateware/` (`build_<platform>.sh`,
+the `.tcl`, the `.xdc`, `.lpf`, `.cst`, `.sdc` or `.pcf`) and can be re-run by hand.
+`--build-backend edalize` hands the generated files to [Edalize](https://github.com/olofk/edalize)
 instead of LiteX's own scripts (icestorm and f4pga flows).
 
 ## Portability: the generic specials
 
-Vendor primitives are never instantiated by a core directly. `litex/build/io.py` defines
-generic specials that each backend lowers to its primitives (`<vendor>/common.py`,
-`*_special_overrides`):
+A core never instantiates a vendor primitive. `litex/build/io.py` defines generic specials
+that each backend lowers to its primitives (`<vendor>/common.py`, the `*_special_overrides`):
 
 | Special | Purpose |
 | --- | --- |
-| `DifferentialInput`, `DifferentialOutput`, `DifferentialTristate` | LVDS and other differential I/Os |
-| `SDRInput`, `SDROutput`, `SDRTristate`, `DDRInput`, `DDROutput`, `DDRTristate` | Registered and double data rate I/Os (I/O registers, ODDR/IDDR, ...) |
-| `SerDesInput`, `SerDesOutput`, `SerDesTristate` | I/O serializers/deserializers where the device has them |
-| `ClkInput`, `ClkOutput`, `Tristate` | Clock input/output buffers, tristate I/O |
-| `MultiReg`, `AsyncResetSynchronizer` | Clock domain crossing registers and reset synchronizers (with the vendor's attributes/primitives) |
+| `DifferentialInput`, `DifferentialOutput`, `DifferentialTristate` | LVDS and other differential I/Os. |
+| `SDRInput`, `SDROutput`, `SDRTristate`, `DDRInput`, `DDROutput`, `DDRTristate` | Registered and double data rate I/Os (I/O registers, ODDR, IDDR). |
+| `SerDesInput`, `SerDesOutput`, `SerDesTristate` | I/O serializers and deserializers where the device has them. |
+| `ClkInput`, `ClkOutput`, `Tristate` | Clock buffers, tristate I/O. |
+| `MultiReg`, `AsyncResetSynchronizer` | Clock domain crossing registers and reset synchronizers, with the vendor's attributes. |
 
-The clock managers are in `litex/soc/cores/clock/` ([Cores](Cores.md)), the transceivers in
-LiteICLink and the PHYs of the cores (a LiteEth or LiteDRAM PHY is one file per family). A
-design that uses only these specials builds on every vendor; a design that needs an `Instance`
-of a vendor primitive keeps it in a device adapter, as described in
-[architectural_style.md](https://github.com/enjoy-digital/litex/blob/master/doc/architectural_style.md).
+The clock managers are in `litex/soc/cores/clock/` ([Cores](Cores.md#clocking)), the
+transceivers in LiteICLink and in the PHYs of the cores (a LiteEth or LiteDRAM PHY is one file
+per family). A design that uses only these specials builds on every vendor; one that needs an
+`Instance` of a vendor primitive keeps it in a device adapter
+([architectural_style.md](https://github.com/enjoy-digital/litex/blob/master/doc/architectural_style.md)).
 
 ## Mixed-language sources
 
-`platform.add_source("core.v")` (or `.sv`, `.vhd`, with `language=`/`library=`) adds files to
-the project; the toolchains that read VHDL or SystemVerilog use them directly, and for the ones
-that do not:
+`platform.add_source("core.v")` (or `.sv`, `.vhd`, with `language=` and `library=`) adds files
+to the project; the toolchains that read VHDL or SystemVerilog use them directly, and for the
+ones that do not:
 
-- `VHD2VConverter` converts VHDL to Verilog with GHDL at build time (`--std=08`), optionally
-  flattened with Yosys (used by Microwatt, NEORV32, the CTU CAN FD core...).
+- `VHD2VConverter` converts VHDL to Verilog with GHDL at build time (`--std=08`), flattened with
+  Yosys on request (Microwatt, NEORV32, the CTU CAN FD core use it).
 - `Amaranth2VConverter` elaborates an Amaranth module to Verilog (Minerva, Sentinel, LUNA).
-- `--yosys-slang` makes the Yosys-based flows read SystemVerilog through the slang plugin.
+- `--yosys-slang` makes the Yosys flows read SystemVerilog through the slang plugin.
 
-How to wrap an existing core: [Reuse a (System)Verilog, VHDL, Amaranth, SpinalHDL, Chisel core](Reuse-An-Existing-Core.md).
+[Reuse an existing core](Reuse-An-Existing-Core.md) wraps a core written in any of them.
 
 ## Build bundles and remote builds
 
 A build often has to run where the toolchain is (a build server, a Windows machine with the
-vendor tools): `--build-bundle` records every input of a build (the sources, the Python
-import roots, the command, the environment) in a `.tar.gz` under `<output-dir>/bundles/` with a
-manifest, and `litex_build_bundle --run-local <archive>` replays it. `litex_remote_build
---host user@server -- python3 target.py --build` does the round trip over SSH: bundle, upload,
-replay there, copy `build/` back ([Tools](Tools.md)).
+vendor tools): `--build-bundle` records every input of a build (the sources, the Python import
+roots, the command, the environment) in a `.tar.gz` under `<output-dir>/bundles/` with a
+manifest, and `litex_build_bundle --run-local <archive>` replays it. `litex_remote_build --host
+user@server -- python3 target.py --build` does the round trip over SSH: bundle, upload, replay
+there, copy `build/` back ([Tools](Tools.md)).
 
 ## Loading and flashing
 
 `--load` calls `platform.create_programmer().load_bitstream(...)` and `--flash`
 `prog.flash(address, file)`: openFPGALoader for most boards, OpenOCD (with the bscan SPI proxy
 bitstreams for flashing through JTAG), the vendor programmers, DFU for the boards with a DFU
-bootloader. Installation and details on [FPGA and SPI Flash programmers](Load-And-Flash.md).
+bootloader. [Load and flash](Load-And-Flash.md) has the installation and the details.
+
+## Next
+
+- [Add a new board](Add-A-New-Board.md): a platform file of your own, and the platform classes of each vendor.
+- [Load and flash](Load-And-Flash.md): the programmers behind `--load` and `--flash`.
+- [Reuse an existing core](Reuse-An-Existing-Core.md): Verilog, VHDL, SystemVerilog, Amaranth in your SoC.
+- [SoC simulator](SoC-Simulator.md): the `sim` backend, Verilator.

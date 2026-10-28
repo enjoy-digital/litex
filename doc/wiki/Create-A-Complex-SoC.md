@@ -150,7 +150,7 @@ IRQ Locations: (4)
   `VideoDVIPHY`, `VideoHDMIPHY`, `VideoS7HDMIPHY`, `VideoGowinHDMIPHY`...); `add_video_terminal`
   shows the console on the screen, `add_video_colorbars` a test pattern; the boards with HDMI
   have `--with-video-framebuffer`/`--with-video-terminal`. Linux gets a `simple-framebuffer`
-  node ([Cores](Cores.md#video-and-imaging)).
+  node ([Cores](Cores.md#video-and-audio)).
 
 ### PCIe: LitePCIe
 
