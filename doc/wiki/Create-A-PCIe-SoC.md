@@ -1,11 +1,9 @@
-You turn an FPGA board on a PCIe slot (or an M.2 card) into a device the host drives directly:
-with [LitePCIe](https://github.com/enjoy-digital/litepcie), the whole SoC bus is mapped in
-BAR0, DMAs move data between the host memory and the gateware's streams at the link speed,
-MSI interrupts signal the events, and a Linux driver with user tools and a library come with
-the core. The CPU of the SoC becomes optional: the host runs the software, the FPGA runs the
-hardware. LiteX-M2SDR (a software defined radio), ThunderScope (an oscilloscope), the XTRX,
-PCIe Screamer and the Acorn baseboards are built this way. An afternoon, with a board and a
-free slot.
+With [LitePCIe](https://github.com/enjoy-digital/litepcie), the host sees the whole SoC bus in
+BAR0, DMAs stream between the host memory and the gateware at the link speed, MSIs signal the
+events, and the Linux driver, the library and the tools come with the core; the CPU of the SoC
+becomes optional. LiteX-M2SDR (a software defined radio), ThunderScope (an oscilloscope), the
+XTRX, PCIe Screamer and the Acorn baseboards work this way. Count an afternoon with a board in
+a free slot (or an M.2 card).
 
 ![A LiteX PCIe SoC](images/litex-pcie-soc.svg)
 
@@ -162,8 +160,8 @@ AXI-Stream ports, `msi_irqs` inputs, with the headers for the driver
   [PCIe Screamer](https://github.com/enjoy-digital/pcie_screamer), the
   [Acorn baseboards](https://github.com/enjoy-digital/litex-acorn-baseboard):
   the same `add_pcie` with their own cores on the DMAs.
-- 46 LiteX-Boards targets have `--with-pcie` (Acorn, KC705, KCU105, XCU1525, Alveo U250, Tang
-  Mega 138K Pro, CertusPro-NX Versa, XTRX, VU13P...).
+- Most LiteX-Boards targets with a PCIe connector have `--with-pcie` (Acorn, KC705, KCU105,
+  XCU1525, Alveo U250, Tang Mega 138K Pro, CertusPro-NX Versa, XTRX, VU13P...).
 
 ## Next
 

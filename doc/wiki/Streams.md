@@ -1,14 +1,11 @@
 Streams are how data moves between LiteX cores: every core that produces or consumes data
 (Ethernet, PCIe DMA, SD card, video, SerDes, converters, FIFOs) has stream endpoints, and you
-connect two of them with one line. A stream is a group of signals, a Migen `Record`, kept to a
-simplified compromise between AXI-Stream and Avalon-ST, and the generic blocks of
+connect two of them with one line. A stream is a Migen `Record` somewhere between AXI-Stream
+and Avalon-ST, deliberately simpler than both, and the generic blocks of
 `litex/soc/interconnect/stream.py` (FIFOs, converters, crossings, packetizers) work on any of
 them.
 
 ![LiteX streams](images/litex-streams.svg)
-
-*A source and a sink, the handshake, the payload and the per-packet parameters; the same
-blocks between any two endpoints.*
 
 | Signal | Direction | Role |
 | --- | --- | --- |
@@ -43,8 +40,6 @@ independent of the mask, header-only packets as a beat with `be=0`) is in
 [stream_byte_enables.md](https://github.com/enjoy-digital/litex/blob/master/doc/stream_byte_enables.md).
 
 ## The generic blocks
-
-Chain them with a `Pipeline`; each one takes a layout and does one thing:
 
 | Block | Purpose |
 | --- | --- |

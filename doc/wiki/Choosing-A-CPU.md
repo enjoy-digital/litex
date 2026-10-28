@@ -1,17 +1,12 @@
-Pick a CPU with `--cpu-type`, its configuration with `--cpu-variant`, rebuild: the BIOS, the
-firmware and the tools follow, because the wrapper of each CPU takes care of the memory map,
-the compiler flags and the software support. Thirty-two soft CPUs and seven hard ones are
-supported today; this page says which one to pick, what the variants mean and what happens
-when a CPU is added to the SoC. The [catalog](CPUs.md) lists them all.
+`--cpu-type` picks the CPU, `--cpu-variant` its configuration; the BIOS, the firmware and the
+tools follow, because the wrapper of each CPU carries its memory map, compiler flags and
+software support. Which one? It depends on what you want to run on it; here is how we choose,
+among the thirty-two soft CPUs and seven hard ones of the [catalog](CPUs.md).
 
 ![The CPU families supported by LiteX](images/litex-cpu-families.svg)
 
-*Soft RISC-V cores from a few hundred LUTs to Linux-capable 64-bit, other ISAs, the hard CPUs
-of SoC-FPGAs, and QEMU.*
-
 ```sh
-python3 -m litex_boards.targets.digilent_arty --cpu-type=vexiiriscv --help | grep -A30 "CPU options"   # the options of a CPU
-litex_sim --cpu-type=serv --cpu-variant=standard                                                      # try one in a minute
+litex_sim --cpu-type=serv --cpu-variant=standard    # try another one in a minute
 ```
 
 ## With or without a CPU
@@ -37,12 +32,10 @@ carries a hard CPU (Zynq, Cyclone V, Agilex), the SoC runs on it: [Hard core CPU
 - **A custom instruction**: `vexriscv full+cfu` with `--cpu-cfu=<verilog>`
   ([CFU Playground](https://github.com/google/CFU-Playground)).
 
-`vexriscv` is the right answer until you need Linux or 64 bits: small, fast, the best
-supported, and the one every new feature is tried on first. The SpinalHDL family
-(`vexriscv_smp`, `naxriscv`, `vexiiriscv`) is the Linux line, generated at build time with
-the options of the target; `rocket` is the Chisel RV64GC with upstream Linux, heavy on the
-fabric; `neorv32` is the MCU with its own peripherals and documentation; the tiny ones (`serv`,
-`fazyrv`, `femtorv`, `sentinel`) run the BIOS on the smallest FPGAs.
+Start with `vexriscv`: it is the default, it is what we try everything on first, and it stays
+small. Go to `vexriscv_smp`, `vexiiriscv` or `naxriscv` for Linux (generated at build time with
+your options), to `rocket` if you want upstream Linux and have a big FPGA, to `neorv32` if you
+like an MCU with its own peripherals, to `serv` or `femtorv` when you count LUTs.
 
 ## Variants
 
@@ -80,8 +73,6 @@ their `pythondata-cpu-*` package.
 
 ![How a CPU is integrated in a LiteX SoC](images/litex-cpu-integration.svg)
 
-*The wrapper exposes buses, regions, interrupts and compiler flags; `add_cpu` wires them.*
-
 `soc.add_cpu(name, variant, reset_address)`, called by `SoCCore`, does the same with every
 wrapper:
 
@@ -103,8 +94,7 @@ wrapper:
 - The `CPU_TYPE_<name>`, `CPU_VARIANT_<variant>`, `CPU_FAMILY`, `CPU_NAME`, `CPU_NOP` and
   `CPU_RESET_ADDR` constants are generated for the software.
 
-[Add a new CPU](Add-A-New-CPU.md) writes a wrapper; `litex/soc/cores/cpu/picorv32/core.py` is
-a good 150-line example, `vexriscv_smp/core.py` a generated one with options.
+[Add a new CPU](Add-A-New-CPU.md) writes a wrapper of your own.
 
 ## Next
 

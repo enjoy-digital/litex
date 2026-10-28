@@ -1,13 +1,10 @@
-The cores shipped inside LiteX, in `litex/soc/cores/`: the building blocks every SoC needs
-(UART, timer, GPIO, SPI, I2C, clocking) and about thirty specialized ones (video, USB, HyperRAM,
+About forty cores ship inside LiteX, in `litex/soc/cores/`: the building blocks every SoC
+needs (UART, timer, GPIO, SPI, I2C, clocking) and the specialized ones (video, USB, HyperRAM,
 CAN-FD, PSRAM, audio...). You add one by assigning it to the SoC, or with its `add_*` helper
 when it has one; the big protocol cores (DRAM, Ethernet, PCIe, SATA...) live in their own
 repositories, on the [Cores ecosystem](Cores-Ecosystem.md) page.
 
 ![The in-tree cores of LiteX, by theme](images/litex-cores-map.svg)
-
-*Six themes, and under every core the same three things: CSRs, an `EventManager`, streams or
-a bus.*
 
 ```python
 # With the SoC helper when there is one: it instantiates, connects and names the core.
@@ -20,12 +17,8 @@ self.leds = LedChaser(pads=platform.request_all("user_led"), sys_clk_freq=sys_cl
 self.irq.add("leds")      # only for cores with an EventManager
 ```
 
-A core is a `LiteXModule` (a Migen `Module` with `AutoCSR` and `AutoDoc`): its registers are
-`CSRStorage` and `CSRStatus` attributes collected on the [CSR bus](CSR-Bus.md), its interrupts
-come from an `EventManager`, its data flows through [streams](Streams.md) and its memory
-traffic through a [Wishbone](Wishbone-Bus.md) or [AXI](AXI-Bus.md) interface. How to write one:
-[Add a new core](Add-A-New-Core.md). The tables give the file in `litex/soc/cores/`, what the
-core does and how you add it.
+A core is a `LiteXModule`; [Add a new core](Add-A-New-Core.md) shows how one is written. The
+tables give the file in `litex/soc/cores/`, what the core does and how you add it.
 
 ## Control and status
 

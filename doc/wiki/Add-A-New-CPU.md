@@ -1,11 +1,10 @@
-You bring a CPU of your own to LiteX with a wrapper class: it instantiates the core (Verilog,
+A CPU is a wrapper class in `litex/soc/cores/cpu/<name>/`: it instantiates the core (Verilog,
 VHDL, SystemVerilog, SpinalHDL, Chisel or Amaranth sources), exposes its buses as LiteX
-interfaces, tells the SoC builder its memory map, interrupts and reset address, and gives the
-Builder the compiler flags and the start-up code; `--cpu-type=<name>` then finds it, and the
-BIOS boots on it. Thirty-nine CPUs follow this pattern ([CPUs](CPUs.md)); the 150-line
-`litex/soc/cores/cpu/picorv32/core.py` is the one to copy for a Wishbone core,
-`vexriscv_smp/core.py` for a core generated at build time with options, `cva6/core.py` for an
-AXI core. A day for a first boot in `litex_sim`.
+interfaces, and tells the SoC builder and the software build what they need to know (memory
+map, interrupts, reset address, compiler flags, start-up code). `--cpu-type=<name>` then finds
+it and the BIOS boots on it. The thirty-two existing wrappers all look like this: copy
+`picorv32/core.py` (150 lines) for a Wishbone core, `cva6/core.py` for an AXI core,
+`vexriscv_smp/core.py` for a core generated at build time with options.
 
 ![How a CPU is integrated](images/litex-cpu-integration.svg)
 
@@ -158,4 +157,4 @@ LiteX-Hub, the wrapper in LiteX with the `litex_repos.py` entry, and a line in t
 - [Choosing a CPU](Choosing-A-CPU.md): what `add_cpu` does with the attributes above.
 - [CPUs](CPUs.md): the thirty-two wrappers to compare yours with.
 - [Reuse an existing core](Reuse-An-Existing-Core.md): the `Instance` and the sources, in general.
-- [SoC simulator](SoC-Simulator.md): where the first boot happens.
+- [SoC simulator](SoC-Simulator.md): boot it there before touching a board.

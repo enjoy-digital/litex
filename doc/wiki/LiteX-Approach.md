@@ -1,8 +1,6 @@
-This is how we build with LiteX, and why the code, the cores and these pages fit together:
-Python as the glue and Migen as the HDL, cores with stable contracts, layers that keep a
-protocol independent of the FPGA, simulation first and instruments on the hardware. LiteX has
-been used since 2012 on systems for clients and on open-source projects, and the framework is
-what worked on them. Read this once; the rest of the wiki assumes it.
+This page is the why behind LiteX: the choices we made since 2012, building systems for
+clients and open-source projects, and still stand by. The code, the cores and the rest of this
+wiki follow from them.
 
 ![The LiteX design flow](images/litex-overview.svg)
 
@@ -11,9 +9,8 @@ what worked on them. Read this once; the rest of the wiki assumes it.
 A LiteX design is a Python program. [Migen](https://github.com/m-labs/migen) describes the
 logic (Modules, Signals, finite state machines, clock domains) and generates the Verilog;
 Python does everything around it: parameters, address maps, generated software headers,
-toolchain scripts, simulation, host scripts talking to the running SoC. This is what makes a
-SoC a few lines long: the heavy lifting is in reusable cores and in the integration logic
-of the framework, not in each design.
+toolchain scripts, simulation, host scripts talking to the running SoC. A SoC is short
+because the work is in the cores and in the builder, not in each design.
 
 Migen is a small DSL (`sync` vs `comb`, `Signal`, `If/Else`, `FSM`, `Record`) shared by the
 whole ecosystem of cores, and LiteX stays on it: it is stable, well understood, and no longer a
@@ -55,8 +52,8 @@ document is the reference; in short, each decision lives in its owning layer:
 | Integration wrapper | the stable stream/control/CSR interface between the two |
 | Platform and target | pins, clocks, constraints, which cores are instantiated |
 
-This is why the same SoC builds for Xilinx, Intel, Lattice, Gowin, Efinix, CologneChip, Anlogic
-or Microsemi parts, with vendor toolchains or the open-source ones (Yosys/nextpnr, Project
+So the same SoC builds for Xilinx, Intel, Lattice, Gowin, Efinix, CologneChip, Anlogic or
+Microsemi parts, with vendor toolchains or the open-source ones (Yosys/nextpnr, Project
 Trellis/IceStorm/Oxide/Apicula/Peppercorn, F4PGA), and in [Verilator](SoC-Simulator.md).
 Adding a device means writing an adapter, not a copy of the protocol.
 
@@ -75,9 +72,9 @@ Adding a device means writing an adapter, not a copy of the protocol.
 
 ## Experiment, get it working, understand, refine, strip down
 
-The method behind most LiteX features: experiment to get a first working version, understand
-why it works, refine it, then strip it down to the solid foundation that the next project
-builds on. Features land when they have been used on real hardware; the
+That is the order most LiteX features went through, and the last step matters as much as the
+first: what stays is the solid part the next project builds on. Features land when they have
+been used on real hardware; the
 [Projects](Projects.md) page shows where they come from, and the recent ones
 ([USB3-PIPE](https://github.com/enjoy-digital/usb3_pipe), [TriXium](https://github.com/enjoy-digital/trixium),
 [LiteX-M2SDR](https://github.com/enjoy-digital/litex_m2sdr)) are documented with the same
@@ -101,10 +98,9 @@ cores.
   nothing: elaborate every supported variant, run the tests, build a representative target
   when the toolchain is available, and say in the pull request what was not tested on
   hardware.
-- **Code and commits in the house style.** The
-  [coding style](https://github.com/enjoy-digital/litex/blob/master/doc/coding_style.md)
-  (file layout, section banners, HDL conventions, comments, guidance for AI agents) and the
-  commit message form `module: Description of the change.`
+- **Code and commits in the house style**: the
+  [coding style](https://github.com/enjoy-digital/litex/blob/master/doc/coding_style.md) and
+  `module: Description of the change.` ([Feedback, contribution, support](Feedback-Contribution-Support.md)).
 
 ## Releases and compatibility
 

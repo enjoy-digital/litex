@@ -1,11 +1,6 @@
-Every tool installed with LiteX, and what it is for: the ones that talk to a running SoC, the
-ones that build SoCs and cores, the ones that export the SoC description to an OS, and the
-maintenance scripts. They are the entry points of `setup.py`, with their sources in
-`litex/tools/`, and each one answers `--help`.
-
-```sh
-ls $(python3 -c "import sysconfig; print(sysconfig.get_path('scripts'))") | grep ^lite   # the tools installed in your environment
-```
+The command-line tools LiteX installs (the `setup.py` entry points, sources in `litex/tools/`),
+grouped by what you use them for. Each one answers `--help`; the pages linked under each table
+show them at work.
 
 ## Talking to a SoC
 
@@ -17,9 +12,9 @@ ls $(python3 -c "import sysconfig; print(sysconfig.get_path('scripts'))") | grep
 | `litex_jtag` | An OpenOCD `remote_bitbang` server driving the CPU debug TAP through CSRs, for GDB over any bridge. | `litex_jtag --csr-csv=csr.csv` |
 | `litescope_cli` | Configures, triggers and captures the LiteScope analyzer through the bridge (from LiteScope). | `litescope_cli -r ibus_stb --dump capture.vcd` |
 
-The pages: [Write firmware](Write-Firmware-For-Your-SoC.md) for `litex_term`,
-[Host bridges](Host-Bridges.md) for `litex_server` and `litex_cli`,
-[Debug with GDB](Debug-With-GDB.md) for `litex_jtag`, [LiteScope](Use-LiteScope-To-Debug-A-SoC.md).
+[Write firmware](Write-Firmware-For-Your-SoC.md) uses `litex_term`, [Host bridges](Host-Bridges.md)
+`litex_server` and `litex_cli`, [Debug with GDB](Debug-With-GDB.md) `litex_jtag`,
+[LiteScope](Use-LiteScope-To-Debug-A-SoC.md) `litescope_cli`.
 
 ## Building SoCs and cores
 
@@ -33,9 +28,9 @@ The pages: [Write firmware](Write-Firmware-For-Your-SoC.md) for `litex_term`,
 | `litex_read_verilog` | Parses a Verilog module with Yosys and prints its ports as a LiteX `Instance` skeleton. | `litex_read_verilog core.v` |
 | `lite*_gen` | The standalone generators of the cores: a YAML configuration in, a Verilog core and its headers out. | `liteeth_gen eth.yml`, `litedram_gen ddr3.yml` |
 
-The pages: [SoC simulator](SoC-Simulator.md), [Export to Verilog](Export-To-Verilog.md) for the
-generators, [Build backends](Build-Backends.md) for the bundles,
-[Reuse an existing core](Reuse-An-Existing-Core.md) for `litex_read_verilog`.
+[SoC simulator](SoC-Simulator.md) is about `litex_sim`, [Export to Verilog](Export-To-Verilog.md)
+about the generators, [Build backends](Build-Backends.md) about the bundles,
+[Reuse an existing core](Reuse-An-Existing-Core.md) about `litex_read_verilog`.
 
 ## Exporting the SoC description
 
@@ -49,8 +44,8 @@ path; `--soc-svd` for the SVD, `--memory-x` for Rust); these tools consume them:
 | `litex_json2renode` | A Renode platform (`.repl`) and script (`.resc`), with the images and the network. | `litex_json2renode --repl soc.repl --resc soc.resc csr.json` |
 | `svd2rust` (external) | A Rust peripheral access crate from the SVD. | `svd2rust -i soc.svd` |
 
-The pages: [Run Linux](Run-Linux-On-Your-SoC.md), [Run Zephyr](Run-Zephyr-On-Your-SoC.md),
-[SoC simulator](SoC-Simulator.md#renode), [OSes ecosystem](OSes-Ecosystem.md).
+They are used on [Run Linux](Run-Linux-On-Your-SoC.md), [Run Zephyr](Run-Zephyr-On-Your-SoC.md)
+and the [Renode section](SoC-Simulator.md#renode) of the simulator page.
 
 ## Maintenance
 
@@ -69,5 +64,5 @@ targets ([SoC builder reference](SoC-Builder-Reference.md)).
 
 - [Control it from the host](Host-Bridges.md): `litex_server` and `litex_cli` at work.
 - [SoC simulator](SoC-Simulator.md): `litex_sim` and its models.
-- [Export to Verilog](Export-To-Verilog.md): the generators.
+- [Export to Verilog](Export-To-Verilog.md): what the `*_gen` generators produce and how to integrate it.
 - [SoC builder reference](SoC-Builder-Reference.md): the options the tools share.

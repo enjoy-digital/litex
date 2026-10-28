@@ -1,24 +1,14 @@
-[AXI](https://developer.arm.com/documentation/ihi0022/latest/) is what the vendor IPs, the
-hard CPUs (Zynq, Agilex and Cyclone V HPS) and the big soft CPUs (NaxRiscv, VexiiRiscv, Rocket,
-CVA6, OpenC906) speak, and LiteX speaks it too: AXI4, AXI4-Lite and AXI4-Stream in
-`litex/soc/interconnect/axi/`, with the same interconnects, converters, bridges, SRAM, CDC and
-timeout as Wishbone. You meet it when you add one of those, when you pick
-`--bus-standard=axi-lite` or `axi` for the main bus, or when you export a core for a Vivado or
-Quartus block design; the [SoC builder](SoC-builder.md) inserts the bridges so that masters and
-slaves of different standards share one SoC.
+LiteX speaks [AXI](https://developer.arm.com/documentation/ihi0022/latest/): AXI4, AXI4-Lite
+and AXI4-Stream in `litex/soc/interconnect/axi/`, with the same interconnects, converters,
+bridges, SRAM, CDC and timeout as Wishbone. You need it for the vendor IPs, the hard CPUs
+(Zynq, Agilex and Cyclone V HPS), the big soft CPUs (NaxRiscv, VexiiRiscv, Rocket, CVA6,
+OpenC906), or to export a core to a Vivado or Quartus block design; the
+[SoC builder](SoC-builder.md) inserts the bridges, so masters and slaves of different standards
+share one SoC.
 
 ![AXI in LiteX](images/litex-axi.svg)
 
-*AXI4 for memory traffic, AXI4-Lite for control, AXI4-Stream for data paths; bridges to and
-from Wishbone wherever the two meet.*
-
-```sh
-python3 -m litex_boards.targets.digilent_arty --cpu-type=naxriscv --build --no-compile-gateware   # an AXI-Lite CPU on a Wishbone bus: the bridge is added for you
-```
-
 ## The three flavours
-
-Pick from the first column: Lite for control, full for memory, Stream for data.
 
 | Flavour | Channels | Use |
 | --- | --- | --- |
@@ -57,9 +47,9 @@ and an `AXILite` or `AXI` prefix:
 | To Wishbone | `AXILite2Wishbone`, `AXI2Wishbone` and back | The bridges between standards. |
 | Lite to full | `AXI2AXILite`, `AXILite2AXI` | Between the two AXI flavours. |
 
-The bus handler uses them for you: a Wishbone CPU on an AXI main bus gets a `Wishbone2AXI`,
-an AXI-Lite vendor IP on a Wishbone bus an `AXILite2Wishbone`, and the widths are converted on
-the way (`SoCBusHandler.add_adapter`). `--bus-low-latency` selects the lower-latency bridges
+The bus handler picks them: a Wishbone CPU on an AXI main bus gets a `Wishbone2AXI`, an
+AXI-Lite vendor IP on a Wishbone bus an `AXILite2Wishbone`, and the widths are converted on the
+way (`SoCBusHandler.add_adapter`). `--bus-low-latency` selects the lower-latency bridges
 where they exist. The AXI arbiter can interleave transactions by ID.
 
 ## Where AXI appears in a LiteX SoC

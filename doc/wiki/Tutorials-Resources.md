@@ -53,7 +53,7 @@ LiteX based FPGA SoC designed for the Siglent SDS1104X-E oscilloscope, providing
 LiteX based FPGA SoC for the ThunderScope oscilloscope: ADC capture, LiteDRAM and LitePCIe DMAs to the host.
 
 ### [USB3-PIPE](https://github.com/enjoy-digital/usb3_pipe), [TriXium](https://github.com/enjoy-digital/trixium), [LiteX-M2SDR](https://github.com/enjoy-digital/litex_m2sdr)
-Recent Enjoy-Digital projects documented end to end (architecture diagrams, simulation, measurements, method): how a large LiteX design is organized and validated. More on the [Projects](Projects.md) page.
+Our recent projects, with their diagrams, simulations and measurements: good examples of how we organize a large design. More on the [Projects](Projects.md) page.
 
 ### [litex-template](https://github.com/sergachev/litex-template)
 A template for a LiteX project outside LiteX-Boards, with the Zynq and ZynqMP workflows.

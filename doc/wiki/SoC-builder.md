@@ -1,14 +1,11 @@
-You write `SoCCore(platform, sys_clk_freq)` and add a few cores; the SoC builder does the
-wiring: the address map, the bus interconnect, the control registers, the interrupts and the
-`csr.h`, `soc.h` and `mem.h` the software needs. You meet it in every target, from the
+`SoCCore(platform, sys_clk_freq)` plus a few cores is a SoC: the builder does the wiring
+(address map, interconnect, control registers, interrupts) and writes the `csr.h`, `soc.h` and
+`mem.h` the software needs. Every target goes through it, from the
 [minimal SoC](Create-A-minimal-SoC.md) to a Linux machine with PCIe. It lives in
 `litex/soc/integration/soc.py` and `builder.py`; the arguments and helpers are listed on the
 [reference page](SoC-Builder-Reference.md).
 
 ![Anatomy of a LiteX SoC](images/litex-soc-architecture.svg)
-
-*The CPU, the bridges and the DMAs are masters; the memories and the CSR bridge are slaves; the
-cores hang on the CSR bus; the Builder exports it all to the software.*
 
 See it at work without a toolchain: the log prints the SoC it built.
 
@@ -95,8 +92,8 @@ self.bus.add_slave("ext", ext_bus, region=SoCRegion(origin=0x90000000, size=0x10
 
 A master or a slave of another standard or width is adapted on the way: width converters,
 word to byte addressing, the Wishbone, AXI-Lite and AXI bridges in both directions, and a
-clock domain crossing when `clock_domain` is given. This is why a Wishbone CPU, an AXI DMA
-from a vendor IP and a 512-bit LiteDRAM port share one SoC without a line of glue
+clock domain crossing when `clock_domain` is given. So a Wishbone CPU, an AXI DMA from a vendor
+IP and a 512-bit LiteDRAM port share one SoC; you only name the standard and the width of each
 ([Wishbone bus](Wishbone-Bus.md), [AXI bus](AXI-Bus.md)).
 
 ## CSRs and interrupts
@@ -113,21 +110,18 @@ numbers are exported as `<NAME>_INTERRUPT` in `soc.h`, for the BIOS and the devi
 
 ## The helpers
 
-One `add_*` per core or feature: `add_sdram`, `add_ethernet`, `add_etherbone`, `add_pcie`,
-`add_sata`, `add_sdcard`, `add_spi_flash`, `add_video_framebuffer`... Each one instantiates
-the core, connects its buses as masters or slaves, allocates its region, registers its CSRs
-and interrupts, and adds the constants its driver needs. The convention: `name` is the CSR and
-IRQ name and the prefix of the constants, and the module is `self.<name>` afterwards
-(`self.sdram`, `self.ethphy`, `self.pcie_phy`), so a target can refine it. The list, with what
-each one adds, is on the [reference page](SoC-Builder-Reference.md#the-helpers).
+`add_sdram`, `add_ethernet`, `add_etherbone`, `add_pcie`, `add_sata`, `add_sdcard`,
+`add_spi_flash`, `add_video_framebuffer`... each instantiates the core, connects its buses as
+masters or slaves, allocates its region, registers its CSRs and interrupts, and adds the
+constants its driver needs. The module is `self.<name>` afterwards (`self.sdram`,
+`self.ethphy`, `self.pcie_phy`), so a target can refine it. The list, with what each one adds
+and the naming convention, is on the [reference page](SoC-Builder-Reference.md#the-helpers).
 
 ## The Builder
 
 `Builder(soc, output_dir="build/<platform>")` then `builder.build()`:
 
 ![The LiteX build flow](images/litex-build-flow.svg)
-
-*From the Python description to the bitstream and the firmware, in one run.*
 
 1. Finalizes the SoC: regions, CSR locations, interrupts, constants, the interconnect.
 2. Generates the software support in `software/include/generated/`: `csr.h` (the register

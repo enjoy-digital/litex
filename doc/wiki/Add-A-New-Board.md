@@ -1,10 +1,8 @@
-You will have your board in LiteX: two Python files, the **platform** (the FPGA, the pins, the
-I/O standards, the connectors, the default clock, the programmer) and the **target** (a
-reference SoC using what the board has, with options), and the BIOS prompt on its serial port.
-258 boards from 9 vendors follow this pattern in [LiteX-Boards](https://github.com/litex-hub/litex-boards);
-copy the closest one. An hour with the schematic at hand: the FPGA part number, the pinout
-(clock, UART, LEDs, buttons, DRAM, Ethernet PHY, flash, connectors), the I/O voltages per bank,
-the cable.
+A board is two Python files: the **platform** (the FPGA, the pins and their I/O standards, the
+connectors, the default clock, the programmer) and the **target** (a reference SoC built on
+it, with options). [LiteX-Boards](https://github.com/litex-hub/litex-boards) has 250+ of them,
+so start from the closest one. With the schematic open (part number, pinout, I/O voltages per
+bank, the cable you have), count an hour to the BIOS prompt.
 
 ## 1. The platform
 
@@ -69,7 +67,7 @@ class Platform(LatticeiCE40Platform):
         self.add_period_constraint(self.lookup_request("clk12", loose=True), 1e9/12e6)
 ```
 
-(This is the iCEBreaker platform, shortened.) The vocabulary:
+Shortened from the iCEBreaker platform. What the pieces are:
 
 - **A resource** is `("name", number, constraints...)`: `Pins("A1 B2 ...")` (several strings
   are concatenated), `IOStandard("LVCMOS33")`, `Misc("SLEW=FAST")` (any vendor attribute),

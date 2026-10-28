@@ -1,9 +1,8 @@
-You will stop the CPU of your SoC on a breakpoint in your firmware, read the backtrace and step
-through the code with GDB, through OpenOCD and a JTAG TAP: in simulation first, then on a board
-over a JTAG cable, over the FPGA's own JTAG port (BSCANE2 on Xilinx, not one pin needed) or over
-any [host bridge](Host-Bridges.md). This is for the RISC-V CPUs with a standard debug module
-(VexRiscv-SMP, NaxRiscv, VexiiRiscv); the plain VexRiscv has its own way, at the end of the
-page. Ten minutes in simulation, after [LiteScope](Use-LiteScope-To-Debug-A-SoC.md).
+Stop your firmware on a breakpoint, read the backtrace, step through the code: GDB through
+OpenOCD and a JTAG TAP, in simulation first, then on a board over a cable, over the FPGA's own
+JTAG port (BSCANE2 on Xilinx) or over any [host bridge](Host-Bridges.md). This is for the
+RISC-V CPUs with a standard debug module (VexRiscv-SMP, NaxRiscv, VexiiRiscv); the plain
+VexRiscv has its own way, at the end of the page. Ten minutes in simulation.
 
 ## 1. A CPU with a debug module, and a firmware to debug
 
@@ -92,10 +91,8 @@ Now type `donut` in the console of the simulation (terminal 1):
 
 ![GDB stops the CPU in the demo firmware](images/litex-gdb-session.svg)
 
-*OpenOCD finds the TAP and one hart; GDB connects, sets the breakpoint, and stops in `donut()`.*
-
-Et voilà! `bt` shows the call chain from `main()`, `next` and `step` walk the code, `info
-locals` and `p` read the variables, `continue` lets the donut spin. The simulated TAP is
+GDB stops in `donut()`. From there `bt` shows the call chain from `main()`, `next` and `step`
+walk the code, `info locals` and `p` read the variables, `continue` lets the donut spin. The simulated TAP is
 bit-banged over TCP, so `set remotetimeout 60` spares you the timeouts of a slow `load` or
 `next`. `load` writes `demo.elf` into the SDRAM through the TAP, if you prefer not to boot it.
 

@@ -1,20 +1,15 @@
-Your target builds with Vivado today and with Yosys and nextpnr tomorrow without a change: the
-build backends hide the toolchains. For each vendor, a platform class describes the device, the
-I/Os and the constraints, and a toolchain class writes the project files and scripts, runs the
-tools and names the bitstream; a design never calls a vendor tool itself, and reaches the
-vendor primitives (I/O buffers, DDR registers, clock managers) through generic specials each
-backend implements. This is what keeps the [cores](Cores-Ecosystem.md) portable
-([The LiteX approach](LiteX-Approach.md)).
+A target does not know which toolchain builds it. For each vendor, a platform class names the
+device, the I/Os and the constraints, a toolchain class writes the project files and the
+scripts, runs the tools and names the bitstream, and vendor primitives (I/O buffers, DDR
+registers, clock managers) are only reached through generic specials each backend implements.
+Swap `--toolchain=diamond` for `trellis` and the same target builds; this is also what keeps
+the [cores](Cores-Ecosystem.md) portable ([The LiteX approach](LiteX-Approach.md)).
 
 ![The LiteX build flow](images/litex-build-flow.svg)
-
-*The Builder writes the Verilog, the constraints and a script for the toolchain of the
-platform, then runs it; the same target, nine vendors.*
 
 ```sh
 python3 -m litex_boards.targets.lattice_ecp5_evn --toolchain=trellis --build     # Yosys, nextpnr, Project Trellis
 python3 -m litex_boards.targets.lattice_ecp5_evn --toolchain=diamond --build     # the vendor tool, same target
-python3 -m litex_boards.targets.digilent_arty --toolchain=vivado --help | grep -A20 "Vivado toolchain options"
 ```
 
 ## Platforms and toolchains
@@ -56,8 +51,7 @@ class Platform(XilinxPlatform):
 The design requests its pins from it (`platform.request("serial")`), adds sources and
 constraints (`add_source`, `add_period_constraint`, `add_false_path_constraint`,
 `add_platform_command`), and `--toolchain` selects among the toolchains the family supports;
-[Add a new board](Add-A-New-Board.md) is the step by step page. Pick your vendor in the first
-column:
+[Add a new board](Add-A-New-Board.md) is the step by step page.
 
 | Vendor (`litex/build/`) | Families | `--toolchain` | Programmers |
 | --- | --- | --- | --- |

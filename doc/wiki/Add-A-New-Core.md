@@ -1,10 +1,9 @@
-You will write a core of your own, a PWM, with its registers and its interrupt, simulate it
-with a Python generator, add it to a SoC in one line and drive it from the firmware and from
-the host. A LiteX core is a `LiteXModule`: the logic in Migen, the registers as `CSRStorage`
-and `CSRStatus` attributes, the interrupt from an `EventManager`, the data through
-[streams](Streams.md) or a [bus](Wishbone-Bus.md) interface; the [SoC builder](SoC-builder.md)
-does the rest, the `csr.h` accessors included. Thirty minutes; [Cores](Cores.md) lists the
-existing ones to copy from.
+Let's write a PWM: a few registers, an interrupt, a unit test, then use it from C and from the
+host. A LiteX core is a `LiteXModule` with the logic in Migen, `CSRStorage` and `CSRStatus`
+attributes for the registers, an `EventManager` for the interrupt, [streams](Streams.md) or a
+[bus](Wishbone-Bus.md) interface for the data; the [SoC builder](SoC-builder.md) maps it and
+writes the `csr.h` accessors. Thirty minutes, and it is the pattern of every core in
+`litex/soc/cores/`, so pick one from [Cores](Cores.md) to copy from.
 
 ![Anatomy of a core](images/litex-core-anatomy.svg)
 
@@ -149,7 +148,7 @@ irq_setmask(irq_getmask() | (1 << PWM_INTERRUPT));
 ```
 
 And from the host through a [bridge](Host-Bridges.md): `bus.regs.pwm_period.write(1000)`.
-[Create and load software](Write-Firmware-For-Your-SoC.md) covers the firmware build.
+[Write firmware for your SoC](Write-Firmware-For-Your-SoC.md) covers the firmware build.
 
 ## 5. Where to put it
 
@@ -173,4 +172,4 @@ And from the host through a [bridge](Host-Bridges.md): `bus.regs.pwm_period.writ
 - [CSR bus](CSR-Bus.md): what the registers of step 1 become on the bus and in `csr.h`.
 - [Use LiteScope](Use-LiteScope-To-Debug-A-SoC.md): the core on hardware, signal by signal.
 - [Reuse an existing core](Reuse-An-Existing-Core.md): when the core already exists in Verilog or VHDL.
-- [Add a new CPU](Add-A-New-CPU.md): the biggest core of all, wrapped the same way.
+- [Add a new CPU](Add-A-New-CPU.md): a CPU is just a bigger core with the same kind of wrapper.

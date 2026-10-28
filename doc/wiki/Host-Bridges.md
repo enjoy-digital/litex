@@ -1,13 +1,10 @@
-You will read and write the registers and the memory of your running SoC from your computer,
-with `litex_cli` and a Python script of five lines, through a bridge the CPU knows nothing
-about. This is how a board is brought up, how [LiteScope](Use-LiteScope-To-Debug-A-SoC.md)
-uploads its captures and how many LiteX systems are driven in production without any firmware.
-Ten minutes after [the firmware](Write-Firmware-For-Your-SoC.md).
+A bridge is a bus master the host drives over the serial port, JTAG, Ethernet or PCIe; the CPU
+does not even know it is there. With it you read and write the registers and the memory of
+the running SoC from your computer, with `litex_cli` or a Python script of five lines. It is
+how we bring up boards, how [LiteScope](Use-LiteScope-To-Debug-A-SoC.md) gets its captures
+out, and how plenty of LiteX systems run with no firmware at all. Ten minutes.
 
 ![LiteX host bridges](images/litex-host-bridges.svg)
-
-*A bridge is a bus master driven from the host: serial port, JTAG, Ethernet, PCIe, USB or the
-AXI port of a hard CPU, the same tools on every one of them.*
 
 ## 1. Add a bridge to the SoC
 
@@ -34,10 +31,8 @@ litex_cli --read ctrl_scratch
 
 ![litex_cli and RemoteClient through a host bridge](images/litex-cli-regs.svg)
 
-*The identifier, the registers, a write and a read, a script and the console: one bridge.*
-
-Et voilà! `litex_server` owns the transport and serves every client over TCP (port 1234, several
-clients at once, the accesses serialized); `litex_cli` is the command line client: `--regs`
+`0xcafe` came back, so the host owns the bus. `litex_server` holds the transport and serves
+every client over TCP (port 1234, several clients at once, the accesses serialized); `litex_cli` is the command line client: `--regs`
 dumps every register (`--filter` keeps the ones whose name contains a word), `--read 0x40000000
 --length 64` and `--write leds_out 0x5` take an address or a register name, `--gui` opens a
 viewer of the registers and the memory. Both read `csr.csv` from the current directory
@@ -62,8 +57,8 @@ bus.close()
 `regs.<core>_<register>` has `.read()` and `.write()`, `mems.<region>` has `.base`, `.size`
 and `.type`, `constants.<name>` holds the values of `soc.add_constant()`; `bus.read(addr, n)`
 and `bus.write(addr, [words])` reach any address, several words go as one burst. The register
-names are the ones of `csr.csv`: `<module>_<csr>`, the module path flattened. A bring-up script,
-a production test, a control panel: this is where they start.
+names are the ones of `csr.csv`: `<module>_<csr>`, the module path flattened. Every bring-up
+script we write starts like this.
 
 ## 4. The console and the CPU through the bridge
 
@@ -139,7 +134,7 @@ transport is one file.
 
 ## Next
 
-- [Look inside with LiteScope](Use-LiteScope-To-Debug-A-SoC.md): the next step of the path, a logic analyzer in the SoC, read through this bridge.
+- [Look inside with LiteScope](Use-LiteScope-To-Debug-A-SoC.md): a logic analyzer in the SoC, read through this bridge.
 - [Debug the CPU with GDB](Debug-With-GDB.md): OpenOCD and GDB on the CPU, over JTAG or over the bridge.
 - [SoC builder](SoC-builder.md): how the bridge becomes a bus master next to the CPU.
 - [Wishbone bus](Wishbone-Bus.md): the bus the bridge speaks.

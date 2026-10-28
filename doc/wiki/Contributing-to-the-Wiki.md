@@ -32,12 +32,12 @@ Every page has the same shape, so a reader always knows where to look:
 
 | Part | What it holds |
 | --- | --- |
-| Opening (no heading) | Two to four lines: what you will have or understand at the end, who it is for. |
-| Visual | The diagram of a concept page, or the terminal capture of the first result, with a caption. |
+| Opening (no heading) | Two to four lines that start from the result, in your own words; no fixed formula. |
+| Visual | The diagram of a concept page, or the capture of the first result; a caption only if it adds. |
 | Try it | One to three commands and their real output (15 lines at most), then what you are looking at. |
 | Body | Numbered steps ending with a visible result, or a few named sections; code before explanations. |
-| Tables | Four columns at most, cells of a line, one sentence before the table saying how to read it. |
-| `## Next` | Three to five `- [Page](Page.md): why you go there.` bullets, the natural continuation first. |
+| Tables | Four columns at most, cells of a line; a lead-in only if the headers do not say it all. |
+| `## Next` | Three to five `- [Page](Page.md): why you go there.` bullets; give them a reason, not a label. |
 
 Longer lists go in a `<details>` block (as bullets or code, so that the cells stay short) or
 on a reference page.
@@ -67,13 +67,14 @@ Alerts are for shortcuts and caveats, three per page at most: `> [!TIP]` for a s
 LiteX is written by engineers for engineers who want to build something today, and the pages
 sound like it:
 
-- Open with what the reader gets, not with what the thing is made of.
+- Open with what the reader gets, not with what the thing is made of, and not with the same
+  sentence as the page before.
 - "We" for what LiteX and its developers decide, "you" for what the reader does; never "the user".
 - One idea per sentence. The command first, the explanation second, the result third.
-- Mark the moment after a result ("Et voilà!"), never before a command, and once per page.
-- No marketing, no metaphors; "about forty cores" beats "various cores".
-- Say how to read a table before the table. Show the five lines of output that matter, never a
-  pasted `--help`.
+- "Et voilà!" only when something just worked; most pages do not need it.
+- No marketing, no metaphors; "about forty cores" beats "various cores". An opinion or an honest
+  caveat ("this part is brittle") is welcome; a slogan is not.
+- Show the five lines of output that matter, never a pasted `--help`.
 - Humor is welcome where it fits, as in the first pages of this wiki, and never at the reader's
   expense.
 

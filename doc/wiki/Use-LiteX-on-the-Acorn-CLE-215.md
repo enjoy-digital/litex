@@ -1,7 +1,6 @@
-You turn an Acorn CLE 215+, a cryptocurrency mining card from SQRL found for a few tens of
-euros on eBay, into a generic PCIe FPGA development board: an Artix-7 200T with a gigabyte of
-DDR3 and four GTP transceivers on an M.2 connector, running a LiteX SoC, Linux and PCIe. An
-afternoon with a soldering iron for the adapters, then the usual LiteX commands.
+The Acorn CLE 215+ is a cryptocurrency mining accelerator card from SQRL that can be
+repurposed as a generic FPGA PCIe development board, and a cheap one: an afternoon with a
+soldering iron for the adapters, then the usual LiteX commands.
 
 <div>
 <img src="https://user-images.githubusercontent.com/1450143/101366194-f0c27580-38a4-11eb-9d90-830d9c98dfec.png" width="400">
@@ -143,7 +142,7 @@ A `./litepcie_util flash_reload` will reload the bitstream from SPI Flash and a 
 
 ## PCIe
 
-The target builds a PCIe Gen2 X4 SoC with LitePCIe (exclusive with `--with-sata`: the GTPs are shared), its Linux driver and user tools:
+Want PCIe instead of SATA? The GTPs are shared, so it's one or the other, and the target builds a PCIe Gen2 X4 SoC with LitePCIe, its Linux driver and user tools:
 
     python3 -m litex_boards.targets.sqrl_acorn --uart-name=crossover --with-pcie --driver --build --load
     cd build/sqrl_acorn/driver/kernel && make && sudo ./init.sh      # the LitePCIe kernel module (and /dev/ttyLXU0 for the crossover UART)
@@ -152,7 +151,7 @@ The target builds a PCIe Gen2 X4 SoC with LitePCIe (exclusive with `--with-sata`
     ./litepcie_util scratch_test
     ./litepcie_util dma_test                                         # DMA loopback bandwidth
 
-`--pcie-ndmas`, `--pcie-address-width` and `--pcie-with-dma-status`/`--pcie-with-dma-monitor` configure the DMAs. The host also reaches the SoC bus through the BAR without the driver (`litex_server --pcie --pcie-bar=<id>`, [Host-Bridges](Host-Bridges.md)), and `--with-jtagbone`/`--with-spi-sdcard` add a JTAG bridge and an SD card. The [LiteX Acorn Baseboard](https://github.com/enjoy-digital/litex-acorn-baseboard) (and its Mini version) adds a serial port, Ethernet, SFP cages, HDMI, SD card and more around the Acorn: `litex_boards.targets.litex_acorn_baseboard` and `litex_acorn_baseboard_mini`.
+`--pcie-ndmas`, `--pcie-address-width` and `--pcie-with-dma-status`/`--pcie-with-dma-monitor` configure the DMAs, and the host can also reach the SoC bus through the BAR without the driver (`litex_server --pcie --pcie-bar=<id>`, see [Host-Bridges](Host-Bridges.md)). If you want more around the Acorn (a serial port, Ethernet, SFP cages, HDMI, SD card...), have a look at our [LiteX Acorn Baseboard](https://github.com/enjoy-digital/litex-acorn-baseboard) and its Mini version: `litex_boards.targets.litex_acorn_baseboard` and `litex_acorn_baseboard_mini` :)
 
 ## Going Further...
 
@@ -173,4 +172,4 @@ Pretty exciting to see what can now be done with open-source hardware and less t
 - [Create a PCIe SoC](Create-A-PCIe-SoC.md): what `--with-pcie` builds on this board.
 - [Run Linux on your SoC](Run-Linux-On-Your-SoC.md): the Linux-on-LiteX-VexRiscv flow in general.
 - [Load and flash](Load-And-Flash.md): JTAG and the multiboot flash.
-- [Projects](Projects.md): the Acorn baseboards and the other boards built around it.
+- [Projects](Projects.md): the Acorn baseboards and the other things built around this card.

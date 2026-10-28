@@ -154,8 +154,11 @@ def check_style(n, text, report, err):
             continue
         if len(cells) > 4:
             wide.append(len(cells))
-        if max(len(c) for c in cells) > 100:
-            long.append(max(len(c) for c in cells))
+        # The length a reader sees: links keep their text, images and badges take no room.
+        shown = [re.sub(r"<img\b[^>]*>", "", re.sub(r"!\[[^\]]*\]\([^)]*\)", "", c)) for c in cells]
+        shown = [re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", c) for c in shown]
+        if max(len(c) for c in shown) > 100:
+            long.append(max(len(c) for c in shown))
     if wide:
         report(f"{n}: {len(wide)} table row(s) with more than 4 columns (up to {max(wide)})")
     if long:
