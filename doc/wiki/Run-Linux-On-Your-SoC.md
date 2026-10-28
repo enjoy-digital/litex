@@ -50,12 +50,25 @@ Or copy them to a TFTP root or an SD card: the BIOS netboots or sdcardboots them
 seconds ([the boot methods](Write-Firmware-For-Your-SoC.md#4-load-it)). The BIOS loads the
 four files, jumps to OpenSBI, OpenSBI starts the kernel, Buildroot gives you a login:
 
-![Linux booting on a LiteX SoC](images/litex-linux-boot.svg)
+```
+--================ Boot ================--
+Executing booted program at 0x40f00000
+--============== Liftoff! ==============--
+OpenSBI v1.3
+Platform Name             : LiteX / VexRiscv-SMP
+Platform HART Count       : 8
+Domain0 Next Address      : 0x40000000
+[    0.000000] Linux version 6.9.0 (riscv32-buildroot-linux-gnu-gcc 13.3)
+[    0.000000] Machine model: sim
+[    0.000000] Memory: 51044K/65536K available
+[    0.613060] printk: legacy console [liteuart0] enabled
+...
+Welcome to Buildroot
+buildroot login:
+```
 
-*The BIOS, OpenSBI, the kernel, the login prompt: this one in Verilator (`./sim.py` of the
-project), the board does the same faster.*
-
-Et voilà! `root` logs in without a password.
+Et voilà! `root` logs in without a password. (The lines above are from the same boot in
+Verilator, `./sim.py` of the project; a board does it in seconds.)
 
 ![Linux on LiteX](https://user-images.githubusercontent.com/1450143/89118966-96567a00-d4aa-11ea-9827-999a8ffd1444.jpg)
 
@@ -107,8 +120,7 @@ jumps to OpenSBI.
 ## 6. Without a board
 
 - `./sim.py` in Linux-on-LiteX-VexRiscv runs the same SoC in Verilator with the images
-  preloaded: slow (minutes to the login prompt) but cycle accurate, and what the capture above
-  shows. The QEMU co-simulation (`litex_sim --cpu-type=qemu --qemu-kernel=...`) boots Linux in
+  preloaded: slow (minutes to the login prompt) but cycle accurate. The QEMU co-simulation (`litex_sim --cpu-type=qemu --qemu-kernel=...`) boots Linux in
   seconds against the simulated peripherals.
 - [Renode](SoC-Simulator.md#renode) simulates the SoC from `csr.json` with the Linux images,
   fast, with network.
