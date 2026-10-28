@@ -185,8 +185,14 @@ the flash ([Load and flash](Load-And-Flash.md)).
 
 The BIOS reads FAT16 and FAT32 partitions: `boot.json` first, `boot.bin` when there is none,
 with the same format as the network boot. It is the usual way to run Linux on a board without a
-host, as on the [OrangeCrab](https://groupgets.com/campaigns/710-orangecrab)
-([recording](https://asciinema.org/a/cFQ7JRH96mgJNcuI0Ntey663H)).
+host:
+
+<p align="center"><img src="https://pbs.twimg.com/media/EaPya68XgAEEKvB?format=png&name=small" width="500"></p>
+
+As on the [OrangeCrab](https://groupgets.com/campaigns/710-orangecrab), whose SD card slot boots
+Linux this way ([recording](https://asciinema.org/a/cFQ7JRH96mgJNcuI0Ntey663H)):
+
+<p align="center"><img src="https://raw.githubusercontent.com/gregdavill/OrangeCrab/main/documentation/hugo-files/static/docs/r0.2/orangeCrab-1.jpg" width="500"></p>
 
 ### ROM
 
