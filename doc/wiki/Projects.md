@@ -1,11 +1,52 @@
 LiteX has been used since 2012 by [Enjoy-Digital](https://enjoy-digital.fr) to build systems
 for clients and open-source products, and by a growing community for boards, instruments,
 research platforms and products of their own. This page lists them in four groups: the
-**Enjoy-Digital projects** (the framework, the cores and the systems we maintain), the
-**LiteX-Hub collaborative projects** (the shared repositories of the community), the
-**industrial projects** LiteX was born from, and the **community projects** built with LiteX
-elsewhere. Yours is missing? [Send a pull request](Contributing-to-the-Wiki.md) with a line
+**industrial projects** LiteX was born from and lives from, the **Enjoy-Digital projects**
+(the framework, the cores and the systems we maintain), the **LiteX-Hub collaborative
+projects** (the shared repositories of the community), and the **community projects** built
+with LiteX elsewhere. Yours is missing? [Send a pull request](Contributing-to-the-Wiki.md) with a line
 and a link.
+
+## Industrial projects
+
+LiteX was born in industrial projects and still lives from them: since 2012,
+[Enjoy-Digital](https://enjoy-digital.fr) co-develops complete FPGA systems with its clients,
+and this work funds the development of LiteX and of the cores. It also keeps us pragmatic: real
+boards, industry standards and deadlines call for practical and efficient solutions, while
+leaving room for the R&D we like (USB3 without external PHY, White Rabbit, PCIe PTM, LLMs
+decoded on FPGA...). Here are some of the projects we worked on with our clients.
+
+### White Rabbit PCIe NIC on the SPEC-A7, for the Warsaw University of Technology
+
+[LiteX-WR-NIC](https://github.com/enjoy-digital/litex_wr_nic): a White Rabbit PCIe NIC
+(sub-nanosecond synchronization over Ethernet) on the SPEC-A7 board: LiteX, LitePCIe with PTM,
+LiteEth and the White Rabbit PTP core, with a PTM demonstration against an Intel I225. Open
+source end to end.
+
+<img src="https://raw.githubusercontent.com/enjoy-digital/litex_wr_nic/main/doc/spec_a7.jpg" width="500">
+
+### PCIe Software Defined Radio board with 2 Artix7, PCIe Gen2 X8 and 2 AD937X
+<div>
+<img src="http://enjoy-digital.fr/experience/pcie_ad937x.jpg" width="520">
+<img src="https://pbs.twimg.com/media/EjtsRYtX0AE72A1?format=jpg&name=medium" width="250">
+</div>
+
+The SoC is built with LiteX, [LitePCIe](https://github.com/enjoy-digital/litepcie) is used for the communication with the Host and [LiteJESD204](https://github.com/enjoy-digital/litejesd204) is used between the AD937Xs and FPGAs.
+
+### PCIe 3G SDI board with Artix7, PCIe Gen2 X4
+<p align="center"><img src="http://enjoy-digital.fr/experience/pcie_3g_sdi.jpg" width="600"></p>
+
+The SoC is built with LiteX, [LitePCIe](http://github.com/enjoy-digital/litepcie) is used to communicate with the Host and the Xilinx TripleRateSDI core is wrapped with custom datapath modules and gearboxes to make efficient use of the PCIe bus without any external buffering.
+
+More projects can be found on the [Enjoy-Digital website](https://enjoy-digital.fr/).
+
+Most of these systems stay proprietary, but most of the open-source features and cores come
+directly from them: when something developed for a client is generic enough (a core, a PHY, a
+tool, a CPU integration), we look with the client at how to bring it back into the generic
+projects. This is how LiteX, LitePCIe, LiteEth or LiteDRAM grew, and how the client gets a
+feature maintained upstream rather than a fork. We love working on concrete problems and
+systems: for custom developments or personalized support on LiteX, contact us at
+[florent@enjoy-digital.fr](mailto:florent@enjoy-digital.fr).
 
 ## Enjoy-Digital projects
 
@@ -50,13 +91,6 @@ instrument giving software agents consoles, GPIOs, a logic analyzer and JTAG on 
 test, is built on it.
 
 <img src="https://raw.githubusercontent.com/enjoy-digital/usb3_pipe/master/doc/acorn_baseboard_sfp2usb_0.jpg" width="700">
-
-**[LiteX-WR-NIC](https://github.com/enjoy-digital/litex_wr_nic)**: a White Rabbit PCIe NIC
-(sub-nanosecond synchronization over Ethernet) on the SPEC-A7 board, developed for the Warsaw
-University of Technology: LiteX, LitePCIe with PTM, LiteEth, the White Rabbit PTP core, with
-a PTM demonstration against an Intel I225.
-
-<img src="https://raw.githubusercontent.com/enjoy-digital/litex_wr_nic/main/doc/spec_a7.jpg" width="500">
 
 **[LiteX Acorn Baseboard](https://github.com/enjoy-digital/litex-acorn-baseboard)** (and
 Mini): baseboards turning the SQRL Acorn (and NiteFury/LiteFury) mining cards into FPGA
@@ -117,29 +151,6 @@ community:
 | [litex-renode](https://github.com/litex-hub/litex-renode), [cocotb_verilator_sim_example](https://github.com/litex-hub/cocotb_verilator_sim_example) | Simulation helpers and examples. |
 | [micropython](https://github.com/litex-hub/micropython), [linux](https://github.com/litex-hub/linux), [opensbi](https://github.com/litex-hub/opensbi), [picolibc](https://github.com/litex-hub/picolibc), [barebox](https://github.com/litex-hub/barebox) | The forks carrying the LiteX ports and patches. |
 
-## Industrial projects
-
-LiteX is developed and used by Enjoy-Digital since 2012 to co-develop full systems with our
-partners and provide a convenient and efficient solution to create SoCs on FPGA based
-systems. Here are some of the projects we worked on with our partners:
-
-### PCIe Software Defined Radio board with 2 Artix7, PCIe Gen2 X8 and 2 AD937X.
-<div>
-<img src="http://enjoy-digital.fr/experience/pcie_ad937x.jpg" width="520">
-<img src="https://pbs.twimg.com/media/EjtsRYtX0AE72A1?format=jpg&name=medium" width="250">
-</div>
-
-The SoC is built with LiteX, [LitePCIe](https://github.com/enjoy-digital/litepcie) is used for the communication with the Host and [LiteJESD204](https://github.com/enjoy-digital/litejesd204) is used between the AD937Xs and FPGAs.
-
-### PCIe 3G SDI board with Artix7, PCIe Gen2 X4.
-<p align="center"><img src="http://enjoy-digital.fr/experience/pcie_3g_sdi.jpg" width="600"></p>
-
-The SoC is built with LiteX, [LitePCIe](http://github.com/enjoy-digital/litepcie) is used to communicate with the Host and the Xilinx TripleRateSDI core is wrapped with custom datapath modules and gearboxes to make efficient use of the PCIe bus without any external buffering.
-
-More projects can be found at [Enjoy-Digital website](http://enjoy-digital.fr/).
-
-Even if these projects are still unfortunately proprietary, LiteX has been originally developed to create these systems and most of the open-source features/cores come directly from these projects. Working on these systems allow us to keep track of the industry standards/constraints, force us to be practical, use efficient solutions and motivate us to continue improving the tools/adding new features, because that's what we like: creating systems!
-
 ## Community projects built with LiteX
 
 Organizations and companies:
@@ -158,7 +169,6 @@ Organizations and companies:
 | [F4PGA examples](https://github.com/chipsalliance/f4pga-examples) | LiteX designs as benchmarks of the open-source Xilinx flow (CHIPS Alliance). |
 | [Signaloid C0-microSD](https://github.com/signaloid/Signaloid-C0-microSD-litex-integration), [iCE40 I2C integration](https://github.com/signaloid/iCE40-I2C-LiteX-integration) | LiteX integrations on Signaloid's iCE40 modules. |
 | [TimVideos HDMI2USB](https://github.com/timvideos/HDMI2USB-litex-firmware), [litex-buildenv](https://github.com/timvideos/litex-buildenv) | The video capture firmware and build environment that grew the early community (legacy). |
-| [MiSoC](https://github.com/m-labs/misoc) | LiteX's ancestor at M-Labs, still maintained for ARTIQ. |
 
 Individuals and smaller projects: [LiteX-CNC](https://github.com/Peter-van-Tol/LiteX-CNC) and
 [litehm2](https://github.com/sensille/litehm2) (LinuxCNC on LiteX boards),
