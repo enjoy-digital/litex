@@ -2648,7 +2648,6 @@ class LiteXSoC(SoC):
 
         # Imports
         from liteeth.mac import LiteEthMAC
-        from liteeth.phy.model import LiteEthPHYModel
 
         # MAC.
         if data_width not in [8, 32, 64]:
@@ -2745,15 +2744,48 @@ class LiteXSoC(SoC):
 
         # Timing constraints
         if with_timing_constraints:
-            eth_rx_clk = getattr(phy, "crg", phy).cd_eth_rx.clk
-            eth_tx_clk = getattr(phy, "crg", phy).cd_eth_tx.clk
-            if not isinstance(phy, LiteEthPHYModel) and not getattr(phy, "model", False):
-                self.platform.add_period_constraint(eth_rx_clk, 1e9/phy.rx_clk_freq)
-                if not eth_rx_clk is eth_tx_clk:
-                    self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
-                    self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
-                else:
-                    self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk)
+            self.add_ethernet_timing_constraints(phy)
+
+    # Add Ethernet timing constraints --------------------------------------------------------------
+    def add_ethernet_timing_constraints(self, phy):
+        # Imports.
+        from liteeth.phy.model import LiteEthPHYModel
+
+        # Simulation models have no clocks to constrain.
+        if isinstance(phy, LiteEthPHYModel) or getattr(phy, "model", False):
+            return
+
+        # Transceiver PHYs declaring their output clocks' rate (LiteEth's UltraScale 1000BASE-X/
+        # 2500BASE-X): constrain the transceiver's outputs, so the eth_tx/eth_rx clocks and their
+        # half-rate clocks (the transceiver's user clocks) are all derived from the same clock.
+        # A period on eth_tx/eth_rx alone leaves the half-rate clocks derived from the reference
+        # clock; when that is not an exact multiple (a reference clock from the fabric), the
+        # paths between the two get a requirement of a few ps.
+        if getattr(phy, "txoutclk_freq", None) is not None:
+            crg = getattr(phy, "crg", phy)
+            # No keep: a dont_touch on these nets would stop Vivado from inserting the BUFG_GT_SYNCs
+            # the BUFG_GTs need (their CE/CLR then cannot be routed).
+            self.platform.add_period_constraint(phy.txoutclk, 1e9/phy.txoutclk_freq, keep=False)
+            self.platform.add_period_constraint(phy.rxoutclk, 1e9/phy.rxoutclk_freq, keep=False)
+            tx_clks = [crg.cd_eth_tx.clk] + ([crg.cd_eth_tx_half.clk] if hasattr(crg, "cd_eth_tx_half") else [])
+            rx_clks = [crg.cd_eth_rx.clk] + ([crg.cd_eth_rx_half.clk] if hasattr(crg, "cd_eth_rx_half") else [])
+            # sys, the TX clocks and the RX clocks are asynchronous to each other; the clocks of
+            # one direction (full and half rate) stay related.
+            for clk in tx_clks + rx_clks:
+                self.platform.add_false_path_constraint(self.crg.cd_sys.clk, clk)
+            for tx_clk in tx_clks:
+                for rx_clk in rx_clks:
+                    self.platform.add_false_path_constraint(tx_clk, rx_clk)
+            return
+
+        eth_rx_clk = getattr(phy, "crg", phy).cd_eth_rx.clk
+        eth_tx_clk = getattr(phy, "crg", phy).cd_eth_tx.clk
+        self.platform.add_period_constraint(eth_rx_clk, 1e9/phy.rx_clk_freq)
+        if not eth_rx_clk is eth_tx_clk:
+            self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
+            self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
+        else:
+            self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk)
 
     # Add Etherbone --------------------------------------------------------------------------------
     def add_etherbone(self, name="etherbone", phy=None, phy_cd=None, data_width=8,
@@ -2781,7 +2813,6 @@ class LiteXSoC(SoC):
         from liteeth.common import eth_mtu_default
         from liteeth.core import LiteEthUDPIPCore
         from liteeth.frontend.etherbone import LiteEthEtherbone
-        from liteeth.phy.model import LiteEthPHYModel
 
         # Core
         if data_width not in [8, 32, 64]:
@@ -2854,15 +2885,7 @@ class LiteXSoC(SoC):
 
         # Timing constraints
         if with_timing_constraints:
-            eth_rx_clk = getattr(phy, "crg", phy).cd_eth_rx.clk
-            eth_tx_clk = getattr(phy, "crg", phy).cd_eth_tx.clk
-            if not isinstance(phy, LiteEthPHYModel) and not getattr(phy, "model", False):
-                self.platform.add_period_constraint(eth_rx_clk, 1e9/phy.rx_clk_freq)
-                if not eth_rx_clk is eth_tx_clk:
-                    self.platform.add_period_constraint(eth_tx_clk, 1e9/phy.tx_clk_freq)
-                    self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk, eth_tx_clk)
-                else:
-                    self.platform.add_false_path_constraints(self.crg.cd_sys.clk, eth_rx_clk)
+            self.add_ethernet_timing_constraints(phy)
 
         # Ethernet MAC (CPU).
         if with_ethmac:
