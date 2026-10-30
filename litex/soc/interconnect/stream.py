@@ -884,7 +884,12 @@ class PipeValid(LiteXModule):
 
 
 class PipeReady(LiteXModule):
-    """Pipe ready to cut timing path"""
+    """Pipe ready to cut timing path
+
+    The stored payload is loaded whenever the buffer is empty (it is only used once valid): the
+    source ready only drives the valid register, not the enable of the payload registers (timings
+    with wide payloads), and the payload registers have no reset.
+    """
     def __init__(self, layout):
         self.sink   = sink   = Endpoint(layout)
         self.source = source = Endpoint(layout)
@@ -893,6 +898,8 @@ class PipeReady(LiteXModule):
 
         valid  = Signal()
         sink_d = Endpoint(layout)
+        for s in sink_d.flatten():
+            s.reset_less = True
 
         self.sync += [
             If(sink.valid & ~source.ready,
@@ -900,7 +907,7 @@ class PipeReady(LiteXModule):
             ).Elif(source.ready,
                 valid.eq(0)
             ),
-            If(~source.ready & ~valid,
+            If(~valid,
                 sink_d.eq(sink)
             )
         ]
