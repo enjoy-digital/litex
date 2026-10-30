@@ -78,6 +78,12 @@ documents describe it (file layout, HDL conventions, where a device-specific pie
 belongs), with commit messages of the form `module: Description of the change.`. Say in the
 pull request what was tested (simulation, which board) and what was not.
 
+A contribution written by or with an AI agent follows the same path and the same rules: say
+so in the pull request, say what ran on hardware, and read what we expect of it on
+[LiteX for AI agents](LiteX-for-AI-Agents.md#contribute-back). What an agent fixed for one
+project is worth as much upstream as what a human fixed, and it saves the next agent from
+finding the same bug.
+
 ## Support
 
 LiteX is an open-source project we really enjoy working on, but the team doing the development

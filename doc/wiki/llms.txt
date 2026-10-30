@@ -74,7 +74,7 @@ the repository). Every page opens with what you get and ends with a Next section
 
 ## For AI agents
 
-- [LiteX-for-AI-Agents](https://github.com/enjoy-digital/litex/wiki/LiteX-for-AI-Agents): a map of LiteX for an agent working in or with it: what LiteX is, the repository layout, the key classes, the commands that answer questions fast, the conventions, how to verify a change, pitfalls, using LiteX from a project
+- [LiteX-for-AI-Agents](https://github.com/enjoy-digital/litex/wiki/LiteX-for-AI-Agents): a map of LiteX for an agent working in or with it: what LiteX is, the repository layout, the key classes, the commands that answer questions fast, the conventions, how to verify a change, pitfalls, using LiteX from a project, why and how to contribute the fixes back
 
 ## Moved pages (kept for their links)
 
