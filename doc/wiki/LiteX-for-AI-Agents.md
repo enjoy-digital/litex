@@ -163,7 +163,10 @@ Then a target file (copy the closest LiteX-Boards target, or the [40-line one](C
 `litex_term` for the console, `--with-uartbone`/`--with-etherbone` + `litex_server` +
 `RemoteClient` to script the board from Python, [LiteScope](Use-LiteScope-To-Debug-A-SoC.md)
 to see signals, `litex_bare_metal_demo` as the firmware template. For a core that must exist
-in a non-LiteX design, the generators ([Export](Export-To-Verilog.md)).
+in a non-LiteX design, the generators ([Export](Export-To-Verilog.md)). Two projects where an
+agent did this end to end, a 64-bit CPU swapped into a LiteX SoC and an accelerator's memory
+path moved from the Xilinx MIG to LiteDRAM, are on
+[Projects](Projects.md#projects-built-with-ai-agents), with what they reached for and why.
 
 ## The pages of this wiki
 
@@ -176,3 +179,4 @@ pages, and every page ends with a `## Next` section.
 - [Contributing to the wiki](Contributing-to-the-Wiki.md): the shape and the voice of a page, the checks.
 - [SoC builder reference](SoC-Builder-Reference.md): every argument and helper, with defaults.
 - [Create a minimal SoC](Create-A-minimal-SoC.md): the forty lines to start a task from.
+- [Projects](Projects.md#projects-built-with-ai-agents): what other agents built with LiteX.
