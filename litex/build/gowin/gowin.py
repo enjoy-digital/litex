@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import re
 import sys
 import math
 import subprocess
@@ -67,6 +68,24 @@ def _gowin_tcl_path(path, use_windows_paths=False):
         path = path.replace("\\", "\\\\")
 
     return path
+
+# Memories ------------------------------------------------------------------------------------------
+
+def _gowin_async_read_memories(verilog, ram_style="distributed_ram"):
+    """Memories with an asynchronous read port (LiteX memory header: "Read: Async") get a syn_ramstyle
+    attribute: Gowin maps them to Block RAMs (synchronous read) without error or warning, but they then
+    behave differently on hardware (read data lagging/wrong, ex: a FIFO returning zeros). Returns the
+    Verilog and the names of the memories modified (memories with a syn_ramstyle already are kept)."""
+    names = []
+    def add_ram_style(m):
+        header, decl, name, attrs = m.group(1), m.group(3), m.group(2), m.group(4)
+        if "Read: Async" not in header or "syn_ramstyle" in attrs:
+            return m.group(0)
+        names.append(name)
+        return f"{header}{decl}{attrs} /* synthesis syn_ramstyle = \"{ram_style}\" */;"
+    verilog = re.sub(r"(// Memory (\w+): [^\n]*\n//-+\n(?:// Port [^\n]*\n)+)(reg \[\d+:0\] \2\[0:\d+\])([^;\n]*);",
+        add_ram_style, verilog)
+    return verilog, names
 
 # Constraints (.cst) -------------------------------------------------------------------------------
 
@@ -157,6 +176,7 @@ class GowinToolchain(GenericToolchain):
 
         self.apply_gw_jtag_integration(self._build_name + ".v")
         self.apply_hyperram_integration_hack(self._build_name + ".v")
+        self.apply_async_read_memories(self._build_name + ".v")
 
     def apply_gw_jtag_integration(self, v_file):
         with open(v_file, "r") as f:
@@ -171,6 +191,16 @@ class GowinToolchain(GenericToolchain):
         if gw_ide_path is not None:
             gw_ipcores_path = os.path.join(gw_ide_path, "data", "ipcores")
             self.platform.add_source(os.path.join(gw_ipcores_path, "gw_jtag.v"))
+
+    def apply_async_read_memories(self, v_file):
+        # Memories with an asynchronous read port on distributed RAMs (Gowin maps them to Block RAMs
+        # with a different behavior, see _gowin_async_read_memories).
+        with open(v_file, "r") as f:
+            verilog = f.read()
+        verilog, names = _gowin_async_read_memories(verilog)
+        if names:
+            with open(v_file, "w") as f:
+                f.write(verilog)
 
     def apply_hyperram_integration_hack(self, v_file):
         # FIXME: Gowin EDA expects a very specific HypeRAM integration pattern, modify generated verilog to match it.
