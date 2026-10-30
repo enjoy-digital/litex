@@ -67,7 +67,7 @@ the repository). Every page opens with what you get and ends with a Next section
 
 ## Projects and community
 
-- [Projects](https://github.com/enjoy-digital/litex/wiki/Projects): projects built with LiteX in four groups: industrial projects (what funds LiteX, custom developments and support, LiteX-WR-NIC, PCIe SDR and SDI boards), Enjoy-Digital (framework, cores, TriXium, LiteX-M2SDR, USB3-PIPE, Acorn baseboard, ChromatiX, CamLink 4K...), LiteX-Hub collaborative projects, community projects
+- [Projects](https://github.com/enjoy-digital/litex/wiki/Projects): projects built with LiteX in four groups: industrial projects (what funds LiteX, custom developments and support, LiteX-WR-NIC, PCIe SDR and SDI boards), Enjoy-Digital (framework, cores, TriXium, LiteX-M2SDR, USB3-PIPE, Acorn baseboard, ChromatiX, CamLink 4K...), LiteX-Hub collaborative projects, community projects, projects built with AI agents (mmRISC-2, openTPU) and what LiteX offers them
 - [Tutorials-Resources](https://github.com/enjoy-digital/litex/wiki/Tutorials-Resources): tutorials and workshops (FPGA 101, fjullien, Fomu, iCEBreaker), examples to read, articles and blog posts (LiteX Notes), talks and papers
 - [Feedback-Contribution-Support](https://github.com/enjoy-digital/litex/wiki/Feedback-Contribution-Support): how to report an issue (what to include), contribute a pull request, get support
 - [Contributing-to-the-Wiki](https://github.com/enjoy-digital/litex/wiki/Contributing-to-the-Wiki): the wiki is generated from doc/wiki in the repository: how to edit a page, the page shape and the voice, pictures, diagrams and captures, the local preview, the checks (--strict in CI)

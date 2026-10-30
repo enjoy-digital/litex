@@ -1,6 +1,7 @@
 What people build with LiteX: our clients' systems first (they fund the development), then
-our own projects, the LiteX-Hub repositories and what the community built elsewhere. Yours is
-missing? [Send a pull request](Contributing-to-the-Wiki.md) with a line and a link.
+our own projects, the LiteX-Hub repositories, what the community built elsewhere and, since
+2026, what coding agents build with it. Yours is missing?
+[Send a pull request](Contributing-to-the-Wiki.md) with a line and a link.
 
 ## Industrial projects
 
@@ -190,6 +191,112 @@ workflows), [nix-litex](https://github.com/lschuermann/nix-litex) (Nix packaging
 [A Trustworthy, Libre, Self-Hosting 64-bit RISC-V Linux Computer](https://www.contrib.andrew.cmu.edu/~somlo/BTCP/)
 (Rocket + LiteX, building its own bitstream with the open toolchain). The
 [`litex` topic on GitHub](https://github.com/topics/litex) has more.
+
+## Projects built with AI agents
+
+Two projects of autumn 2026 belong to a new category: the human set the goals and ran the
+board, a coding agent wrote the hardware. Both picked LiteX on their own, with the comparison
+written down, and both show which parts of the ecosystem an agent reaches for.
+
+### mmRISC-2: a 64-bit RISC-V CPU that boots Linux, designed by Claude Code
+
+[mmRISC-2](https://github.com/munetomo-maruyama/mmRISC-2) is Munetomo Maruyama's second
+home-made RISC-V core: RV64GC with the bit-manipulation extensions, an 8-stage pipeline, an
+Sv39 MMU, a pipelined FPU, 16 KB L1 caches and a 256 KB L2, JTAG/cJTAG debug, performance
+counters usable with `perf`. On an Arty A7-100T at 50 MHz it boots LiteX BIOS, OpenSBI and
+Linux 7.2 from the SD card, Ethernet works, and Debian 13 compiles C programs on the board
+itself.
+
+Everything in the repository (the specifications, the RTL, the testbenches with reference
+models and bug injection, the scripts, the documents in two languages) was written by Claude
+Code between 2026-09-13 and 10-19. The author set the goals, chose among the options it
+proposed, ran Vivado and the board and passed the results back. The
+[white paper](https://github.com/munetomo-maruyama/mmRISC-2/blob/main/Doc/20261020_WhitePaper_mmRISC-2.pdf)
+tells how it went, day by day.
+
+<p align="center"><img src="https://raw.githubusercontent.com/munetomo-maruyama/mmRISC-2/main/Doc/src/figs/fig_soc_en.svg" width="760"></p>
+
+<img align="right" src="https://raw.githubusercontent.com/munetomo-maruyama/mmRISC-2/main/Doc/src/figs/fpga_board.jpg" width="230">
+
+The first prompt asked the agent whether to start from LiteX, vivado-risc-v or another base.
+Its answer, as the white paper summarizes it: LiteX, because it has a mechanism for swapping
+CPUs with the existing CPUs as examples, an official Arty A7 target with DDR3, Ethernet and SD
+card, and OpenSBI and the device tree already in place. Linux booted on the standard Rocket
+configuration the same day, as the reference; from there the task was "replace only the CPU".
+
+The core is a [`core.py`](https://github.com/munetomo-maruyama/mmRISC-2/blob/main/LitexSystem/cpu/mmrisc/core.py)
+in the project's own tree: LiteX collects every directory holding one from the working
+directory, so `--cpu-type mmrisc` works and the LiteX checkout stays untouched. AXI4 goes to
+LiteDRAM and AXI-Lite to the peripherals, the SD card and Ethernet DMAs are routed through the
+data cache so that coherence is kept in hardware, and LiteX's L2 is disabled in favour of the
+CPU's own.
+
+From the pipeline skeleton to the integration in LiteX took two days; the BIOS came up on the
+board on 09-24 and Linux on 09-25. The real `bios.bin`, run in the agent's testbench with a
+model of the UART, reproduced the first board bug and stayed as the regression test. The
+author's conclusion: setting "make only the CPU, reuse everything else" at the very beginning
+is one of the main reasons the project reached Linux so quickly.
+
+### openTPU: an LLM accelerator that moved from the Xilinx MIG to LiteDRAM
+
+[openTPU](https://github.com/FeSens/openTPU) (Felipe Sens Bonetto) is "an open-source AI
+accelerator, developed by AI": the SystemVerilog, the instruction set, a bit-exact simulator, a
+kernel language and its compiler, a profiler and the host software in one Apache-2.0 monorepo,
+plus an ASIC flow on Yosys and OpenROAD.
+
+It runs Qwen3, Qwen3.5, LFM2, Gemma 4, SmolLM3 and Phi-4-mini with their real weights on a
+Kintex-7 PCIe card (an Inspur YPCB-00338: xc7k480t, two DDR3 channels, Xilinx XDMA for PCIe),
+and the card produces the same tokens as the simulator, bit for bit. Decode is bound by DRAM
+bandwidth, which is where LiteDRAM comes in.
+
+![otpu-chat running LFM2.5-230M on the card, with otpu-smi watching it](https://raw.githubusercontent.com/FeSens/openTPU/main/docs/img/card-chat-smi.gif)
+
+The production images used two Xilinx MIGs behind a SmartConnect. The project's
+[LiteDRAM study](https://github.com/FeSens/openTPU/blob/main/docs/litedram.md) asked whether
+LiteDRAM could replace them, and listed why it should:
+
+- the memory path cost about 28% of the design's LUTs;
+- the MIG's AXI front end charged controller cycles per transaction, where LiteDRAM's native
+  port pipelines commands with no per-transaction cost;
+- calibration runs in software, so the host or a small CPU can drive it;
+- the controller is RTL that can be read and simulated with the rest of the design.
+
+The switch took the last days of September 2026. The core comes out of LiteDRAM's generator
+with a PHY derived from the Artix-7 one (the banks have no ODELAY, so write leveling moves CK
+with the MMCM's fine phase shift) and two native ports per channel behind the ECC frontend. A
+VexRiscv `minimal` with 16 KB of RAM sits inside the memory core and calibrates both channels
+in 12 s at power-up, with LiteX's `sdram.c` as the reference for its firmware.
+
+Along the way the controller was measured cycle by cycle in Migen with a DFI stub PHY, one
+channel was exported to Verilog to co-simulate with the accelerator under Verilator, LiteDRAM's
+BIST ran the first tests on the card, JTAGBone stood in for the PCIe BAR during bring-up, and a
+copy of the multiplexer was tuned for the accelerator's traffic. The LiteDRAM image first
+decoded within 2.3% of the MIG image, then faster: 90 to 94% of the DDR3 peak once tuned.
+
+### What they reach for, and why
+
+We did not design LiteX for agents. We designed it so that one person can build a complete SoC
+from a terminal, in Python, and read everything it generates. It turns out this is what an
+agent needs too.
+
+A vendor memory controller comes out of a wizard, with its calibration in a hardware state
+machine; LiteDRAM is `crossbar.py`, `bankmachine.py`, a generator, a Migen simulation and a
+calibration routine in C, so an agent can measure it, modify it and port its calibration to a
+CPU of its own. A SoC is a target file, with the 250+ boards of LiteX-Boards to compare
+against; a CPU is a `core.py`, with the in-tree CPUs as examples; the BIOS boots in Verilator
+and on the board from the same binary; the host bridges let a Python script, or the agent,
+read the board.
+
+The parts these two reached for first:
+
+- [LiteDRAM](https://github.com/enjoy-digital/litedram), its generator and its BIST;
+- the [CPU plug-in mechanism](Add-A-New-CPU.md) and the LiteX-Boards targets;
+- the [BIOS](BIOS.md), in simulation and on the board;
+- [`litex_sim`](SoC-Simulator.md) and the Migen simulation of a core;
+- [JTAGBone](Host-Bridges.md) for the first access to the board.
+
+[LiteX for AI agents](LiteX-for-AI-Agents.md) is the map we wrote for the next one. If your
+agent built something with LiteX, add it here.
 
 ## Next
 
