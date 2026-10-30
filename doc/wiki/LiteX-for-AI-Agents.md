@@ -1,7 +1,8 @@
 A map of LiteX for a software agent asked to work *in* LiteX (fix, extend, review the
 framework or a core) or *with* it (build a SoC, bring up a board, write firmware, drive a
-board from the host). The facts come from the code; when this page and the code disagree, the
-code is right and this page needs a [pull request](Contributing-to-the-Wiki.md).
+board from the host), and what we ask in return: [send back](#contribute-back) what you had
+to fix or add. The facts come from the code; when this page and the code disagree, the code
+is right and this page needs a [pull request](Contributing-to-the-Wiki.md).
 
 **Machine-readable index of this wiki:** [llms.txt](https://raw.githubusercontent.com/wiki/enjoy-digital/litex/llms.txt)
 (one line per page); the raw markdown of a page is at
@@ -168,6 +169,53 @@ agent did this end to end, a 64-bit CPU swapped into a LiteX SoC and an accelera
 path moved from the Xilinx MIG to LiteDRAM, are on
 [Projects](Projects.md#projects-built-with-ai-agents), with what they reached for and why.
 
+## Contribute back
+
+LiteX got where it is because the people who used it sent back what they had to fix or add
+for their own project: a PHY, a CPU wrapper, a board target, a BIOS feature, a bus fix. Most
+of the cores ecosystem started that way. The deal does not change when the work is done by an
+agent: if the project you work on made you customize LiteX, send the customization upstream.
+
+It matters more now, not less. A patched target, a copied controller or a wrapper kept in a
+project tree serves that project only; the next agent on the next project rediscovers the same
+fix from scratch, and LiteX drifts away from what runs on real boards. A fix merged upstream
+is picked up by every design that follows, is run by the CI and on the hardware CI, and is
+part of the tree the next agent reads. This loop is how the project improves, and how the
+next, more ambitious agent-driven project starts from a better base instead of reinventing
+the previous one.
+
+What to send back, with examples taken from the agent-built projects on
+[Projects](Projects.md):
+
+- a board target that only used four of its nine DRAM lanes: fix the target in LiteX-Boards;
+- write leveling for banks without ODELAY: a PHY variant next to the existing ones in LiteDRAM;
+- pipelined CSRs that close timing in a controller: an option of the core;
+- a CPU wrapper: a `core.py` in `litex/soc/cores/cpu/` with its pythondata package, like the
+  other external CPUs;
+- a BIOS bug found in simulation: a commit in `litex/soc/software/bios/`.
+
+What stays in the project: a copy tuned for one traffic pattern, a change that helps one
+design only. When unsure, open an issue with the diff and ask.
+
+- **One topic per pull request**, against the repository it belongs to (LiteX, LiteX-Boards,
+  LiteDRAM, LiteEth...), in the [conventions](#conventions) above and
+  [verified](#how-to-verify-a-change) as described, with the board or the simulation it ran
+  on. A reviewer must get it in two minutes: what it fixes, how it was checked, what changes
+  for others.
+- **Say that an agent wrote it**, and who supervised. Not to be judged differently, but so
+  that the review asks the right questions: a confident description is not a test report.
+- **Fix the cause rather than subclass around it**: a subclass that works around a limitation
+  is the sign that the limitation should go, for everyone.
+- **The direction stays human.** What goes in the tree, how it is shaped and how it
+  integrates with the rest is decided by the maintainers, as for any contribution; the
+  foundations have to stay coherent precisely because what is built on them gets more
+  ambitious. An agent proposes, with evidence; the discussion happens in the pull request,
+  and a "no" with a reason is a normal answer.
+
+This is open source as it has always worked. The contributor being an agent changes the
+tooling, not the deal. [Feedback, contribution, support](Feedback-Contribution-Support.md)
+has the mechanics of issues and pull requests.
+
 ## The pages of this wiki
 
 The index with one line per page is [llms.txt](https://raw.githubusercontent.com/wiki/enjoy-digital/litex/llms.txt);
@@ -176,6 +224,7 @@ pages, and every page ends with a `## Next` section.
 
 ## Next
 
+- [Feedback, contribution, support](Feedback-Contribution-Support.md): issues and pull requests, the mechanics.
 - [Contributing to the wiki](Contributing-to-the-Wiki.md): the shape and the voice of a page, the checks.
 - [SoC builder reference](SoC-Builder-Reference.md): every argument and helper, with defaults.
 - [Create a minimal SoC](Create-A-minimal-SoC.md): the forty lines to start a task from.
