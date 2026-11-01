@@ -149,6 +149,7 @@ class Coreblocks(CPU):
         cli_params.append("--output={}".format(verilog_filename))
         cli_params.append("--config={}".format(CPU_VARIANTS[variant]))
         cli_params.append("--reset-pc=0x{:x}".format(reset_address))
+        cli_params.append("--strip-debug")
 
         if variant in LINUX_CAPABLE_VARIANTS:
             # Adds CoreSoCks wrapper around the core that adds extra peripherals (like CLINT) for full OS support
