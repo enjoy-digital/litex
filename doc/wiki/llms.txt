@@ -62,7 +62,7 @@ the repository). Every page opens with what you get and ends with a Next section
 - [Cores](https://github.com/enjoy-digital/litex/wiki/Cores): the in-tree cores of litex/soc/cores by theme (control, communication, memory, video, audio, clocking), their interfaces and SoC helpers, the EventManager IRQ model, litex.gen helpers
 - [Cores-Ecosystem](https://github.com/enjoy-digital/litex/wiki/Cores-Ecosystem): the Lite* cores (LiteDRAM, LiteEth, LitePCIe, LiteNVMe, LiteSATA, LiteSDCard, LiteICLink, LiteJESD204, LiteSPI, LiteI2C, LiteScope, LiteDSP): standards, supported hardware, standalone generators
 - [Build-Backends](https://github.com/enjoy-digital/litex/wiki/Build-Backends): platforms and toolchains per vendor (Xilinx, Intel, Lattice, Gowin, Efinix, CologneChip, Microsemi, QuickLogic, Anlogic), how tools are found, options, generic I/O specials, mixed-language converters, build bundles, programmers
-- [Tools](https://github.com/enjoy-digital/litex/wiki/Tools): every LiteX command-line tool (litex_term, litex_server, litex_cli, litex_jtag, litex_sim, litex_soc_gen, litex_periph_gen, litex_bare_metal_demo, build bundles, litex_read_verilog, the *_gen generators, the DTS/Renode exporters, litex_setup/release)
+- [Tools](https://github.com/enjoy-digital/litex/wiki/Tools): every LiteX command-line tool (litex_term, litex_server, litex_cli, litex_mcp, litex_jtag, litex_sim, litex_soc_gen, litex_periph_gen, litex_bare_metal_demo, build bundles, litex_read_verilog, the *_gen generators, the DTS/Renode exporters, litex_setup/release)
 - [SoC-Documentation](https://github.com/enjoy-digital/litex/wiki/SoC-Documentation): generating the register-level Sphinx documentation and the SVD (--doc, generate_docs/generate_svd), documenting registers with CSRField and modules with ModuleDoc
 
 ## Projects and community
@@ -74,7 +74,7 @@ the repository). Every page opens with what you get and ends with a Next section
 
 ## For AI agents
 
-- [LiteX-for-AI-Agents](https://github.com/enjoy-digital/litex/wiki/LiteX-for-AI-Agents): a map of LiteX for an agent working in or with it: what LiteX is, the repository layout, the key classes, the commands that answer questions fast, the conventions, how to verify a change, pitfalls, using LiteX from a project, why and how to contribute the fixes back
+- [LiteX-for-AI-Agents](https://github.com/enjoy-digital/litex/wiki/LiteX-for-AI-Agents): a map of LiteX for an agent working in or with it: what LiteX is, the repository layout, the key classes, the commands that answer questions fast, the conventions, how to verify a change, pitfalls, using LiteX from a project, driving a SoC through MCP (litex_mcp), why and how to contribute the fixes back
 
 ## Moved pages (kept for their links)
 

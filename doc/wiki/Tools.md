@@ -9,11 +9,12 @@ show them at work.
 | `litex_term` | The serial console, with the serial boot (`--kernel`, `--images`), `crossover` and `jtag` ports. | `litex_term /dev/ttyUSB1 --kernel=demo.bin` |
 | `litex_server` | The bridge server: owns the UART, JTAG, UDP, PCIe, USB or devmem transport, serves clients over TCP. | `litex_server --uart --uart-port=/dev/ttyUSB0` |
 | `litex_cli` | The command-line client: identifier, register dump, memory read and write, GUI. | `litex_cli --regs`, `litex_cli --gui` |
+| `litex_mcp` | MCP server giving AI agents typed tools on the SoC (needs `pip3 install mcp`). | `litex_mcp --csr-csv=csr.csv` |
 | `litex_jtag` | An OpenOCD `remote_bitbang` server driving the CPU debug TAP through CSRs, for GDB over any bridge. | `litex_jtag --csr-csv=csr.csv` |
 | `litescope_cli` | Configures, triggers and captures the LiteScope analyzer through the bridge (from LiteScope). | `litescope_cli -r ibus_stb --dump capture.vcd` |
 
 [Write firmware](Write-Firmware-For-Your-SoC.md) uses `litex_term`, [Host bridges](Host-Bridges.md)
-`litex_server` and `litex_cli`, [Debug with GDB](Debug-With-GDB.md) `litex_jtag`,
+`litex_server` and `litex_cli`, [LiteX for AI agents](LiteX-for-AI-Agents.md#drive-a-soc-through-mcp) `litex_mcp`, [Debug with GDB](Debug-With-GDB.md) `litex_jtag`,
 [LiteScope](Use-LiteScope-To-Debug-A-SoC.md) `litescope_cli`.
 
 ## Building SoCs and cores

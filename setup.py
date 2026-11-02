@@ -58,6 +58,7 @@ setup(
             "litex_server = litex.tools.litex_server:main",
             "litex_jtag   = litex.tools.litex_jtag:main",
             "litex_cli    = litex.tools.litex_client:main",
+            "litex_mcp    = litex.tools.litex_mcp:main",
 
             # SoC Generators.
             "litex_soc_gen    = litex.tools.litex_soc_gen:main",
