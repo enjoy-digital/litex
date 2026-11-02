@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
+from migen.fhdl.specials import Tristate
 
 from litex.gen import *
 
@@ -125,6 +126,7 @@ class GowinAE350(CPU):
         self.native_memory = bool(self.native_memory)
 
         self.platform     = platform
+        self.apb_ce       = APB_CE_APB
         self.variant      = variant
         self.io_regions   = dict(self.io_regions)
         if variant == "linux":
@@ -403,6 +405,55 @@ class GowinAE350(CPU):
             i_TDI_IN  = pads.tdi,
             o_TDO_OUT = pads.tdo,
             o_TDO_OE  = Open(),
+        )
+
+    def _enable_apb(self, bit):
+        self.apb_ce |= bit
+        self.cpu_params["i_APB_CE"] = Constant(self.apb_ce, 8)
+
+    def connect_uart(self, n, pads):
+        """Connect TX/RX and optional cts, dcd, dsr, ri, rts, dtr, out1/out2 pads.
+
+        All optional modem/control pads are active-low and connected directly.
+        Omitted pads retain the UART's default connections.
+        """
+
+        if n not in (1, 2):
+            raise ValueError("AE350 UART number must be 1 or 2.")
+
+        modem_default = {1: 0, 2: 1}
+
+        self._enable_apb({1: APB_CE_UART1, 2: APB_CE_UART2}[n])
+
+        self.cpu_params.update({
+            f"o_UART{n}_TXD"  : pads.tx,
+            f"i_UART{n}_RXD"  : pads.rx,
+            f"i_UART{n}_CTSN" : getattr(pads, "cts", modem_default[n]),
+            f"i_UART{n}_DCDN" : getattr(pads, "dcd", modem_default[n]),
+            f"i_UART{n}_DSRN" : getattr(pads, "dsr", modem_default[n]),
+            f"i_UART{n}_RIN"  : getattr(pads, "ri",  modem_default[n]),
+            f"o_UART{n}_RTSN" : getattr(pads, "rts",  Open()),
+            f"o_UART{n}_DTRN" : getattr(pads, "dtr",  Open()),
+            f"o_UART{n}_OUT1N": getattr(pads, "out1", Open()),
+            f"o_UART{n}_OUT2N": getattr(pads, "out2", Open()),
+        })
+
+    def connect_gpio(self, pads):
+        self._enable_apb(APB_CE_GPIO)
+        gpio_in  = Signal(32)
+        gpio_out = Signal(32)
+        gpio_oe  = Signal(32)
+        for i in range(32):
+            if i in pads:
+                pad_in = Signal()
+                self.specials += Tristate(pads[i], gpio_out[i], gpio_oe[i], pad_in)
+                self.comb += gpio_in[i].eq(pad_in)
+            else:
+                self.comb += gpio_in[i].eq(0)
+        self.cpu_params.update(
+            i_GPIO_IN  = gpio_in,
+            o_GPIO_OUT = gpio_out,
+            o_GPIO_OE  = gpio_oe,
         )
 
     def do_finalize(self):

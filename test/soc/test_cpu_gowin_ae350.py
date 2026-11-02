@@ -6,10 +6,14 @@
 
 import unittest
 
-from migen import Record
+from migen import Record, Signal
+from migen.fhdl.specials import Tristate
+from migen.fhdl.structure import _Assign, _Slice
+from litex.gen import Open
 
 from litex.build.gowin import GowinPlatform
 from litex.soc.integration.soc import SoCCore, SoCRegion, SoCError
+from litex.soc.cores.cpu.gowin_ae350.core import APB_CE_APB, APB_CE_GPIO, APB_CE_UART1, APB_CE_UART2
 
 
 class TestGowinAE350(unittest.TestCase):
@@ -31,6 +35,98 @@ class TestGowinAE350(unittest.TestCase):
         for origin in [0xe800_0000, 0xefff_f000]:
             soc.bus.add_region(f"fabric_{origin:x}",
                 SoCRegion(origin=origin, size=0x1000, cached=False))
+
+    def test_hard_uarts(self):
+        for order in [(1, 2), (2, 1)]:
+            with self.subTest(order=order):
+                cpu = self.make_soc().cpu
+                enabled = APB_CE_APB
+                pads = {n: Record([("tx", 1), ("rx", 1)]) for n in order}
+                for n in order:
+                    cpu.connect_uart(n, pads[n])
+                    enabled |= {1: APB_CE_UART1, 2: APB_CE_UART2}[n]
+                    self.assertEqual(cpu.cpu_params["i_APB_CE"].value, enabled)
+                for n in order:
+                    self.assertIs(cpu.cpu_params[f"o_UART{n}_TXD"], pads[n].tx)
+                    self.assertIs(cpu.cpu_params[f"i_UART{n}_RXD"], pads[n].rx)
+                    for modem in ["CTSN", "DCDN", "DSRN", "RIN"]:
+                        self.assertEqual(cpu.cpu_params[f"i_UART{n}_{modem}"], n - 1)
+
+    def test_hard_uart_control_pads(self):
+        inputs = ["cts", "dcd", "dsr", "ri"]
+        outputs = ["rts", "dtr", "out1", "out2"]
+        for n in [1, 2]:
+            for controls in [inputs + outputs, ["cts", "rts"]]:
+                with self.subTest(n=n, controls=controls):
+                    cpu = self.make_soc().cpu
+                    pads = Record([(name, 1) for name in ["tx", "rx"] + controls])
+                    cpu.connect_uart(n, pads)
+                    for names, direction in [(inputs, "i"), (outputs, "o")]:
+                        for name in names:
+                            port = cpu.cpu_params[f"{direction}_UART{n}_{name.upper()}N"]
+                            if name in controls:
+                                self.assertIs(port, getattr(pads, name))
+                            elif direction == "i":
+                                self.assertEqual(port, n - 1)
+                            else:
+                                self.assertIsInstance(port, Open)
+
+    def test_invalid_hard_uart(self):
+        cpu = self.make_soc().cpu
+        for n in [0, 3]:
+            with self.subTest(n=n), self.assertRaisesRegex(ValueError, "1 or 2"):
+                cpu.connect_uart(n, Record([("tx", 1), ("rx", 1)]))
+        self.assertEqual(cpu.cpu_params["i_APB_CE"].value, APB_CE_APB)
+
+    def test_hard_gpio_sparse_pads(self):
+        cpu = self.make_soc().cpu
+        pads = {i: Signal() for i in [0, 7, 31]}
+        cpu.connect_gpio(pads)
+        self.assertEqual(cpu.cpu_params["i_APB_CE"].value, APB_CE_APB | APB_CE_GPIO)
+
+        gpio_in = cpu.cpu_params["i_GPIO_IN"]
+        gpio_out = cpu.cpu_params["o_GPIO_OUT"]
+        gpio_oe = cpu.cpu_params["o_GPIO_OE"]
+        for signal in [gpio_in, gpio_out, gpio_oe]:
+            self.assertEqual(len(signal), 32)
+
+        buffers = [s for s in cpu._fragment.specials if isinstance(s, Tristate)]
+        self.assertEqual(len(buffers), len(pads))
+        inputs = [s for s in cpu._fragment.comb
+            if isinstance(s, _Assign) and isinstance(s.l, _Slice) and s.l.value is gpio_in]
+        self.assertEqual(len(inputs), 32)
+        self.assertEqual(sorted(s.l.start for s in inputs), list(range(32)))
+        for assignment in inputs:
+            i = assignment.l.start
+            with self.subTest(pin=i):
+                self.assertEqual(assignment.l.stop, i + 1)
+                if i in pads:
+                    matches = [s for s in buffers if s.target is pads[i]]
+                    self.assertEqual(len(matches), 1)
+                    buffer = matches[0]
+                    for port, signal in [(buffer.o, gpio_out), (buffer.oe, gpio_oe)]:
+                        self.assertIsInstance(port, _Slice)
+                        self.assertIs(port.value, signal)
+                        self.assertEqual((port.start, port.stop), (i, i + 1))
+                    self.assertIs(assignment.r, buffer.i)
+                    self.assertEqual(len(buffer.i), 1)
+                else:
+                    self.assertEqual(assignment.r.value, 0)
+
+    def test_hard_gpio_uart_enable_order(self):
+        for n in [1, 2]:
+            for order in [("gpio", "uart"), ("uart", "gpio")]:
+                with self.subTest(n=n, order=order):
+                    cpu = self.make_soc().cpu
+                    enabled = APB_CE_APB
+                    for peripheral in order:
+                        if peripheral == "gpio":
+                            cpu.connect_gpio({31: Signal()})
+                            enabled |= APB_CE_GPIO
+                        else:
+                            cpu.connect_uart(n, Record([("tx", 1), ("rx", 1)]))
+                            enabled |= {1: APB_CE_UART1, 2: APB_CE_UART2}[n]
+                        self.assertEqual(cpu.cpu_params["i_APB_CE"].value, enabled)
 
     def test_internal_peripherals_and_apb_extension_are_not_fabric_io(self):
         soc = self.make_soc()
