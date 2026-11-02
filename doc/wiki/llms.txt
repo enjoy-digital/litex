@@ -20,6 +20,7 @@ the repository). Every page opens with what you get and ends with a Next section
 - [Host-Bridges](https://github.com/enjoy-digital/litex/wiki/Host-Bridges): control and debug the SoC from the host: UARTBone/JTAGBone/Etherbone/PCIe bridges, litex_server, litex_cli, Python scripts with RemoteClient, the protocols
 - [Use-LiteScope-To-Debug-A-SoC](https://github.com/enjoy-digital/litex/wiki/Use-LiteScope-To-Debug-A-SoC): capture internal signals with the LiteScope logic analyzer through a bridge
 - [Debug-With-GDB](https://github.com/enjoy-digital/litex/wiki/Debug-With-GDB): debug the CPU with GDB over JTAG: VexRiscv-SMP/NaxRiscv/VexiiRiscv in simulation, with a JTAG cable, through BSCANE2 or litex_jtag over any bridge; the VexRiscv +debug variant with SpinalHDL's OpenOCD
+- [Debug-A-SoC-On-Hardware](https://github.com/enjoy-digital/litex/wiki/Debug-A-SoC-On-Hardware): the method to find why a design misbehaves on a board: check the link first, registers before traces, narrow LiteScope captures, reading the generated Verilog and timing reports, testing from the inside out, regression tests and write-ups
 
 ## Build your SoC
 
