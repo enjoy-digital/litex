@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import time
 import socket
 import tempfile
 import threading
@@ -12,7 +13,7 @@ import unittest
 from unittest import mock
 
 from litex.tools.litex_server import RemoteServer, _read_merger
-from litex.tools.remote.comm_uart import CommUART
+from litex.tools.remote.comm_uart import CommUART, UARTBONE_PORT_POLL
 from litex.tools.remote.comm_uart import CMD_READ_BURST_INCR
 from litex.tools.remote.comm_uart import CMD_WRITE_BURST_INCR, CMD_WRITE_BURST_FIXED
 from litex.tools.remote.etherbone import Packet
@@ -247,7 +248,7 @@ class TestCommUART(unittest.TestCase):
         with mock.patch("litex.tools.remote.comm_uart.serial.serial_for_url", return_value=port) as serial_for_url:
             comm = CommUART("loop://", baudrate=baudrate, addr_width=addr_width)
 
-        serial_for_url.assert_called_once_with("loop://", int(float(baudrate)))
+        serial_for_url.assert_called_once_with("loop://", int(float(baudrate)), timeout=UARTBONE_PORT_POLL)
         return comm, port
 
     def test_write_uses_baudrate_sized_burst(self):
@@ -303,6 +304,19 @@ class TestCommUART(unittest.TestCase):
             bytes([CMD_READ_BURST_INCR, 3]),
             (0x3000//4).to_bytes(4, byteorder="big"),
         ])
+
+    def test_read_timeout_does_not_block(self):
+        # A lost response raises after the read timeout instead of blocking forever, and stale
+        # bytes are dropped (resync) so the next command starts aligned.
+        comm = CommUART("loop://", baudrate=115200, timeout=0.3)
+        comm.port.write(b"\x55")
+        start = time.time()
+        with self.assertRaises(TimeoutError):
+            comm._read(8)
+        self.assertLess(time.time() - start, 2.0)
+        comm.port.write(b"\xaa\xbb")
+        comm._resync()
+        self.assertEqual(comm.port.in_waiting, 0)
 
     def test_invalid_baudrate_raises(self):
         with self.assertRaises(ValueError):
