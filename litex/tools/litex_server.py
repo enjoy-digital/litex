@@ -103,11 +103,17 @@ class RemoteServer(EtherboneIPC):
         if hasattr(self, "socket"):
             return
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # SO_REUSEADDR allows an immediate restart after an unclean termination. SO_REUSEPORT is not
+        # set: it would let a second server bind the same port and share the clients between bridges.
         if hasattr(socket, "SO_REUSEADDR"):
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        if hasattr(socket, "SO_REUSEPORT"):
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-        self.socket.bind((self.bind_ip, self.bind_port))
+        try:
+            self.socket.bind((self.bind_ip, self.bind_port))
+        except OSError as e:
+            self.socket.close()
+            del self.socket
+            raise OSError(e.errno, f"Unable to bind {self.bind_ip}:{self.bind_port} ({e.strerror}), "
+                "another litex_server may already use this port (see --bind-port).") from e
         print("tcp port: {:d}".format(self.bind_port))
         self.socket.listen(1)
         self.comm.open()
