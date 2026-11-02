@@ -4,6 +4,7 @@
 # Copyright (c) 2015-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import time
 import serial
 import struct
 
@@ -19,20 +20,25 @@ CMD_READ_BURST_FIXED  = 0x04
 UARTBONE_MAX_BURST_LENGTH     = 255
 UARTBONE_WRITE_TIMEOUT        = 0.100
 UARTBONE_WRITE_TIMEOUT_MARGIN = 0.5
+UARTBONE_READ_TIMEOUT         = 2.0  # Seconds without any received byte before a read fails.
+UARTBONE_PORT_POLL            = 0.05 # Serial port read timeout (polling period).
 
 # CommUART -----------------------------------------------------------------------------------------
 
 class CommUART(CSRBuilder):
-    def __init__(self, port, baudrate=115200, csr_csv=None, debug=False, addr_width=32):
+    def __init__(self, port, baudrate=115200, csr_csv=None, debug=False, addr_width=32,
+        timeout=UARTBONE_READ_TIMEOUT):
         CSRBuilder.__init__(self, comm=self, csr_csv=csr_csv)
         self.baudrate   = int(float(baudrate))
         self.debug      = debug
         self.addr_bytes = addr_width // 8
+        self.timeout    = float(timeout)
         self.max_write_burst_length = self._get_max_write_burst_length(
             baudrate   = self.baudrate,
             addr_bytes = self.addr_bytes,
         )
-        self.port = serial.serial_for_url(port, self.baudrate)
+        # Polling read timeout: a lost response must not block the caller (and litex_server) forever.
+        self.port = serial.serial_for_url(port, self.baudrate, timeout=UARTBONE_PORT_POLL)
 
     @staticmethod
     def _get_max_write_burst_length(baudrate, addr_bytes):
@@ -59,10 +65,23 @@ class CommUART(CSRBuilder):
         del self.port
 
     def _read(self, length):
-        r = bytes()
+        r     = bytes()
+        start = time.time()
         while len(r) < length:
-            r += self.port.read(length - len(r))
+            chunk = self.port.read(length - len(r))
+            if chunk:
+                r    += chunk
+                start = time.time()
+            elif (time.time() - start) > self.timeout:
+                self._resync()
+                raise TimeoutError(f"UART read timeout ({len(r)}/{length} bytes received).")
         return r
+
+    def _resync(self):
+        # Let UARTBone's gateware timeout (100ms outside RECEIVE-CMD) bring it back to RECEIVE-CMD,
+        # then drop any late response bytes so the next command starts aligned.
+        time.sleep(2*UARTBONE_WRITE_TIMEOUT)
+        self.port.reset_input_buffer()
 
     def _write(self, data):
         remaining = len(data)
