@@ -29,5 +29,31 @@ class TestServerCLI(unittest.TestCase):
                     uart.return_value.close.assert_called_once()
 
 
+# Test Server Port ---------------------------------------------------------------------------------
+
+class _DummyComm:
+    def open(self):
+        pass
+
+    def close(self):
+        pass
+
+class TestServerPort(unittest.TestCase):
+    def test_port_not_shared(self):
+        # A second server on the same port must fail instead of silently sharing the clients
+        # between two bridges; the port must be reusable as soon as the first server is closed.
+        first = litex_server.RemoteServer(_DummyComm(), "localhost", 0)
+        first.open()
+        port = first.socket.getsockname()[1]
+        try:
+            second = litex_server.RemoteServer(_DummyComm(), "localhost", port)
+            with self.assertRaises(OSError):
+                second.open()
+        finally:
+            first.close()
+        third = litex_server.RemoteServer(_DummyComm(), "localhost", port)
+        third.open()
+        third.close()
+
 if __name__ == "__main__":
     unittest.main()
