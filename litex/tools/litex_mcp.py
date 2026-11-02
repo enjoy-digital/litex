@@ -20,7 +20,9 @@ import os
 import re
 import sys
 import time
+import signal
 import argparse
+import tempfile
 import importlib.util
 import subprocess
 
@@ -29,6 +31,26 @@ from litex.tools.litex_client import RemoteClient
 # Helpers ------------------------------------------------------------------------------------------
 
 MAX_READ_WORDS = 4096
+MAX_WAIT_TIME  = 600 # Seconds, per litex_job_wait call.
+
+def _strip_ansi(text):
+    return re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", text)
+
+def _tcp_listening(port):
+    """Return True/False if a local TCP port is in LISTEN state, None when it cannot be known."""
+    found = None
+    for f in ["/proc/net/tcp", "/proc/net/tcp6"]:
+        try:
+            with open(f, encoding="utf-8") as fd:
+                lines = fd.readlines()[1:]
+        except OSError:
+            continue
+        found = found or False
+        for line in lines:
+            local, state = line.split()[1], line.split()[3]
+            if state == "0A" and int(local.split(":")[1], 16) == port: # 0A: LISTEN.
+                return True
+    return found
 
 LITEX_CORES = [
     "litedram", "liteeth", "litepcie", "litesata", "litesdcard", "litespi", "litei2c", "liteiclink",
@@ -49,7 +71,7 @@ class LiteXMCPTools:
     Every method returns plain Python types (dict/list/str/int) that serialize directly to JSON.
     """
     def __init__(self, host="localhost", port=1234, csr_csv="csr.csv", timeout=2.0, allow_write=False,
-        client_cls=RemoteClient):
+        client_cls=RemoteClient, jobs_dir=None):
         self.host        = host
         self.port        = int(port)
         self.csr_csv     = csr_csv
@@ -57,6 +79,8 @@ class LiteXMCPTools:
         self.allow_write = allow_write
         self.client_cls  = client_cls
         self.bus         = None
+        self.jobs_dir    = jobs_dir
+        self.jobs        = {}
 
     # Connection -----------------------------------------------------------------------------------
 
@@ -82,6 +106,11 @@ class LiteXMCPTools:
         if self.bus is not None:
             self.bus.close()
             self.bus = None
+
+    def close_all(self):
+        self.close()
+        for job_id in list(self.jobs):
+            self.job_stop(job_id)
 
     def _check_write(self):
         if not self.allow_write:
@@ -320,6 +349,135 @@ class LiteXMCPTools:
             })
         return cores
 
+    # Jobs (simulations, servers, builds) ----------------------------------------------------------
+
+    def _get_jobs_dir(self):
+        if self.jobs_dir is None:
+            self.jobs_dir = tempfile.mkdtemp(prefix="litex_mcp_")
+        os.makedirs(self.jobs_dir, exist_ok=True)
+        return self.jobs_dir
+
+    def _start_job(self, kind, cmd, cwd=None, info=None):
+        if not isinstance(cmd, list) or not all(isinstance(c, str) for c in cmd):
+            raise LiteXMCPError("Command arguments must be a list of strings.")
+        job_id = f"{kind}{len(self.jobs)}"
+        log    = os.path.join(self._get_jobs_dir(), f"{job_id}.log")
+        with open(log, "wb") as f:
+            # Own process group: stopping the job stops all its children (toolchains, Verilator...).
+            proc = subprocess.Popen(cmd, cwd=cwd, stdout=f, stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL, start_new_session=True,
+                env=dict(os.environ, PYTHONUNBUFFERED="1"))
+        self.jobs[job_id] = {"proc": proc, "cmd": cmd, "cwd": cwd, "log": log, "start": time.time(),
+            "info": info or {}}
+        return self.job_status(job_id, tail=0)
+
+    def _get_job(self, job_id):
+        if job_id not in self.jobs:
+            raise LiteXMCPError(f"Job {job_id} not found (see litex_list_jobs).")
+        return self.jobs[job_id]
+
+    @staticmethod
+    def _read_log(log):
+        with open(log, "r", encoding="utf-8", errors="replace") as f:
+            return _strip_ansi(f.read())
+
+    def job_status(self, job_id, tail=40):
+        """Status of a job: running, return code, elapsed time, log file and its last lines."""
+        job        = self._get_job(job_id)
+        returncode = job["proc"].poll()
+        status = {
+            "job"        : job_id,
+            "command"    : " ".join(job["cmd"]),
+            "running"    : returncode is None,
+            "returncode" : returncode,
+            "elapsed_s"  : round(time.time() - job["start"], 1),
+            "log"        : job["log"],
+        }
+        status.update(job["info"])
+        if tail:
+            status["log_tail"] = self._read_log(job["log"]).splitlines()[-int(tail):]
+        return status
+
+    def job_wait(self, job_id, pattern=None, timeout=60):
+        """Wait until the job's log matches pattern (regex), the job ends or timeout (s) expires."""
+        job     = self._get_job(job_id)
+        timeout = min(float(timeout), MAX_WAIT_TIME)
+        regex   = None if not pattern else re.compile(pattern, re.MULTILINE)
+        start   = time.time()
+        match   = None
+        while True:
+            ended = job["proc"].poll() is not None
+            if regex is not None:
+                m = regex.search(self._read_log(job["log"]))
+                if m:
+                    match = m.group(0)
+                    break
+            if ended or (time.time() - start) > timeout:
+                break
+            time.sleep(0.2)
+        status = self.job_status(job_id)
+        status["matched"]  = match
+        status["timeout"]  = (match is None) and status["running"]
+        return status
+
+    def job_stop(self, job_id):
+        """Stop a job and all its child processes."""
+        job  = self._get_job(job_id)
+        proc = job["proc"]
+        if proc.poll() is None:
+            for sig in [signal.SIGTERM, signal.SIGKILL]:
+                try:
+                    os.killpg(proc.pid, sig)
+                except ProcessLookupError:
+                    break
+                try:
+                    proc.wait(timeout=5)
+                    break
+                except subprocess.TimeoutExpired:
+                    pass
+        return self.job_status(job_id, tail=10)
+
+    def list_jobs(self):
+        """List the jobs started by this server."""
+        return [self.job_status(job_id, tail=0) for job_id in self.jobs]
+
+    # Simulation -----------------------------------------------------------------------------------
+
+    def sim_start(self, args=None, output_dir=None):
+        """Start litex_sim (Verilator) with args; the console output goes to the job log."""
+        args       = [] if args is None else list(args)
+        output_dir = output_dir or os.path.join(self._get_jobs_dir(), f"sim{len(self.jobs)}")
+        cmd = [sys.executable, "-m", "litex.tools.litex_sim", "--non-interactive",
+            f"--output-dir={output_dir}"] + args
+        return self._start_job("sim", cmd, info={
+            "output_dir" : output_dir,
+            "csr_csv"    : os.path.join(output_dir, "csr.csv"),
+        })
+
+    def server_start(self, args, timeout=300):
+        """Start a litex_server with args (ex: --uart --uart-port=socket://localhost:2345 --bind-port=1240).
+
+        Refuses a bind port already in use (another server would silently answer the clients) and,
+        for a socket:// UART (simulation), waits until the simulation listens before starting.
+        """
+        args = list(args)
+        line = " ".join(args)
+        m    = re.search(r"--bind-port[= ](\d+)", line)
+        bind_port = int(m.group(1)) if m else 1234
+        if _tcp_listening(bind_port):
+            raise LiteXMCPError(f"TCP port {bind_port} is already in use (another litex_server?), "
+                "use another --bind-port.")
+        m = re.search(r"socket://[^:/\s]+:(\d+)", line)
+        if m:
+            uart_port = int(m.group(1))
+            start     = time.time()
+            while _tcp_listening(uart_port) is False:
+                if (time.time() - start) > min(float(timeout), MAX_WAIT_TIME):
+                    raise LiteXMCPError(f"Nothing listens on TCP port {uart_port} (simulation not ready?).")
+                time.sleep(0.5)
+        cmd = [sys.executable, "-m", "litex.tools.litex_server"] + args
+        return self._start_job("server", cmd, info={"bind_port": bind_port})
+
 # MCP Server ---------------------------------------------------------------------------------------
 
 INSTRUCTIONS = """\
@@ -443,6 +601,48 @@ def build_server(tools, server_cls=None):
         """List the LiteX ecosystem cores (LiteDRAM, LiteEth, LitePCIe...) and whether they are installed."""
         return tools.list_cores()
 
+    # Simulation and jobs.
+    @server.tool(annotations=side_effect)
+    def litex_sim_start(args: list[str] = [], output_dir: str = "") -> dict:
+        """Start a SoC simulation (litex_sim, Verilator) in the background and return its job.
+
+        args are litex_sim options (ex: ["--cpu-type=vexriscv", "--with-sdram"]). The console goes
+        to the job log: wait for the BIOS prompt with litex_job_wait(job, "litex>"). To reach the
+        SoC bus, add ["--uart-name=crossover+uartbone", "--uart-tcp", "--uart-tcp-port=2345"], then
+        litex_server_start(["--uart", "--uart-port=socket://localhost:2345", "--bind-port=1240"])
+        and litex_connect(port=1240, csr_csv=<csr_csv of the job>). The first build takes minutes.
+        """
+        return tools.sim_start(args, output_dir or None)
+
+    @server.tool(annotations=side_effect)
+    def litex_server_start(args: list[str], timeout: float = 300) -> dict:
+        """Start a litex_server in the background (ex: ["--uart", "--uart-port=/dev/ttyUSB1"]).
+
+        Refuses a --bind-port already in use; with a socket:// UART port (simulation), first waits
+        (up to timeout s) for the simulation to listen.
+        """
+        return tools.server_start(args, timeout)
+
+    @server.tool(annotations=read_only)
+    def litex_list_jobs() -> list:
+        """List the background jobs (simulations, servers, builds) started by this server."""
+        return tools.list_jobs()
+
+    @server.tool(annotations=read_only)
+    def litex_job_status(job: str, tail: int = 40) -> dict:
+        """Status of a background job: running, return code, elapsed time, last log lines."""
+        return tools.job_status(job, tail)
+
+    @server.tool(annotations=read_only)
+    def litex_job_wait(job: str, pattern: str = "", timeout: float = 60) -> dict:
+        """Wait (up to timeout s, max 600) until the job log matches pattern (regex) or the job ends."""
+        return tools.job_wait(job, pattern or None, timeout)
+
+    @server.tool(annotations=side_effect)
+    def litex_job_stop(job: str) -> dict:
+        """Stop a background job and all its child processes."""
+        return tools.job_stop(job)
+
     return server
 
 # Run ----------------------------------------------------------------------------------------------
@@ -454,6 +654,7 @@ def main():
     parser.add_argument("--port",        default=1234,        help="litex_server port.")
     parser.add_argument("--timeout",     default=2.0,         help="Socket timeout (s).")
     parser.add_argument("--allow-write", action="store_true", help="Expose register/memory write tools.")
+    parser.add_argument("--jobs-dir",    default=None,        help="Directory for job logs and simulation builds (default: temporary).")
     args = parser.parse_args()
 
     tools = LiteXMCPTools(
@@ -462,6 +663,7 @@ def main():
         csr_csv     = args.csr_csv,
         timeout     = args.timeout,
         allow_write = args.allow_write,
+        jobs_dir    = args.jobs_dir,
     )
     try:
         server = build_server(tools)
@@ -471,7 +673,7 @@ def main():
     try:
         server.run()
     finally:
-        tools.close()
+        tools.close_all()
 
 if __name__ == "__main__":
     main()

@@ -198,6 +198,12 @@ litex_mcp --csr-csv=build/sim/csr.csv --port=1240
 
 Call `litex_check` first: it shows which SoC answers on the port before anything is read or written.
 
+The server can also run this loop itself, as background jobs: `litex_sim_start` (options of
+`litex_sim`, the console in the job log), `litex_job_wait` (until a regex such as the `litex>`
+prompt, the end of the job or a timeout), `litex_job_status`, `litex_job_stop` (the job and all its
+children), `litex_list_jobs`, and `litex_server_start`, which refuses a port already in use and
+waits for a simulated UART to listen. Then `litex_connect` to the new server and CSR file.
+
 ## Contribute back
 
 LiteX got where it is because the people who used it sent back what they had to fix or add
