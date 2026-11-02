@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
+import importlib.util
 
 from litex.tools.remote.csr_builder import CSRElements, CSRRegister, CSRMemoryRegion
 from litex.tools.litex_mcp import LiteXMCPTools, LiteXMCPError, build_server
@@ -57,10 +58,12 @@ class FakeServer:
         self.name         = name
         self.instructions = instructions
         self.tools        = {}
+        self.annotations  = {}
 
-    def tool(self):
+    def tool(self, annotations=None):
         def register(fn):
-            self.tools[fn.__name__] = fn
+            self.tools[fn.__name__]       = fn
+            self.annotations[fn.__name__] = annotations
             return fn
         return register
 
@@ -107,10 +110,38 @@ class TestLiteXMCP(unittest.TestCase):
         self.assertEqual(tools.read_register("ctrl_scratch")["value"], 0xcafe)
         self.assertEqual(tools.read_memory(0x10000000, 2)["words"], ["0x00000001", "0x00000002"])
 
+    def test_connect(self):
+        tools = _tools()
+        tools.ident()
+        self.assertEqual(tools.connect(port=1240)["port"], 1240)
+        self.assertEqual(tools.port, 1240)
+
+    def test_list_cpus(self):
+        cpus = {c["name"]: c for c in _tools().list_cpus("vexriscv")}
+        self.assertIn("vexriscv", cpus)
+        self.assertIn("standard", cpus["vexriscv"]["variants"])
+
+    def test_list_cores(self):
+        cores = {c["name"]: c for c in _tools().list_cores()}
+        self.assertIn("litedram", cores)
+
+    @unittest.skipIf(importlib.util.find_spec("litex_boards") is None, "LiteX-Boards not installed.")
+    def test_boards(self):
+        tools = _tools()
+        self.assertIn("digilent_arty", [b["name"] for b in tools.list_boards("arty")])
+        info = tools.board_info("digilent_arty")
+        self.assertEqual(info["platform_class"], "Xilinx7SeriesPlatform")
+        self.assertIn("a7-35", info["devices"])
+        self.assertIn("--variant", info["options"]["Target"])
+        with self.assertRaises(LiteXMCPError):
+            tools.board_info("../setup")
+
     def test_server_tools(self):
         read_tools = {
-            "litex_check", "litex_ident", "litex_list_registers", "litex_list_memory_regions",
-            "litex_list_constants", "litex_read_register", "litex_read_registers", "litex_read_memory",
+            "litex_check", "litex_connect", "litex_ident", "litex_list_registers",
+            "litex_list_memory_regions", "litex_list_constants", "litex_read_register",
+            "litex_read_registers", "litex_read_memory", "litex_list_boards", "litex_board_info",
+            "litex_list_cpus", "litex_list_cores",
         }
         write_tools = {"litex_write_register", "litex_write_memory"}
 
@@ -120,6 +151,12 @@ class TestLiteXMCP(unittest.TestCase):
 
         server = build_server(_tools(allow_write=True), server_cls=FakeServer)
         self.assertEqual(set(server.tools), read_tools | write_tools)
+
+        # Read-only/destructive hints (when the MCP SDK is installed).
+        if importlib.util.find_spec("mcp") is not None:
+            hints = lambda a: a.model_dump(by_alias=True) # SDK 1.x/2.x field names differ, aliases do not.
+            self.assertTrue(hints(server.annotations["litex_read_register"])["readOnlyHint"])
+            self.assertTrue(hints(server.annotations["litex_write_register"])["destructiveHint"])
 
 if __name__ == "__main__":
     unittest.main()

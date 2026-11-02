@@ -175,8 +175,13 @@ path moved from the Xilinx MIG to LiteDRAM, are on
 agent typed tools on a running SoC, through any `litex_server` bridge: `litex_check` (link,
 identifier, read round-trip), `litex_ident`, `litex_list_registers`, `litex_list_memory_regions`,
 `litex_list_constants`, `litex_read_register`, `litex_read_registers`, `litex_read_memory`, and,
-only when started with `--allow-write`, `litex_write_register` and `litex_write_memory`. It needs
-the MCP Python SDK (`pip3 install mcp`, Python >= 3.10); the rest of LiteX does not.
+only when started with `--allow-write`, `litex_write_register` and `litex_write_memory`;
+`litex_connect` switches to another server or CSR file. Without a board, `litex_list_boards`,
+`litex_board_info` (FPGA device, platform, the target's options by group), `litex_list_cpus` (with
+their variants) and `litex_list_cores` answer "which command line for this board and these cores".
+Every tool is annotated read-only or not (destructive for the writes), so the client can ask for
+approval on the side effects only. It needs the MCP Python SDK (`pip3 install mcp`, Python >= 3.10);
+the rest of LiteX does not.
 
 ```sh
 litex_server --uart --uart-port=/dev/ttyUSB1                       # or --jtag, --udp, --pcie...
