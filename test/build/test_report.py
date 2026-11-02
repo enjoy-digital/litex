@@ -10,6 +10,8 @@ import unittest
 
 from litex.build.report import parse_vivado_timing, parse_vivado_utilization
 from litex.build.report import parse_gowin_timing, parse_gowin_utilization
+from litex.build.report import parse_quartus_timing, parse_quartus_utilization
+from litex.build.report import parse_efinity_timing, parse_efinity_utilization
 from litex.build.report import parse_nextpnr_log, parse_build_log_errors, parse_build_reports
 
 # Report excerpts ----------------------------------------------------------------------------------
@@ -122,6 +124,101 @@ Info: Max frequency for clock '$glbnet$eth_clk': 112.00 MHz (FAIL at 125.00 MHz)
 ERROR: Max frequency for clock '$glbnet$eth_clk' failed.
 """
 
+QUARTUS_STA_SUMMARY = """\
+------------------------------------------------------------
+Timing Analyzer Summary
+------------------------------------------------------------
+
+Type  : Slow 1100mV 85C Model Setup 'sys_clk'
+Slack : -0.412
+TNS   : -3.250
+
+Type  : Fast 1100mV 0C Model Setup 'sys_clk'
+Slack : 1.900
+TNS   : 0.000
+
+Type  : Slow 1100mV 85C Model Hold 'sys_clk'
+Slack : 0.301
+TNS   : 0.000
+
+Type  : Slow 1100mV 85C Model Minimum Pulse Width 'clk50'
+Slack : 6.525
+TNS   : 0.000
+"""
+
+QUARTUS_FIT_SUMMARY = """\
+Fitter Status : Successful - Mon Oct 23 15:15:20 2023
+Family : Cyclone V
+Device : 5CEBA4F23C8
+Logic utilization (in ALMs) : 1,541 / 18,480 ( 8 % )
+Total registers : 2733
+Total RAM Blocks : 84 / 308 ( 27 % )
+Total DSP Blocks : 0 / 66 ( 0 % )
+"""
+
+EFINITY_TIMING = """\
+---------- 1. Clock Frequency Summary (begin) ----------
+
+User target constrained clocks
+          Clock Name           Period (ns)  Frequency (MHz)    Waveform                Targets
+sys_clk                            5.000        200.000     {0.000 2.500}  {sys}
+
+Maximum possible analyzed clocks frequency
+ Clock Name  Period (ns)  Frequency (MHz)     Edge
+  sys_clk       5.589        178.923         (R-R)
+
+---------- Clock Frequency Summary (end) ---------------
+
+---------- 2. Clock Relationship Summary (begin) ----------
+
+Setup (Max) Clock Relationship
+  Launch Clock    Capture Clock   Constraint (ns)     Slack (ns)          Edge
+    sys_clk          sys_clk           5.000            -0.589           (R-R)
+
+Hold (Min) Clock Relationship
+  Launch Clock    Capture Clock   Constraint (ns)     Slack (ns)          Edge
+    sys_clk          sys_clk           0.000            0.022            (R-R)
+
+NOTE: Values are in nanoseconds.
+
+---------- Clock Relationship Summary (end) ---------------
+
+---------- 3. Path Details for Max Critical Paths (begin) ----------
+
+++++ Path 1 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Path Begin    : storage_19__D$12|RCLK
+Path End      : core/error_code[3]~FF|CE
+Launch Clock  : sys_clk (RISE)
+Capture Clock : sys_clk (RISE)
+Slack         : -0.589 (required time - arrival time)
+Delay         : 3.998
+
+Logic Level             : 10
+
+---------- Path Details for Max Critical Paths (end) ---------------
+"""
+
+EFINITY_TIMING_OLD = """\
+---------- 2. Clock Relationship Summary (begin) ----------
+
+Launch Clock    Capture Clock    Constraint (ns)   Slack (ns)    Edge
+pll0_clkout1     pll0_clkout1          5.000         1.090     (R-R)
+
+NOTE: Values are in nanoseconds.
+
+---------- Clock Relationship Summary (end) ---------------
+"""
+
+EFINITY_PLACE = """\
+---------- Resource Summary (begin) ----------
+Inputs: 84 / 1703 (4.93%)
+XLRs: 54398 / 60800 (89.47%)
+\tXLRs needed for Logic: 25123 / 60800 (41.32%)
+Memory Blocks: 200 / 256 (78.12%)
+---------- Resource Summary (end) ----------
+"""
+
 # Test Report --------------------------------------------------------------------------------------
 
 class TestReport(unittest.TestCase):
@@ -146,12 +243,54 @@ class TestReport(unittest.TestCase):
         u = parse_gowin_utilization(GOWIN_UTILIZATION)
         self.assertEqual([r["resource"] for r in u], ["Logic", "Register", "BSRAM"])
 
+    def test_quartus(self):
+        t = parse_quartus_timing(QUARTUS_STA_SUMMARY)
+        self.assertEqual(t["wns"], -0.412) # Worst corner.
+        self.assertEqual(t["whs"], 0.301)
+        self.assertFalse(t["met"])
+        self.assertEqual(t["clocks"], [{"clock": "sys_clk", "setup_slack": -0.412, "setup_tns": -3.25,
+            "hold_slack": 0.301, "hold_tns": 0.0}])
+        u, status = parse_quartus_utilization(QUARTUS_FIT_SUMMARY)
+        self.assertTrue(status.startswith("Successful"))
+        self.assertEqual([(r["resource"], r["used"], r["available"]) for r in u], [
+            ("Logic utilization (in ALMs)", 1541, 18480), ("Total RAM Blocks", 84, 308), ("Total DSP Blocks", 0, 66)])
+
+    def test_efinity(self):
+        t = parse_efinity_timing(EFINITY_TIMING)
+        self.assertEqual(t["clocks"], [{"clock": "sys_clk", "fmax_mhz": 178.923, "constraint_mhz": 200.0, "met": False}])
+        self.assertEqual((t["wns"], t["whs"], t["met"]), (-0.589, 0.022, False))
+        self.assertEqual(t["failing_paths"][0]["destination"], "core/error_code[3]~FF|CE")
+        self.assertEqual(t["failing_paths"][0]["logic_levels"], "10")
+        t = parse_efinity_timing(EFINITY_TIMING_OLD)
+        self.assertEqual((t["wns"], t["met"]), (1.09, True))
+        u = parse_efinity_utilization(EFINITY_PLACE)
+        self.assertEqual([r["resource"] for r in u], ["Inputs", "XLRs", "Memory Blocks"])
+
     def test_nextpnr(self):
         t, u = parse_nextpnr_log(NEXTPNR_LOG)
         self.assertFalse(t["met"])
         self.assertEqual(t["clocks"][0]["fmax_mhz"], 102.77)
         self.assertEqual([r["resource"] for r in u], ["TRELLIS_IO", "DP16KD"])
         self.assertEqual(len(parse_build_log_errors(NEXTPNR_LOG)), 1)
+
+    def test_build_dir_quartus_efinity(self):
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, "gateware", "outflow"))
+            for name, content in [("top.sta.summary", QUARTUS_STA_SUMMARY), ("top.fit.summary", QUARTUS_FIT_SUMMARY)]:
+                with open(os.path.join(d, "gateware", name), "w") as f:
+                    f.write(content)
+            r = parse_build_reports(d)
+            self.assertEqual(r["toolchain"], "quartus")
+            self.assertTrue(r["fitter_status"].startswith("Successful"))
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, "gateware", "outflow"))
+            for name, content in [("top.timing.rpt", EFINITY_TIMING), ("top.place.rpt", EFINITY_PLACE)]:
+                with open(os.path.join(d, "gateware", "outflow", name), "w") as f:
+                    f.write(content)
+            r = parse_build_reports(d)
+            self.assertEqual(r["toolchain"], "efinity")
+            self.assertEqual(r["timing"]["wns"], -0.589)
+            self.assertEqual(len(r["utilization"]), 3)
 
     def test_build_dir(self):
         with tempfile.TemporaryDirectory() as d:

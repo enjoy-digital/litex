@@ -877,7 +877,7 @@ def build_server(tools, server_cls=None):
     @server.tool(annotations=read_only)
     def litex_build_report(job: str = "", output_dir: str = "", max_paths: int = 10) -> dict:
         """Structured result of a build (job or output_dir): toolchain, timing met/WNS/TNS, per clock
-        results, failing/worst paths, utilization and error lines. Vivado, Gowin and nextpnr."""
+        results, failing/worst paths, utilization and error lines. Vivado, Quartus, Gowin, Efinity and nextpnr."""
         return tools.build_report(job or None, output_dir or None, max_paths)
 
     @server.tool(annotations=read_only)
