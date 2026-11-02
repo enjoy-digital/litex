@@ -26,6 +26,7 @@ import tempfile
 import importlib.util
 import subprocess
 
+from litex.build.report        import parse_build_reports
 from litex.tools.litex_client import RemoteClient
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -454,6 +455,42 @@ class LiteXMCPTools:
             "csr_csv"    : os.path.join(output_dir, "csr.csv"),
         })
 
+    # Builds ---------------------------------------------------------------------------------------
+
+    def build_start(self, target, args=None, output_dir=None):
+        """Start a target build (--build) in the background; target is a LiteX-Boards board name or
+        a target script (.py). --load/--flash (hardware side effects) require --allow-write."""
+        args = [] if args is None else list(args)
+        if any(a.split("=")[0] in ["--load", "--flash"] for a in args) and not self.allow_write:
+            raise LiteXMCPError("--load/--flash act on the hardware, restart the server with --allow-write.")
+        if target.endswith(".py"):
+            if not os.path.exists(target):
+                raise LiteXMCPError(f"Target script {target} not found.")
+            cmd = [sys.executable, os.path.abspath(target)]
+        else:
+            self.board_info(target, sections=[]) # Validates the board name.
+            cmd = [sys.executable, "-m", f"litex_boards.targets.{target}"]
+        output_dir = os.path.abspath(output_dir or os.path.join(self._get_jobs_dir(), f"build{len(self.jobs)}"))
+        cmd += ["--build", f"--output-dir={output_dir}"] + [a for a in args if a != "--build"]
+        return self._start_job("build", cmd, info={
+            "output_dir" : output_dir,
+            "csr_csv"    : os.path.join(output_dir, "csr.csv"),
+        })
+
+    def build_report(self, job=None, output_dir=None, max_paths=10):
+        """Timing (WNS/TNS, per clock, failing paths), utilization and errors of a build."""
+        if job:
+            info       = self._get_job(job)["info"]
+            output_dir = info.get("output_dir")
+        if not output_dir or not os.path.isdir(output_dir):
+            raise LiteXMCPError("Build output directory not found (give a build job or an output_dir).")
+        r = parse_build_reports(output_dir, max_paths=int(max_paths))
+        if job:
+            status = self.job_status(job, tail=0)
+            r["running"]    = status["running"]
+            r["returncode"] = status["returncode"]
+        return r
+
     def server_start(self, args, timeout=300):
         """Start a litex_server with args (ex: --uart --uart-port=socket://localhost:2345 --bind-port=1240).
 
@@ -622,6 +659,23 @@ def build_server(tools, server_cls=None):
         (up to timeout s) for the simulation to listen.
         """
         return tools.server_start(args, timeout)
+
+    @server.tool(annotations=side_effect)
+    def litex_build_start(target: str, args: list[str] = [], output_dir: str = "") -> dict:
+        """Start a gateware build in the background and return its job.
+
+        target is a LiteX-Boards board name (see litex_list_boards/litex_board_info) or a target script
+        (.py); args are its options (ex: ["--cpu-type=vexriscv", "--with-ethernet", "--toolchain=yosys+nextpnr"]).
+        Builds take minutes: poll with litex_job_status or litex_job_wait(job, timeout=600), then call
+        litex_build_report. --load/--flash need the server to run with --allow-write.
+        """
+        return tools.build_start(target, args, output_dir or None)
+
+    @server.tool(annotations=read_only)
+    def litex_build_report(job: str = "", output_dir: str = "", max_paths: int = 10) -> dict:
+        """Structured result of a build (job or output_dir): toolchain, timing met/WNS/TNS, per clock
+        results, failing/worst paths, utilization and error lines. Vivado, Gowin and nextpnr."""
+        return tools.build_report(job or None, output_dir or None, max_paths)
 
     @server.tool(annotations=read_only)
     def litex_list_jobs() -> list:
