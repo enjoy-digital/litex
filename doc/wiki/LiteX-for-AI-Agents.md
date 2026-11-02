@@ -89,6 +89,7 @@ litex_sim --cpu-type=vexriscv [--with-sdram --with-ethernet ...]   # the SoC in 
 python3 -m pytest test/cores/test_pwm.py                           # one test; test/ holds the suite (slow: test/soc/test_integration.py)
 python3 -c "from litex.soc.cores.cpu import CPUS; print(sorted(k for k in CPUS if k))"   # the CPU registry
 litex_cli --csr-csv build/<board>/csr.csv --regs                   # the registers of a running board (through litex_server)
+litex_cli --csr-csv build/<board>/csr.csv --regs --json            # the same as one JSON object; errors as {"error": ...}, exit code 1
 ./litex_setup.py --freeze                                          # the commit of every installed repository
 ```
 
