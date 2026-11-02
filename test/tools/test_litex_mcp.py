@@ -4,6 +4,9 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
+import sys
+import tempfile
 import unittest
 import importlib.util
 
@@ -136,21 +139,62 @@ class TestLiteXMCP(unittest.TestCase):
         with self.assertRaises(LiteXMCPError):
             tools.board_info("../setup")
 
+    def test_jobs(self):
+        with tempfile.TemporaryDirectory() as d:
+            tools = _tools(jobs_dir=d)
+            # A job printing a prompt then waiting, as a simulation does.
+            script = "import time; print('BIOS built', flush=True); print('litex> ', flush=True); time.sleep(60)"
+            job = tools._start_job("test", [sys.executable, "-c", script])["job"]
+            r = tools.job_wait(job, r"litex>", timeout=30)
+            self.assertEqual(r["matched"], "litex>")
+            self.assertTrue(r["running"])
+            self.assertIn("BIOS built", r["log_tail"])
+            r = tools.job_wait(job, r"never printed", timeout=0.5)
+            self.assertTrue(r["timeout"])
+            self.assertFalse(tools.job_stop(job)["running"])
+            self.assertEqual([j["job"] for j in tools.list_jobs()], [job])
+
+            # A job that ends: wait returns on exit with the return code.
+            job = tools._start_job("test", [sys.executable, "-c", "import sys; sys.exit(3)"])["job"]
+            r = tools.job_wait(job, timeout=30)
+            self.assertEqual(r["returncode"], 3)
+            self.assertFalse(r["timeout"])
+
+            with self.assertRaises(LiteXMCPError):
+                tools.job_status("unknown")
+            with self.assertRaises(LiteXMCPError):
+                tools._start_job("test", "rm -rf /")
+
+    def test_sim_command(self):
+        with tempfile.TemporaryDirectory() as d:
+            tools = _tools(jobs_dir=d)
+            calls = []
+            tools._start_job = lambda kind, cmd, cwd=None, info=None: calls.append((kind, cmd, info)) or info
+            info = tools.sim_start(["--with-sdram"])
+            kind, cmd, _ = calls[0]
+            self.assertEqual(kind, "sim")
+            self.assertEqual(cmd[1:3], ["-m", "litex.tools.litex_sim"])
+            self.assertIn("--non-interactive", cmd)
+            self.assertEqual(cmd[-1], "--with-sdram")
+            self.assertEqual(info["csr_csv"], os.path.join(info["output_dir"], "csr.csv"))
+
     def test_server_tools(self):
         read_tools = {
-            "litex_check", "litex_connect", "litex_ident", "litex_list_registers",
+            "litex_check", "litex_ident", "litex_list_registers",
             "litex_list_memory_regions", "litex_list_constants", "litex_read_register",
             "litex_read_registers", "litex_read_memory", "litex_list_boards", "litex_board_info",
-            "litex_list_cpus", "litex_list_cores",
+            "litex_list_cpus", "litex_list_cores", "litex_list_jobs", "litex_job_status",
+            "litex_job_wait",
         }
+        side_effect_tools = {"litex_connect", "litex_sim_start", "litex_server_start", "litex_job_stop"}
         write_tools = {"litex_write_register", "litex_write_memory"}
 
         server = build_server(_tools(), server_cls=FakeServer)
-        self.assertEqual(set(server.tools), read_tools)
+        self.assertEqual(set(server.tools), read_tools | side_effect_tools)
         self.assertEqual(server.tools["litex_ident"](), IDENT)
 
         server = build_server(_tools(allow_write=True), server_cls=FakeServer)
-        self.assertEqual(set(server.tools), read_tools | write_tools)
+        self.assertEqual(set(server.tools), read_tools | side_effect_tools | write_tools)
 
         # Read-only/destructive hints (when the MCP SDK is installed).
         if importlib.util.find_spec("mcp") is not None:
