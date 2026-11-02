@@ -208,7 +208,8 @@ waits for a simulated UART to listen. Then `litex_connect` to the new server and
 Builds follow the same pattern: `litex_build_start` runs a LiteX-Boards target (or a target script)
 with `--build` as a job, and `litex_build_report` returns the result as data instead of the log:
 timing met or not, WNS/TNS, per-clock results, the failing (or worst) paths, the utilization and the
-error lines (Vivado, Gowin and nextpnr reports; parsers in `litex/build/report.py`). `--load` and
+error lines (Vivado, Quartus, Gowin, Efinity and nextpnr reports; parsers in
+`litex/build/report.py`). `--load` and
 `--flash` are only accepted with `--allow-write`.
 
 With a LiteScope analyzer in the design, `litex_scope_list` gives its groups and signals (from the

@@ -10,6 +10,8 @@ parse_build_reports(output_dir) looks for the reports a LiteX build leaves in <o
 <output_dir>/gateware and returns a dictionary that serializes to JSON:
 - Vivado    : <name>_timing.rpt (report_timing_summary) and <name>_utilization_place.rpt.
 - Gowin     : impl/pnr/project.tr and impl/pnr/project.rpt.txt.
+- Quartus   : <name>.sta.summary and <name>.fit.summary.
+- Efinity   : outflow/<name>.timing.rpt and outflow/<name>.place.rpt.
 - nextpnr   : the Fmax and utilization lines of the build log (<output_dir>/litex.log).
 and the errors found in the build log. Missing reports are simply not reported.
 """
@@ -177,6 +179,147 @@ def parse_gowin_utilization(report):
                 })
     return utilization
 
+# Quartus ------------------------------------------------------------------------------------------
+
+def parse_quartus_timing(summary):
+    """Parse a Quartus Timing Analyzer summary (<name>.sta.summary): worst slack/TNS per clock."""
+    clocks = {}
+    worst  = {"setup": [], "hold": [], "pulse": []}
+    for m in re.finditer(r"Type\s*:\s*(.*?)\s+'([^']+)'\s*\nSlack\s*:\s*(-?[\d.]+)\s*\nTNS\s*:\s*(-?[\d.]+)", summary):
+        kind  = m.group(1)
+        clock = m.group(2)
+        slack = _float(m.group(3))
+        tns   = _float(m.group(4))
+        if "Setup" in kind:
+            key = "setup"
+        elif "Hold" in kind:
+            key = "hold"
+        elif "Pulse Width" in kind:
+            key = "pulse"
+        else:
+            continue
+        worst[key].append(slack)
+        if key == "pulse":
+            continue
+        c = clocks.setdefault(clock, {"clock": clock})
+        # Worst case over the timing models (slow/fast corners).
+        if c.get(f"{key}_slack") is None or slack < c[f"{key}_slack"]:
+            c[f"{key}_slack"] = slack
+        if c.get(f"{key}_tns") is None or tns < c[f"{key}_tns"]:
+            c[f"{key}_tns"] = tns
+    timing = {"clocks": list(clocks.values())}
+    timing["wns"] = min(worst["setup"]) if worst["setup"] else None
+    timing["whs"] = min(worst["hold"])  if worst["hold"]  else None
+    timing["tns"] = sum(c.get("setup_tns", 0) for c in clocks.values()) if clocks else None
+    slacks = worst["setup"] + worst["hold"] + worst["pulse"]
+    if slacks:
+        timing["met"] = min(slacks) >= 0
+    return timing
+
+def parse_quartus_utilization(summary):
+    """Parse a Quartus Fitter summary (<name>.fit.summary)."""
+    utilization = []
+    status      = None
+    for line in summary.splitlines():
+        key, _, value = line.partition(" : ")
+        if key.strip() == "Fitter Status":
+            status = value.strip()
+            continue
+        m = re.match(r"([\d,]+)\s*/\s*([\d,]+)\s*\(\s*([<\d.]+)\s*%\s*\)", value.strip())
+        if m:
+            utilization.append({
+                "resource"  : key.strip(),
+                "used"      : _float(m.group(1).replace(",", "")),
+                "available" : _float(m.group(2).replace(",", "")),
+                "percent"   : _float(m.group(3).lstrip("<")),
+            })
+    return utilization, status
+
+# Efinity ------------------------------------------------------------------------------------------
+
+def _efinity_section(report, title):
+    m = re.search(rf"-+ (?:\d+\. )?{re.escape(title)} \(begin\) -+\n(.*?)\n-+ (?:\d+\. )?{re.escape(title)} \(end\)", report, re.S)
+    return "" if m is None else m.group(1)
+
+def parse_efinity_timing(report, max_paths=10):
+    """Parse an Efinity timing report (outflow/<name>.timing.rpt)."""
+    timing = {"clocks": [], "failing_paths": []}
+    freq   = _efinity_section(report, "Clock Frequency Summary")
+    targets, fmax = {}, {}
+    block = re.search(r"User target constrained clocks\s*\n.*?\n(.*?)(?:\n\s*\n|\Z)", freq, re.S)
+    for line in (block.group(1).splitlines() if block else []):
+        fields = line.split()
+        if len(fields) >= 3 and _float(fields[2]) is not None:
+            targets[fields[0]] = _float(fields[2])
+    block = re.search(r"Maximum possible analyzed clocks frequency\s*\n.*?\n(.*?)(?:\n\s*\n|\Z)", freq, re.S)
+    for line in (block.group(1).splitlines() if block else []):
+        fields = line.split()
+        if len(fields) >= 3 and _float(fields[2]) is not None:
+            fmax[fields[0]] = _float(fields[2])
+    for clock, f in fmax.items():
+        timing["clocks"].append({
+            "clock"         : clock,
+            "fmax_mhz"      : f,
+            "constraint_mhz": targets.get(clock),
+            "met"           : None if clock not in targets else f >= targets[clock],
+        })
+
+    # Clock relationships: worst setup/hold slack.
+    relations = _efinity_section(report, "Clock Relationship Summary")
+    for key, title in [("wns", "Setup"), ("whs", "Hold")]:
+        block = re.search(rf"{title} \((Max|Min)\) Clock Relationship\s*\n.*?\n(.*?)\n\s*\n", relations, re.S)
+        slacks = []
+        for line in (block.group(2).splitlines() if block else []):
+            fields = line.split()
+            if len(fields) >= 4 and _float(fields[3]) is not None:
+                slacks.append(_float(fields[3]))
+        timing[key] = min(slacks) if slacks else None
+    if "Clock Relationship" not in relations:
+        # Older Efinity versions: one table without Setup/Hold titles (setup slacks).
+        slacks = []
+        for line in relations.splitlines():
+            fields = line.split()
+            if len(fields) >= 4 and _float(fields[2]) is not None and _float(fields[3]) is not None:
+                slacks.append(_float(fields[3]))
+        timing["wns"] = min(slacks) if slacks else None
+    if timing["wns"] is not None or timing["whs"] is not None:
+        timing["met"] = all(v is None or v >= 0 for v in [timing["wns"], timing["whs"]])
+
+    # Failing setup paths.
+    paths = _efinity_section(report, "Path Details for Max Critical Paths")
+    for m in re.finditer(r"Path Begin\s*:\s*(\S+).*?Path End\s*:\s*(\S+).*?Launch Clock\s*:\s*([^\n]+?)\s*\n.*?Capture Clock\s*:\s*([^\n]+?)\s*\n.*?Slack\s*:\s*(-?[\d.]+).*?Logic Level\s*:\s*(\d+)", paths, re.S):
+        slack = _float(m.group(5))
+        if slack is None or slack >= 0:
+            continue
+        timing["failing_paths"].append({
+            "slack"        : slack,
+            "source"       : m.group(1),
+            "destination"  : m.group(2),
+            "launch_clock" : m.group(3),
+            "capture_clock": m.group(4),
+            "logic_levels" : m.group(6),
+        })
+        if len(timing["failing_paths"]) >= max_paths:
+            break
+    return timing
+
+def parse_efinity_utilization(report):
+    """Parse the Resource Summary of an Efinity place report (outflow/<name>.place.rpt)."""
+    utilization = []
+    m = re.search(r"Resource Summary \(begin\) -+\n(.*?)\n-+ Resource Summary \(end\)", report, re.S)
+    for line in (m.group(1).splitlines() if m else []):
+        if line.startswith((" ", "\t")):
+            continue # Detail lines.
+        n = re.match(r"(.+?):\s*(\d+)\s*/\s*(\d+)\s*\(([\d.]+)%\)", line)
+        if n:
+            utilization.append({
+                "resource"  : n.group(1).strip(),
+                "used"      : _float(n.group(2)),
+                "available" : _float(n.group(3)),
+                "percent"   : _float(n.group(4)),
+            })
+    return utilization
+
 # nextpnr ------------------------------------------------------------------------------------------
 
 def parse_nextpnr_log(log):
@@ -243,6 +386,24 @@ def parse_build_reports(output_dir, max_paths=10):
         r["timing"]    = parse_gowin_timing(_read(gowin_tr), max_paths)
     if os.path.exists(gowin_rpt):
         r["utilization"] = parse_gowin_utilization(_read(gowin_rpt))
+
+    # Quartus.
+    sta_summaries = sorted(glob.glob(os.path.join(gateware_dir, "*.sta.summary")))
+    fit_summaries = sorted(glob.glob(os.path.join(gateware_dir, "*.fit.summary")))
+    if sta_summaries:
+        r["toolchain"] = "quartus"
+        r["timing"]    = parse_quartus_timing(_read(sta_summaries[0]))
+    if fit_summaries:
+        r["utilization"], r["fitter_status"] = parse_quartus_utilization(_read(fit_summaries[0]))
+
+    # Efinity.
+    efinity_timing = sorted(glob.glob(os.path.join(gateware_dir, "outflow", "*.timing.rpt")))
+    efinity_place  = sorted(glob.glob(os.path.join(gateware_dir, "outflow", "*.place.rpt")))
+    if efinity_timing:
+        r["toolchain"] = "efinity"
+        r["timing"]    = parse_efinity_timing(_read(efinity_timing[0]), max_paths)
+    if efinity_place:
+        r["utilization"] = parse_efinity_utilization(_read(efinity_place[0]))
 
     # Build log (nextpnr results and errors).
     log_file = os.path.join(output_dir, "litex.log")
