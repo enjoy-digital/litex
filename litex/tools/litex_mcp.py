@@ -244,12 +244,13 @@ class LiteXMCPTools:
 
     # Connection selection -------------------------------------------------------------------------
 
-    def connect(self, host=None, port=None, csr_csv=None):
+    def connect(self, host=None, port=None, csr_csv=None, timeout=None):
         """Select the litex_server/CSR file to use (ex: another board or a simulation) and check it."""
         self.close()
         self.host    = self.host    if host    is None else host
         self.port    = self.port    if port    is None else int(port)
         self.csr_csv = self.csr_csv if csr_csv is None else csr_csv
+        self.timeout = self.timeout if timeout is None else float(timeout)
         return self.check()
 
     # Introspection (no board needed) --------------------------------------------------------------
@@ -466,6 +467,64 @@ class LiteXMCPTools:
             "analyzer_csv" : os.path.join(output_dir, "analyzer.csv"),
         })
 
+    # Console (crossover UART) ---------------------------------------------------------------------
+
+    def _xover(self, name="uart_xover"):
+        bus  = self._get_bus()
+        regs = getattr(bus, "regs", None)
+        if regs is None or not hasattr(regs, f"{name}_rxtx") or not hasattr(regs, f"{name}_rxempty"):
+            raise LiteXMCPError(f"No {name} crossover UART in the SoC (build with --uart-name=crossover or crossover+uartbone).")
+        self._xover_rxfull = getattr(regs, f"{name}_rxfull", None)
+        return getattr(regs, f"{name}_rxtx"), getattr(regs, f"{name}_rxempty")
+
+    def _console_drain(self, rxtx, rxempty, max_bytes):
+        data   = bytearray()
+        rxfull = getattr(self, "_xover_rxfull", None)
+        while len(data) < max_bytes:
+            if rxfull is not None and rxfull.read():
+                # Full FIFO: read 16 characters in one burst (as litex_term's crossover).
+                data += bytes(v & 0xff for v in self._get_bus().read(rxtx.addr, 16, burst="fixed"))
+            elif not rxempty.read():
+                data.append(rxtx.read() & 0xff)
+            else:
+                break
+        return data
+
+    def console_read(self, timeout=1.0, max_bytes=4096):
+        """Read what the SoC printed on its console (crossover UART), until it stays idle for timeout s."""
+        rxtx, rxempty = self._xover()
+        data  = bytearray()
+        start = time.time()
+        while (time.time() - start) < min(float(timeout), MAX_WAIT_TIME) and len(data) < int(max_bytes):
+            chunk = self._console_drain(rxtx, rxempty, int(max_bytes) - len(data))
+            if chunk:
+                data += chunk
+                start = time.time()
+            else:
+                time.sleep(0.05)
+        return {"output": _strip_ansi(data.decode("utf-8", errors="replace"))}
+
+    def console_command(self, command, expect="litex>", timeout=10.0, max_bytes=16384):
+        """Send a command line to the SoC console (ex: a BIOS command) and read until expect (regex)."""
+        self._check_write()
+        rxtx, rxempty = self._xover()
+        self._console_drain(rxtx, rxempty, max_bytes) # Discard pending output.
+        for c in command + "\n":
+            rxtx.write(ord(c))
+        data  = bytearray()
+        regex = re.compile(expect) if expect else None
+        start = time.time()
+        while (time.time() - start) < min(float(timeout), MAX_WAIT_TIME) and len(data) < int(max_bytes):
+            chunk = self._console_drain(rxtx, rxempty, int(max_bytes) - len(data))
+            data += chunk
+            text  = _strip_ansi(data.decode("utf-8", errors="replace"))
+            # Match after the echoed command line.
+            if regex is not None and regex.search(text.split("\n", 1)[-1] if "\n" in text else ""):
+                return {"output": text, "matched": True}
+            if not chunk:
+                time.sleep(0.05)
+        return {"output": _strip_ansi(data.decode("utf-8", errors="replace")), "matched": False}
+
     # LiteScope ------------------------------------------------------------------------------------
 
     @staticmethod
@@ -671,9 +730,10 @@ def build_server(tools, server_cls=None):
         return tools.check()
 
     @server.tool(annotations=side_effect)
-    def litex_connect(host: str = "", port: int = 0, csr_csv: str = "") -> dict:
-        """Select another litex_server (host/port) and/or CSR file (ex: a simulation), then check it."""
-        return tools.connect(host or None, port or None, csr_csv or None)
+    def litex_connect(host: str = "", port: int = 0, csr_csv: str = "", timeout: float = 0) -> dict:
+        """Select another litex_server (host/port) and/or CSR file (ex: a simulation), then check it.
+        timeout (s) is the bus access timeout, to raise on slow links (ex: 10 for a simulation)."""
+        return tools.connect(host or None, port or None, csr_csv or None, timeout or None)
 
     # SoC (read).
     @server.tool(annotations=read_only)
@@ -769,6 +829,19 @@ def build_server(tools, server_cls=None):
         (up to timeout s) for the simulation to listen.
         """
         return tools.server_start(args, timeout)
+
+    # Console.
+    @server.tool(annotations=side_effect)
+    def litex_console_read(timeout: float = 1.0) -> dict:
+        """Read the SoC console output (crossover UART) until it stays idle for timeout s (consumes it)."""
+        return tools.console_read(timeout)
+
+    if tools.allow_write:
+        @server.tool(annotations=destructive)
+        def litex_console_command(command: str, expect: str = "litex>", timeout: float = 10.0) -> dict:
+            """Send a command line to the SoC console (ex: BIOS "help", "mem_list") and return the
+            output until expect (regex, default: the BIOS prompt) or timeout."""
+            return tools.console_command(command, expect, timeout)
 
     # LiteScope.
     @server.tool(annotations=read_only)
