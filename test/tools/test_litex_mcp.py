@@ -178,15 +178,43 @@ class TestLiteXMCP(unittest.TestCase):
             self.assertEqual(cmd[-1], "--with-sdram")
             self.assertEqual(info["csr_csv"], os.path.join(info["output_dir"], "csr.csv"))
 
+    def test_build(self):
+        with tempfile.TemporaryDirectory() as d:
+            tools = _tools(jobs_dir=d)
+            calls = []
+            tools._start_job = lambda kind, cmd, cwd=None, info=None: calls.append((kind, cmd)) or info
+            target = os.path.join(d, "target.py")
+            with open(target, "w") as f:
+                f.write("")
+            info = tools.build_start(target, ["--cpu-type=vexriscv", "--build"])
+            kind, cmd = calls[0]
+            self.assertEqual(kind, "build")
+            self.assertEqual(cmd[1], target)
+            self.assertEqual(cmd.count("--build"), 1)
+            self.assertIn(f"--output-dir={info['output_dir']}", cmd)
+            # Loading/flashing a board is a hardware side effect.
+            with self.assertRaises(LiteXMCPError):
+                tools.build_start(target, ["--load"])
+            with self.assertRaises(LiteXMCPError):
+                tools.build_start(os.path.join(d, "missing.py"))
+            # Report of a build directory.
+            os.makedirs(os.path.join(info["output_dir"], "gateware"))
+            with open(os.path.join(info["output_dir"], "litex.log"), "w") as f:
+                f.write("ERROR: something failed.\n")
+            self.assertEqual(tools.build_report(output_dir=info["output_dir"])["errors"], ["ERROR: something failed."])
+            with self.assertRaises(LiteXMCPError):
+                tools.build_report(output_dir=os.path.join(d, "missing"))
+
     def test_server_tools(self):
         read_tools = {
             "litex_check", "litex_ident", "litex_list_registers",
             "litex_list_memory_regions", "litex_list_constants", "litex_read_register",
             "litex_read_registers", "litex_read_memory", "litex_list_boards", "litex_board_info",
             "litex_list_cpus", "litex_list_cores", "litex_list_jobs", "litex_job_status",
-            "litex_job_wait",
+            "litex_job_wait", "litex_build_report",
         }
-        side_effect_tools = {"litex_connect", "litex_sim_start", "litex_server_start", "litex_job_stop"}
+        side_effect_tools = {"litex_connect", "litex_sim_start", "litex_server_start", "litex_job_stop",
+            "litex_build_start"}
         write_tools = {"litex_write_register", "litex_write_memory"}
 
         server = build_server(_tools(), server_cls=FakeServer)
