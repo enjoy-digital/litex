@@ -169,6 +169,30 @@ agent did this end to end, a 64-bit CPU swapped into a LiteX SoC and an accelera
 path moved from the Xilinx MIG to LiteDRAM, are on
 [Projects](Projects.md#projects-built-with-ai-agents), with what they reached for and why.
 
+## Drive a SoC through MCP
+
+`litex_mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server that gives an
+agent typed tools on a running SoC, through any `litex_server` bridge: `litex_check` (link,
+identifier, read round-trip), `litex_ident`, `litex_list_registers`, `litex_list_memory_regions`,
+`litex_list_constants`, `litex_read_register`, `litex_read_registers`, `litex_read_memory`, and,
+only when started with `--allow-write`, `litex_write_register` and `litex_write_memory`. It needs
+the MCP Python SDK (`pip3 install mcp`, Python >= 3.10); the rest of LiteX does not.
+
+```sh
+litex_server --uart --uart-port=/dev/ttyUSB1                       # or --jtag, --udp, --pcie...
+litex_mcp --csr-csv=build/<board>/csr.csv --port=1234              # stdio server, register it in the agent's MCP configuration
+```
+
+Without a board, the same loop runs against a simulated SoC, with no TAP interface and no `sudo`:
+
+```sh
+litex_sim --uart-name=crossover+uartbone --uart-tcp --uart-tcp-port=2345 --output-dir=build/sim
+litex_server --uart --uart-port=socket://localhost:2345 --bind-port=1240
+litex_mcp --csr-csv=build/sim/csr.csv --port=1240
+```
+
+Call `litex_check` first: it shows which SoC answers on the port before anything is read or written.
+
 ## Contribute back
 
 LiteX got where it is because the people who used it sent back what they had to fix or add
