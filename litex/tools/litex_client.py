@@ -8,6 +8,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
+import sys
+import json
 import time
 import threading
 import argparse
@@ -183,7 +185,7 @@ def reg2addr(host, csr_csv, reg):
     else:
         raise ValueError(f"Register {reg} not present, exiting.")
 
-def dump_identifier(host, csr_csv, port, timeout=2.0, raise_on_timeout=False):
+def dump_identifier(host, csr_csv, port, timeout=2.0, raise_on_timeout=False, verbose=True):
     fpga_identifier = ""
 
     with RemoteClient(
@@ -199,9 +201,13 @@ def dump_identifier(host, csr_csv, port, timeout=2.0, raise_on_timeout=False):
             if c == "\0":
                 break
 
-    print(fpga_identifier)
+    if verbose:
+        print(fpga_identifier)
+    return fpga_identifier.rstrip("\0")
 
-def dump_registers(host, csr_csv, port, filter=None, binary=False, timeout=2.0, raise_on_timeout=False):
+def dump_registers(host, csr_csv, port, filter=None, binary=False, timeout=2.0, raise_on_timeout=False,
+    verbose=True):
+    registers = []
     with RemoteClient(
         host             = host,
         csr_csv          = csr_csv,
@@ -211,17 +217,21 @@ def dump_registers(host, csr_csv, port, filter=None, binary=False, timeout=2.0, 
     ) as bus:
         for name, register in bus.regs.__dict__.items():
             if (filter is None) or filter in name:
-                register_value = {
-                    True  : f"0b{register.read():032b}",
-                    False : f"0x{register.read():08x}",
-                }[binary]
-                print("0x{:08x} : {} {}".format(register.addr, register_value, name))
+                value = register.read()
+                registers.append({"name": name, "address": register.addr, "value": value})
+                if verbose:
+                    register_value = {
+                        True  : f"0b{value:032b}",
+                        False : f"0x{value:08x}",
+                    }[binary]
+                    print("0x{:08x} : {} {}".format(register.addr, register_value, name))
+    return registers
 
 def _word_count(length):
     return (length + 3) // 4
 
 def read_memory(host, csr_csv, port, addr, length, binary=False, file=None, endianness="little", timeout=2.0,
-    raise_on_timeout=False):
+    raise_on_timeout=False, verbose=True):
     word_count = _word_count(length)
 
     with RemoteClient(
@@ -238,7 +248,7 @@ def read_memory(host, csr_csv, port, addr, length, binary=False, file=None, endi
         with open(file, "wb") as f:
             data = b"".join([data.to_bytes(4, byteorder=endianness) for data in datas])[:length]
             f.write(data)
-    else:
+    elif verbose:
         # Print to console.
         for offset, data in enumerate(datas):
             register_value = {
@@ -246,6 +256,7 @@ def read_memory(host, csr_csv, port, addr, length, binary=False, file=None, endi
                 False : f"0x{data:08x}",
             }[binary]
             print(f"0x{addr + 4 * offset:08x} : {register_value}")
+    return [{"address": addr + 4*offset, "value": data} for offset, data in enumerate(datas)]
 
 def write_memory(host, csr_csv, port, addr, data, file=None, length=None, endianness="little", timeout=2.0,
     raise_on_timeout=False):
@@ -718,63 +729,31 @@ def run_gui(host, csr_csv, port, timeout=2.0, raise_on_timeout=False):
 
     bus.close()
 
-# Run ----------------------------------------------------------------------------------------------
+# Commands -----------------------------------------------------------------------------------------
 
-def main():
-    parser = argparse.ArgumentParser(description="LiteX Client utility.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    # Common.
-    parser.add_argument("--csr-csv",    default="csr.csv",       help="CSR configuration file")
-    parser.add_argument("--host",       default="localhost",     help="Host ip address")
-    parser.add_argument("--port",       default="1234",          help="Host bind port.")
-    parser.add_argument("--binary",     action="store_true",     help="Use binary format for displayed values.")
-    parser.add_argument("--file",       default=None,            help="File to read from or write to in binary mode.")
-    parser.add_argument("--endianness", default="little",        choices=["little", "big"], help="Endianness for memory accesses (little or big).")
-    parser.add_argument("--timeout",        default="2.0",          help="Socket timeout.")
-    parser.add_argument("--strict-timeout", action="store_true",    help="Raise on remote read timeout.")
-
-    # Identifier.
-    parser.add_argument("--ident",      action="store_true",     help="Dump SoC identifier.")
-
-    # Registers.
-    parser.add_argument("--regs",       action="store_true",     help="Dump SoC registers.")
-    parser.add_argument("--filter",     default=None,            help="Registers filter (to be used with --regs).")
-
-    # Memory.
-    parser.add_argument("--read",       default=None,            help="Do a MMAP Read to SoC bus (--read addr/reg).")
-    parser.add_argument("--write",      default=None, nargs="*", help="Do a MMAP Write to SoC bus (--write addr/reg [data]).")
-    parser.add_argument("--length",     default="4",             help="MMAP access length.")
-
-    # GUI.
-    parser.add_argument("--gui",        action="store_true",     help="Run GUI.")
-
-    args = parser.parse_args()
-
-    # Parameters.
-    host    = args.host
-    csr_csv = args.csr_csv
-    port    = int(args.port, 0)
-    timeout = float(args.timeout)
-
+def _run_commands(args, host, csr_csv, port, timeout, verbose, raise_on_timeout, results):
     # Identifier.
     if args.ident:
-        dump_identifier(
+        results["ident"] = dump_identifier(
+            verbose          = verbose,
             host             = host,
             csr_csv          = csr_csv,
             port             = port,
             timeout          = timeout,
-            raise_on_timeout = args.strict_timeout,
+            raise_on_timeout = raise_on_timeout,
         )
 
     # Registers.
     if args.regs:
-        dump_registers(
+        results["registers"] = dump_registers(
+            verbose          = verbose,
             host             = host,
             csr_csv          = csr_csv,
             port             = port,
             filter           = args.filter,
             binary           = args.binary,
             timeout          = timeout,
-            raise_on_timeout = args.strict_timeout,
+            raise_on_timeout = raise_on_timeout,
         )
 
     # Memory Read.
@@ -783,7 +762,8 @@ def main():
            addr = int(args.read, 0)
         except ValueError:
             addr = reg2addr(host, csr_csv, args.read)
-        read_memory(
+        results["read"] = read_memory(
+            verbose          = verbose,
             host             = host,
             csr_csv          = csr_csv,
             port             = port,
@@ -793,7 +773,7 @@ def main():
             file             = args.file,
             endianness       = args.endianness,
             timeout          = timeout,
-            raise_on_timeout = args.strict_timeout,
+            raise_on_timeout = raise_on_timeout,
         )
 
     # Memory Write.
@@ -821,8 +801,9 @@ def main():
             length           = int(args.length, 0) if args.length else None,
             endianness       = args.endianness,
             timeout          = timeout,
-            raise_on_timeout = args.strict_timeout,
+            raise_on_timeout = raise_on_timeout,
         )
+        results["write"] = {"address": addr, "data": None if args.file else data, "file": args.file}
 
     # GUI.
     if args.gui:
@@ -831,8 +812,60 @@ def main():
             csr_csv          = csr_csv,
             port             = port,
             timeout          = timeout,
-            raise_on_timeout = args.strict_timeout,
+            raise_on_timeout = raise_on_timeout,
         )
+
+# Run ----------------------------------------------------------------------------------------------
+
+def main():
+    parser = argparse.ArgumentParser(description="LiteX Client utility.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    # Common.
+    parser.add_argument("--csr-csv",    default="csr.csv",       help="CSR configuration file")
+    parser.add_argument("--host",       default="localhost",     help="Host ip address")
+    parser.add_argument("--port",       default="1234",          help="Host bind port.")
+    parser.add_argument("--binary",     action="store_true",     help="Use binary format for displayed values.")
+    parser.add_argument("--file",       default=None,            help="File to read from or write to in binary mode.")
+    parser.add_argument("--endianness", default="little",        choices=["little", "big"], help="Endianness for memory accesses (little or big).")
+    parser.add_argument("--timeout",        default="2.0",          help="Socket timeout.")
+    parser.add_argument("--strict-timeout", action="store_true",    help="Raise on remote read timeout.")
+    parser.add_argument("--json",           action="store_true",    help="Print the results as one JSON object (for scripts/agents); errors as {\"error\": ...} with a non-zero exit code.")
+
+    # Identifier.
+    parser.add_argument("--ident",      action="store_true",     help="Dump SoC identifier.")
+
+    # Registers.
+    parser.add_argument("--regs",       action="store_true",     help="Dump SoC registers.")
+    parser.add_argument("--filter",     default=None,            help="Registers filter (to be used with --regs).")
+
+    # Memory.
+    parser.add_argument("--read",       default=None,            help="Do a MMAP Read to SoC bus (--read addr/reg).")
+    parser.add_argument("--write",      default=None, nargs="*", help="Do a MMAP Write to SoC bus (--write addr/reg [data]).")
+    parser.add_argument("--length",     default="4",             help="MMAP access length.")
+
+    # GUI.
+    parser.add_argument("--gui",        action="store_true",     help="Run GUI.")
+
+    args = parser.parse_args()
+
+    # Parameters.
+    host    = args.host
+    csr_csv = args.csr_csv
+    port    = int(args.port, 0)
+    timeout = float(args.timeout)
+
+    # JSON output: results collected in one object, timeouts raise (no silent 0 values).
+    verbose          = not args.json
+    raise_on_timeout = args.strict_timeout or args.json
+    results          = {"schema": 1}
+    try:
+        _run_commands(args, host, csr_csv, port, timeout, verbose, raise_on_timeout, results)
+    except Exception as e:
+        if not args.json:
+            raise
+        print(json.dumps({"schema": 1, "error": f"{type(e).__name__}: {e}"}))
+        sys.exit(1)
+    if args.json:
+        print(json.dumps(results))
 
 if __name__ == "__main__":
     main()
