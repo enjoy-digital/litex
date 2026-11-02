@@ -370,6 +370,37 @@ class TITANIUMPLL(EFINIXPLL):
             cmds.append(f'design.set_property("{self.name}","CLKOUT{n}_PHASE_SETTING","{int(setting)}","PLL")')
         self.extra("\n".join(cmds))
 
+# Efinix / TITANIUMOSC -----------------------------------------------------------------------------
+
+class TITANIUMOSC(LiteXModule):
+    """Titanium internal oscillator (OSC_0), as a core clock (ex: a PLL reference, a board-independent
+    clock source).
+
+    - freq : 10e6, 20e6, 40e6 or 80e6.
+
+    `clk` is the oscillator output (an interface pin) and `name` its pin name, to be used as a PLL
+    reference: `pll.register_clkin(None, osc.freq, name=osc.name)`.
+    """
+    def __init__(self, platform, freq=40e6, name="intosc_clkout"):
+        from litex.build.efinix import InterfaceWriterBlock
+        if freq not in [10e6, 20e6, 40e6, 80e6]:
+            raise ValueError("Titanium OSC frequency must be 10, 20, 40 or 80MHz.")
+        self.freq = freq
+        self.name = name
+        self.clk  = platform.add_iface_io(name)
+
+        class OSCBlock(InterfaceWriterBlock):
+            def generate(self):
+                return "\n".join([
+                    "# ---------- OSC ---------",
+                    f'osc = design.create_block("osc_inst", block_type="OSC")',
+                    f'design.set_property("osc_inst", "CLKOUT_PIN", "{name}", "OSC")',
+                    f'design.set_property("osc_inst", "FREQ", "{int(freq/1e6)}", "OSC")',
+                    f'design.assign_resource(osc, "OSC_0", "OSC")',
+                    "# ---------- END OSC ---------\n",
+                ])
+        platform.toolchain.ifacewriter.blocks.append(OSCBlock(name="osc_inst", type="OSC"))
+
 # Efinix / TRION ----------------------------------------------------------------------------------
 
 class TRIONPLL(EFINIXPLL):
