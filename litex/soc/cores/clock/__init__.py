@@ -17,7 +17,7 @@ from litex.soc.cores.clock.lattice_ecp5  import ECP5PLL, ECP5DynamicDelay
 from litex.soc.cores.clock.lattice_nx    import NXOSCA, NXPLL
 
 # Efinix
-from litex.soc.cores.clock.efinix import TRIONPLL, TITANIUMPLL
+from litex.soc.cores.clock.efinix import TRIONPLL, TITANIUMPLL, TITANIUMOSC
 
 # CologneChip
 from litex.soc.cores.clock.colognechip import GateMatePLL
