@@ -216,6 +216,10 @@ waits (with a timeout) and returns the capture as data: per signal, the value at
 number of transitions and the first changes, plus a VCD file of the whole capture.
 `litex_sim_start(["--with-analyzer", ...])` generates `analyzer.csv` before the simulation runs.
 
+With a crossover UART (`--uart-name=crossover` or `crossover+uartbone`), `litex_console_read`
+returns what the SoC printed and `litex_console_command` (with `--allow-write`: BIOS commands can
+write memory or flash) sends a command line and returns the output up to the `litex>` prompt.
+
 ## Contribute back
 
 LiteX got where it is because the people who used it sent back what they had to fix or add

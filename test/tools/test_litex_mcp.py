@@ -79,6 +79,40 @@ signal,0,stb,1
 signal,0,adr,4
 """
 
+class FakeConsoleClient(FakeClient):
+    """FakeClient with a crossover UART: echoes the command, answers "help" with a line and a prompt."""
+    RXTX, RXEMPTY, RXFULL = 0xf0002000, 0xf0002004, 0xf0002008
+    def __init__(self, *args, **kwargs):
+        FakeClient.__init__(self, *args, **kwargs)
+        self.rx   = list(b"BIOS booted\nlitex> ")
+        self.line = ""
+        for name, addr in [("rxtx", self.RXTX), ("rxempty", self.RXEMPTY), ("rxfull", self.RXFULL)]:
+            self.regs.d[f"uart_xover_{name}"] = CSRRegister(self.read, self.write, f"uart_xover_{name}", addr, 1, 32, "rw")
+
+    def read(self, addr, length=None, burst="incr"):
+        if addr == self.RXEMPTY:
+            return int(len(self.rx) == 0)
+        if addr == self.RXFULL:
+            return int(len(self.rx) >= 16)
+        if addr == self.RXTX:
+            n = 1 if length is None else length
+            datas, self.rx = self.rx[:n], self.rx[n:]
+            return datas[0] if length is None else datas
+        return FakeClient.read(self, addr, length, burst)
+
+    def write(self, addr, datas, burst="incr"):
+        if addr == self.RXTX:
+            c = chr((datas if isinstance(datas, int) else datas[0]) & 0xff)
+            self.rx.append(ord(c))
+            if c == "\n":
+                if self.line == "help":
+                    self.rx += list(b"LiteX BIOS, available commands:\n" + b"x"*40 + b"\nlitex> ")
+                self.line = ""
+            else:
+                self.line += c
+            return
+        FakeClient.write(self, addr, datas, burst)
+
 def _tools(**kwargs):
     return LiteXMCPTools(csr_csv=None, client_cls=FakeClient, **kwargs)
 
@@ -262,6 +296,18 @@ class TestLiteXMCP(unittest.TestCase):
             with self.assertRaises(LiteXMCPError):
                 tools.scope_capture(csv, triggers=[{"signal": "unknown"}])
 
+    def test_console(self):
+        tools = LiteXMCPTools(csr_csv=None, client_cls=FakeConsoleClient)
+        self.assertIn("BIOS booted", tools.console_read(timeout=0.2)["output"])
+        with self.assertRaises(LiteXMCPError):
+            tools.console_command("help")
+        tools = LiteXMCPTools(csr_csv=None, client_cls=FakeConsoleClient, allow_write=True)
+        r = tools.console_command("help", timeout=5)
+        self.assertTrue(r["matched"])
+        self.assertIn("available commands", r["output"])
+        with self.assertRaises(LiteXMCPError):
+            _tools().console_read() # No crossover UART.
+
     def test_server_tools(self):
         read_tools = {
             "litex_check", "litex_ident", "litex_list_registers",
@@ -271,8 +317,8 @@ class TestLiteXMCP(unittest.TestCase):
             "litex_job_wait", "litex_build_report", "litex_scope_list",
         }
         side_effect_tools = {"litex_connect", "litex_sim_start", "litex_server_start", "litex_job_stop",
-            "litex_build_start", "litex_scope_capture"}
-        write_tools = {"litex_write_register", "litex_write_memory"}
+            "litex_build_start", "litex_scope_capture", "litex_console_read"}
+        write_tools = {"litex_write_register", "litex_write_memory", "litex_console_command"}
 
         server = build_server(_tools(), server_cls=FakeServer)
         self.assertEqual(set(server.tools), read_tools | side_effect_tools)
