@@ -210,6 +210,12 @@ timing met or not, WNS/TNS, per-clock results, the failing (or worst) paths, the
 error lines (Vivado, Gowin and nextpnr reports; parsers in `litex/build/report.py`). `--load` and
 `--flash` are only accepted with `--allow-write`.
 
+With a LiteScope analyzer in the design, `litex_scope_list` gives its groups and signals (from the
+build's `analyzer.csv`) and `litex_scope_capture` sets the triggers (rising, falling, value), arms,
+waits (with a timeout) and returns the capture as data: per signal, the value at the trigger, the
+number of transitions and the first changes, plus a VCD file of the whole capture.
+`litex_sim_start(["--with-analyzer", ...])` generates `analyzer.csv` before the simulation runs.
+
 ## Contribute back
 
 LiteX got where it is because the people who used it sent back what they had to fix or add

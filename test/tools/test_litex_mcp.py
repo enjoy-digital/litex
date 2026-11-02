@@ -50,6 +50,35 @@ class FakeClient:
             self.mem[addr + 4*i] = data
         self.writes.append((addr, datas))
 
+class FakeScopeDriver:
+    """LiteScopeAnalyzerDriver stand-in: two signals (stb: 1 bit, adr: 4 bits), stb rises at sample 2."""
+    instances = []
+    def __init__(self, regs, name, config_csv=None):
+        self.calls  = []
+        self.offset = 0
+        FakeScopeDriver.instances.append(self)
+    def configure_group(self, value):       self.calls.append(("group", value))
+    def configure_subsampler(self, value):  self.calls.append(("subsampler", value))
+    def add_rising_edge_trigger(self, name): self.calls.append(("rising", name))
+    def add_falling_edge_trigger(self, name): self.calls.append(("falling", name))
+    def add_trigger(self, cond):            self.calls.append(("value", cond))
+    def run(self, offset, length):          self.offset = offset
+    def done(self):                         return True
+    def upload(self):
+        stb = [0, 0, 1, 1, 0, 1]
+        adr = [0, 0, 3, 4, 4, 5]
+        return [s | (a << 1) for s, a in zip(stb, adr)]
+    def save(self, filename):
+        open(filename, "w").close()
+
+ANALYZER_CSV = """\
+config,None,data_width,5
+config,None,depth,512
+config,None,samplerate,100000000
+signal,0,stb,1
+signal,0,adr,4
+"""
+
 def _tools(**kwargs):
     return LiteXMCPTools(csr_csv=None, client_cls=FakeClient, **kwargs)
 
@@ -205,16 +234,44 @@ class TestLiteXMCP(unittest.TestCase):
             with self.assertRaises(LiteXMCPError):
                 tools.build_report(output_dir=os.path.join(d, "missing"))
 
+    def test_scope(self):
+        with tempfile.TemporaryDirectory() as d:
+            csv = os.path.join(d, "analyzer.csv")
+            with open(csv, "w") as f:
+                f.write(ANALYZER_CSV)
+            tools = _tools(jobs_dir=d)
+            l = tools.scope_list(csv)
+            self.assertEqual(l["depth"], 512)
+            self.assertEqual(l["groups"][0], [{"name": "stb", "width": 1}, {"name": "adr", "width": 4}])
+
+            # No analyzer in the SoC.
+            with self.assertRaises(LiteXMCPError):
+                tools.scope_capture(csv)
+
+            # Capture with a fake driver.
+            bus = tools._get_bus()
+            bus.regs.d["analyzer_mux_value"] = None
+            tools._scope_driver_class = lambda: FakeScopeDriver
+            r = tools.scope_capture(csv, triggers=[{"signal": "stb", "type": "rising"}], offset=2)
+            self.assertTrue(r["triggered"])
+            self.assertEqual(FakeScopeDriver.instances[-1].calls[-1], ("rising", "stb"))
+            self.assertEqual(r["signals"]["stb"]["at_trigger"],  "0x1")
+            self.assertEqual(r["signals"]["stb"]["transitions"], 3)
+            self.assertEqual(r["signals"]["adr"]["changes"][:2], [[0, "0x0"], [2, "0x3"]])
+            self.assertTrue(os.path.exists(r["vcd"]))
+            with self.assertRaises(LiteXMCPError):
+                tools.scope_capture(csv, triggers=[{"signal": "unknown"}])
+
     def test_server_tools(self):
         read_tools = {
             "litex_check", "litex_ident", "litex_list_registers",
             "litex_list_memory_regions", "litex_list_constants", "litex_read_register",
             "litex_read_registers", "litex_read_memory", "litex_list_boards", "litex_board_info",
             "litex_list_cpus", "litex_list_cores", "litex_list_jobs", "litex_job_status",
-            "litex_job_wait", "litex_build_report",
+            "litex_job_wait", "litex_build_report", "litex_scope_list",
         }
         side_effect_tools = {"litex_connect", "litex_sim_start", "litex_server_start", "litex_job_stop",
-            "litex_build_start"}
+            "litex_build_start", "litex_scope_capture"}
         write_tools = {"litex_write_register", "litex_write_memory"}
 
         server = build_server(_tools(), server_cls=FakeServer)

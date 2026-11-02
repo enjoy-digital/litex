@@ -447,13 +447,123 @@ class LiteXMCPTools:
     def sim_start(self, args=None, output_dir=None):
         """Start litex_sim (Verilator) with args; the console output goes to the job log."""
         args       = [] if args is None else list(args)
-        output_dir = output_dir or os.path.join(self._get_jobs_dir(), f"sim{len(self.jobs)}")
+        output_dir = os.path.abspath(output_dir or os.path.join(self._get_jobs_dir(), f"sim{len(self.jobs)}"))
+        os.makedirs(output_dir, exist_ok=True)
         cmd = [sys.executable, "-m", "litex.tools.litex_sim", "--non-interactive",
             f"--output-dir={output_dir}"] + args
-        return self._start_job("sim", cmd, info={
-            "output_dir" : output_dir,
-            "csr_csv"    : os.path.join(output_dir, "csr.csv"),
+        # Run from the output directory: files written to the current directory (analyzer.csv of
+        # --with-analyzer) stay with the build.
+        if "--with-analyzer" in args:
+            # LiteScope writes analyzer.csv when the run exits: generate it first with a quick
+            # elaboration (no compilation, no run) so captures are possible during the simulation.
+            r = subprocess.run(cmd + ["--no-compile"], cwd=output_dir, capture_output=True, text=True,
+                timeout=300)
+            if r.returncode != 0:
+                raise LiteXMCPError(f"litex_sim elaboration failed: {(r.stdout + r.stderr)[-1000:]}")
+        return self._start_job("sim", cmd, cwd=output_dir, info={
+            "output_dir"   : output_dir,
+            "csr_csv"      : os.path.join(output_dir, "csr.csv"),
+            "analyzer_csv" : os.path.join(output_dir, "analyzer.csv"),
         })
+
+    # LiteScope ------------------------------------------------------------------------------------
+
+    @staticmethod
+    def _scope_driver_class():
+        try:
+            from litescope.software.driver.analyzer import LiteScopeAnalyzerDriver
+        except ImportError:
+            raise LiteXMCPError("LiteScope is not installed.")
+        return LiteScopeAnalyzerDriver
+
+    @staticmethod
+    def _scope_layouts(analyzer_csv):
+        if not os.path.exists(analyzer_csv):
+            raise LiteXMCPError(f"Analyzer file {analyzer_csv} not found (written by the build next to csr.csv).")
+        config, layouts = {}, {}
+        with open(analyzer_csv, encoding="utf-8") as f:
+            for line in f:
+                item = line.strip().split(",")
+                if len(item) < 4:
+                    continue
+                if item[0] == "config":
+                    config[item[2]] = int(item[3])
+                elif item[0] == "signal":
+                    layouts.setdefault(int(item[1]), []).append((item[2], int(item[3])))
+        return config, layouts
+
+    def scope_list(self, analyzer_csv="analyzer.csv"):
+        """List the LiteScope analyzer groups and signals (with widths), depth and sample rate."""
+        config, layouts = self._scope_layouts(analyzer_csv)
+        return {
+            "depth"      : config.get("depth"),
+            "samplerate" : config.get("samplerate"),
+            "groups"     : {g: [{"name": n, "width": w} for n, w in l] for g, l in layouts.items()},
+        }
+
+    def scope_capture(self, analyzer_csv="analyzer.csv", group=0, triggers=None, offset=32, length=None,
+        subsampling=1, timeout=10, signals=None, max_changes=32, name="analyzer"):
+        """Arm the LiteScope analyzer, wait for the trigger and return the capture as data.
+
+        triggers: list of {"signal": name, "type": "rising"|"falling"|"value", "value": "0x10"} (no
+        trigger: immediate capture). The result gives, per signal, the value at the trigger, the
+        number of transitions and the first changes (sample index, value); the full capture is
+        also saved as a VCD file.
+        """
+        _, layouts = self._scope_layouts(analyzer_csv)
+        if int(group) not in layouts:
+            raise LiteXMCPError(f"Group {group} not found in {analyzer_csv}.")
+        bus = self._get_bus()
+        if not hasattr(bus, "regs") or not hasattr(bus.regs, f"{name}_mux_value"):
+            raise LiteXMCPError(f"No {name} analyzer in the SoC CSRs.")
+        driver = self._scope_driver_class()(bus.regs, name, config_csv=analyzer_csv)
+        driver.configure_group(int(group))
+        driver.configure_subsampler(int(subsampling))
+        layout = dict(layouts[int(group)])
+        cond   = {}
+        for t in triggers or []:
+            if t.get("signal") not in layout:
+                raise LiteXMCPError(f"Signal {t.get('signal')} not in group {group}.")
+            kind = t.get("type", "rising")
+            if kind == "rising":
+                driver.add_rising_edge_trigger(t["signal"])
+            elif kind == "falling":
+                driver.add_falling_edge_trigger(t["signal"])
+            elif kind == "value":
+                cond[t["signal"]] = str(t["value"])
+            else:
+                raise LiteXMCPError(f"Unknown trigger type {kind} (rising, falling or value).")
+        if cond:
+            driver.add_trigger(cond=cond)
+        driver.run(offset=int(offset), length=None if length is None else int(length))
+        start = time.time()
+        while not driver.done():
+            if (time.time() - start) > min(float(timeout), MAX_WAIT_TIME):
+                return {"triggered": False, "message": "Trigger did not fire before timeout."}
+            time.sleep(0.05)
+        data = driver.upload()
+        vcd  = os.path.join(self._get_jobs_dir(), f"scope{int(time.time()*1e3)}.vcd")
+        driver.save(vcd)
+
+        # Per-signal summary.
+        # trigger_sample is the nominal trigger position (the pre-trigger offset; the analyzer
+        # pipeline can shift the matching sample by a cycle).
+        result = {"triggered": True, "samples": len(data), "trigger_sample": driver.offset, "vcd": vcd,
+            "signals": {}}
+        low = 0
+        for sig, width in layouts[int(group)]:
+            values = [(d >> low) & (2**width - 1) for d in data]
+            low   += width
+            if signals and sig not in signals:
+                continue
+            changes = [(i, v) for i, v in enumerate(values) if i == 0 or v != values[i - 1]]
+            result["signals"][sig] = {
+                "width"      : width,
+                "at_trigger" : hex(values[driver.offset]) if driver.offset < len(values) else None,
+                "transitions": len(changes) - 1,
+                "changes"    : [[i, hex(v)] for i, v in changes[:int(max_changes)]],
+            }
+        return result
 
     # Builds ---------------------------------------------------------------------------------------
 
@@ -659,6 +769,26 @@ def build_server(tools, server_cls=None):
         (up to timeout s) for the simulation to listen.
         """
         return tools.server_start(args, timeout)
+
+    # LiteScope.
+    @server.tool(annotations=read_only)
+    def litex_scope_list(analyzer_csv: str = "analyzer.csv") -> dict:
+        """List the LiteScope analyzer groups and signals (analyzer.csv of the build), depth, sample rate."""
+        return tools.scope_list(analyzer_csv)
+
+    @server.tool(annotations=side_effect)
+    def litex_scope_capture(analyzer_csv: str = "analyzer.csv", group: int = 0, triggers: list[dict] = [],
+        offset: int = 32, length: int = 0, subsampling: int = 1, timeout: float = 10,
+        signals: list[str] = [], max_changes: int = 32) -> dict:
+        """Capture signals with the LiteScope analyzer and return the result as data.
+
+        triggers: [{"signal": "...", "type": "rising"|"falling"|"value", "value": "0x10"}]; no trigger
+        captures immediately. offset: samples kept before the trigger; length: samples (0: depth).
+        Returns per signal the value at the trigger, the transition count and the first changes
+        (sample, value), plus a VCD file of the full capture. Configures the analyzer CSRs only.
+        """
+        return tools.scope_capture(analyzer_csv, group, triggers, offset, length or None, subsampling,
+            timeout, signals or None, max_changes)
 
     @server.tool(annotations=side_effect)
     def litex_build_start(target: str, args: list[str] = [], output_dir: str = "") -> dict:
