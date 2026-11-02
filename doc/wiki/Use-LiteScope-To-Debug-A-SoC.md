@@ -154,6 +154,7 @@ the CPU restarting:
 
 ## Next
 
+- [Debug a SoC on hardware](Debug-A-SoC-On-Hardware.md): when to reach for LiteScope, and the rest of the debug loop.
 - [Debug the CPU with GDB](Debug-With-GDB.md): when the signals are fine and the bug is in the code.
 - [Control it from the host](Host-Bridges.md): the bridge the samples come through.
 - [Add a new core](Add-A-New-Core.md): simulate the core first, capture it on hardware after.
