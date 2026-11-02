@@ -134,51 +134,61 @@ class RemoteServer(EtherboneIPC):
         info = ":".join(info)
         client_socket.sendall(bytes(info, "UTF-8"))
 
+    def _serve_client(self, client_socket):
+        # Serve Etherbone reads/writes.
+        while True:
+            # Receive packet.
+            try:
+                packet = self.receive_packet(client_socket, self.addr_size)
+                if packet == 0:
+                    break
+            except Exception:
+                break
+            # Decode Packet.
+            packet = EtherbonePacket(self.addr_width, packet)
+            packet.decode()
+
+            # Get Packet's Record.
+            record = packet.records.pop()
+
+            # Hardware lock/reservation.
+            with self.lock:
+                # Handle Etherbone writes.
+                if record.writes != None:
+                    self.comm.write(record.writes.base_addr, record.writes.get_datas())
+
+                # Handle Etherbone reads.
+                if record.reads != None:
+                    reads = []
+                    for addr, length, burst in _read_merger(record.reads.get_addrs(),
+                        max_length  = self.read_max_length,
+                        bursts      = self.read_bursts):
+                        reads.extend(self.comm.read(addr, length, burst))
+
+                    record = EtherboneRecord(self.addr_size)
+                    record.writes = EtherboneWrites(addr_size=self.addr_size, datas=reads)
+                    record.wcount = len(record.writes)
+
+                    packet = EtherbonePacket(self.addr_width)
+                    packet.records = [record]
+                    packet.encode()
+                    self.send_packet(client_socket, packet)
+
     def _serve_thread(self):
         while True:
-            client_socket, addr = self.socket.accept()
-            self._send_server_info(client_socket)
+            try:
+                client_socket, addr = self.socket.accept()
+            except (OSError, AttributeError):
+                # Listening socket closed (or removed by close()): the server is stopping.
+                break
             print("Connected with " + addr[0] + ":" + str(addr[1]))
             try:
-                # Serve Etherbone reads/writes.
-                while True:
-                    # Receive packet.
-                    try:
-                        packet = self.receive_packet(client_socket, self.addr_size)
-                        if packet == 0:
-                            break
-                    except Exception:
-                        break
-                    # Decode Packet.
-                    packet = EtherbonePacket(self.addr_width, packet)
-                    packet.decode()
-
-                    # Get Packet's Record.
-                    record = packet.records.pop()
-
-                    # Hardware lock/reservation.
-                    with self.lock:
-                        # Handle Etherbone writes.
-                        if record.writes != None:
-                            self.comm.write(record.writes.base_addr, record.writes.get_datas())
-
-                        # Handle Etherbone reads.
-                        if record.reads != None:
-                            reads = []
-                            for addr, length, burst in _read_merger(record.reads.get_addrs(),
-                                max_length  = self.read_max_length,
-                                bursts      = self.read_bursts):
-                                reads.extend(self.comm.read(addr, length, burst))
-
-                            record = EtherboneRecord(self.addr_size)
-                            record.writes = EtherboneWrites(addr_size=self.addr_size, datas=reads)
-                            record.wcount = len(record.writes)
-
-                            packet = EtherbonePacket(self.addr_width)
-                            packet.records = [record]
-                            packet.encode()
-                            self.send_packet(client_socket, packet)
-
+                self._send_server_info(client_socket)
+                self._serve_client(client_socket)
+            except Exception as e:
+                # A client error (client gone before its response, bridge timeout...) only ends
+                # this client: the thread must keep serving the next ones.
+                print(f"Client error: {type(e).__name__}: {e}")
             finally:
                 print("Disconnect")
                 client_socket.close()

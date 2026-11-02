@@ -4,6 +4,9 @@
 # Copyright (c) 2026 Enjoy-Digital <enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import time
+import socket
+import struct
 import unittest
 from unittest import mock
 
@@ -54,6 +57,52 @@ class TestServerPort(unittest.TestCase):
         third = litex_server.RemoteServer(_DummyComm(), "localhost", port)
         third.open()
         third.close()
+
+# Test Server Robustness ---------------------------------------------------------------------------
+
+class _SlowComm:
+    """Comm stand-in answering reads after a delay, so a client can leave before the response."""
+    def open(self):
+        pass
+
+    def close(self):
+        pass
+
+    def write(self, addr, datas):
+        pass
+
+    def read(self, addr, length=None, burst="incr"):
+        time.sleep(0.2)
+        return [0x12345678]*(1 if length is None else length)
+
+class TestServerRobustness(unittest.TestCase):
+    def test_client_gone_before_response(self):
+        # A client closing (RST) before its read response must not stop the serving thread: the
+        # next clients are still served (with one thread, the server used to stop after one).
+        from litex.tools.litex_client import RemoteClient
+        from litex.tools.remote.etherbone import EtherbonePacket, EtherboneRecord, EtherboneReads
+        server = litex_server.RemoteServer(_SlowComm(), "localhost", 0)
+        server.open()
+        port = server.socket.getsockname()[1]
+        server.start(1)
+        try:
+            for _ in range(3):
+                s = socket.create_connection(("localhost", port), timeout=5)
+                s.recv(128)
+                record = EtherboneRecord(4)
+                record.reads  = EtherboneReads(addr_size=4, addrs=[0x0])
+                record.rcount = 1
+                packet = EtherbonePacket(32)
+                packet.records = [record]
+                packet.encode()
+                s.sendall(packet.bytes)
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))
+                s.close()
+                time.sleep(0.3)
+            with RemoteClient(port=port, raise_on_timeout=True, timeout=5) as bus:
+                self.assertEqual(bus.read(0x0), 0x12345678)
+        finally:
+            server.close()
 
 if __name__ == "__main__":
     unittest.main()

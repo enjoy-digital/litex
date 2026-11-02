@@ -4,7 +4,11 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""HyperRAM PHY for Efinix Titanium (GPIO DDIO registers, PLL dynamic phase shift)."""
+"""HyperRAM PHYs for Efinix Titanium (DDIO registers, PLL dynamic phase shift read capture).
+
+- TitaniumHyperRAMPHY    : HyperRAM on GPIOs (ex Ti60 F225 Dev Kit).
+- TitaniumSiPHyperRAMPHY : In-package HyperRAM of the F100S3F2 SiPs (Ti35/Ti60), hard HYPERRAM block.
+"""
 
 from migen import *
 
@@ -174,3 +178,128 @@ class TitaniumHyperRAMPHY(LiteXModule):
             shift_pads["shift_sel"].eq(shift_sel),
             shift_pads["shift_ena"].eq(shift_ena),
         ]
+
+# Titanium SiP HyperRAM PHY ------------------------------------------------------------------------
+
+class TitaniumSiPHyperRAMPHY(TitaniumHyperRAMPHY):
+    """HyperRAM DDR PHY for the in-package x16 HyperRAM of the Titanium F100S3F2 SiPs (Ti35/Ti60),
+    through the hard HYPERRAM interface block (resource HYPER_RAM0).
+
+    The block has the same DDR register interface as the GPIO DDIO registers (CK_P/N, DQ/RWDS
+    OUT_HI/LO, OE, IN_HI/LO, CS_N, RST_N) and three clock inputs, all at the HyperRAM CK frequency
+    from the same PLL (as in Efinix's HyperRAM IP example designs):
+    - `cd_sys` (CLK)    : Core clock (DQ/RWDS/OE/CS#/RST# registers).
+    - `cd_90`  (CLK90)  : 90° shifted clock (CK registers): CK edges centered in the DQ eyes.
+    - `cd_cap` (CLKCAL) : Read capture clock, phase calibrated through the PLL dynamic phase shift.
+
+    The block's registers are clocked on rising edges (no clock inversion property, unlike the
+    GPIO PHY's falling-edge DQ/CK registers): DQ/CK are half a CK period earlier relative to CS#,
+    so they are delayed by `out_delay` (2) cycles (CS# falls 5/4 of a CK period before the first CK
+    rising edge, tCSS) and CS# is held `cs_hold` (3) cycles after the last CK cycle.
+
+    250MHz operation needs Efinity 2025.2+ and SiPs with date code 2236 or later (Efinix
+    ADV-2511-001); 200MHz otherwise.
+    """
+    def __init__(self, platform,
+        cd_sys     = "sys",
+        cd_90      = "sys90",
+        cd_cap     = "sys_cap",
+        shift_pads = None,
+        shift_sel  = None,
+        out_delay  = 2,
+        cs_hold    = 3,
+        name       = "hyperram_sip"):
+        from litex.build.efinix import InterfaceWriterBlock
+        dw = 16
+        self.phy_if = phy_if = HyperRAMPHYInterface(dq_width=dw, cd_cap=cd_cap)
+
+        # # #
+
+        # Block pins (interface IOs).
+        pins = {
+            "CK_P_HI_PIN"     : ("ck_p_hi",     1),
+            "CK_P_LO_PIN"     : ("ck_p_lo",     1),
+            "CK_N_HI_PIN"     : ("ck_n_hi",     1),
+            "CK_N_LO_PIN"     : ("ck_n_lo",     1),
+            "CS_N_PIN"        : ("cs_n",        1),
+            "RST_N_PIN"       : ("rst_n",       1),
+            "DQ_OUT_HI_PIN"   : ("dq_out_hi",   dw),
+            "DQ_OUT_LO_PIN"   : ("dq_out_lo",   dw),
+            "DQ_OE_PIN"       : ("dq_oe",       dw),
+            "DQ_IN_HI_PIN"    : ("dq_in_hi",    dw),
+            "DQ_IN_LO_PIN"    : ("dq_in_lo",    dw),
+            "RWDS_OUT_HI_PIN" : ("rwds_out_hi", dw//8),
+            "RWDS_OUT_LO_PIN" : ("rwds_out_lo", dw//8),
+            "RWDS_OE_PIN"     : ("rwds_oe",     dw//8),
+            "RWDS_IN_HI_PIN"  : ("rwds_in_hi",  dw//8),
+            "RWDS_IN_LO_PIN"  : ("rwds_in_lo",  dw//8),
+        }
+        io = {k: platform.add_iface_io(f"{name}_{n}", w) for k, (n, w) in pins.items()}
+
+        # Output registers: DQ/RWDS/OE/CK delayed `out_delay` cycles relative to CS#.
+        sd   = getattr(self.sync, cd_sys)
+        regs = []
+        def delay(sig):
+            for _ in range(out_delay):
+                sig_d = Signal.like(sig)
+                regs.append(sig_d.eq(sig))
+                sig = sig_d
+            return sig
+        ck_en     = delay(phy_if.ck_en)
+        dq_o_hi   = delay(phy_if.dq_o_hi)
+        dq_o_lo   = delay(phy_if.dq_o_lo)
+        dq_oe     = delay(phy_if.dq_oe)
+        rwds_o_hi = delay(phy_if.rwds_o_hi)
+        rwds_o_lo = delay(phy_if.rwds_o_lo)
+        rwds_oe   = delay(phy_if.rwds_oe)
+        sd += regs
+
+        # CS# held low `cs_hold` cycles after the last CK cycle (tCSH and last read word).
+        cs_n_sr = Signal(cs_hold, reset=2**cs_hold - 1)
+        sd += cs_n_sr.eq(Cat(phy_if.cs_n, cs_n_sr))
+
+        self.comb += [
+            # CK (differential).
+            io["CK_P_HI_PIN"].eq(ck_en),
+            io["CK_P_LO_PIN"].eq(0),
+            io["CK_N_HI_PIN"].eq(~ck_en),
+            io["CK_N_LO_PIN"].eq(1),
+            # CS#/RST#.
+            io["CS_N_PIN"].eq(phy_if.cs_n & (cs_n_sr == (2**cs_hold - 1))),
+            io["RST_N_PIN"].eq(phy_if.rst_n),
+            # DQ/RWDS.
+            io["DQ_OUT_HI_PIN"].eq(dq_o_hi),
+            io["DQ_OUT_LO_PIN"].eq(dq_o_lo),
+            io["DQ_OE_PIN"].eq(Replicate(dq_oe, dw)),
+            io["RWDS_OUT_HI_PIN"].eq(rwds_o_hi),
+            io["RWDS_OUT_LO_PIN"].eq(rwds_o_lo),
+            io["RWDS_OE_PIN"].eq(Replicate(rwds_oe, dw//8)),
+            # As on the GPIO DDIO resync inputs: IN_LO is the first half-word in time.
+            phy_if.dq_i_hi.eq(io["DQ_IN_LO_PIN"]),
+            phy_if.dq_i_lo.eq(io["DQ_IN_HI_PIN"]),
+            phy_if.rwds_i_hi.eq(io["RWDS_IN_LO_PIN"]),
+            phy_if.rwds_i_lo.eq(io["RWDS_IN_HI_PIN"]),
+        ]
+
+        # Interface Designer block (clock pin names resolved at generation time: the PLL registers
+        # its output clock names in platform.clks).
+        pin_names = {k: f"{name}_{n}" for k, (n, w) in pins.items()}
+        class SiPHyperRAMBlock(InterfaceWriterBlock):
+            def generate(self):
+                props = dict(pin_names)
+                props["CLK_PIN"]    = platform.clks[cd_sys]
+                props["CLK90_PIN"]  = platform.clks[cd_90]
+                props["CLKCAL_PIN"] = platform.clks[cd_cap]
+                cmds = ["# ---------- HYPERRAM (SiP) ---------",
+                        f'design.create_block("{name}", "HYPERRAM")']
+                for k, v in props.items():
+                    cmds.append(f'design.set_property("{name}", "{k}", "{v}", "HYPERRAM")')
+                cmds.append(f'design.assign_resource("{name}", "HYPER_RAM0", "HYPERRAM")')
+                cmds.append("# ---------- END HYPERRAM (SiP) ---------\n")
+                return "\n".join(cmds)
+        platform.toolchain.ifacewriter.blocks.append(SiPHyperRAMBlock(name=name, type="HYPERRAM"))
+
+        # Capture clock dynamic phase shift.
+        self.phase_steps = 0
+        if shift_pads is not None:
+            self.add_phase_shift(shift_pads, shift_sel)

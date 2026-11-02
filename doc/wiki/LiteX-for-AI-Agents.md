@@ -89,6 +89,7 @@ litex_sim --cpu-type=vexriscv [--with-sdram --with-ethernet ...]   # the SoC in 
 python3 -m pytest test/cores/test_pwm.py                           # one test; test/ holds the suite (slow: test/soc/test_integration.py)
 python3 -c "from litex.soc.cores.cpu import CPUS; print(sorted(k for k in CPUS if k))"   # the CPU registry
 litex_cli --csr-csv build/<board>/csr.csv --regs                   # the registers of a running board (through litex_server)
+litex_cli --csr-csv build/<board>/csr.csv --regs --json            # the same as one JSON object; errors as {"error": ...}, exit code 1
 ./litex_setup.py --freeze                                          # the commit of every installed repository
 ```
 
@@ -207,7 +208,8 @@ waits for a simulated UART to listen. Then `litex_connect` to the new server and
 Builds follow the same pattern: `litex_build_start` runs a LiteX-Boards target (or a target script)
 with `--build` as a job, and `litex_build_report` returns the result as data instead of the log:
 timing met or not, WNS/TNS, per-clock results, the failing (or worst) paths, the utilization and the
-error lines (Vivado, Gowin and nextpnr reports; parsers in `litex/build/report.py`). `--load` and
+error lines (Vivado, Quartus, Gowin, Efinity and nextpnr reports; parsers in
+`litex/build/report.py`). `--load` and
 `--flash` are only accepted with `--allow-write`.
 
 With a LiteScope analyzer in the design, `litex_scope_list` gives its groups and signals (from the
