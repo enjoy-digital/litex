@@ -157,6 +157,83 @@ class TestClock(unittest.TestCase):
             pll.create_clkout(ClockDomain("clkout{}".format(i)), 100e6)
         pll.compute_config()
 
+    def _max10_dpa_pll(self, sdram_freq):
+        pll = Max10PLL(speedgrade="-7")
+        pll.register_clkin(Signal(), 50e6)
+        pll.create_clkout(ClockDomain("sys"),   sdram_freq/2)
+        pll.create_clkout(ClockDomain("sys2x"), sdram_freq)
+        pll.create_clkout(ClockDomain("ps"),    sdram_freq)
+        pll.expose_dpa(2)
+        return pll
+
+    def test_max10_pll_dpa(self):
+        # Whole-picosecond VCO step (pinned in Quartus), steps = 8 x the output's VCO divide.
+        for sdram_freq in [142.857e6, 100e6, 50e6]:
+            with self.subTest(sdram_freq=sdram_freq):
+                pll = self._max10_dpa_pll(sdram_freq)
+                config  = pll.compute_config()
+                step_ps = 1e12/(8*config["vco"])
+                self.assertAlmostEqual(step_ps, round(step_ps), places=3)
+                self.assertEqual(pll.dpa_steps()*round(step_ps), round(1e12/config["clk2_freq"]))
+                altpll = [s for s in pll.get_fragment().specials if getattr(s, "of", None) == "ALTPLL"][0]
+                items = {item.name: item for item in altpll.items}
+                self.assertEqual(items["VCO_FREQUENCY_CONTROL"].value, "MANUAL_PHASE")
+                self.assertEqual(items["VCO_PHASE_SHIFT_STEP"].value, round(step_ps))
+                self.assertEqual(items["PHASECOUNTERSELECT"].expr.value, 4) # C2.
+
+    def test_max10_pll_dpa_errors(self):
+        pll = Max10PLL()
+        pll.register_clkin(Signal(), 50e6)
+        pll.create_clkout(ClockDomain("sys"), 100e6)
+        with self.assertRaises(ValueError):
+            pll.expose_dpa(1)
+        pll.expose_dpa(0)
+        with self.assertRaises(ValueError):
+            pll.expose_dpa(0)
+        with self.assertRaises(NotImplementedError):
+            CycloneVPLL().expose_dpa(0)
+
+    def test_intel_pll_phase_stepper(self):
+        # One step per write, held until PHASEDONE goes low, done when it is back high.
+        from litex.soc.cores.clock import IntelPLLPhaseStepper
+        pll     = self._max10_dpa_pll(100e6)
+        stepper = IntelPLLPhaseStepper(pll)
+        log     = {"steps": 0}
+
+        def altpll():
+            # PHASEDONE low 3 cycles after PHASESTEP rises, high again 4 cycles later.
+            yield pll.phase_done.eq(1)
+            while True:
+                while not (yield pll.phase_step):
+                    yield
+                for _ in range(3):
+                    yield
+                yield pll.phase_done.eq(0)
+                for _ in range(4):
+                    yield
+                self.assertEqual((yield pll.phase_step), 0)
+                log["steps"] += 1
+                yield pll.phase_done.eq(1)
+                while (yield pll.phase_step):
+                    yield
+
+        def gen():
+            for direction, n in [(1, 3), (0, 1)]:
+                yield stepper.dir.storage.eq(direction)
+                for _ in range(n):
+                    yield stepper.step.re.eq(1)
+                    yield
+                    yield stepper.step.re.eq(0)
+                    yield
+                    while (yield stepper.busy.status):
+                        self.assertEqual((yield pll.phase_dir), direction)
+                        yield
+            self.assertEqual(log["steps"], 4)
+            self.assertEqual((yield stepper.position.status), 2)
+            self.assertEqual((yield stepper.steps.status), pll.dpa_steps())
+
+        run_simulation(stepper, [gen(), passive(altpll)()])
+
     # Lattice / iCE40
     def test_ice40_pll(self):
         pll = iCE40PLL()
