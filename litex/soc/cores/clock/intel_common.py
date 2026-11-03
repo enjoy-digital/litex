@@ -29,6 +29,7 @@ class IntelClocking(LiteXModule):
         self.clkouts    = {}
         self.config     = {}
         self.params     = {}
+        self.dpa_clkout = None
 
     def register_clkin(self, clkin, freq):
         check_freq_range(freq, self.clkin_freq_range, "Input clock frequency")
@@ -68,7 +69,11 @@ class IntelClocking(LiteXModule):
                 vco_freq = self.clkin_freq*m/n
                 config = {"m": m, "vco": vco_freq}
                 (vco_freq_min, vco_freq_max) = self.vco_freq_range
-                if (vco_freq >= vco_freq_min*(1 + self.vco_margin) and
+                # Dynamic phase shift: only VCOs with a whole-picosecond phase step (pinned in
+                # Quartus with MANUAL_PHASE, see expose_dpa).
+                dpa_ok = (self.dpa_clkout is None) or self._dpa_step_ok(vco_freq)
+                if (dpa_ok and
+                    vco_freq >= vco_freq_min*(1 + self.vco_margin) and
                     vco_freq <= vco_freq_max*(1 - self.vco_margin)):
                     clk_valid = [False] * len(self.clkouts)
                     for _n, clkout in sorted(self.clkouts.items()):
@@ -94,6 +99,45 @@ class IntelClocking(LiteXModule):
             compute_config_log(self.logger, best_config)
             return best_config
         raise pll_config_error(self.clkin_freq, self.clkouts)
+
+    # Dynamic phase shift (ALTPLL) ----------------------------------------------------------------
+
+    # ALTPLL families with the PHASESTEP/PHASEUPDOWN/PHASECOUNTERSELECT/PHASEDONE ports.
+    altpll_dpa = False
+
+    @staticmethod
+    def _dpa_step_ok(vco_freq):
+        step_ps = 1e12/(8*vco_freq)
+        return abs(step_ps - round(step_ps)) < 1e-3
+
+    def expose_dpa(self, clkout, cd="sys"):
+        """Expose the dynamic phase shift of one previously created output (ALTPLL).
+
+        One step shifts the output by 1/8 of the VCO period. Hold phase_step high until
+        phase_done goes low (at least 2 cycles of `cd`, the PLL's SCANCLK), then release it; the
+        step is done when phase_done is back high. phase_dir: 1 shifts the output later, 0
+        earlier. Use IntelPLLPhaseStepper for CSR control.
+
+        Quartus picks its own VCO from the multiply/divide ratios; with the dynamic phase shift,
+        the VCO search is limited to whole-picosecond steps and the step is pinned
+        (VCO_FREQUENCY_CONTROL = MANUAL_PHASE), so dpa_steps() is the hardware's step count.
+        """
+        if not self.altpll_dpa:
+            raise NotImplementedError(f"{type(self).__name__}: dynamic phase shift not supported.")
+        if clkout not in self.clkouts:
+            raise ValueError("Dynamic phase shift requires an existing clock output.")
+        if self.dpa_clkout is not None:
+            raise ValueError("Dynamic phase shift is already exposed.")
+        self.dpa_clkout = clkout
+        self.dpa_cd     = cd
+        self.phase_step = Signal()
+        self.phase_dir  = Signal()
+        self.phase_done = Signal()
+
+    def dpa_steps(self):
+        """Phase steps per period of the dynamically shifted output."""
+        config = self.compute_config()
+        return round(8*config["vco"]/config[f"clk{self.dpa_clkout}_freq"])
 
     def add_reset_delay(self, cycles):
         for _ in range(cycles):
@@ -128,4 +172,73 @@ class IntelClocking(LiteXModule):
             self.params[f"p_CLK{n}_MULTIPLY_BY"] = config["m"]
             self.params[f"p_CLK{n}_PHASE_SHIFT"] = clk_phase_ps
             self.comb += clkout.clk.eq(clks[n])
+        if self.dpa_clkout is not None:
+            self.params.update(
+                p_VCO_FREQUENCY_CONTROL   = "MANUAL_PHASE",
+                p_VCO_PHASE_SHIFT_STEP    = round(1e12/(8*config["vco"])),
+                p_PORT_PHASESTEP          = "PORT_USED",
+                p_PORT_PHASEUPDOWN        = "PORT_USED",
+                p_PORT_PHASECOUNTERSELECT = "PORT_USED",
+                p_PORT_SCANCLK            = "PORT_USED",
+                p_PORT_PHASEDONE          = "PORT_USED",
+                i_PHASESTEP               = self.phase_step,
+                i_PHASEUPDOWN             = self.phase_dir,
+                i_PHASECOUNTERSELECT      = Constant(2 + self.dpa_clkout, 3), # 0: all, 1: M, 2+n: Cn.
+                i_SCANCLK                 = ClockSignal(self.dpa_cd),
+                o_PHASEDONE               = self.phase_done,
+            )
         self.specials += Instance("ALTPLL", **self.params)
+
+# Intel / ALTPLL Phase Stepper ---------------------------------------------------------------------
+
+class IntelPLLPhaseStepper(LiteXModule):
+    """CSR control of an ALTPLL output's dynamic phase shift (IntelClocking.expose_dpa).
+
+    CSRs: `dir` (1: later), `step` (write: one step), `busy`, `position` (signed steps from the
+    build-time phase) and `steps` (steps per period of the output). Named `sdram_clk_phase` in a
+    SoC whose SDRAM clock comes from that output, it is used by the BIOS's SDRAM clock phase
+    leveling (liblitedram sdram_clk_phase_leveling()).
+    """
+    def __init__(self, pll, timeout=255):
+        assert pll.dpa_clkout is not None, "Call pll.expose_dpa() first."
+        self._dpa_steps = pll.dpa_steps # Not the PLL itself: it would become a submodule.
+        self.dir      = CSRStorage(1, reset=1, description="Step direction (1: later, 0: earlier).")
+        self.step     = CSR() # Write: shift the output by one step.
+        self.busy     = CSRStatus(description="A step is in progress.")
+        self.position = CSRStatus(16, description="Signed steps from the build-time phase.")
+        self.steps    = CSRStatus(16, description="Steps per period of the output.")
+
+        # # #
+
+        count    = Signal(max=timeout + 1)
+        position = Signal((16, True))
+        self.comb += pll.phase_dir.eq(self.dir.storage)
+        self.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+            If(self.step.re,
+                NextValue(count, 0),
+                NextState("STEP")
+            )
+        )
+        fsm.act("STEP",
+            pll.phase_step.eq(1),
+            NextValue(count, count + 1),
+            If(((count >= 2) & ~pll.phase_done) | (count == timeout),
+                NextValue(count, 0),
+                NextState("WAIT")
+            )
+        )
+        fsm.act("WAIT",
+            NextValue(count, count + 1),
+            If(pll.phase_done | (count == timeout),
+                NextValue(position, position + Mux(self.dir.storage, 1, -1)),
+                NextState("IDLE")
+            )
+        )
+        self.comb += [
+            self.busy.status.eq(~fsm.ongoing("IDLE")),
+            self.position.status.eq(position),
+        ]
+
+    def do_finalize(self):
+        self.comb += self.steps.status.eq(self._dpa_steps())

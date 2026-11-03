@@ -2614,6 +2614,125 @@ int sdram_leveling(void) {
  * This file surrounds that fixed sequence with PHY reset/training and LiteX
  * controller status reporting.
  */
+#ifdef CSR_SDRAM_CLK_PHASE_BASE
+
+/*
+ * SDRAM clock phase leveling (SDR PHYs without delays of their own, e.g. LiteDRAM's GENSDRPHY and
+ * HalfRateGENSDRPHY): the SDRAM clock comes from a PLL output with a run-time phase shift, the
+ * `sdram_clk_phase` CSRs (dir/step/busy/steps, LiteX's IntelPLLPhaseStepper for ALTPLL). That
+ * phase sets both the command/address setup and hold at the SDRAM and where the read data lands
+ * at the FPGA's capture registers, so its window depends on the frequency, the CAS latency and
+ * the board.
+ *
+ *   for each step over one SDRAM clock period:
+ *       JEDEC init, then a write/read check under hardware control, linear (bursts) and strided
+ *       over the whole SDRAM (banks and rows);
+ *   the phase goes to the middle of the longest (circular) run of passing steps.
+ */
+
+#ifndef SDRAM_CLK_PHASE_CHECK_WORDS
+#define SDRAM_CLK_PHASE_CHECK_WORDS 1024    // 32-bit words per check (linear, then strided).
+#endif
+#define SDRAM_CLK_PHASE_MAX_STEPS 1024
+
+static void sdram_clk_phase_step(int dir) {
+	sdram_clk_phase_dir_write(dir);
+	sdram_clk_phase_step_write(1);
+	while (sdram_clk_phase_busy_read());
+}
+
+static void sdram_clk_phase_init(void) {
+	sdram_dfii_control_write(DFII_CONTROL_SOFTWARE);
+	init_sequence();
+	sdram_dfii_control_write(DFII_CONTROL_HARDWARE);
+}
+
+static int sdram_clk_phase_check(void) {
+	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE_VA;
+	unsigned long words = MAIN_RAM_SIZE/4;
+	unsigned long stride = (words/SDRAM_CLK_PHASE_CHECK_WORDS) | 1; // Odd: distinct words.
+	unsigned int seed;
+	int errors = 0;
+	int pass, i;
+
+	for (pass = 0; pass < 2; pass++) {
+		seed = 1 + pass;
+		for (i = 0; i < SDRAM_CLK_PHASE_CHECK_WORDS; i++) {
+			seed = lfsr(32, seed);
+			array[pass ? (i*stride) % words : i] = seed;
+		}
+		flush_cpu_dcache();
+		flush_l2_cache();
+		seed = 1 + pass;
+		for (i = 0; i < SDRAM_CLK_PHASE_CHECK_WORDS; i++) {
+			seed = lfsr(32, seed);
+			if (array[pass ? (i*stride) % words : i] != seed)
+				errors++;
+		}
+	}
+	return errors;
+}
+
+int sdram_clk_phase_leveling(void) {
+	static uint32_t ok[SDRAM_CLK_PHASE_MAX_STEPS/32];
+	int steps = sdram_clk_phase_steps_read();
+	int best_start = 0, best_len = 0;
+	int k, len, centre, pos;
+
+	if (steps < 1 || steps > SDRAM_CLK_PHASE_MAX_STEPS) {
+		printf("SDRAM clock phase leveling: unsupported step count (%d).\n", steps);
+		return 0;
+	}
+
+	/* Scan one period (steps steps bring the phase back to where it started). Steps are printed
+	 * relative to the build-time phase, modulo the period. */
+	pos = (int16_t)sdram_clk_phase_position_read();
+	pos = ((pos % steps) + steps) % steps;
+	printf("SDRAM clock phase leveling (%d steps per clock, scan from step %d):\n  |", steps, pos);
+	for (k = 0; k < steps; k++) {
+		int pass;
+		sdram_clk_phase_init();
+		pass = (sdram_clk_phase_check() == 0);
+		if (pass)
+			ok[k/32] |=  (1u << (k%32));
+		else
+			ok[k/32] &= ~(1u << (k%32));
+		printf("%d", pass);
+		sdram_clk_phase_step(1);
+	}
+	printf("|\n");
+
+	/* Longest circular run of passing steps. */
+	for (k = 0; k < steps; k++) {
+		if (!(ok[k/32] & (1u << (k%32))))
+			continue;
+		if (k > 0 && (ok[(k - 1)/32] & (1u << ((k - 1)%32))))
+			continue; // Not the start of a run (except at 0, handled by the wrap below).
+		for (len = 0; len < steps && (ok[((k + len)%steps)/32] & (1u << ((k + len)%steps%32))); len++);
+		if (len > best_len) {
+			best_start = k;
+			best_len   = len;
+		}
+	}
+	if (best_len == 0) {
+		sdram_clk_phase_init();
+		printf("  no working phase.\n");
+		return 0;
+	}
+
+	/* Go to its middle. */
+	centre = (best_start + best_len/2) % steps;
+	for (k = 0; k < centre; k++)
+		sdram_clk_phase_step(1);
+	sdram_clk_phase_init();
+	printf("  window: %d steps from step %d, phase at step %d (build-time phase + %d deg).\n",
+		best_len, (pos + best_start) % steps, (pos + centre) % steps,
+		(360*((pos + centre) % steps) + steps/2)/steps);
+	return 1;
+}
+
+#endif // CSR_SDRAM_CLK_PHASE_BASE
+
 int sdram_init(void) {
 	printf("Initializing SDRAM @0x%08lx...\n", MAIN_RAM_BASE);
 
@@ -2669,6 +2788,9 @@ int sdram_init(void) {
 	/* Generated from the configured memory module/timings. After this returns,
 	 * the DRAM can respond to software DFII read/write probes. */
 	init_sequence();
+#ifdef CSR_SDRAM_CLK_PHASE_BASE
+	sdram_clk_phase_leveling();
+#endif // CSR_SDRAM_CLK_PHASE_BASE
 #if defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)
 	sdram_leveling();
 #endif // defined(SDRAM_PHY_WRITE_LEVELING_CAPABLE) || defined(SDRAM_PHY_READ_LEVELING_CAPABLE)

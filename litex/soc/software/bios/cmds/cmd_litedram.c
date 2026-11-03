@@ -241,6 +241,15 @@ static void sdram_cal_handler(int nb_params, char **params)
 define_command(sdram_cal, sdram_cal_handler, "Calibrate SDRAM", LITEDRAM_CMDS);
 #endif
 
+#if !defined(CSR_DDRPHY_BASE) && defined(CSR_SDRAM_CLK_PHASE_BASE)
+/* SDR PHYs: SDRAM clock phase leveling (sdram_clk_phase CSRs). */
+static void sdram_cal_handler(int nb_params, char **params)
+{
+	sdram_clk_phase_leveling();
+}
+define_command(sdram_cal, sdram_cal_handler, "Calibrate SDRAM (clock phase)", LITEDRAM_CMDS);
+#endif
+
 #ifdef SDRAM_PHY_WRITE_LEVELING_CAPABLE
 
 /**

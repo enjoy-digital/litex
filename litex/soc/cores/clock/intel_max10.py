@@ -12,6 +12,7 @@ from litex.soc.cores.clock.intel_common import *
 # Intel / Max10 ------------------------------------------------------------------------------------
 
 class Max10PLL(IntelClocking):
+    altpll_dpa     = True
     nclkouts_max   = 5
     n_div_range    = (1, 512+1)
     m_div_range    = (1, 512+1)

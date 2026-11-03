@@ -50,6 +50,11 @@ int sdram_ckphase_bit_tap(int bit);
 int sdram_ckphase_bit_tap_set(int bit, int tap);
 
 /*-----------------------------------------------------------------------*/
+/* SDRAM Clock Phase Leveling (sdram_clk_phase CSRs, SDR)                */
+/*-----------------------------------------------------------------------*/
+int sdram_clk_phase_leveling(void);
+
+/*-----------------------------------------------------------------------*/
 /* Leveling                                                              */
 /*-----------------------------------------------------------------------*/
 int sdram_leveling(void);

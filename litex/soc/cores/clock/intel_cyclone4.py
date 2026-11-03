@@ -12,6 +12,7 @@ from litex.soc.cores.clock.intel_common import *
 # Intel / CycloneIV -------------------------------------------------------------------------------
 
 class CycloneIVPLL(IntelClocking):
+    altpll_dpa     = True
     nclkouts_max   = 5
     n_div_range    = (1, 512+1)
     m_div_range    = (1, 512+1)
