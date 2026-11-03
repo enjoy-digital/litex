@@ -222,6 +222,22 @@ With a crossover UART (`--uart-name=crossover` or `crossover+uartbone`), `litex_
 returns what the SoC printed and `litex_console_command` (with `--allow-write`: BIOS commands can
 write memory or flash) sends a command line and returns the output up to the `litex>` prompt.
 
+## Agent skills
+
+Six procedures in the [Agent Skills](https://agentskills.io) format, in
+[`doc/agent/skills/`](https://github.com/enjoy-digital/litex/tree/master/doc/agent/skills):
+`litex-build-and-load`, `litex-bringup`, `litex-csr-debug`, `litescope-capture`,
+`litex-timing-triage` and `litex-upstream-a-fix`. Each is a short `SKILL.md` whose description says
+when it applies, with the commands, the `litex_mcp` tools, the pitfalls and the pages of this wiki
+behind them. In Claude Code:
+
+```
+/plugin marketplace add enjoy-digital/litex
+/plugin install litex@litex
+```
+
+Other agents read the `SKILL.md` files directly (the root `AGENTS.md` points to them).
+
 ## Contribute back
 
 LiteX got where it is because the people who used it sent back what they had to fix or add
