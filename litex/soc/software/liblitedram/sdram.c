@@ -2626,12 +2626,18 @@ int sdram_leveling(void) {
  *
  *   for each step over one SDRAM clock period:
  *       JEDEC init, then a write/read check under hardware control, linear (bursts) and strided
- *       over the whole SDRAM (banks and rows);
+ *       over the first SDRAM_CLK_PHASE_CHECK_SIZE bytes (1 MiB: every bank, many rows; the rest of
+ *       the SDRAM is not written, so data loaded there survives a reboot);
  *   the phase goes to the middle of the longest (circular) run of passing steps.
  */
 
 #ifndef SDRAM_CLK_PHASE_CHECK_WORDS
 #define SDRAM_CLK_PHASE_CHECK_WORDS 1024    // 32-bit words per check (linear, then strided).
+#endif
+#ifndef SDRAM_CLK_PHASE_CHECK_SIZE
+#define SDRAM_CLK_PHASE_CHECK_SIZE  (1 << 20) // Bytes the check writes: the start of the SDRAM only,
+                                            // contents above survive a reboot (it spans every bank
+                                            // and many rows).
 #endif
 #define SDRAM_CLK_PHASE_MAX_STEPS 1024
 
@@ -2649,7 +2655,7 @@ static void sdram_clk_phase_init(void) {
 
 static int sdram_clk_phase_check(void) {
 	volatile unsigned int *array = (unsigned int *)MAIN_RAM_BASE_VA;
-	unsigned long words = MAIN_RAM_SIZE/4;
+	unsigned long words = ((MAIN_RAM_SIZE < SDRAM_CLK_PHASE_CHECK_SIZE) ? MAIN_RAM_SIZE : SDRAM_CLK_PHASE_CHECK_SIZE)/4;
 	unsigned long stride = (words/SDRAM_CLK_PHASE_CHECK_WORDS) | 1; // Odd: distinct words.
 	unsigned int seed;
 	int errors = 0;
