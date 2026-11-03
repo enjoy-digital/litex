@@ -533,7 +533,11 @@ def _get_converter_ratio(nbits_from, nbits_to):
     return converter_cls, ratio
 
 
-class Converter(Module): # FIXME: Switch to LiteXModule.
+class Converter(LiteXModule):
+    # Exclude cls (Converter class, not an instance) from CSRs/Docs collection.
+    autocsr_exclude = {"cls"}
+    autodoc_exclude = {"cls"}
+
     def __init__(self, nbits_from, nbits_to,
         reverse                  = False,
         report_valid_token_count = False):
