@@ -21,6 +21,8 @@
 import argparse
 import json
 
+from litex.tools.litex_json2dts_common import get_riscv_cpu_isa_base, get_riscv_cpu_isa_extensions
+
 
 def get_registers_of(name, csr):
     registers = csr['csr_registers']
@@ -132,11 +134,21 @@ def disabled_handler(name, parm, csr):
     return indent('status = "disabled";\n')
 
 def cpu_handler(name, parm, csr):
-    freq = csr['constants']['config_clock_frequency']
+    sys_freq = csr['constants']['config_clock_frequency']
+    freq = sys_freq
     if 'config_cpu_system_clock_node_ref' in csr['constants']:
         freq = csr['constants'].get('config_cpu_clk_freq', freq)
 
-    return indent("clock-frequency = <{}>;\n".format(freq))
+    dtsi = indent("clock-frequency = <{}>;\n".format(freq))
+    dtsi += indent("timebase-frequency = <{}>;\n".format(sys_freq))
+
+    cpu_isa = csr['constants'].get('config_cpu_isa')
+    if csr['constants'].get('config_cpu_family') == 'riscv' and cpu_isa is not None:
+        cpu_name = csr['constants'].get('config_cpu_name')
+        dtsi += indent('riscv,isa-base = "{}";\n'.format(get_riscv_cpu_isa_base(cpu_isa)))
+        dtsi += indent("riscv,isa-extensions = {};\n".format(
+            get_riscv_cpu_isa_extensions(cpu_isa, cpu_name)))
+    return dtsi
 
 def ram_handler(name, parm, csr):
     mem_reg = {
@@ -313,7 +325,7 @@ def peripheral_handler(name, parm, csr):
 _overlay_handlers = {
     'cpu': {
         'handler': cpu_handler,
-        'alias': 'cpu0',
+        'alias': '{/cpus}',
     },
     'ctrl': {
         'handler': peripheral_handler,
