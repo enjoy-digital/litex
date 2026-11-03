@@ -958,5 +958,110 @@ class TestBuilderBuild(unittest.TestCase):
             self.assertTrue(os.path.exists(stale_file))
 
 
+class LiteScopeAnalyzer:
+    def __init__(self, csr_csv):
+        self.csr_csv = csr_csv
+
+
+class _AnalyzerBuildableFakeSoC(_NoBiosBuildableFakeSoC):
+    def __init__(self, analyzer_csv):
+        _NoBiosBuildableFakeSoC.__init__(self)
+        self._submodules = [("analyzer", LiteScopeAnalyzer(analyzer_csv))]
+
+    def do_exit(self, vns):
+        # LiteScope writes analyzer.csv from do_exit.
+        open(self._submodules[0][1].csr_csv, "w").close()
+
+
+class _FailingBuildableFakeSoC(_BuildableFakeSoC):
+    def build(self, build_dir, **kwargs):
+        raise OSError("Toolchain failed.")
+
+
+class TestBuilderBuildInfo(unittest.TestCase):
+    def _read_build_info(self, builder):
+        with open(builder.get_build_info_filename(), encoding="utf-8") as f:
+            return json.load(f)
+
+    def test_build_writes_build_info(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            soc     = _AnalyzerBuildableFakeSoC(os.path.join(tmp_dir, "analyzer.csv"))
+            builder = _make_builder(tmp_dir, soc=soc, compile_software=False, compile_gateware=False)
+
+            def generate_csr_map():
+                for filename in [builder.csr_csv, builder.csr_json]:
+                    open(filename, "w").close()
+            builder._generate_includes = Mock()
+            builder._generate_csr_map  = generate_csr_map
+
+            builder.build()
+
+            info = self._read_build_info(builder)
+            self.assertEqual(builder.get_build_info_filename(), os.path.join(builder.output_dir, "build_info.json"))
+            self.assertEqual(info["version"], Builder.BUILD_INFO_VERSION)
+            self.assertEqual(info["command"]["argv"], sys.argv)
+            self.assertEqual(info["platform"]["name"], "unit")
+            self.assertIsNone(info["soc"]["cpu_type"])
+            self.assertEqual(info["files"]["csr_csv"],   builder.csr_csv)
+            self.assertEqual(info["files"]["csr_json"],  builder.csr_json)
+            self.assertEqual(info["files"]["bitstream"], os.path.join(builder.gateware_dir, "unit.bit"))
+            self.assertEqual(info["files"]["analyzer_csv"], os.path.join(tmp_dir, "analyzer.csv"))
+            self.assertFalse(info["build"]["run"])
+            self.assertEqual(info["build"]["status"], "succeeded")
+            self.assertIsNotNone(info["build"]["duration_s"])
+            self.assertIsInstance(info["litex"]["repositories"], dict)
+
+    def test_build_info_records_failed_builds(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            soc     = _FailingBuildableFakeSoC()
+            builder = _make_builder(tmp_dir, soc=soc, compile_software=False)
+            builder._generate_includes = Mock()
+            builder._generate_csr_map  = Mock()
+
+            with self.assertRaisesRegex(OSError, "Toolchain failed"):
+                builder.build()
+
+            info = self._read_build_info(builder)
+            self.assertTrue(info["build"]["run"])
+            self.assertEqual(info["build"]["status"], "failed")
+            self.assertIsNone(info["files"]["csr_csv"])
+
+    def test_build_info_errors_do_not_fail_the_build(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            soc     = _BuildableFakeSoC()
+            builder = _make_builder(tmp_dir, soc=soc, compile_software=False, compile_gateware=False)
+            builder._generate_includes = Mock()
+            builder._generate_csr_map  = Mock()
+            builder._get_build_info    = Mock(side_effect=RuntimeError("unit"))
+
+            with self.assertLogs("Builder", level="WARNING"):
+                self.assertEqual(builder.build(), "vns")
+            self.assertFalse(os.path.exists(builder.get_build_info_filename()))
+
+    def test_build_info_of_an_elaborated_soc(self):
+        from migen import ClockDomain
+        from litex.build.generic_platform import Pins
+        from litex.build.xilinx import XilinxPlatform
+        from litex.soc.integration.soc_core import SoCCore
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            platform = XilinxPlatform("xc7a35ticsg324-1L", [("clk100", 0, Pins("E3"))], toolchain="vivado")
+            soc      = SoCCore(platform, clk_freq=100e6, cpu_type=None, with_uart=False, with_timer=False)
+            soc.clock_domains.cd_sys = ClockDomain()
+            soc.comb += soc.cd_sys.clk.eq(platform.request("clk100"))
+            builder  = Builder(soc, output_dir=tmp_dir, compile_software=False, compile_gateware=False)
+
+            builder.build(build_name="unit_soc")
+
+            info = self._read_build_info(builder)
+            self.assertEqual(info["platform"]["device"],    "xc7a35ticsg324-1L")
+            self.assertEqual(info["platform"]["toolchain"], "XilinxVivadoToolchain")
+            self.assertEqual(info["soc"]["sys_clk_freq"],   100000000)
+            self.assertEqual(info["soc"]["build_name"],     "unit_soc")
+            self.assertEqual(info["files"]["bitstream"],    os.path.join(builder.gateware_dir, "unit_soc.bit"))
+            self.assertTrue(os.path.exists(info["files"]["csr_csv"]))
+            self.assertEqual(info["build"]["status"], "succeeded")
+
+
 if __name__ == "__main__":
     unittest.main()
