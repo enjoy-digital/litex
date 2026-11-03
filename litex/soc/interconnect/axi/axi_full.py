@@ -1826,7 +1826,8 @@ def get_check_parameters(ports):
     data_width = ports[0].data_width
     if len(ports) > 1:
         for port in ports[1:]:
-            assert port.data_width == data_width
+            if port.data_width != data_width:
+                raise ValueError(f"AXI Interfaces with different Data-Widths connected to the same Interconnect ({port.data_width} vs {data_width}).")
 
     return data_width
 

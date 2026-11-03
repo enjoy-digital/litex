@@ -356,3 +356,12 @@ class TestAXIInterconnectSharedInterleave(unittest.TestCase):
         masters = [axi(2) for _ in range(2)]
         with self.assertRaises(ValueError):
             AXIInterconnectShared(masters, [(lambda a: 1, axi(2))], interleave=True)
+
+class TestAXIInterconnectChecks(unittest.TestCase):
+    def test_rejects_data_width_mismatch(self):
+        master = AXIInterface(data_width=32)
+        slave  = AXIInterface(data_width=64)
+        with self.assertRaisesRegex(ValueError, "different Data-Widths"):
+            AXIInterconnectShared([master], [(lambda a: 1, slave)])
+        with self.assertRaisesRegex(ValueError, "different Data-Widths"):
+            AXICrossbar([master], [(lambda a: 1, slave)])
