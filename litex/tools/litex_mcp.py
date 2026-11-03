@@ -20,6 +20,7 @@ import os
 import re
 import socket
 import sys
+import json
 import time
 import signal
 import argparse
@@ -821,14 +822,70 @@ class LiteXMCPTools:
             "csr_csv"    : os.path.join(output_dir, "csr.csv"),
         })
 
-    def build_report(self, job=None, output_dir=None, max_paths=10):
-        """Timing (WNS/TNS, per clock, failing paths), utilization and errors of a build."""
+    def _get_output_dir(self, job=None, output_dir=None):
         if job:
-            info       = self._get_job(job)["info"]
-            output_dir = info.get("output_dir")
+            output_dir = self._get_job(job)["info"].get("output_dir")
         if not output_dir or not os.path.isdir(output_dir):
             raise LiteXMCPError("Build output directory not found (give a build job or an output_dir).")
+        return output_dir
+
+    @staticmethod
+    def _read_build_info(output_dir):
+        filename = os.path.join(output_dir, "build_info.json")
+        if not os.path.exists(filename):
+            return None
+        try:
+            with open(filename, encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, ValueError) as e:
+            raise LiteXMCPError(f"Unable to read {filename} ({e}).")
+
+    def build_info(self, job=None, output_dir=None):
+        """build_info.json of a build (job or output_dir, default: the directory of the CSR file):
+        command, platform/device/toolchain, CPU, sys_clk_freq, generated files and build status."""
+        if not job and not output_dir and self.csr_csv is not None:
+            output_dir = os.path.dirname(os.path.abspath(self.csr_csv))
+        output_dir = self._get_output_dir(job, output_dir)
+        info       = self._read_build_info(output_dir)
+        if info is None:
+            raise LiteXMCPError(f"No build_info.json in {output_dir} (written by the LiteX Builder).")
+        return info
+
+    def soc_file(self, name):
+        """Contents of a file describing the current SoC (csr.csv, csr.json, build_info.json), found
+        with the selected CSR file (see litex_connect)."""
+        if self.csr_csv is None:
+            raise LiteXMCPError("No CSR file selected (use --csr-csv or litex_connect).")
+        csr_csv    = os.path.abspath(self.csr_csv)
+        output_dir = os.path.dirname(csr_csv)
+        filename   = {
+            "csr.csv"         : csr_csv,
+            "csr.json"        : os.path.join(output_dir, "csr.json"),
+            "build_info.json" : os.path.join(output_dir, "build_info.json"),
+        }.get(name)
+        if filename is None:
+            raise LiteXMCPError(f"Unknown SoC file {name} (csr.csv, csr.json or build_info.json).")
+        # A build_info.json gives the actual csr.json location (--soc-json).
+        if name == "csr.json":
+            info = self._read_build_info(output_dir) or {}
+            filename = (info.get("files") or {}).get("csr_json") or filename
+        if not os.path.exists(filename):
+            raise LiteXMCPError(f"{filename} not found.")
+        with open(filename, encoding="utf-8") as f:
+            return f.read()
+
+    def build_report(self, job=None, output_dir=None, max_paths=10):
+        """Timing (WNS/TNS, per clock, failing paths), utilization and errors of a build."""
+        output_dir = self._get_output_dir(job, output_dir)
         r = parse_build_reports(output_dir, max_paths=int(max_paths))
+        build_info   = self._read_build_info(output_dir)
+        analyzer_csv = ((build_info or {}).get("files") or {}).get("analyzer_csv")
+        if analyzer_csv is None and os.path.exists(os.path.join(output_dir, "analyzer.csv")):
+            analyzer_csv = os.path.join(output_dir, "analyzer.csv")
+        if analyzer_csv is not None:
+            r["analyzer_csv"] = analyzer_csv
+        if build_info is not None:
+            r["build_info"] = build_info
         if job:
             status = self.job_status(job, tail=0)
             r["running"]    = status["running"]
@@ -891,6 +948,18 @@ def _get_server_class():
     except ImportError:
         pass
     raise LiteXMCPError("litex_mcp needs the MCP Python SDK (Python >= 3.10): pip3 install mcp")
+
+def _get_resource_error_class():
+    try:
+        from mcp.server.mcpserver.exceptions import ResourceError # MCP SDK >= 2.
+        return ResourceError
+    except ImportError:
+        pass
+    try:
+        from mcp.server.fastmcp.exceptions import ResourceError   # MCP SDK 1.x.
+        return ResourceError
+    except ImportError:
+        return LiteXMCPError
 
 def _tool_annotations(read_only, destructive=False):
     # MCP tool hints: clients can run read-only tools freely and ask for approval on the others.
@@ -1110,8 +1179,16 @@ def build_server(tools, server_cls=None):
     @tool(annotations=read_only)
     def litex_build_report(job: str = "", output_dir: str = "", max_paths: int = 10) -> dict:
         """Structured result of a build (job or output_dir): toolchain, timing met/WNS/TNS, per clock
-        results, failing/worst paths, utilization and error lines. Vivado, Quartus, Gowin, Efinity and nextpnr."""
+        results, failing/worst paths, utilization and error lines (Vivado, Quartus, Gowin, Efinity and nextpnr),
+        the build_info.json of the build and its LiteScope analyzer.csv (when present)."""
         return tools.build_report(job or None, output_dir or None, max_paths)
+
+    @tool(annotations=read_only)
+    def litex_build_info(job: str = "", output_dir: str = "") -> dict:
+        """build_info.json of a build (job or output_dir, default: the build of the selected CSR file):
+        command line, platform/device/toolchain, CPU, sys_clk_freq, generated files (csr.csv/csr.json,
+        bitstream...) and build status (running, succeeded, failed; run=false: generation only)."""
+        return tools.build_info(job or None, output_dir or None)
 
     @tool(annotations=read_only)
     def litex_list_jobs() -> list:
@@ -1132,6 +1209,24 @@ def build_server(tools, server_cls=None):
     def litex_job_stop(job: str) -> dict:
         """Stop a background job and all its child processes."""
         return tools.job_stop(job)
+
+    # Resources: files describing the SoC of the selected CSR file (read-only).
+    def soc_file_reader(name):
+        def read() -> str: # No parameters: a static resource (not a URI template).
+            try:
+                return tools.soc_file(name)
+            except LiteXMCPError as e:
+                # Message to the client (MCP SDK >= 2 hides it for other exceptions).
+                raise _get_resource_error_class()(str(e)) from e
+        return read
+
+    for name, mime_type, description in [
+        ("csr.csv",         "text/csv",         "CSR map of the SoC (registers, memory regions, constants)."),
+        ("csr.json",        "application/json", "CSR map of the SoC in JSON (as csr.csv, with more details)."),
+        ("build_info.json", "application/json", "Build of the SoC: command, platform, toolchain, CPU, files, status."),
+    ]:
+        server.resource(f"litex://soc/{name}", name=name, description=description,
+            mime_type=mime_type)(soc_file_reader(name))
 
     return server
 

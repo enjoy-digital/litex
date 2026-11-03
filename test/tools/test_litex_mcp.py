@@ -6,6 +6,7 @@
 
 import os
 import sys
+import json
 import tempfile
 import unittest
 import importlib.util
@@ -152,11 +153,18 @@ class FakeServer:
         self.instructions = instructions
         self.tools        = {}
         self.annotations  = {}
+        self.resources    = {}
 
     def tool(self, annotations=None):
         def register(fn):
             self.tools[fn.__name__]       = fn
             self.annotations[fn.__name__] = annotations
+            return fn
+        return register
+
+    def resource(self, uri, name=None, description=None, mime_type=None):
+        def register(fn):
+            self.resources[uri] = fn
             return fn
         return register
 
@@ -294,6 +302,48 @@ class TestLiteXMCP(unittest.TestCase):
             self.assertEqual(tools.build_report(output_dir=info["output_dir"])["errors"], ["ERROR: something failed."])
             with self.assertRaises(LiteXMCPError):
                 tools.build_report(output_dir=os.path.join(d, "missing"))
+            # build_info.json (written by the Builder).
+            with self.assertRaises(LiteXMCPError):
+                tools.build_info(output_dir=info["output_dir"])
+            with open(os.path.join(info["output_dir"], "build_info.json"), "w") as f:
+                json.dump({"version": 1, "build": {"run": True, "status": "failed"}}, f)
+            self.assertEqual(tools.build_info(output_dir=info["output_dir"])["build"]["status"], "failed")
+            self.assertEqual(tools.build_report(output_dir=info["output_dir"])["build_info"]["version"], 1)
+            self.assertNotIn("analyzer_csv", tools.build_report(output_dir=info["output_dir"]))
+            open(os.path.join(info["output_dir"], "analyzer.csv"), "w").close()
+            self.assertEqual(tools.build_report(output_dir=info["output_dir"])["analyzer_csv"],
+                os.path.join(info["output_dir"], "analyzer.csv"))
+
+    def test_soc_files(self):
+        with tempfile.TemporaryDirectory() as d:
+            csr_csv = os.path.join(d, "csr.csv")
+            with open(csr_csv, "w") as f:
+                f.write("csr_register,ctrl_scratch,0xf0000004,1,rw\n")
+            tools = LiteXMCPTools(csr_csv=csr_csv, client_cls=FakeClient)
+            self.assertIn("ctrl_scratch", tools.soc_file("csr.csv"))
+            with self.assertRaises(LiteXMCPError):
+                tools.soc_file("csr.json")
+            with self.assertRaises(LiteXMCPError):
+                tools.soc_file("../secret")
+            with self.assertRaises(LiteXMCPError):
+                tools.build_info() # No build_info.json next to csr.csv.
+
+            # csr.json location from build_info.json (--soc-json), build_info of the CSR file's build.
+            csr_json = os.path.join(d, "soc", "custom.json")
+            os.makedirs(os.path.dirname(csr_json))
+            with open(csr_json, "w") as f:
+                f.write("{}")
+            with open(os.path.join(d, "build_info.json"), "w") as f:
+                json.dump({"version": 1, "files": {"csr_json": csr_json}}, f)
+            self.assertEqual(tools.soc_file("csr.json"), "{}")
+            self.assertEqual(tools.build_info()["version"], 1)
+            self.assertEqual(json.loads(tools.soc_file("build_info.json"))["files"]["csr_json"], csr_json)
+
+            # MCP resources.
+            server = build_server(tools, server_cls=FakeServer)
+            self.assertEqual(set(server.resources), {
+                "litex://soc/csr.csv", "litex://soc/csr.json", "litex://soc/build_info.json"})
+            self.assertEqual(server.resources["litex://soc/csr.json"](), "{}")
 
     def test_run_target_script(self):
         # build=False: a project's own (simulation) target script, run as is.
@@ -428,7 +478,8 @@ class TestLiteXMCP(unittest.TestCase):
             "litex_list_memory_regions", "litex_list_constants", "litex_read_register",
             "litex_read_registers", "litex_read_memory", "litex_list_boards", "litex_board_info",
             "litex_list_cpus", "litex_list_cores", "litex_list_jobs", "litex_job_status",
-            "litex_job_wait", "litex_build_report", "litex_scope_list", "litex_register_sequence",
+            "litex_job_wait", "litex_build_report", "litex_build_info", "litex_scope_list",
+            "litex_register_sequence",
         }
         side_effect_tools = {"litex_connect", "litex_sim_start", "litex_server_start", "litex_job_stop",
             "litex_build_start", "litex_scope_capture", "litex_console_read"}
@@ -446,6 +497,33 @@ class TestLiteXMCP(unittest.TestCase):
             hints = lambda a: a.model_dump(by_alias=True) # SDK 1.x/2.x field names differ, aliases do not.
             self.assertTrue(hints(server.annotations["litex_read_register"])["readOnlyHint"])
             self.assertTrue(hints(server.annotations["litex_write_register"])["destructiveHint"])
+
+    @unittest.skipIf(importlib.util.find_spec("mcp") is None, "MCP SDK not installed.")
+    def test_sdk_server(self):
+        # Tools and resources as listed/read by the MCP SDK (1.x FastMCP or 2.x MCPServer).
+        import asyncio
+        with tempfile.TemporaryDirectory() as d:
+            csr_csv = os.path.join(d, "csr.csv")
+            with open(csr_csv, "w") as f:
+                f.write("csr_register,ctrl_scratch,0xf0000004,1,rw\n")
+            with open(os.path.join(d, "build_info.json"), "w") as f:
+                json.dump({"version": 1}, f)
+            server = build_server(LiteXMCPTools(csr_csv=csr_csv, client_cls=FakeClient))
+
+            async def run():
+                tools     = [t.name for t in await server.list_tools()]
+                resources = [str(r.uri) for r in await server.list_resources()]
+                contents  = list(await server.read_resource("litex://soc/build_info.json"))
+                # Resource errors reach the client (SDK 2.x hides the message of other exceptions).
+                with self.assertRaisesRegex(Exception, "csr.json not found"):
+                    await server.read_resource("litex://soc/csr.json")
+                return tools, resources, contents
+            tools, resources, contents = asyncio.run(run())
+            self.assertIn("litex_build_info", tools)
+            self.assertNotIn("litex_write_register", tools)
+            self.assertEqual(set(resources), {
+                "litex://soc/csr.csv", "litex://soc/csr.json", "litex://soc/build_info.json"})
+            self.assertEqual(json.loads(contents[0].content)["version"], 1)
 
 if __name__ == "__main__":
     unittest.main()
