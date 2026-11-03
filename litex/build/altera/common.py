@@ -141,40 +141,40 @@ class AlteraSDRInput:
 
 # MAX 10 -------------------------------------------------------------------------------------------
 
-# ALTDDIO_OUT/ALTDDIO_IN are not usable on MAX 10 (the IOE DDIO is reached through the GPIO Lite IP):
-# Quartus elaborates them, but on hardware (DE10-Lite, Quartus 23.1) the SDR inputs read a constant
-# instead of the pin, the SDR outputs and a DDROutput(1, 0) forwarded clock do not reach the SDRAM
-# correctly. On MAX 10, SDR IOs are lowered to fabric registers (the generic fallback, packable in
-# the IOEs with FAST_INPUT_REGISTER/FAST_OUTPUT_REGISTER) and a forwarded clock (DDROutput with
-# constant (1, 0)/(0, 1) inputs) drives the pin from the clock directly.
+# On the 10M50 (DE10-Lite, Quartus 23.1), an ALTDDIO_OUT (the fiftyfivenm_ddio_out IOE atom) placed
+# in I/O banks 5/6 drives a constant 0 (no warning from Quartus), while it works in banks 3/4 and
+# while IOE input/output registers work in all banks. LiteX cannot know the bank when lowering, so
+# on MAX 10:
+# - SDROutput is lowered to a fabric register (the generic fallback; FAST_OUTPUT_REGISTER packs it
+#   in the IOE output register, which works in every bank).
+# - DDROutput with constant (1, 0)/(0, 1) inputs (a forwarded clock) drives the pin from the clock
+#   directly. Other DDROutput uses keep ALTDDIO_OUT (not usable in banks 5/6 of the 10M50).
 
 class Max10DDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
         def const(v):
-            return v.value if isinstance(v, Constant) else v if isinstance(v, int) else None
+            return v.value if isinstance(v, Constant) else None
         c1, c2 = const(i1), const(i2)
         if (c1, c2) == (1, 0):
             self.comb += o.eq(clk)
         elif (c1, c2) == (0, 1):
             self.comb += o.eq(~clk)
         else:
-            raise NotImplementedError("MAX 10: DDROutput is only supported as a forwarded clock "
-                "(constant (1, 0) or (0, 1) inputs); ALTDDIO_OUT is not usable on MAX 10.")
+            self.submodules += AlteraDDROutputImpl(i1, i2, o, clk)
 
 class Max10DDROutput:
     @staticmethod
     def lower(dr):
         return Max10DDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
 
-class Max10SDRIO:
+class Max10SDROutput:
     @staticmethod
     def lower(dr):
         return SDRIO.lower(dr) # Generic fallback: fabric register.
 
 max10_special_overrides = {
     DDROutput: Max10DDROutput,
-    SDROutput: Max10SDRIO,
-    SDRInput:  Max10SDRIO,
+    SDROutput: Max10SDROutput,
 }
 
 # Special Overrides --------------------------------------------------------------------------------
