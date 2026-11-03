@@ -113,6 +113,33 @@ class FakeConsoleClient(FakeClient):
             return
         FakeClient.write(self, addr, datas, burst)
 
+class FakeResetClient(FakeConsoleClient):
+    """FakeConsoleClient where "reboot" resets the SoC: the pending bridge read times out and a new
+    connection sees the boot output (as a reset UARTBone + crossover UART on hardware)."""
+    def __init__(self, *args, **kwargs):
+        FakeConsoleClient.__init__(self, *args, **kwargs)
+        self.reset = False
+
+    def read(self, addr, length=None, burst="incr"):
+        if self.reset:
+            raise TimeoutError("UART read timeout (0/4 bytes received).")
+        return FakeConsoleClient.read(self, addr, length, burst)
+
+    def write(self, addr, datas, burst="incr"):
+        line = self.line
+        FakeConsoleClient.write(self, addr, datas, burst)
+        if addr == self.RXTX and (datas if isinstance(datas, int) else datas[0]) == ord("\n"):
+            self.reset = self.reset or (line == "reboot")
+
+class FakeFlakyClient(FakeClient):
+    """FakeClient whose link fails once (ex: litex_server restarted)."""
+    failures = 1
+    def read(self, addr, length=None, burst="incr"):
+        if FakeFlakyClient.failures:
+            FakeFlakyClient.failures -= 1
+            raise ConnectionResetError("Connection reset by peer")
+        return FakeClient.read(self, addr, length, burst)
+
 def _tools(**kwargs):
     return LiteXMCPTools(csr_csv=None, client_cls=FakeClient, **kwargs)
 
@@ -268,6 +295,29 @@ class TestLiteXMCP(unittest.TestCase):
             with self.assertRaises(LiteXMCPError):
                 tools.build_report(output_dir=os.path.join(d, "missing"))
 
+    def test_run_target_script(self):
+        # build=False: a project's own (simulation) target script, run as is.
+        with tempfile.TemporaryDirectory() as d:
+            tools = _tools(jobs_dir=d)
+            calls = []
+            tools._start_job = lambda kind, cmd, cwd=None, info=None: calls.append((kind, cmd, cwd)) or info
+            target = os.path.join(d, "target.py")
+            with open(target, "w") as f:
+                f.write("")
+            tools.build_start(target, ["--uart-tcp-port=21710"], build=False)
+            kind, cmd, cwd = calls[0]
+            self.assertEqual(kind, "run")
+            self.assertEqual(cmd[1:], [target, "--uart-tcp-port=21710"])
+            self.assertEqual(cwd, d)
+            info = tools.build_start(target, [], output_dir=os.path.join(d, "out"), build=False)
+            self.assertIn(f"--output-dir={info['output_dir']}", calls[1][1])
+            self.assertNotIn("--build", calls[1][1])
+            self.assertEqual(info["csr_csv"], os.path.join(d, "out", "csr.csv"))
+            with self.assertRaises(LiteXMCPError):
+                tools.build_start(target, ["--load"], build=False)
+            with self.assertRaises(LiteXMCPError):
+                tools.build_start("digilent_arty", build=False)
+
     def test_scope(self):
         with tempfile.TemporaryDirectory() as d:
             csv = os.path.join(d, "analyzer.csv")
@@ -308,13 +358,77 @@ class TestLiteXMCP(unittest.TestCase):
         with self.assertRaises(LiteXMCPError):
             _tools().console_read() # No crossover UART.
 
+    def test_filter_regex(self):
+        tools = _tools()
+        names = [r["name"] for r in tools.list_registers("scratch|bus_errors")]
+        self.assertEqual(sorted(names), ["ctrl_bus_errors", "ctrl_scratch"])
+        self.assertEqual([r["name"] for r in tools.list_registers("scratch")], ["ctrl_scratch"])
+        self.assertEqual(tools.list_registers("["), []) # Invalid regex: substring match.
+
+    def test_link_error_reconnects(self):
+        FakeFlakyClient.failures = 1
+        tools = LiteXMCPTools(csr_csv=None, client_cls=FakeFlakyClient)
+        with self.assertRaises(LiteXMCPError) as e:
+            tools.read_register("ctrl_scratch")
+        self.assertIn("next call reconnects", str(e.exception))
+        self.assertIsNone(tools.bus)
+        self.assertEqual(tools.read_register("ctrl_scratch")["value"], 0x12345678)
+
+    def test_console_reset(self):
+        tools = LiteXMCPTools(csr_csv=None, client_cls=FakeResetClient, allow_write=True)
+        tools.console_read(timeout=0.2)
+        r = tools.console_command("reboot", timeout=10)
+        self.assertTrue(r["matched"])
+        self.assertEqual(r["reconnects"], 1)
+        self.assertIn("BIOS booted", r["output"])
+
+    def test_register_sequence(self):
+        tools = _tools(allow_write=True)
+        # Configure-then-read, by CSR name and by address (int or hex string), with a sweep.
+        r = tools.register_sequence([
+            {"write": "ctrl_scratch", "value": "$x"},
+            {"write": "0x10000000", "value": 7},
+            {"wait_us": 1},
+            {"read": "ctrl_scratch", "as": "scratch"},
+            {"read": 0x10000000, "length": 2, "as": "sram"},
+            {"poll": "ctrl_scratch", "mask": 0xff, "equals": "$x"},
+        ], sweep=[{"x": 1}, {"x": 2}])
+        self.assertEqual([row["vars"] for row in r["rows"]], [{"x": 1}, {"x": 2}])
+        self.assertEqual([row["reads"]["scratch"] for row in r["rows"]], [1, 2])
+        self.assertEqual(r["rows"][0]["reads"]["sram"], [7, 0])
+        self.assertTrue(r["rows"][1]["polls"]["ctrl_scratch"]["ok"])
+        self.assertEqual(r["operations"], 10)
+        # Poll timeout is reported, not raised.
+        r = tools.register_sequence([{"poll": "ctrl_bus_errors", "equals": 1, "timeout_ms": 20}])
+        self.assertFalse(r["rows"][0]["polls"]["ctrl_bus_errors"]["ok"])
+        self.assertNotIn("vars", r["rows"][0])
+        # Errors: unknown variable/register, bad step, writes without --allow-write.
+        for steps in [[{"write": "ctrl_scratch", "value": "$y"}], [{"read": "unknown"}],
+            [{"read": "ctrl_scratch", "write": "ctrl_scratch"}], []]:
+            with self.assertRaises(LiteXMCPError):
+                tools.register_sequence(steps)
+        tools = _tools()
+        self.assertEqual(tools.register_sequence([{"read": "ctrl_scratch"}])["rows"][0]["reads"]["ctrl_scratch"], 0x12345678)
+        with self.assertRaises(LiteXMCPError):
+            tools.register_sequence([{"write": "ctrl_scratch", "value": 1}])
+        self.assertEqual(tools._get_bus().writes, [])
+
+    def test_server_tool_errors(self):
+        # LiteXMCPError reaches the client as the SDK's ToolError (else SDK >= 2 hides the message).
+        from litex.tools.litex_mcp import _get_tool_error_class
+        server     = build_server(_tools(), server_cls=FakeServer)
+        tool_error = _get_tool_error_class() or LiteXMCPError
+        with self.assertRaises(tool_error) as e:
+            server.tools["litex_read_register"]("unknown")
+        self.assertIn("unknown not found", str(e.exception))
+
     def test_server_tools(self):
         read_tools = {
             "litex_check", "litex_ident", "litex_list_registers",
             "litex_list_memory_regions", "litex_list_constants", "litex_read_register",
             "litex_read_registers", "litex_read_memory", "litex_list_boards", "litex_board_info",
             "litex_list_cpus", "litex_list_cores", "litex_list_jobs", "litex_job_status",
-            "litex_job_wait", "litex_build_report", "litex_scope_list",
+            "litex_job_wait", "litex_build_report", "litex_scope_list", "litex_register_sequence",
         }
         side_effect_tools = {"litex_connect", "litex_sim_start", "litex_server_start", "litex_job_stop",
             "litex_build_start", "litex_scope_capture", "litex_console_read"}

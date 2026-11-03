@@ -18,6 +18,7 @@ MCP SDK (pip install mcp, Python >= 3.10) is only imported when the server is ru
 
 import os
 import re
+import socket
 import sys
 import time
 import signal
@@ -32,6 +33,8 @@ from litex.tools.litex_client import RemoteClient
 # Helpers ------------------------------------------------------------------------------------------
 
 MAX_READ_WORDS = 4096
+MAX_SEQUENCE_OPS  = 20000 # Bus operations of a register sequence (all sweep rows).
+MAX_SEQUENCE_ROWS = 4096
 MAX_WAIT_TIME  = 600 # Seconds, per litex_job_wait call.
 
 def _strip_ansi(text):
@@ -63,6 +66,34 @@ def _hex(value):
 
 class LiteXMCPError(Exception):
     pass
+
+def _match(filter, name):
+    """Name filter: a regex searched in name (a plain substring also works), None matches all."""
+    if filter is None or filter == "":
+        return True
+    try:
+        return re.search(filter, name) is not None
+    except re.error:
+        return filter in name
+
+# Link errors: litex_server not answering, connection dropped (SoC reset, cable, server restart).
+LINK_ERRORS = (TimeoutError, ConnectionError, socket.timeout)
+
+def _link(method):
+    """Turn a link error into a LiteXMCPError and drop the connection: the next call reconnects."""
+    import functools
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        try:
+            return method(self, *args, **kwargs)
+        except LiteXMCPError:
+            raise
+        except LINK_ERRORS as e:
+            self.close()
+            raise LiteXMCPError(f"Link to the SoC through litex_server {self.host}:{self.port} failed "
+                f"({type(e).__name__}: {e}). The connection was dropped and the next call reconnects; "
+                "if the SoC was reset or reloaded, run litex_check.")
+    return wrapper
 
 # LiteX MCP Tools ----------------------------------------------------------------------------------
 
@@ -105,7 +136,10 @@ class LiteXMCPTools:
 
     def close(self):
         if self.bus is not None:
-            self.bus.close()
+            try:
+                self.bus.close()
+            except LINK_ERRORS:
+                pass
             self.bus = None
 
     def close_all(self):
@@ -131,6 +165,7 @@ class LiteXMCPTools:
 
     # Identification -------------------------------------------------------------------------------
 
+    @_link
     def ident(self):
         """Return the SoC identifier string."""
         bus = self._get_bus()
@@ -144,6 +179,7 @@ class LiteXMCPTools:
             ident += c
         return ident
 
+    @_link
     def check(self):
         """Check the host link: connect, read the identifier and measure the read round-trip."""
         bus   = self._get_bus()
@@ -173,10 +209,10 @@ class LiteXMCPTools:
     # CSR file -------------------------------------------------------------------------------------
 
     def list_registers(self, filter=None):
-        """List the CSRs (name, address, size in CSR words, mode); filter is a name substring."""
+        """List the CSRs (name, address, size in CSR words, mode); filter is a name regex/substring."""
         regs = []
         for name, reg in self._get_csr("regs").__dict__.items():
-            if filter is None or filter in name:
+            if _match(filter, name):
                 regs.append({
                     "name"    : name,
                     "address" : _hex(reg.addr),
@@ -198,12 +234,13 @@ class LiteXMCPTools:
         return mems
 
     def list_constants(self, filter=None):
-        """List the SoC constants (config_*, *_interrupt...); filter is a name substring."""
+        """List the SoC constants (config_*, *_interrupt...); filter is a name regex/substring."""
         constants = self._get_csr("constants")
-        return {k: v for k, v in constants.d.items() if filter is None or filter in k}
+        return {k: v for k, v in constants.d.items() if _match(filter, k)}
 
     # Reads ----------------------------------------------------------------------------------------
 
+    @_link
     def read_register(self, name):
         """Read a CSR by name."""
         reg   = self._get_register(name)
@@ -211,9 +248,10 @@ class LiteXMCPTools:
         return {"name": name, "address": _hex(reg.addr), "value": value, "value_hex": f"0x{value:x}"}
 
     def read_registers(self, filter):
-        """Read every CSR whose name contains filter."""
+        """Read every CSR whose name matches filter (regex/substring)."""
         return [self.read_register(r["name"]) for r in self.list_registers(filter) if r["mode"] in ["rw", "ro"]]
 
+    @_link
     def read_memory(self, address, length=1):
         """Read length 32-bit words at address (incrementing burst)."""
         length = int(length)
@@ -225,6 +263,7 @@ class LiteXMCPTools:
 
     # Writes (--allow-write) -----------------------------------------------------------------------
 
+    @_link
     def write_register(self, name, value):
         """Write a CSR by name (requires --allow-write)."""
         self._check_write()
@@ -232,6 +271,7 @@ class LiteXMCPTools:
         reg.write(int(value))
         return {"name": name, "address": _hex(reg.addr), "value": int(value)}
 
+    @_link
     def write_memory(self, address, words):
         """Write 32-bit words at address (incrementing burst, requires --allow-write)."""
         self._check_write()
@@ -241,6 +281,112 @@ class LiteXMCPTools:
         bus = self._get_bus()
         bus.write(int(address), words, burst="incr")
         return {"address": _hex(int(address)), "length": len(words)}
+
+    # Register Sequences ---------------------------------------------------------------------------
+
+    def _sequence_target(self, target):
+        """A sequence target: a CSR name, or a bus address (int or "0x..." string)."""
+        if isinstance(target, bool):
+            raise LiteXMCPError(f"Invalid sequence target {target!r}.")
+        if isinstance(target, int):
+            return None, target
+        if isinstance(target, str):
+            try:
+                return None, int(target, 0)
+            except ValueError:
+                return self._get_register(target), None
+        raise LiteXMCPError(f"Invalid sequence target {target!r} (CSR name or address).")
+
+    @staticmethod
+    def _sequence_value(value, binding):
+        """A step value: an int, or "$var" taken from the sweep row."""
+        if isinstance(value, str) and value.startswith("$"):
+            if value[1:] not in binding:
+                raise LiteXMCPError(f"Sequence variable {value} not in the sweep row {binding}.")
+            value = binding[value[1:]]
+        if isinstance(value, bool) or not isinstance(value, int):
+            try:
+                value = int(value, 0) if isinstance(value, str) else int(value)
+            except (TypeError, ValueError):
+                raise LiteXMCPError(f"Invalid sequence value {value!r}.")
+        return value
+
+    @_link
+    def register_sequence(self, steps, sweep=None):
+        """Run a list of register steps on the SoC in one call, optionally once per sweep row.
+
+        Steps (dicts), targets are CSR names or bus addresses:
+        - {"write": target, "value": int or "$var"}        (requires --allow-write)
+        - {"read": target, "as": label, "length": words}  (length: addresses only, default 1)
+        - {"poll": target, "mask": int, "equals": int or "$var", "timeout_ms": 100, "as": label}
+        - {"wait_us": int}
+        sweep: list of variable bindings (ex: [{"gain": 16384, "din": 1000}, ...]); the steps run
+        once per row. Returns one row per binding with the reads ({label: value}) and polls
+        ({label: {"ok", "value", "tries"}}).
+        """
+        if not isinstance(steps, list) or not steps or not all(isinstance(st, dict) for st in steps):
+            raise LiteXMCPError("steps must be a non-empty list of step dicts.")
+        rows = [{}] if not sweep else sweep
+        if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows):
+            raise LiteXMCPError("sweep must be a list of variable bindings (dicts).")
+        if len(rows) > MAX_SEQUENCE_ROWS:
+            raise LiteXMCPError(f"At most {MAX_SEQUENCE_ROWS} sweep rows.")
+        kinds = []
+        for st in steps:
+            kind = [k for k in ["write", "read", "poll", "wait_us"] if k in st]
+            if len(kind) != 1:
+                raise LiteXMCPError(f"Step {st} must have exactly one of write/read/poll/wait_us.")
+            kinds.append(kind[0])
+        if "write" in kinds:
+            self._check_write()
+        if len(rows)*sum(k != "wait_us" for k in kinds) > MAX_SEQUENCE_OPS:
+            raise LiteXMCPError(f"At most {MAX_SEQUENCE_OPS} bus operations per sequence.")
+
+        bus     = self._get_bus()
+        start   = time.time()
+        results = []
+        ops     = 0
+        for binding in rows:
+            reads, polls = {}, {}
+            for kind, st in zip(kinds, steps):
+                if kind == "wait_us":
+                    time.sleep(max(0, min(float(st["wait_us"]), 1e6))/1e6)
+                    continue
+                reg, addr = self._sequence_target(st[kind])
+                label     = str(st.get("as", st[kind]))
+                if kind == "write":
+                    value = self._sequence_value(st.get("value"), binding)
+                    reg.write(value) if reg is not None else bus.write(addr, value)
+                    ops += 1
+                elif kind == "read":
+                    length = int(st.get("length", 1))
+                    if reg is not None:
+                        value = reg.read()
+                    elif length == 1:
+                        value = bus.read(addr)
+                    elif 0 < length <= MAX_READ_WORDS:
+                        value = bus.read(addr, length, burst="incr")
+                    else:
+                        raise LiteXMCPError(f"length must be between 1 and {MAX_READ_WORDS} words.")
+                    reads[label] = value
+                    ops += 1
+                else:
+                    mask     = self._sequence_value(st.get("mask", 0xffffffff), binding)
+                    equals   = self._sequence_value(st.get("equals", 1), binding)
+                    deadline = time.time() + max(0, min(float(st.get("timeout_ms", 100)), 10000))/1e3
+                    tries    = 0
+                    while True:
+                        value = reg.read() if reg is not None else bus.read(addr)
+                        tries += 1
+                        ops   += 1
+                        if (value & mask) == equals or time.time() > deadline:
+                            break
+                    polls[label] = {"ok": (value & mask) == equals, "value": value, "tries": tries}
+            row = {"vars": binding, "reads": reads} if sweep else {"reads": reads}
+            if polls:
+                row["polls"] = polls
+            results.append(row)
+        return {"rows": results, "operations": ops, "elapsed_ms": round((time.time() - start)*1e3, 1)}
 
     # Connection selection -------------------------------------------------------------------------
 
@@ -264,13 +410,13 @@ class LiteXMCPTools:
         return os.path.dirname(litex_boards.targets.__file__)
 
     def list_boards(self, filter=None):
-        """List the LiteX-Boards targets (name, vendor); filter is a name substring."""
+        """List the LiteX-Boards targets (name, vendor); filter is a name regex/substring."""
         boards = []
         for f in sorted(os.listdir(self._boards_dir())):
             name = f[:-3]
             if not f.endswith(".py") or name.startswith("_"):
                 continue
-            if filter is None or filter in name:
+            if _match(filter, name):
                 boards.append({"name": name, "vendor": name.split("_")[0]})
         return boards
 
@@ -329,7 +475,7 @@ class LiteXMCPTools:
         from litex.soc.cores.cpu import CPUS
         cpus = []
         for name, cpu in sorted((k, v) for k, v in CPUS.items() if k):
-            if filter is None or filter in name:
+            if _match(filter, name):
                 cpus.append({
                     "name"       : name,
                     "human_name" : getattr(cpu, "human_name", name),
@@ -490,6 +636,7 @@ class LiteXMCPTools:
                 break
         return data
 
+    @_link
     def console_read(self, timeout=1.0, max_bytes=4096):
         """Read what the SoC printed on its console (crossover UART), until it stays idle for timeout s."""
         rxtx, rxempty = self._xover()
@@ -504,26 +651,44 @@ class LiteXMCPTools:
                 time.sleep(0.05)
         return {"output": _strip_ansi(data.decode("utf-8", errors="replace"))}
 
+    @_link
     def console_command(self, command, expect="litex>", timeout=10.0, max_bytes=16384):
-        """Send a command line to the SoC console (ex: a BIOS command) and read until expect (regex)."""
+        """Send a command line to the SoC console (ex: a BIOS command) and read until expect (regex).
+
+        A command that resets the SoC (ex: reboot) also resets the UART bridge: the link error is
+        absorbed, the connection re-opened and the boot output read until expect.
+        """
         self._check_write()
         rxtx, rxempty = self._xover()
         self._console_drain(rxtx, rxempty, max_bytes) # Discard pending output.
         for c in command + "\n":
             rxtx.write(ord(c))
-        data  = bytearray()
-        regex = re.compile(expect) if expect else None
-        start = time.time()
+        data       = bytearray()
+        regex      = re.compile(expect) if expect else None
+        start      = time.time()
+        reconnects = 0
         while (time.time() - start) < min(float(timeout), MAX_WAIT_TIME) and len(data) < int(max_bytes):
-            chunk = self._console_drain(rxtx, rxempty, int(max_bytes) - len(data))
+            try:
+                chunk = self._console_drain(rxtx, rxempty, int(max_bytes) - len(data))
+            except LINK_ERRORS:
+                # SoC/bridge reset after the command: re-open the connection and continue reading.
+                self.close()
+                reconnects += 1
+                time.sleep(0.5)
+                try:
+                    rxtx, rxempty = self._xover()
+                except (LiteXMCPError,) + LINK_ERRORS:
+                    self.close()
+                continue
             data += chunk
             text  = _strip_ansi(data.decode("utf-8", errors="replace"))
             # Match after the echoed command line.
             if regex is not None and regex.search(text.split("\n", 1)[-1] if "\n" in text else ""):
-                return {"output": text, "matched": True}
+                return {"output": text, "matched": True, "reconnects": reconnects}
             if not chunk:
                 time.sleep(0.05)
-        return {"output": _strip_ansi(data.decode("utf-8", errors="replace")), "matched": False}
+        return {"output": _strip_ansi(data.decode("utf-8", errors="replace")), "matched": False,
+            "reconnects": reconnects}
 
     # LiteScope ------------------------------------------------------------------------------------
 
@@ -560,6 +725,7 @@ class LiteXMCPTools:
             "groups"     : {g: [{"name": n, "width": w} for n, w in l] for g, l in layouts.items()},
         }
 
+    @_link
     def scope_capture(self, analyzer_csv="analyzer.csv", group=0, triggers=None, offset=32, length=None,
         subsampling=1, timeout=10, signals=None, max_changes=32, name="analyzer"):
         """Arm the LiteScope analyzer, wait for the trigger and return the capture as data.
@@ -626,9 +792,11 @@ class LiteXMCPTools:
 
     # Builds ---------------------------------------------------------------------------------------
 
-    def build_start(self, target, args=None, output_dir=None):
+    def build_start(self, target, args=None, output_dir=None, build=True):
         """Start a target build (--build) in the background; target is a LiteX-Boards board name or
-        a target script (.py). --load/--flash (hardware side effects) require --allow-write."""
+        a target script (.py). With build=False, a target script is run as is with args only (ex: a
+        simulation target without --build option). --load/--flash (hardware side effects) require
+        --allow-write."""
         args = [] if args is None else list(args)
         if any(a.split("=")[0] in ["--load", "--flash"] for a in args) and not self.allow_write:
             raise LiteXMCPError("--load/--flash act on the hardware, restart the server with --allow-write.")
@@ -636,9 +804,16 @@ class LiteXMCPTools:
             if not os.path.exists(target):
                 raise LiteXMCPError(f"Target script {target} not found.")
             cmd = [sys.executable, os.path.abspath(target)]
+        elif not build:
+            raise LiteXMCPError("build=False runs a target script (.py) only.")
         else:
             self.board_info(target, sections=[]) # Validates the board name.
             cmd = [sys.executable, "-m", f"litex_boards.targets.{target}"]
+        if not build:
+            output_dir = os.path.abspath(output_dir) if output_dir else None
+            cmd += ([f"--output-dir={output_dir}"] if output_dir else []) + args
+            info = {"output_dir": output_dir, "csr_csv": os.path.join(output_dir, "csr.csv")} if output_dir else {}
+            return self._start_job("run", cmd, info=info, cwd=os.path.dirname(os.path.abspath(target)))
         output_dir = os.path.abspath(output_dir or os.path.join(self._get_jobs_dir(), f"build{len(self.jobs)}"))
         cmd += ["--build", f"--output-dir={output_dir}"] + [a for a in args if a != "--build"]
         return self._start_job("build", cmd, info={
@@ -682,7 +857,16 @@ class LiteXMCPTools:
                     raise LiteXMCPError(f"Nothing listens on TCP port {uart_port} (simulation not ready?).")
                 time.sleep(0.5)
         cmd = [sys.executable, "-m", "litex.tools.litex_server"] + args
-        return self._start_job("server", cmd, info={"bind_port": bind_port})
+        r   = self._start_job("server", cmd, info={"bind_port": bind_port})
+        # Wait until the server listens (or exits) so the next tool call can connect.
+        start = time.time()
+        while _tcp_listening(bind_port) is False and self.jobs[r["job"]]["proc"].poll() is None:
+            if (time.time() - start) > 10:
+                break
+            time.sleep(0.1)
+        r = self.job_status(r["job"], tail=10)
+        r["ready"] = bool(_tcp_listening(bind_port)) and r["running"]
+        return r
 
 # MCP Server ---------------------------------------------------------------------------------------
 
@@ -716,80 +900,127 @@ def _tool_annotations(read_only, destructive=False):
         return None
     return ToolAnnotations.model_validate({"readOnlyHint": read_only, "destructiveHint": destructive})
 
+def _get_tool_error_class():
+    # Tool errors are only shown to the client as ToolError: MCP SDK >= 2 hides the message of any
+    # other exception ("Error executing tool ...").
+    try:
+        from mcp.server.mcpserver.exceptions import ToolError # MCP SDK >= 2.
+        return ToolError
+    except ImportError:
+        pass
+    try:
+        from mcp.server.fastmcp.exceptions import ToolError   # MCP SDK 1.x.
+        return ToolError
+    except ImportError:
+        return None
+
 def build_server(tools, server_cls=None):
+    import functools
     server_cls  = _get_server_class() if server_cls is None else server_cls
     server      = server_cls("litex", instructions=INSTRUCTIONS)
+    tool_error  = _get_tool_error_class()
+
+    def tool(annotations=None):
+        # Register fn as a tool, LiteXMCPError raised as the SDK's ToolError (message to the client).
+        def register(fn):
+            @functools.wraps(fn)
+            def wrapper(*args, **kwargs):
+                try:
+                    return fn(*args, **kwargs)
+                except LiteXMCPError as e:
+                    if tool_error is None:
+                        raise
+                    raise tool_error(str(e)) from e
+            return server.tool(annotations=annotations)(wrapper)
+        return register
     read_only   = _tool_annotations(read_only=True)
     side_effect = _tool_annotations(read_only=False, destructive=False)
     destructive = _tool_annotations(read_only=False, destructive=True)
 
     # Connection.
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_check() -> dict:
         """Check the link to the SoC: identifier, CSR read round-trip latency, write permission."""
         return tools.check()
 
-    @server.tool(annotations=side_effect)
+    @tool(annotations=side_effect)
     def litex_connect(host: str = "", port: int = 0, csr_csv: str = "", timeout: float = 0) -> dict:
         """Select another litex_server (host/port) and/or CSR file (ex: a simulation), then check it.
         timeout (s) is the bus access timeout, to raise on slow links (ex: 10 for a simulation)."""
         return tools.connect(host or None, port or None, csr_csv or None, timeout or None)
 
     # SoC (read).
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_ident() -> str:
         """Return the identifier string of the SoC."""
         return tools.ident()
 
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_list_registers(filter: str = "") -> list:
         """List the SoC CSRs (name, address, size in CSR words, mode), optionally filtered by a name substring."""
         return tools.list_registers(filter or None)
 
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_list_memory_regions() -> list:
         """List the SoC memory regions (name, base, size, type)."""
         return tools.list_memory_regions()
 
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_list_constants(filter: str = "") -> dict:
         """List the SoC constants (configuration, interrupts...), optionally filtered by a name substring."""
         return tools.list_constants(filter or None)
 
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_read_register(name: str) -> dict:
         """Read a CSR by its csr.csv name (ex: ctrl_scratch)."""
         return tools.read_register(name)
 
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_read_registers(filter: str) -> list:
         """Read every readable CSR whose name contains filter (ex: "uart_")."""
         return tools.read_registers(filter)
 
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_read_memory(address: int, length: int = 1) -> dict:
         """Read length 32-bit words from the SoC main bus at address."""
         return tools.read_memory(address, length)
 
+    @tool(annotations=destructive if tools.allow_write else read_only)
+    def litex_register_sequence(steps: list[dict], sweep: list[dict] = []) -> dict:
+        """Run register steps on the SoC in one call (one model turn instead of one per register),
+        optionally once per sweep row. Use it for configure-then-read sequences, polls and sweeps.
+
+        steps (targets: CSR names from litex_list_registers, or bus addresses):
+          {"write": "scaler_gain", "value": 16384}  or  {"write": 805306392, "value": "$limit"}
+          {"read": "scaler_dout", "as": "dout"}      ({"length": n} for n words at an address)
+          {"poll": "scaler_status", "mask": 1, "equals": 1, "timeout_ms": 100}
+          {"wait_us": 10}
+        sweep: variable bindings, the steps run once per row, "$name" in a value takes the row's
+        value. Ex: [{"din": 0}, {"din": 1000}, {"din": 65535}] with {"write": ..., "value": "$din"}.
+        Returns {"rows": [{"vars", "reads": {label: value}, "polls": {...}}], "operations", "elapsed_ms"}.
+        Writes require --allow-write.
+        """
+        return tools.register_sequence(steps, sweep or None)
+
     # SoC (write, only exposed with --allow-write).
     if tools.allow_write:
-        @server.tool(annotations=destructive)
+        @tool(annotations=destructive)
         def litex_write_register(name: str, value: int) -> dict:
             """Write a CSR by its csr.csv name."""
             return tools.write_register(name, value)
 
-        @server.tool(annotations=destructive)
+        @tool(annotations=destructive)
         def litex_write_memory(address: int, words: list[int]) -> dict:
             """Write 32-bit words to the SoC main bus at address."""
             return tools.write_memory(address, words)
 
     # Introspection (no board needed).
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_list_boards(filter: str = "") -> list:
         """List the LiteX-Boards targets (name, vendor), optionally filtered by a name substring (ex: "arty")."""
         return tools.list_boards(filter or None)
 
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_board_info(name: str, sections: list[str] = ["Target"]) -> dict:
         """Describe a LiteX-Boards target: FPGA device, platform class and command-line options.
 
@@ -798,18 +1029,18 @@ def build_server(tools, server_cls=None):
         """
         return tools.board_info(name, sections)
 
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_list_cpus(filter: str = "") -> list:
         """List the CPUs supported by LiteX (name, family, data width, variants for --cpu-variant)."""
         return tools.list_cpus(filter or None)
 
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_list_cores() -> list:
         """List the LiteX ecosystem cores (LiteDRAM, LiteEth, LitePCIe...) and whether they are installed."""
         return tools.list_cores()
 
     # Simulation and jobs.
-    @server.tool(annotations=side_effect)
+    @tool(annotations=side_effect)
     def litex_sim_start(args: list[str] = [], output_dir: str = "") -> dict:
         """Start a SoC simulation (litex_sim, Verilator) in the background and return its job.
 
@@ -821,7 +1052,7 @@ def build_server(tools, server_cls=None):
         """
         return tools.sim_start(args, output_dir or None)
 
-    @server.tool(annotations=side_effect)
+    @tool(annotations=side_effect)
     def litex_server_start(args: list[str], timeout: float = 300) -> dict:
         """Start a litex_server in the background (ex: ["--uart", "--uart-port=/dev/ttyUSB1"]).
 
@@ -831,25 +1062,25 @@ def build_server(tools, server_cls=None):
         return tools.server_start(args, timeout)
 
     # Console.
-    @server.tool(annotations=side_effect)
+    @tool(annotations=side_effect)
     def litex_console_read(timeout: float = 1.0) -> dict:
         """Read the SoC console output (crossover UART) until it stays idle for timeout s (consumes it)."""
         return tools.console_read(timeout)
 
     if tools.allow_write:
-        @server.tool(annotations=destructive)
+        @tool(annotations=destructive)
         def litex_console_command(command: str, expect: str = "litex>", timeout: float = 10.0) -> dict:
             """Send a command line to the SoC console (ex: BIOS "help", "mem_list") and return the
             output until expect (regex, default: the BIOS prompt) or timeout."""
             return tools.console_command(command, expect, timeout)
 
     # LiteScope.
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_scope_list(analyzer_csv: str = "analyzer.csv") -> dict:
         """List the LiteScope analyzer groups and signals (analyzer.csv of the build), depth, sample rate."""
         return tools.scope_list(analyzer_csv)
 
-    @server.tool(annotations=side_effect)
+    @tool(annotations=side_effect)
     def litex_scope_capture(analyzer_csv: str = "analyzer.csv", group: int = 0, triggers: list[dict] = [],
         offset: int = 32, length: int = 0, subsampling: int = 1, timeout: float = 10,
         signals: list[str] = [], max_changes: int = 32) -> dict:
@@ -863,39 +1094,41 @@ def build_server(tools, server_cls=None):
         return tools.scope_capture(analyzer_csv, group, triggers, offset, length or None, subsampling,
             timeout, signals or None, max_changes)
 
-    @server.tool(annotations=side_effect)
-    def litex_build_start(target: str, args: list[str] = [], output_dir: str = "") -> dict:
+    @tool(annotations=side_effect)
+    def litex_build_start(target: str, args: list[str] = [], output_dir: str = "", build: bool = True) -> dict:
         """Start a gateware build in the background and return its job.
 
         target is a LiteX-Boards board name (see litex_list_boards/litex_board_info) or a target script
         (.py); args are its options (ex: ["--cpu-type=vexriscv", "--with-ethernet", "--toolchain=yosys+nextpnr"]).
         Builds take minutes: poll with litex_job_status or litex_job_wait(job, timeout=600), then call
         litex_build_report. --load/--flash need the server to run with --allow-write.
+        build=False runs a target script as is, with args only (no --build added): use it for a
+        project's own simulation script (it keeps running as a job, stop it with litex_job_stop).
         """
-        return tools.build_start(target, args, output_dir or None)
+        return tools.build_start(target, args, output_dir or None, build)
 
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_build_report(job: str = "", output_dir: str = "", max_paths: int = 10) -> dict:
         """Structured result of a build (job or output_dir): toolchain, timing met/WNS/TNS, per clock
         results, failing/worst paths, utilization and error lines. Vivado, Quartus, Gowin, Efinity and nextpnr."""
         return tools.build_report(job or None, output_dir or None, max_paths)
 
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_list_jobs() -> list:
         """List the background jobs (simulations, servers, builds) started by this server."""
         return tools.list_jobs()
 
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_job_status(job: str, tail: int = 40) -> dict:
         """Status of a background job: running, return code, elapsed time, last log lines."""
         return tools.job_status(job, tail)
 
-    @server.tool(annotations=read_only)
+    @tool(annotations=read_only)
     def litex_job_wait(job: str, pattern: str = "", timeout: float = 60) -> dict:
         """Wait (up to timeout s, max 600) until the job log matches pattern (regex) or the job ends."""
         return tools.job_wait(job, pattern or None, timeout)
 
-    @server.tool(annotations=side_effect)
+    @tool(annotations=side_effect)
     def litex_job_stop(job: str) -> dict:
         """Stop a background job and all its child processes."""
         return tools.job_stop(job)
