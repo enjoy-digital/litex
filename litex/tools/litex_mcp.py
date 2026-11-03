@@ -684,9 +684,11 @@ class LiteXMCPTools:
 
     # Builds ---------------------------------------------------------------------------------------
 
-    def build_start(self, target, args=None, output_dir=None):
+    def build_start(self, target, args=None, output_dir=None, build=True):
         """Start a target build (--build) in the background; target is a LiteX-Boards board name or
-        a target script (.py). --load/--flash (hardware side effects) require --allow-write."""
+        a target script (.py). With build=False, a target script is run as is with args only (ex: a
+        simulation target without --build option). --load/--flash (hardware side effects) require
+        --allow-write."""
         args = [] if args is None else list(args)
         if any(a.split("=")[0] in ["--load", "--flash"] for a in args) and not self.allow_write:
             raise LiteXMCPError("--load/--flash act on the hardware, restart the server with --allow-write.")
@@ -694,9 +696,16 @@ class LiteXMCPTools:
             if not os.path.exists(target):
                 raise LiteXMCPError(f"Target script {target} not found.")
             cmd = [sys.executable, os.path.abspath(target)]
+        elif not build:
+            raise LiteXMCPError("build=False runs a target script (.py) only.")
         else:
             self.board_info(target, sections=[]) # Validates the board name.
             cmd = [sys.executable, "-m", f"litex_boards.targets.{target}"]
+        if not build:
+            output_dir = os.path.abspath(output_dir) if output_dir else None
+            cmd += ([f"--output-dir={output_dir}"] if output_dir else []) + args
+            info = {"output_dir": output_dir, "csr_csv": os.path.join(output_dir, "csr.csv")} if output_dir else {}
+            return self._start_job("run", cmd, info=info, cwd=os.path.dirname(os.path.abspath(target)))
         output_dir = os.path.abspath(output_dir or os.path.join(self._get_jobs_dir(), f"build{len(self.jobs)}"))
         cmd += ["--build", f"--output-dir={output_dir}"] + [a for a in args if a != "--build"]
         return self._start_job("build", cmd, info={
@@ -961,15 +970,17 @@ def build_server(tools, server_cls=None):
             timeout, signals or None, max_changes)
 
     @tool(annotations=side_effect)
-    def litex_build_start(target: str, args: list[str] = [], output_dir: str = "") -> dict:
+    def litex_build_start(target: str, args: list[str] = [], output_dir: str = "", build: bool = True) -> dict:
         """Start a gateware build in the background and return its job.
 
         target is a LiteX-Boards board name (see litex_list_boards/litex_board_info) or a target script
         (.py); args are its options (ex: ["--cpu-type=vexriscv", "--with-ethernet", "--toolchain=yosys+nextpnr"]).
         Builds take minutes: poll with litex_job_status or litex_job_wait(job, timeout=600), then call
         litex_build_report. --load/--flash need the server to run with --allow-write.
+        build=False runs a target script as is, with args only (no --build added): use it for a
+        project's own simulation script (it keeps running as a job, stop it with litex_job_stop).
         """
-        return tools.build_start(target, args, output_dir or None)
+        return tools.build_start(target, args, output_dir or None, build)
 
     @tool(annotations=read_only)
     def litex_build_report(job: str = "", output_dir: str = "", max_paths: int = 10) -> dict:

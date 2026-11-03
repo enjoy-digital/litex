@@ -295,6 +295,29 @@ class TestLiteXMCP(unittest.TestCase):
             with self.assertRaises(LiteXMCPError):
                 tools.build_report(output_dir=os.path.join(d, "missing"))
 
+    def test_run_target_script(self):
+        # build=False: a project's own (simulation) target script, run as is.
+        with tempfile.TemporaryDirectory() as d:
+            tools = _tools(jobs_dir=d)
+            calls = []
+            tools._start_job = lambda kind, cmd, cwd=None, info=None: calls.append((kind, cmd, cwd)) or info
+            target = os.path.join(d, "target.py")
+            with open(target, "w") as f:
+                f.write("")
+            tools.build_start(target, ["--uart-tcp-port=21710"], build=False)
+            kind, cmd, cwd = calls[0]
+            self.assertEqual(kind, "run")
+            self.assertEqual(cmd[1:], [target, "--uart-tcp-port=21710"])
+            self.assertEqual(cwd, d)
+            info = tools.build_start(target, [], output_dir=os.path.join(d, "out"), build=False)
+            self.assertIn(f"--output-dir={info['output_dir']}", calls[1][1])
+            self.assertNotIn("--build", calls[1][1])
+            self.assertEqual(info["csr_csv"], os.path.join(d, "out", "csr.csv"))
+            with self.assertRaises(LiteXMCPError):
+                tools.build_start(target, ["--load"], build=False)
+            with self.assertRaises(LiteXMCPError):
+                tools.build_start("digilent_arty", build=False)
+
     def test_scope(self):
         with tempfile.TemporaryDirectory() as d:
             csv = os.path.join(d, "analyzer.csv")
