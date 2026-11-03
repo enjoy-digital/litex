@@ -34,6 +34,8 @@ analog behavior need a real build and a board (say in the PR what ran where).
 - Never edit generated files (`build/`, `csr.h`, `csr.csv`, the Verilog): change the Python.
 - One topic per pull request, from `master`, with what was tested and on which hardware; say
   that an agent wrote it and who supervised. Do not rename options or reformat unrelated code.
+  The human who submits it reviews it and owns it: see the AI section of
+  [CONTRIBUTING.md](CONTRIBUTING.md#ai-assisted-contributions).
 - Hardware: never flash a board or write its SPI flash unless the user asked; `--load` (volatile)
   is the default for experiments.
 
