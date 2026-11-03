@@ -14,9 +14,13 @@
 
 import os
 import sys
+import json
+import time
 import shutil
 import inspect
+import logging
 import argparse
+import datetime
 import subprocess
 
 from packaging.version import Version
@@ -25,7 +29,7 @@ from litex import get_data_mod
 from litex.gen import colorer
 
 from litex.build.bundle import BuildBundle, get_pythonpath_roots, remap_path
-from litex.build.tools import write_to_file
+from litex.build.tools import write_to_file, get_litex_git_revision
 from litex.build.log import build_log_context
 
 from litex.soc.integration import export, soc
@@ -44,6 +48,36 @@ def _check_makefile_path(p):
             f"Unsupported character in build path {p!r}: "
             "Make cannot handle spaces/'#' in paths, use a path without them.")
     return p
+
+def _get_git_revisions():
+    # Short Git revision of the loaded Migen/LiteX repositories (when installed from a Git clone).
+    revisions = {}
+    for name in sorted({m.split(".")[0] for m in list(sys.modules)}):
+        if not (name == "migen" or name.startswith("lite")):
+            continue
+        module_file = getattr(sys.modules.get(name), "__file__", None)
+        if module_file is None:
+            continue
+        module_dir = os.path.dirname(os.path.abspath(module_file))
+        try:
+            r = subprocess.check_output(["git", "rev-parse", "--show-toplevel", "--short", "HEAD"],
+                cwd=module_dir, stderr=subprocess.DEVNULL, timeout=10).decode("utf-8").split()
+        except (OSError, subprocess.SubprocessError):
+            continue
+        # Only report the repository the package is a direct child of (not an enclosing one).
+        if len(r) == 2 and os.path.realpath(os.path.dirname(module_dir)) == os.path.realpath(r[0]):
+            revisions[name] = r[1]
+    return revisions
+
+def _get_analyzer_csvs(module, depth=0):
+    # analyzer.csv files exported by the LiteScope analyzers of the design (written by their do_exit).
+    csvs = []
+    if type(module).__name__ == "LiteScopeAnalyzer" and getattr(module, "csr_csv", None):
+        csvs.append(os.path.abspath(module.csr_csv))
+    if depth < 16:
+        for _, submodule in getattr(module, "_submodules", []):
+            csvs += _get_analyzer_csvs(submodule, depth + 1)
+    return csvs
 
 def _create_dir(d, remove_if_exists=False):
     dir_path = os.path.realpath(d)
@@ -516,6 +550,87 @@ class Builder:
 
         self.last_build_bundle = bundle.create()
 
+    # Build Info -----------------------------------------------------------------------------------
+
+    BUILD_INFO_VERSION = 1
+
+    def get_build_info_filename(self):
+        return os.path.join(self.output_dir, "build_info.json")
+
+    def _get_build_info(self, run, status, start, end=None):
+        soc      = self.soc
+        platform = soc.platform
+        cpu      = getattr(soc, "cpu", None)
+
+        def exists(filename):
+            return filename if (filename is not None and os.path.exists(filename)) else None
+
+        try:
+            bitstream = self.get_bitstream_filename()
+        except Exception:
+            bitstream = None
+        bios = self.get_bios_filename() if getattr(cpu, "use_rom", False) else None
+        analyzer_csvs = [f for f in _get_analyzer_csvs(soc) if os.path.exists(f)]
+
+        revision = get_litex_git_revision()
+        return {
+            "version" : self.BUILD_INFO_VERSION,
+            "litex"   : {
+                "git_revision" : None if revision.startswith("-") else revision,
+                "repositories" : _get_git_revisions(),
+            },
+            "command" : {
+                "python" : sys.executable,
+                "argv"   : list(sys.argv),
+                "cwd"    : os.getcwd(),
+            },
+            "platform" : {
+                "name"      : getattr(platform, "name",   None),
+                "device"    : getattr(platform, "device", None),
+                "toolchain" : type(getattr(platform, "toolchain", None)).__name__ if hasattr(platform, "toolchain") else None,
+            },
+            "soc" : {
+                "build_name"   : soc.get_build_name(),
+                "sys_clk_freq" : getattr(soc, "sys_clk_freq", None),
+                "cpu_type"     : getattr(soc, "cpu_type", None),
+                "cpu_variant"  : getattr(cpu, "variant", None) if getattr(soc, "cpu_type", None) else None,
+            },
+            "files" : {
+                "output_dir"   : self.output_dir,
+                "gateware_dir" : self.gateware_dir,
+                "software_dir" : exists(self.software_dir),
+                "csr_csv"      : exists(self.csr_csv  and os.path.abspath(self.csr_csv)),
+                "csr_json"     : exists(self.csr_json and os.path.abspath(self.csr_json)),
+                "csr_svd"      : exists(self.csr_svd  and os.path.abspath(self.csr_svd)),
+                "build_log"    : self.get_build_log_filename(),
+                "bitstream"    : bitstream,
+                "bios"         : exists(bios),
+                "analyzer_csv" : analyzer_csvs[0] if analyzer_csvs else None,
+            },
+            "build" : {
+                "run"        : bool(run),
+                "status"     : status,
+                "started"    : datetime.datetime.fromtimestamp(start).isoformat(timespec="seconds"),
+                "finished"   : None if end is None else datetime.datetime.fromtimestamp(end).isoformat(timespec="seconds"),
+                "duration_s" : None if end is None else round(end - start, 1),
+            },
+        }
+
+    def _write_build_info(self, run, status, start, end=None):
+        # Best effort: build_info.json describes the build for tools/agents, it must never make a build fail.
+        try:
+            info     = self._get_build_info(run, status, start, end)
+            filename = self.get_build_info_filename()
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            with open(filename + ".tmp", "w", encoding="utf-8") as f:
+                json.dump(info, f, indent=4, default=str)
+                f.write("\n")
+            os.replace(filename + ".tmp", filename)
+        except Exception as e:
+            logging.getLogger("Builder").warning(f"Unable to write build_info.json ({e}).")
+
+    # Build ----------------------------------------------------------------------------------------
+
     def build(self, **kwargs):
         with build_log_context(self.get_build_log_filename()):
             return self._build(**kwargs)
@@ -612,9 +727,17 @@ class Builder:
 
         kwargs["build_backend"] = self.build_backend
 
-        # Build SoC and pass Verilog Name Space to do_exit.
-        vns = self.soc.build(build_dir=self.gateware_dir, **kwargs)
-        self.soc.do_exit(vns=vns)
+        # Build SoC and pass Verilog Name Space to do_exit (build_info.json tracks the build status).
+        start = time.time()
+        self._write_build_info(kwargs["run"], "running", start)
+        try:
+            vns = self.soc.build(build_dir=self.gateware_dir, **kwargs)
+            self.soc.do_exit(vns=vns)
+        except BaseException as e:
+            status = "interrupted" if isinstance(e, KeyboardInterrupt) else "failed"
+            self._write_build_info(kwargs["run"], status, start, time.time())
+            raise
+        self._write_build_info(kwargs["run"], "succeeded", start, time.time())
 
         # Generate SoC Documentation.
         if self.generate_doc:
