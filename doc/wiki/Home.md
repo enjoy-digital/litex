@@ -15,6 +15,8 @@ The LiteX framework provides a convenient and efficient infrastructure to create
 
 **Want development notes from building FPGA SoCs with LiteX? Visit the [LiteX Notes blog](https://enjoy-digital.github.io/)!**
 
+**Working with an AI agent? LiteX is agent-ready: an `AGENTS.md` in every repository of the ecosystem, an MCP server (`litex_mcp`) to drive a SoC and agent skills (a Claude Code plugin): see [LiteX for AI agents](LiteX-for-AI-Agents.md).**
+
 **A question or want to get in touch? Join us on [Discord](https://discord.gg/PkJwjDbxeG) or on our IRC channel: [#litex at irc.libera.chat]**.
 
 LiteX provides all the common components required to easily create an FPGA Core/SoC:
@@ -132,5 +134,5 @@ We share this project under a permissive BSD 2-Clause License, inspired by our f
 | **How LiteX works** | [The LiteX approach](LiteX-Approach.md), [SoC builder](SoC-builder.md), [Choosing a CPU](Choosing-A-CPU.md), [Wishbone](Wishbone-Bus.md) / [AXI](AXI-Bus.md) / [CSR](CSR-Bus.md) buses, [Streams](Streams.md), [Verilog to LiteX](LiteX-for-Hardware-Engineers.md) |
 | **Reference** | [CPUs](CPUs.md), [Hard core CPUs](Hard-core-CPUs.md), [SoC builder reference](SoC-Builder-Reference.md), [Cores](Cores.md), [Cores ecosystem](Cores-Ecosystem.md), [Build backends](Build-Backends.md), [Tools](Tools.md), [SoC documentation](SoC-Documentation.md) |
 | **Projects and community** | [Projects](Projects.md), [Tutorials and resources](Tutorials-Resources.md), [Feedback, contribution, support](Feedback-Contribution-Support.md), [Contributing to the wiki](Contributing-to-the-Wiki.md) |
-| **For AI agents** | [LiteX for AI agents](LiteX-for-AI-Agents.md) |
+| **For AI agents** | [LiteX for AI agents](LiteX-for-AI-Agents.md), [Debugging guide template](Debugging-Guide-Template.md), [llms.txt](https://raw.githubusercontent.com/wiki/enjoy-digital/litex/llms.txt) |
 <!-- readme:end -->
