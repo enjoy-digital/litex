@@ -33,6 +33,8 @@ from litex.tools.litex_client import RemoteClient
 # Helpers ------------------------------------------------------------------------------------------
 
 MAX_READ_WORDS = 4096
+MAX_SEQUENCE_OPS  = 20000 # Bus operations of a register sequence (all sweep rows).
+MAX_SEQUENCE_ROWS = 4096
 MAX_WAIT_TIME  = 600 # Seconds, per litex_job_wait call.
 
 def _strip_ansi(text):
@@ -279,6 +281,112 @@ class LiteXMCPTools:
         bus = self._get_bus()
         bus.write(int(address), words, burst="incr")
         return {"address": _hex(int(address)), "length": len(words)}
+
+    # Register Sequences ---------------------------------------------------------------------------
+
+    def _sequence_target(self, target):
+        """A sequence target: a CSR name, or a bus address (int or "0x..." string)."""
+        if isinstance(target, bool):
+            raise LiteXMCPError(f"Invalid sequence target {target!r}.")
+        if isinstance(target, int):
+            return None, target
+        if isinstance(target, str):
+            try:
+                return None, int(target, 0)
+            except ValueError:
+                return self._get_register(target), None
+        raise LiteXMCPError(f"Invalid sequence target {target!r} (CSR name or address).")
+
+    @staticmethod
+    def _sequence_value(value, binding):
+        """A step value: an int, or "$var" taken from the sweep row."""
+        if isinstance(value, str) and value.startswith("$"):
+            if value[1:] not in binding:
+                raise LiteXMCPError(f"Sequence variable {value} not in the sweep row {binding}.")
+            value = binding[value[1:]]
+        if isinstance(value, bool) or not isinstance(value, int):
+            try:
+                value = int(value, 0) if isinstance(value, str) else int(value)
+            except (TypeError, ValueError):
+                raise LiteXMCPError(f"Invalid sequence value {value!r}.")
+        return value
+
+    @_link
+    def register_sequence(self, steps, sweep=None):
+        """Run a list of register steps on the SoC in one call, optionally once per sweep row.
+
+        Steps (dicts), targets are CSR names or bus addresses:
+        - {"write": target, "value": int or "$var"}        (requires --allow-write)
+        - {"read": target, "as": label, "length": words}  (length: addresses only, default 1)
+        - {"poll": target, "mask": int, "equals": int or "$var", "timeout_ms": 100, "as": label}
+        - {"wait_us": int}
+        sweep: list of variable bindings (ex: [{"gain": 16384, "din": 1000}, ...]); the steps run
+        once per row. Returns one row per binding with the reads ({label: value}) and polls
+        ({label: {"ok", "value", "tries"}}).
+        """
+        if not isinstance(steps, list) or not steps or not all(isinstance(st, dict) for st in steps):
+            raise LiteXMCPError("steps must be a non-empty list of step dicts.")
+        rows = [{}] if not sweep else sweep
+        if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows):
+            raise LiteXMCPError("sweep must be a list of variable bindings (dicts).")
+        if len(rows) > MAX_SEQUENCE_ROWS:
+            raise LiteXMCPError(f"At most {MAX_SEQUENCE_ROWS} sweep rows.")
+        kinds = []
+        for st in steps:
+            kind = [k for k in ["write", "read", "poll", "wait_us"] if k in st]
+            if len(kind) != 1:
+                raise LiteXMCPError(f"Step {st} must have exactly one of write/read/poll/wait_us.")
+            kinds.append(kind[0])
+        if "write" in kinds:
+            self._check_write()
+        if len(rows)*sum(k != "wait_us" for k in kinds) > MAX_SEQUENCE_OPS:
+            raise LiteXMCPError(f"At most {MAX_SEQUENCE_OPS} bus operations per sequence.")
+
+        bus     = self._get_bus()
+        start   = time.time()
+        results = []
+        ops     = 0
+        for binding in rows:
+            reads, polls = {}, {}
+            for kind, st in zip(kinds, steps):
+                if kind == "wait_us":
+                    time.sleep(max(0, min(float(st["wait_us"]), 1e6))/1e6)
+                    continue
+                reg, addr = self._sequence_target(st[kind])
+                label     = str(st.get("as", st[kind]))
+                if kind == "write":
+                    value = self._sequence_value(st.get("value"), binding)
+                    reg.write(value) if reg is not None else bus.write(addr, value)
+                    ops += 1
+                elif kind == "read":
+                    length = int(st.get("length", 1))
+                    if reg is not None:
+                        value = reg.read()
+                    elif length == 1:
+                        value = bus.read(addr)
+                    elif 0 < length <= MAX_READ_WORDS:
+                        value = bus.read(addr, length, burst="incr")
+                    else:
+                        raise LiteXMCPError(f"length must be between 1 and {MAX_READ_WORDS} words.")
+                    reads[label] = value
+                    ops += 1
+                else:
+                    mask     = self._sequence_value(st.get("mask", 0xffffffff), binding)
+                    equals   = self._sequence_value(st.get("equals", 1), binding)
+                    deadline = time.time() + max(0, min(float(st.get("timeout_ms", 100)), 10000))/1e3
+                    tries    = 0
+                    while True:
+                        value = reg.read() if reg is not None else bus.read(addr)
+                        tries += 1
+                        ops   += 1
+                        if (value & mask) == equals or time.time() > deadline:
+                            break
+                    polls[label] = {"ok": (value & mask) == equals, "value": value, "tries": tries}
+            row = {"vars": binding, "reads": reads} if sweep else {"reads": reads}
+            if polls:
+                row["polls"] = polls
+            results.append(row)
+        return {"rows": results, "operations": ops, "elapsed_ms": round((time.time() - start)*1e3, 1)}
 
     # Connection selection -------------------------------------------------------------------------
 
@@ -876,6 +984,23 @@ def build_server(tools, server_cls=None):
     def litex_read_memory(address: int, length: int = 1) -> dict:
         """Read length 32-bit words from the SoC main bus at address."""
         return tools.read_memory(address, length)
+
+    @tool(annotations=destructive if tools.allow_write else read_only)
+    def litex_register_sequence(steps: list[dict], sweep: list[dict] = []) -> dict:
+        """Run register steps on the SoC in one call (one model turn instead of one per register),
+        optionally once per sweep row. Use it for configure-then-read sequences, polls and sweeps.
+
+        steps (targets: CSR names from litex_list_registers, or bus addresses):
+          {"write": "scaler_gain", "value": 16384}  or  {"write": 805306392, "value": "$limit"}
+          {"read": "scaler_dout", "as": "dout"}      ({"length": n} for n words at an address)
+          {"poll": "scaler_status", "mask": 1, "equals": 1, "timeout_ms": 100}
+          {"wait_us": 10}
+        sweep: variable bindings, the steps run once per row, "$name" in a value takes the row's
+        value. Ex: [{"din": 0}, {"din": 1000}, {"din": 65535}] with {"write": ..., "value": "$din"}.
+        Returns {"rows": [{"vars", "reads": {label: value}, "polls": {...}}], "operations", "elapsed_ms"}.
+        Writes require --allow-write.
+        """
+        return tools.register_sequence(steps, sweep or None)
 
     # SoC (write, only exposed with --allow-write).
     if tools.allow_write:

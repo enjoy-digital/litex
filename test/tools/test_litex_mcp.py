@@ -382,6 +382,37 @@ class TestLiteXMCP(unittest.TestCase):
         self.assertEqual(r["reconnects"], 1)
         self.assertIn("BIOS booted", r["output"])
 
+    def test_register_sequence(self):
+        tools = _tools(allow_write=True)
+        # Configure-then-read, by CSR name and by address (int or hex string), with a sweep.
+        r = tools.register_sequence([
+            {"write": "ctrl_scratch", "value": "$x"},
+            {"write": "0x10000000", "value": 7},
+            {"wait_us": 1},
+            {"read": "ctrl_scratch", "as": "scratch"},
+            {"read": 0x10000000, "length": 2, "as": "sram"},
+            {"poll": "ctrl_scratch", "mask": 0xff, "equals": "$x"},
+        ], sweep=[{"x": 1}, {"x": 2}])
+        self.assertEqual([row["vars"] for row in r["rows"]], [{"x": 1}, {"x": 2}])
+        self.assertEqual([row["reads"]["scratch"] for row in r["rows"]], [1, 2])
+        self.assertEqual(r["rows"][0]["reads"]["sram"], [7, 0])
+        self.assertTrue(r["rows"][1]["polls"]["ctrl_scratch"]["ok"])
+        self.assertEqual(r["operations"], 10)
+        # Poll timeout is reported, not raised.
+        r = tools.register_sequence([{"poll": "ctrl_bus_errors", "equals": 1, "timeout_ms": 20}])
+        self.assertFalse(r["rows"][0]["polls"]["ctrl_bus_errors"]["ok"])
+        self.assertNotIn("vars", r["rows"][0])
+        # Errors: unknown variable/register, bad step, writes without --allow-write.
+        for steps in [[{"write": "ctrl_scratch", "value": "$y"}], [{"read": "unknown"}],
+            [{"read": "ctrl_scratch", "write": "ctrl_scratch"}], []]:
+            with self.assertRaises(LiteXMCPError):
+                tools.register_sequence(steps)
+        tools = _tools()
+        self.assertEqual(tools.register_sequence([{"read": "ctrl_scratch"}])["rows"][0]["reads"]["ctrl_scratch"], 0x12345678)
+        with self.assertRaises(LiteXMCPError):
+            tools.register_sequence([{"write": "ctrl_scratch", "value": 1}])
+        self.assertEqual(tools._get_bus().writes, [])
+
     def test_server_tool_errors(self):
         # LiteXMCPError reaches the client as the SDK's ToolError (else SDK >= 2 hides the message).
         from litex.tools.litex_mcp import _get_tool_error_class
@@ -397,7 +428,7 @@ class TestLiteXMCP(unittest.TestCase):
             "litex_list_memory_regions", "litex_list_constants", "litex_read_register",
             "litex_read_registers", "litex_read_memory", "litex_list_boards", "litex_board_info",
             "litex_list_cpus", "litex_list_cores", "litex_list_jobs", "litex_job_status",
-            "litex_job_wait", "litex_build_report", "litex_scope_list",
+            "litex_job_wait", "litex_build_report", "litex_scope_list", "litex_register_sequence",
         }
         side_effect_tools = {"litex_connect", "litex_sim_start", "litex_server_start", "litex_job_stop",
             "litex_build_start", "litex_scope_capture", "litex_console_read"}
