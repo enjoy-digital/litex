@@ -797,6 +797,14 @@ class TestAXILite(unittest.TestCase):
 # TestAXILiteInterconnet ---------------------------------------------------------------------------
 
 class TestAXILiteInterconnect(unittest.TestCase):
+    def test_interconnect_rejects_data_width_mismatch(self):
+        master = AXILiteInterface(data_width=32)
+        slave  = AXILiteInterface(data_width=64)
+        with self.assertRaisesRegex(ValueError, "different Data-Widths"):
+            AXILiteInterconnectShared([master], [(lambda a: 1, slave)])
+        with self.assertRaisesRegex(ValueError, "different Data-Widths"):
+            AXILiteCrossbar([master], [(lambda a: 1, slave)])
+
     def test_interconnect_p2p(self):
         class DUT(Module):
             def __init__(self):
