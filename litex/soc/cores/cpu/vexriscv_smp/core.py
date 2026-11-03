@@ -9,6 +9,7 @@ import os
 import subprocess
 
 from migen import *
+from migen.fhdl.specials import Tristate
 
 from litex.gen import *
 
@@ -504,14 +505,21 @@ class VexRiscvSMP(CPU):
         ]
 
     def add_swd(self, pads):
-        # pads carry the three-wire form (swclk, swdio_i, swdio_o, swdio_oe); a real board
-        # collapses swdio_* into one bidirectional pin via an IOBUF at platform level.
-        self.comb += [
-            self.swd_clk.eq(pads.swclk),
-            self.swdio_i.eq(pads.swdio_i),
-            pads.swdio_o.eq(self.swdio_o),
-            pads.swdio_oe.eq(self.swdio_oe),
-        ]
+        # Pads are either a board's bidirectional SWDIO pin (swclk, swdio) or the three-wire
+        # form (swclk, swdio_i, swdio_o, swdio_oe) used by simulation.
+        self.comb += self.swd_clk.eq(pads.swclk)
+        if hasattr(pads, "swdio"):
+            self.specials += Tristate(pads.swdio,
+                o  = self.swdio_o,
+                oe = self.swdio_oe,
+                i  = self.swdio_i,
+            )
+        else:
+            self.comb += [
+                self.swdio_i.eq(pads.swdio_i),
+                pads.swdio_o.eq(self.swdio_o),
+                pads.swdio_oe.eq(self.swdio_oe),
+            ]
 
     def add_soc_components(self, soc):
         if self.variant == "linux":
