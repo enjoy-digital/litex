@@ -139,6 +139,44 @@ class AlteraSDRInput:
     def lower(dr):
         return AlteraDDRInputImpl(dr.i, dr.o, Signal(len(dr.o)), dr.clk)
 
+# MAX 10 -------------------------------------------------------------------------------------------
+
+# ALTDDIO_OUT/ALTDDIO_IN are not usable on MAX 10 (the IOE DDIO is reached through the GPIO Lite IP):
+# Quartus elaborates them, but on hardware (DE10-Lite, Quartus 23.1) the SDR inputs read a constant
+# instead of the pin, the SDR outputs and a DDROutput(1, 0) forwarded clock do not reach the SDRAM
+# correctly. On MAX 10, SDR IOs are lowered to fabric registers (the generic fallback, packable in
+# the IOEs with FAST_INPUT_REGISTER/FAST_OUTPUT_REGISTER) and a forwarded clock (DDROutput with
+# constant (1, 0)/(0, 1) inputs) drives the pin from the clock directly.
+
+class Max10DDROutputImpl(Module):
+    def __init__(self, i1, i2, o, clk):
+        def const(v):
+            return v.value if isinstance(v, Constant) else v if isinstance(v, int) else None
+        c1, c2 = const(i1), const(i2)
+        if (c1, c2) == (1, 0):
+            self.comb += o.eq(clk)
+        elif (c1, c2) == (0, 1):
+            self.comb += o.eq(~clk)
+        else:
+            raise NotImplementedError("MAX 10: DDROutput is only supported as a forwarded clock "
+                "(constant (1, 0) or (0, 1) inputs); ALTDDIO_OUT is not usable on MAX 10.")
+
+class Max10DDROutput:
+    @staticmethod
+    def lower(dr):
+        return Max10DDROutputImpl(dr.i1, dr.i2, dr.o, dr.clk)
+
+class Max10SDRIO:
+    @staticmethod
+    def lower(dr):
+        return SDRIO.lower(dr) # Generic fallback: fabric register.
+
+max10_special_overrides = {
+    DDROutput: Max10DDROutput,
+    SDROutput: Max10SDRIO,
+    SDRInput:  Max10SDRIO,
+}
+
 # Special Overrides --------------------------------------------------------------------------------
 
 altera_special_overrides = {
