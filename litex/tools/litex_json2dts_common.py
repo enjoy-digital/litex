@@ -58,9 +58,11 @@ def get_riscv_cpu_isa_extensions_by_string(isa):
 def get_riscv_cpu_isa_extensions(cpu_isa, cpu_name):
     isa_extensions = get_riscv_cpu_isa_extensions_by_string(cpu_isa)
 
-    # Add rocket-specific extensions.
+    # Add CPU-specific extensions not reported in the ISA string.
     if cpu_name == "rocket":
         isa_extensions.update({"zicsr", "zifencei", "zihpm"})
+    if cpu_name in ["vexriscv", "vexiiriscv"]:
+        isa_extensions.update({"zicsr", "zifencei"})
 
     # Format extensions.
     return ", ".join(f"\"{extension}\"" for extension in sorted(isa_extensions))
