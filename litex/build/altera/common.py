@@ -149,6 +149,11 @@ class AlteraSDRInput:
 #   in the IOE output register, which works in every bank).
 # - DDROutput with constant (1, 0)/(0, 1) inputs (a forwarded clock) drives the pin from the clock
 #   directly. Other DDROutput uses keep ALTDDIO_OUT (not usable in banks 5/6 of the 10M50).
+# - SDRInput is lowered to a fabric register too (FAST_INPUT_REGISTER packs it in the IOE input
+#   register). ALTDDIO_IN's dataout_h is re-registered to line up with the falling-edge data: one
+#   clock more than SDRInput's contract (o = i registered once). With LiteDRAM's GENSDRPHY the read
+#   data then lands a clock late; a round trip through the same port still passes at some SDRAM clock
+#   phases while data written through one port and read through another does not.
 
 class Max10DDROutputImpl(Module):
     def __init__(self, i1, i2, o, clk):
@@ -172,9 +177,15 @@ class Max10SDROutput:
     def lower(dr):
         return SDRIO.lower(dr) # Generic fallback: fabric register.
 
+class Max10SDRInput:
+    @staticmethod
+    def lower(dr):
+        return SDRIO.lower(dr) # Generic fallback: fabric register.
+
 max10_special_overrides = {
     DDROutput: Max10DDROutput,
     SDROutput: Max10SDROutput,
+    SDRInput:  Max10SDRInput,
 }
 
 # Special Overrides --------------------------------------------------------------------------------
