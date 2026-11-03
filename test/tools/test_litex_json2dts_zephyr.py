@@ -44,25 +44,26 @@ def csr_with_i2c_instances():
     }
 
 
+def cpu_props(cpu_freq):
+    return "clock-frequency = <{}>;\n    timebase-frequency = <{}>;".format(cpu_freq, SYS_CLK_FREQ)
+
+
 class TestLiteXJson2DTSZephyr(unittest.TestCase):
     def test_cpu_node_uses_sys_clk_freq_without_system_clock_node_ref(self):
         csr = csr_with_i2c_instances()
         csr["constants"]["config_cpu_clk_freq"] = CPU_CLK_FREQ
-        self.assertEqual(cpu_handler("cpu", {}, csr).strip(),
-            "clock-frequency = <{}>;".format(SYS_CLK_FREQ))
+        self.assertEqual(cpu_handler("cpu", {}, csr).strip(), cpu_props(SYS_CLK_FREQ))
 
     def test_cpu_node_uses_cpu_clk_freq_with_system_clock_node_ref(self):
         csr = csr_with_i2c_instances()
         csr["constants"]["config_cpu_system_clock_node_ref"] = "clk_sys"
         csr["constants"]["config_cpu_clk_freq"] = CPU_CLK_FREQ
-        self.assertEqual(cpu_handler("cpu", {}, csr).strip(),
-            "clock-frequency = <{}>;".format(CPU_CLK_FREQ))
+        self.assertEqual(cpu_handler("cpu", {}, csr).strip(), cpu_props(CPU_CLK_FREQ))
 
     def test_cpu_node_falls_back_to_sys_clk_freq_without_cpu_clk_freq(self):
         csr = csr_with_i2c_instances()
         csr["constants"]["config_cpu_system_clock_node_ref"] = "clk_sys"
-        self.assertEqual(cpu_handler("cpu", {}, csr).strip(),
-            "clock-frequency = <{}>;".format(SYS_CLK_FREQ))
+        self.assertEqual(cpu_handler("cpu", {}, csr).strip(), cpu_props(SYS_CLK_FREQ))
 
     def test_cpu_and_system_clock_frequencies_in_both_output_modes(self):
         csr = csr_with_i2c_instances()
@@ -82,9 +83,21 @@ class TestLiteXJson2DTSZephyr(unittest.TestCase):
 
                 dts = " ".join(dts.split())
                 self.assertIn(
-                    "&cpu0 {{ clock-frequency = <{}>; }};".format(CPU_CLK_FREQ), dts)
+                    "&{{/cpus}} {{ clock-frequency = <{}>; timebase-frequency = <{}>; }};".format(
+                        CPU_CLK_FREQ, SYS_CLK_FREQ), dts)
                 self.assertIn(
                     "&ae350_clk {{ clock-frequency = <{}>; }};".format(SYS_CLK_FREQ), dts)
+
+    def test_cpus_node_has_riscv_isa(self):
+        csr = csr_with_i2c_instances()
+        csr["constants"].update({
+            "config_cpu_family": "riscv",
+            "config_cpu_name":   "vexriscv",
+            "config_cpu_isa":    "rv32i2p0_mac",
+        })
+        dtsi = cpu_handler("cpu", {}, csr)
+        self.assertIn('riscv,isa-base = "rv32i";', dtsi)
+        self.assertIn('riscv,isa-extensions = "a", "c", "i", "m", "zicsr", "zifencei";', dtsi)
 
     def test_overlay_mode_keeps_fixed_handler_behavior(self):
         with redirect_stdout(io.StringIO()) as output:
