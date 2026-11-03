@@ -1,0 +1,17 @@
+{
+  "name": "litex",
+  "description": "LiteX agent skills: build, bring-up, CSR and LiteScope debug, timing triage, upstreaming fixes.",
+  "owner": {
+    "name": "Enjoy-Digital",
+    "url": "https://github.com/enjoy-digital"
+  },
+  "plugins": [
+    {
+      "name": "litex",
+      "source": "./doc/agent",
+      "description": "Skills to build, bring up, debug and upstream fixes to LiteX SoCs, with the LiteX tools and the litex_mcp server.",
+      "homepage": "https://github.com/enjoy-digital/litex/wiki/LiteX-for-AI-Agents",
+      "license": "BSD-2-Clause"
+    }
+  ]
+}

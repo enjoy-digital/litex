@@ -42,3 +42,10 @@ analog behavior need a real build and a board (say in the PR what ran where).
 Method: https://github.com/enjoy-digital/litex/wiki/Debug-A-SoC-On-Hardware (check the link and `--ident` first, registers before
 traces, narrow LiteScope captures). `litex_mcp` gives the same loop as MCP tools (CSRs by name,
 LiteScope captures, builds with parsed timing, simulation): https://github.com/enjoy-digital/litex/wiki/LiteX-for-AI-Agents#drive-a-soc-through-mcp.
+
+## Skills
+
+`doc/agent/skills/<name>/SKILL.md` (Agent Skills format): build and load, board bring-up, CSR
+debug, LiteScope captures, timing triage, upstreaming a fix. Read the one that matches the task;
+in Claude Code, install them with `/plugin marketplace add enjoy-digital/litex` then
+`/plugin install litex@litex`.

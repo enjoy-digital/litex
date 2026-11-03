@@ -1,0 +1,11 @@
+{
+  "name": "litex",
+  "description": "Skills to build, bring up, debug and upstream fixes to LiteX SoCs, with the LiteX tools and the litex_mcp server.",
+  "author": {
+    "name": "Enjoy-Digital",
+    "url": "https://github.com/enjoy-digital"
+  },
+  "homepage": "https://github.com/enjoy-digital/litex/wiki/LiteX-for-AI-Agents",
+  "repository": "https://github.com/enjoy-digital/litex",
+  "license": "BSD-2-Clause"
+}
