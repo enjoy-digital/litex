@@ -15,6 +15,7 @@ import subprocess
 
 from test.agent_eval.common import CheckResult, run_sim_check
 
+TIER        = "v1"            # Fault visible in the source.
 AGENT_PORTS = range(21000, 21050) # Ports given to the agent (UART, litex_server, ...).
 UART_PORT   = 21050
 SERVER_PORT = 21051

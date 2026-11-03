@@ -11,6 +11,7 @@ import json
 
 from test.agent_eval.common import CheckResult
 
+TIER        = "v1"            # Fault visible in the source.
 AGENT_PORTS = range(21400, 21450) # Ports given to the agent (none used, MCP configuration).
 
 TRUTH = {

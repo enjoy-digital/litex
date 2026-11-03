@@ -1,0 +1,5 @@
+{
+    "integrated_sram_size" : 4096,
+    "csr_data_width"       : 8,
+    "csr_address_width"    : 14
+}

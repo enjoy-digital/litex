@@ -12,6 +12,7 @@ import time
 
 from test.agent_eval.common import CheckResult, run_sim_check
 
+TIER          = "v1"            # Fault visible in the source.
 AGENT_PORTS   = range(21300, 21350) # Ports given to the agent (UART, litex_server, ...).
 UART_PORT     = 21350
 SERVER_PORT   = 21351
