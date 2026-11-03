@@ -35,11 +35,11 @@ def verilog(device, **kwargs):
 
 class TestAlteraMax10IO(unittest.TestCase):
     def test_max10_sdr_output_and_forwarded_clock(self):
-        # MAX 10: SDR outputs are fabric registers, the forwarded clock drives the pin directly,
-        # SDR inputs keep ALTDDIO_IN.
+        # MAX 10: SDR outputs and inputs are fabric registers (one clock, as SDROutput/SDRInput
+        # promise), the forwarded clock drives the pin directly.
         v = verilog("10M50DAF484C7G")
         self.assertNotIn("ALTDDIO_OUT", v)
-        self.assertIn("ALTDDIO_IN", v)
+        self.assertNotIn("ALTDDIO_IN", v)
         self.assertIn("assign ck = sys_clk;", v)
 
     def test_max10_inverted_forwarded_clock(self):
