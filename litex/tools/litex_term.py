@@ -12,6 +12,7 @@
 import sys
 import signal
 import os
+import re
 import time
 import serial
 import threading
@@ -109,10 +110,11 @@ class CrossoverUART:
         self.crossover2pty_thread.start()
 
     def close(self):
-        self.bus.close()
+        # Stop the threads before closing the bus they poll.
         self.alive = False
+        self.crossover2pty_thread.join(timeout=1.0)
         self.pty2crossover_thread.join(timeout=0.1)
-        self.crossover2pty_thread.join(timeout=0.1)
+        self.bus.close()
 
     def pty2crossover(self):
         while self.alive:
@@ -363,6 +365,11 @@ def crc16(l):
 
 # LiteXTerm ----------------------------------------------------------------------------------------
 
+def _clean(data):
+    """Received bytes as text, without ANSI escape sequences (colored prompt) and carriage returns."""
+    text = data.decode("utf-8", errors="replace")
+    return re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", text).replace("\r", "")
+
 class LiteXTerm:
     def __init__(self, serial_boot, kernel_image, kernel_address, json_images, safe, exit_on=None):
         self.serial_boot = serial_boot
@@ -387,7 +394,7 @@ class LiteXTerm:
         self.magic_detect_buffer  = bytes(len(sfl_magic_req))
         self.set_exit_on(exit_on)
 
-        self.console            = Console()
+        self._console           = None # Created on first use (needs a terminal, not in scripted mode).
         self.stop_event         = threading.Event()
         self.upload_active      = threading.Event()
         self.upload_abort_event = threading.Event()
@@ -399,6 +406,16 @@ class LiteXTerm:
         self.delay       = 0
         self.length      = sfl_safe_data_length if safe else sfl_data_length
         self.outstanding = 1 if safe else sfl_default_outstanding
+
+    @property
+    def console(self):
+        if getattr(self, "_console", None) is None:
+            self._console = Console()
+        return self._console
+
+    @console.setter
+    def console(self, console):
+        self._console = console
 
     def set_exit_on(self, exit_on):
         if isinstance(exit_on, bytes):
@@ -430,7 +447,8 @@ class LiteXTerm:
         sigint_time_current = time.time()
         # Exit term if 2 CTRL-C pressed in less than 0.5s or if the writer is not alive anymore.
         if not self.writer_alive or (sigint_time_current - self.sigint_time_last < 0.5):
-            self.console.unconfigure()
+            if self._console is not None:
+                self.console.unconfigure()
             self.close()
             sys.exit()
         else:
@@ -884,6 +902,48 @@ class LiteXTerm:
         if not writer_only:
             self.reader_thread.join()
 
+    # Scripted (non-interactive) mode -------------------------------------------------------------
+
+    def _read_until(self, regex, timeout):
+        """Read from the port until regex matches the received text or timeout (s) expires."""
+        data  = bytearray()
+        start = time.time()
+        while (time.time() - start) < timeout:
+            c = self.port.read(self.port.in_waiting or 1)
+            if c:
+                data += c
+                if regex is not None and regex.search(_clean(data)):
+                    return _clean(data), True
+        return _clean(data), regex is None
+
+    def script(self, sends, expect="litex>", timeout=10.0):
+        """Send command lines and wait for expect (regex) after each one, without a terminal.
+
+        With no command, only wait for expect (ex: a boot prompt). Returns the steps (sent command,
+        received output, matched) and stops at the first step that times out.
+        """
+        self.port.timeout = 0.05
+        regex = re.compile(expect) if expect else None
+        steps = []
+        if not sends:
+            output, matched = self._read_until(regex, timeout)
+            return [{"send": None, "output": output, "matched": matched}]
+        # Drain what the device already printed (ex: boot log, previous prompt): the first --expect
+        # must match the output of the command, not a pending prompt.
+        while self._read_until(None, 0.3)[0]:
+            pass
+        for send in sends:
+            self.port.write(send.encode() + b"\n")
+            output, matched = self._read_until(regex, timeout)
+            # Drop the echoed command line (the BIOS echoes what it receives).
+            echo = send + "\n"
+            if output.lstrip(" ").startswith(echo):
+                output = output.lstrip(" ")[len(echo):]
+            steps.append({"send": send, "output": output.rstrip(" "), "matched": matched})
+            if not matched:
+                break
+        return steps
+
 # Run ----------------------------------------------------------------------------------------------
 
 def _get_args():
@@ -896,6 +956,11 @@ def _get_args():
     parser.add_argument("--images",         default=None,                       help="JSON description of the images to load to memory.")
     parser.add_argument("--safe",           action="store_true",                help="Safe serial boot mode, disable upload speed optimizations.")
     parser.add_argument("--exit-on",        default=None,                       help="Exit when this string is received from the device.")
+
+    parser.add_argument("--send",           default=[], action="append",        help="Scripted mode: send this command line, then wait for --expect (repeatable).")
+    parser.add_argument("--expect",         default=None,                       help="Scripted mode: regex waited for after each --send (default: litex>), or alone: wait for it once.")
+    parser.add_argument("--timeout",        default=10.0, type=float,           help="Scripted mode: timeout of each step in seconds.")
+    parser.add_argument("--json",           action="store_true",                help="Scripted mode: print the steps as JSON (send, output, matched).")
 
     parser.add_argument("--csr-csv",        default=None,                       help="SoC CSV file.")
     parser.add_argument("--base-address",   default=None,                       help="CSR base address.")
@@ -936,6 +1001,26 @@ def main():
     else:
         port = args.port
     term.open(port, int(float(args.speed)))
+
+    # Scripted mode: no terminal, exit code 0 when every step matched, 2 on timeout.
+    if args.send or args.expect is not None:
+        try:
+            expect = "litex>" if args.expect is None else args.expect
+            steps  = term.script(args.send, expect=expect, timeout=args.timeout)
+        finally:
+            term.close()
+            if args.port in ["crossover"]:
+                xover.close()
+        ok = all(step["matched"] for step in steps)
+        if args.json:
+            print(json.dumps({"ok": ok, "steps": steps}, indent=2))
+        else:
+            for step in steps:
+                sys.stdout.write(step["output"])
+            if not ok:
+                print(f"\n[LITEX-TERM] Timeout waiting for {expect!r}.", file=sys.stderr)
+        sys.exit(0 if ok else 2)
+
     term.console.configure()
     try:
         term.start()
