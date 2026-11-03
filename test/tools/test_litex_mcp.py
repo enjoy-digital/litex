@@ -113,6 +113,33 @@ class FakeConsoleClient(FakeClient):
             return
         FakeClient.write(self, addr, datas, burst)
 
+class FakeResetClient(FakeConsoleClient):
+    """FakeConsoleClient where "reboot" resets the SoC: the pending bridge read times out and a new
+    connection sees the boot output (as a reset UARTBone + crossover UART on hardware)."""
+    def __init__(self, *args, **kwargs):
+        FakeConsoleClient.__init__(self, *args, **kwargs)
+        self.reset = False
+
+    def read(self, addr, length=None, burst="incr"):
+        if self.reset:
+            raise TimeoutError("UART read timeout (0/4 bytes received).")
+        return FakeConsoleClient.read(self, addr, length, burst)
+
+    def write(self, addr, datas, burst="incr"):
+        line = self.line
+        FakeConsoleClient.write(self, addr, datas, burst)
+        if addr == self.RXTX and (datas if isinstance(datas, int) else datas[0]) == ord("\n"):
+            self.reset = self.reset or (line == "reboot")
+
+class FakeFlakyClient(FakeClient):
+    """FakeClient whose link fails once (ex: litex_server restarted)."""
+    failures = 1
+    def read(self, addr, length=None, burst="incr"):
+        if FakeFlakyClient.failures:
+            FakeFlakyClient.failures -= 1
+            raise ConnectionResetError("Connection reset by peer")
+        return FakeClient.read(self, addr, length, burst)
+
 def _tools(**kwargs):
     return LiteXMCPTools(csr_csv=None, client_cls=FakeClient, **kwargs)
 
@@ -307,6 +334,39 @@ class TestLiteXMCP(unittest.TestCase):
         self.assertIn("available commands", r["output"])
         with self.assertRaises(LiteXMCPError):
             _tools().console_read() # No crossover UART.
+
+    def test_filter_regex(self):
+        tools = _tools()
+        names = [r["name"] for r in tools.list_registers("scratch|bus_errors")]
+        self.assertEqual(sorted(names), ["ctrl_bus_errors", "ctrl_scratch"])
+        self.assertEqual([r["name"] for r in tools.list_registers("scratch")], ["ctrl_scratch"])
+        self.assertEqual(tools.list_registers("["), []) # Invalid regex: substring match.
+
+    def test_link_error_reconnects(self):
+        FakeFlakyClient.failures = 1
+        tools = LiteXMCPTools(csr_csv=None, client_cls=FakeFlakyClient)
+        with self.assertRaises(LiteXMCPError) as e:
+            tools.read_register("ctrl_scratch")
+        self.assertIn("next call reconnects", str(e.exception))
+        self.assertIsNone(tools.bus)
+        self.assertEqual(tools.read_register("ctrl_scratch")["value"], 0x12345678)
+
+    def test_console_reset(self):
+        tools = LiteXMCPTools(csr_csv=None, client_cls=FakeResetClient, allow_write=True)
+        tools.console_read(timeout=0.2)
+        r = tools.console_command("reboot", timeout=10)
+        self.assertTrue(r["matched"])
+        self.assertEqual(r["reconnects"], 1)
+        self.assertIn("BIOS booted", r["output"])
+
+    def test_server_tool_errors(self):
+        # LiteXMCPError reaches the client as the SDK's ToolError (else SDK >= 2 hides the message).
+        from litex.tools.litex_mcp import _get_tool_error_class
+        server     = build_server(_tools(), server_cls=FakeServer)
+        tool_error = _get_tool_error_class() or LiteXMCPError
+        with self.assertRaises(tool_error) as e:
+            server.tools["litex_read_register"]("unknown")
+        self.assertIn("unknown not found", str(e.exception))
 
     def test_server_tools(self):
         read_tools = {
