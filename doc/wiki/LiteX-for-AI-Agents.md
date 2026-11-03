@@ -162,7 +162,9 @@ wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
 
 Then a target file (copy the closest LiteX-Boards target, or the [40-line one](Create-A-minimal-SoC.md)),
 `--build --no-compile` to check the map, `--build --load` when the toolchain is there,
-`litex_term` for the console, `--with-uartbone`/`--with-etherbone` + `litex_server` +
+`litex_term` for the console (without a terminal: `litex_term <port> --send help --send ident
+--json` returns each command's output up to the `litex>` prompt, `--expect <regex>` waits for
+something else, exit code 2 on timeout), `--with-uartbone`/`--with-etherbone` + `litex_server` +
 `RemoteClient` to script the board from Python, [LiteScope](Use-LiteScope-To-Debug-A-SoC.md)
 to see signals, `litex_bare_metal_demo` as the firmware template. For a core that must exist
 in a non-LiteX design, the generators ([Export](Export-To-Verilog.md)). Two projects where an

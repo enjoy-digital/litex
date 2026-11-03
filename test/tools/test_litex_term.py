@@ -385,5 +385,39 @@ class TestLiteXTermSFL(unittest.TestCase):
         self.assertIn("Retrying with length 4, window 1", output.getvalue())
 
 
+PROMPT = b"\x1b[92;1mlitex\x1b[0m> "
+
+class TestLiteXTermScript(unittest.TestCase):
+    def test_send_expect(self):
+        # Pending boot output + colored prompt, BIOS echo, one reply per command.
+        port = FakePort(read_data=b"BIOS boot\r\n" + PROMPT, write_replies=[
+            b"ident\r\nIdent: test SoC\r\n" + PROMPT,
+            b"mem_list\r\nAvailable memory regions:\r\nROM 0x00000000\r\n" + PROMPT,
+        ])
+        steps = make_term(port).script(["ident", "mem_list"], expect="litex>", timeout=1.0)
+        self.assertEqual(port.written, b"ident\nmem_list\n")
+        self.assertEqual([s["matched"] for s in steps], [True, True])
+        self.assertEqual(steps[0]["output"], "Ident: test SoC\nlitex>") # No echo/ANSI/CR, no boot log.
+        self.assertIn("ROM 0x00000000", steps[1]["output"])
+
+    def test_expect_only(self):
+        port  = FakePort(read_data=b"BIOS boot\r\n" + PROMPT)
+        steps = make_term(port).script([], expect="litex>", timeout=1.0)
+        self.assertTrue(steps[0]["matched"])
+        self.assertIn("BIOS boot", steps[0]["output"])
+
+    def test_timeout_stops(self):
+        port  = FakePort(write_replies=[b"reboot\r\n"])
+        steps = make_term(port).script(["reboot", "help"], expect="litex>", timeout=0.2)
+        self.assertEqual(len(steps), 1)
+        self.assertFalse(steps[0]["matched"])
+        self.assertEqual(port.written, b"reboot\n")
+
+    def test_no_terminal_needed(self):
+        # The console (termios on stdin) is only created when used: scripted mode works without a TTY.
+        term = LiteXTerm(False, None, "0x40000000", None, False)
+        self.assertIsNone(term._console)
+
+
 if __name__ == "__main__":
     unittest.main()
