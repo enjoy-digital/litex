@@ -212,6 +212,14 @@ error lines (Vivado, Quartus, Gowin, Efinity and nextpnr reports; parsers in
 `litex/build/report.py`). `--load` and
 `--flash` are only accepted with `--allow-write`.
 
+Every build (including `--no-compile`) writes `build_info.json` next to `csr.csv`: the command
+line, the platform/device/toolchain, the CPU, `sys_clk_freq`, the LiteX (and loaded cores) Git
+revisions, the generated files (CSR maps, bitstream, BIOS, log, LiteScope `analyzer.csv`) and the build status (`running`,
+`succeeded`, `failed`; `run: false` when only the files were generated). `litex_build_info` returns
+it, `litex_build_report` includes it (builds started by `litex_build_start` run from their output
+directory, so `analyzer.csv` lands there), and the CSR maps and `build_info.json` of the selected SoC are
+also MCP resources (`litex://soc/csr.csv`, `litex://soc/csr.json`, `litex://soc/build_info.json`).
+
 With a LiteScope analyzer in the design, `litex_scope_list` gives its groups and signals (from the
 build's `analyzer.csv`) and `litex_scope_capture` sets the triggers (rising, falling, value), arms,
 waits (with a timeout) and returns the capture as data: per signal, the value at the trigger, the
