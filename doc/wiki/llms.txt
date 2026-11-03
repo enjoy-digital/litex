@@ -78,6 +78,26 @@ the repository). Every page opens with what you get and ends with a Next section
 
 - [LiteX-for-AI-Agents](https://github.com/enjoy-digital/litex/wiki/LiteX-for-AI-Agents): a map of LiteX for an agent working in or with it: what LiteX is, the repository layout, the key classes, the commands that answer questions fast, the conventions, how to verify a change, pitfalls, using LiteX from a project, driving a SoC through MCP (litex_mcp), why and how to contribute the fixes back
 
+### Ecosystem
+
+The AGENTS.md (where things are, how to verify a change, the rules) and the README of each
+repository of the ecosystem, as raw markdown on its default branch:
+
+- [LiteX AGENTS.md](https://raw.githubusercontent.com/enjoy-digital/litex/master/AGENTS.md): the framework: SoC builder, interconnect, in-tree cores, CPUs, build backends, BIOS, host tools, litex_mcp; README: https://raw.githubusercontent.com/enjoy-digital/litex/master/README.md
+- [LiteX-Boards AGENTS.md](https://raw.githubusercontent.com/litex-hub/litex-boards/master/AGENTS.md): platforms and targets of the supported boards; README: https://raw.githubusercontent.com/litex-hub/litex-boards/master/README.md
+- [LiteDRAM AGENTS.md](https://raw.githubusercontent.com/enjoy-digital/litedram/master/AGENTS.md): DRAM controller, PHYs (SDR to DDR4, LPDDR4/5), frontends, standalone generator; README: https://raw.githubusercontent.com/enjoy-digital/litedram/master/README.md
+- [LiteEth AGENTS.md](https://raw.githubusercontent.com/enjoy-digital/liteeth/master/AGENTS.md): Ethernet MAC, PHYs, UDP/IP stack, Etherbone; README: https://raw.githubusercontent.com/enjoy-digital/liteeth/master/README.md
+- [LitePCIe AGENTS.md](https://raw.githubusercontent.com/enjoy-digital/litepcie/master/AGENTS.md): PCIe endpoint and root-port cores, DMA, Linux driver; README: https://raw.githubusercontent.com/enjoy-digital/litepcie/master/README.md
+- [LiteSATA AGENTS.md](https://raw.githubusercontent.com/enjoy-digital/litesata/master/AGENTS.md): SATA PHY and core; README: https://raw.githubusercontent.com/enjoy-digital/litesata/master/README.md
+- [LiteSDCard AGENTS.md](https://raw.githubusercontent.com/enjoy-digital/litesdcard/master/AGENTS.md): SD card controller; README: https://raw.githubusercontent.com/enjoy-digital/litesdcard/master/README.md
+- [LiteICLink AGENTS.md](https://raw.githubusercontent.com/enjoy-digital/liteiclink/master/AGENTS.md): inter-chip links: SerWB and transceiver wrappers; README: https://raw.githubusercontent.com/enjoy-digital/liteiclink/master/README.md
+- [LiteJESD204 AGENTS.md](https://raw.githubusercontent.com/enjoy-digital/litejesd204/master/AGENTS.md): JESD204B/C cores; README: https://raw.githubusercontent.com/enjoy-digital/litejesd204/master/README.md
+- [LiteSPI AGENTS.md](https://raw.githubusercontent.com/litex-hub/litespi/master/AGENTS.md): SPI and SPI flash cores; README: https://raw.githubusercontent.com/litex-hub/litespi/master/README.md
+- [LiteI2C AGENTS.md](https://raw.githubusercontent.com/litex-hub/litei2c/main/AGENTS.md): I2C core; README: https://raw.githubusercontent.com/litex-hub/litei2c/main/README.md
+- [LiteScope AGENTS.md](https://raw.githubusercontent.com/enjoy-digital/litescope/master/AGENTS.md): embedded logic analyzer, litescope_cli; README: https://raw.githubusercontent.com/enjoy-digital/litescope/master/README.md
+- [USB3-PIPE AGENTS.md](https://raw.githubusercontent.com/enjoy-digital/usb3_pipe/master/AGENTS.md): USB3 PHY on FPGA transceivers and a USB3 device core; README: https://raw.githubusercontent.com/enjoy-digital/usb3_pipe/master/README.md
+- [LiteNVMe AGENTS.md](https://raw.githubusercontent.com/enjoy-digital/litenvme/main/AGENTS.md): NVMe host core on a LitePCIe root port; README: https://raw.githubusercontent.com/enjoy-digital/litenvme/main/README.md
+- [LiteDSP AGENTS.md](https://raw.githubusercontent.com/enjoy-digital/litedsp/main/AGENTS.md): RF/DSP blocks (work in progress); README: https://raw.githubusercontent.com/enjoy-digital/litedsp/main/README.md
 
 ## Moved pages (kept for their links)
 
