@@ -280,16 +280,25 @@ class TestLiteXMCP(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             tools = _tools(jobs_dir=d)
             calls = []
-            tools._start_job = lambda kind, cmd, cwd=None, info=None: calls.append((kind, cmd)) or info
+            tools._start_job = lambda kind, cmd, cwd=None, info=None: calls.append((kind, cmd, cwd)) or info
             target = os.path.join(d, "target.py")
             with open(target, "w") as f:
                 f.write("")
-            info = tools.build_start(target, ["--cpu-type=vexriscv", "--build"])
-            kind, cmd = calls[0]
+            cwd = os.getcwd()
+            try:
+                os.chdir(d)
+                info = tools.build_start(target, ["--cpu-type=vexriscv", "--build", "--soc-json=target.py"])
+            finally:
+                os.chdir(cwd)
+            kind, cmd, cwd = calls[0]
             self.assertEqual(kind, "build")
             self.assertEqual(cmd[1], target)
             self.assertEqual(cmd.count("--build"), 1)
             self.assertIn(f"--output-dir={info['output_dir']}", cmd)
+            # Runs from the output directory (analyzer.csv), existing relative paths made absolute.
+            self.assertEqual(cwd, info["output_dir"])
+            self.assertEqual(info["analyzer_csv"], os.path.join(info["output_dir"], "analyzer.csv"))
+            self.assertIn(f"--soc-json={target}", cmd)
             # Loading/flashing a board is a hardware side effect.
             with self.assertRaises(LiteXMCPError):
                 tools.build_start(target, ["--load"])
@@ -310,9 +319,8 @@ class TestLiteXMCP(unittest.TestCase):
             self.assertEqual(tools.build_info(output_dir=info["output_dir"])["build"]["status"], "failed")
             self.assertEqual(tools.build_report(output_dir=info["output_dir"])["build_info"]["version"], 1)
             self.assertNotIn("analyzer_csv", tools.build_report(output_dir=info["output_dir"]))
-            open(os.path.join(info["output_dir"], "analyzer.csv"), "w").close()
-            self.assertEqual(tools.build_report(output_dir=info["output_dir"])["analyzer_csv"],
-                os.path.join(info["output_dir"], "analyzer.csv"))
+            open(info["analyzer_csv"], "w").close()
+            self.assertEqual(tools.build_report(output_dir=info["output_dir"])["analyzer_csv"], info["analyzer_csv"])
 
     def test_soc_files(self):
         with tempfile.TemporaryDirectory() as d:

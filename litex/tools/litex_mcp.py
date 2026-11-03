@@ -793,12 +793,27 @@ class LiteXMCPTools:
 
     # Builds ---------------------------------------------------------------------------------------
 
+    @staticmethod
+    def _abspath_args(args):
+        # Make the existing relative paths of args (ex: --csr-json=soc.json, --sdram-init=app.bin)
+        # absolute: builds run from their output directory.
+        r = []
+        for a in args:
+            opt, sep, value = a.partition("=") if a.startswith("-") else ("", "", a)
+            if value and not os.path.isabs(value) and os.path.exists(value):
+                value = os.path.abspath(value)
+            r.append(opt + sep + value)
+        return r
+
     def build_start(self, target, args=None, output_dir=None, build=True):
         """Start a target build (--build) in the background; target is a LiteX-Boards board name or
         a target script (.py). With build=False, a target script is run as is with args only (ex: a
         simulation target without --build option). --load/--flash (hardware side effects) require
-        --allow-write."""
-        args = [] if args is None else list(args)
+        --allow-write.
+
+        The build runs from output_dir: files written to the current directory (analyzer.csv of a
+        LiteScope analyzer) stay with the build; existing relative paths in args are made absolute."""
+        args = [] if args is None else self._abspath_args(args)
         if any(a.split("=")[0] in ["--load", "--flash"] for a in args) and not self.allow_write:
             raise LiteXMCPError("--load/--flash act on the hardware, restart the server with --allow-write.")
         if target.endswith(".py"):
@@ -816,10 +831,12 @@ class LiteXMCPTools:
             info = {"output_dir": output_dir, "csr_csv": os.path.join(output_dir, "csr.csv")} if output_dir else {}
             return self._start_job("run", cmd, info=info, cwd=os.path.dirname(os.path.abspath(target)))
         output_dir = os.path.abspath(output_dir or os.path.join(self._get_jobs_dir(), f"build{len(self.jobs)}"))
+        os.makedirs(output_dir, exist_ok=True)
         cmd += ["--build", f"--output-dir={output_dir}"] + [a for a in args if a != "--build"]
-        return self._start_job("build", cmd, info={
-            "output_dir" : output_dir,
-            "csr_csv"    : os.path.join(output_dir, "csr.csv"),
+        return self._start_job("build", cmd, cwd=output_dir, info={
+            "output_dir"   : output_dir,
+            "csr_csv"      : os.path.join(output_dir, "csr.csv"),
+            "analyzer_csv" : os.path.join(output_dir, "analyzer.csv"),
         })
 
     def _get_output_dir(self, job=None, output_dir=None):
@@ -1170,7 +1187,9 @@ def build_server(tools, server_cls=None):
         target is a LiteX-Boards board name (see litex_list_boards/litex_board_info) or a target script
         (.py); args are its options (ex: ["--cpu-type=vexriscv", "--with-ethernet", "--toolchain=yosys+nextpnr"]).
         Builds take minutes: poll with litex_job_status or litex_job_wait(job, timeout=600), then call
-        litex_build_report. --load/--flash need the server to run with --allow-write.
+        litex_build_report. --load/--flash need the server to run with --allow-write. The build runs
+        from output_dir (a LiteScope analyzer.csv is written there); existing relative paths in args
+        are made absolute.
         build=False runs a target script as is, with args only (no --build added): use it for a
         project's own simulation script (it keeps running as a job, stop it with litex_job_stop).
         """
