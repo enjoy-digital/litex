@@ -78,9 +78,14 @@ documents describe it (file layout, HDL conventions, where a device-specific pie
 belongs), with commit messages of the form `module: Description of the change.`. Say in the
 pull request what was tested (simulation, which board) and what was not.
 
-A contribution written by or with an AI agent follows the same path and the same rules: say
-so in the pull request, say what ran on hardware, and read what we expect of it on
-[LiteX for AI agents](LiteX-for-AI-Agents.md#contribute-back). What an agent fixed for one
+A contribution written by or with an AI agent follows the same path and the same rules: AI is
+a tool, and the person who submits the change understands it, has tested it, can explain and
+maintain it, and is responsible for its quality, correctness and licensing (compatible with the
+BSD-2-Clause license, no code copied from incompatible sources). Say so in the pull request when
+a substantial part was generated, say what ran on hardware, and read what we expect of it on
+[LiteX for AI agents](LiteX-for-AI-Agents.md#contribute-back). The short version of this page,
+with these rules, is
+[CONTRIBUTING.md](https://github.com/enjoy-digital/litex/blob/master/CONTRIBUTING.md). What an agent fixed for one
 project is worth as much upstream as what a human fixed, and it saves the next agent from
 finding the same bug.
 
