@@ -77,10 +77,10 @@ class OpenOCD(GenericProgrammer):
         elif "ecp5" in cfg_str:
             warn_ignored("Lattice ECP5", 0x32)
             return 0x32
-        # Intel Max10.
+        # Intel Max10: USER1, the instruction AlteraJTAG's sel (usr1user) selects.
         elif "10m50" in cfg_str:
-            warn_ignored("Intel Max10", 0xc)
-            return 0xc
+            warn_ignored("Intel Max10", 0xe)
+            return 0xe
         # Intel Arria10.
         elif "10ax" in cfg_str:
             warn_ignored("Intel Arria10", 0xc)
