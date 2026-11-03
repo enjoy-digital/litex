@@ -17,6 +17,8 @@ The LiteX framework provides a convenient and efficient infrastructure to create
 
 **Want development notes from building FPGA SoCs with LiteX? Visit the [LiteX Notes blog](https://enjoy-digital.github.io/)!**
 
+**Working with an AI agent? LiteX is agent-ready: an `AGENTS.md` in every repository of the ecosystem, an MCP server (`litex_mcp`) to drive a SoC and agent skills (a Claude Code plugin): see [LiteX for AI agents](https://github.com/enjoy-digital/litex/wiki/LiteX-for-AI-Agents).**
+
 **A question or want to get in touch? Join us on [Discord](https://discord.gg/PkJwjDbxeG) or on our IRC channel: [#litex at irc.libera.chat]**.
 
 LiteX provides all the common components required to easily create an FPGA Core/SoC:
@@ -134,7 +136,7 @@ We share this project under a permissive BSD 2-Clause License, inspired by our f
 | **How LiteX works** | [The LiteX approach](https://github.com/enjoy-digital/litex/wiki/LiteX-Approach), [SoC builder](https://github.com/enjoy-digital/litex/wiki/SoC-builder), [Choosing a CPU](https://github.com/enjoy-digital/litex/wiki/Choosing-A-CPU), [Wishbone](https://github.com/enjoy-digital/litex/wiki/Wishbone-Bus) / [AXI](https://github.com/enjoy-digital/litex/wiki/AXI-Bus) / [CSR](https://github.com/enjoy-digital/litex/wiki/CSR-Bus) buses, [Streams](https://github.com/enjoy-digital/litex/wiki/Streams), [Verilog to LiteX](https://github.com/enjoy-digital/litex/wiki/LiteX-for-Hardware-Engineers) |
 | **Reference** | [CPUs](https://github.com/enjoy-digital/litex/wiki/CPUs), [Hard core CPUs](https://github.com/enjoy-digital/litex/wiki/Hard-core-CPUs), [SoC builder reference](https://github.com/enjoy-digital/litex/wiki/SoC-Builder-Reference), [Cores](https://github.com/enjoy-digital/litex/wiki/Cores), [Cores ecosystem](https://github.com/enjoy-digital/litex/wiki/Cores-Ecosystem), [Build backends](https://github.com/enjoy-digital/litex/wiki/Build-Backends), [Tools](https://github.com/enjoy-digital/litex/wiki/Tools), [SoC documentation](https://github.com/enjoy-digital/litex/wiki/SoC-Documentation) |
 | **Projects and community** | [Projects](https://github.com/enjoy-digital/litex/wiki/Projects), [Tutorials and resources](https://github.com/enjoy-digital/litex/wiki/Tutorials-Resources), [Feedback, contribution, support](https://github.com/enjoy-digital/litex/wiki/Feedback-Contribution-Support), [Contributing to the wiki](https://github.com/enjoy-digital/litex/wiki/Contributing-to-the-Wiki) |
-| **For AI agents** | [LiteX for AI agents](https://github.com/enjoy-digital/litex/wiki/LiteX-for-AI-Agents) |
+| **For AI agents** | [LiteX for AI agents](https://github.com/enjoy-digital/litex/wiki/LiteX-for-AI-Agents), [Debugging guide template](https://github.com/enjoy-digital/litex/wiki/Debugging-Guide-Template), [llms.txt](https://raw.githubusercontent.com/wiki/enjoy-digital/litex/llms.txt) |
 <!-- readme:end -->
 
 ## 2026.08 highlights
