@@ -2376,6 +2376,31 @@ class LiteXSoC(SoC):
         self.add_config("CPU_JTAG_DEBUG_CHAIN", chain)
         self.add_config("CPU_JTAG_DEBUG_CLK_FREQ", int(clk_freq))
 
+    # Add CPU SWD Debug ----------------------------------------------------------------------------
+    def add_cpu_swd_debug(self, pads=None, clk_freq=10e6, clock_domain="sys"):
+        """Connect CPU debug to an external SWD probe (SWCLK/SWDIO pins).
+
+        The CPU supplies its debug module and the crossing from SWCLK to its system clock.
+        ``clk_freq`` is the maximum probe SWCLK frequency used for timing analysis.
+        """
+        cpu = getattr(self, "cpu", None)
+        if not callable(getattr(cpu, "add_swd", None)) or not hasattr(cpu, "swd_clk"):
+            self.logger.error("CPU SWD debug requires a CPU with an SWD debug transport "
+                              "(ex: vexriscv_smp with --with-swd-debug).")
+            raise SoCError()
+        if not math.isfinite(clk_freq) or clk_freq <= 0:
+            raise ValueError("CPU SWD debug clock frequency must be finite and positive.")
+        if pads is None:
+            pads = self.platform.request("swd")
+        cpu.add_swd(pads)
+
+        # SWCLK is driven (and gated) by the probe; asynchronous to the system clock.
+        debug_sys_clk = Signal()
+        self.comb += debug_sys_clk.eq(ClockSignal(clock_domain))
+        self.platform.add_period_constraint(pads.swclk, 1e9/clk_freq)
+        self.platform.add_false_path_constraints(debug_sys_clk, pads.swclk)
+        self.add_config("CPU_SWD_DEBUG_CLK_FREQ", int(clk_freq))
+
     # Add JTAGBone ---------------------------------------------------------------------------------
     def add_jtagbone(self, name="jtagbone", chain=1):
         # Imports.
