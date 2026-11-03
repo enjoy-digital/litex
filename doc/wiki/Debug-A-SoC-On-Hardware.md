@@ -119,8 +119,9 @@ program would inherit it.
   a CSR map, a generated constant, a parser.
 - The commit or debug note says: the build command, the transport, the timing summary, the host
   commands, the register values or LiteScope signals that prove the conclusion, the tests run.
-- Keep reusable probes, scripts and tests in the tree. A `doc/debugging-guide.md` per project,
-  kept current, saves the next person (or agent) the rediscovery.
+- Keep reusable probes, scripts and tests in the tree. A `doc/debugging-guide.md` per project
+  ([template](Debugging-Guide-Template.md)), kept current, saves the next person (or agent) the
+  rediscovery.
 
 ## Next
 

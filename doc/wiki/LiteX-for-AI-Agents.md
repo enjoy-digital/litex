@@ -198,6 +198,9 @@ litex_mcp --csr-csv=build/sim/csr.csv --port=1240
 ```
 
 Call `litex_check` first: it shows which SoC answers on the port before anything is read or written.
+What a project learns this way (the commands, the expected identifier, the registers and probes
+that matter, the failures already understood) goes in its `doc/debugging-guide.md`, started from
+the [debugging guide template](Debugging-Guide-Template.md).
 
 The server can also run this loop itself, as background jobs: `litex_sim_start` (options of
 `litex_sim`, the console in the job log), `litex_job_wait` (until a regex such as the `litex>`

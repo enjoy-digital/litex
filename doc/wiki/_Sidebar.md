@@ -9,6 +9,7 @@
   * [5. Look inside with LiteScope](Use-LiteScope-To-Debug-A-SoC.md)
   * [6. Debug the CPU with GDB](Debug-With-GDB.md)
   * [Debug a SoC on hardware](Debug-A-SoC-On-Hardware.md)
+  * [Debugging guide template](Debugging-Guide-Template.md)
 * Build your SoC
   * [Add a new board](Add-A-New-Board.md)
   * [Add a new core](Add-A-New-Core.md)
