@@ -8,6 +8,7 @@
 import math
 
 from migen import *
+from migen.genlib.cdc import MultiReg
 
 from litex.gen import *
 
@@ -210,6 +211,10 @@ class IntelPLLPhaseStepper(LiteXModule):
 
         # # #
 
+        # PHASEDONE rises on the PLL's internal timing: synchronize it before the FSM.
+        phase_done = Signal(reset=1)
+        self.specials += MultiReg(pll.phase_done, phase_done, reset=1)
+
         count    = Signal(max=timeout + 1)
         position = Signal((16, True))
         self.comb += pll.phase_dir.eq(self.dir.storage)
@@ -223,14 +228,14 @@ class IntelPLLPhaseStepper(LiteXModule):
         fsm.act("STEP",
             pll.phase_step.eq(1),
             NextValue(count, count + 1),
-            If(((count >= 2) & ~pll.phase_done) | (count == timeout),
+            If(((count >= 2) & ~phase_done) | (count == timeout),
                 NextValue(count, 0),
                 NextState("WAIT")
             )
         )
         fsm.act("WAIT",
             NextValue(count, count + 1),
-            If(pll.phase_done | (count == timeout),
+            If(phase_done | (count == timeout),
                 NextValue(position, position + Mux(self.dir.storage, 1, -1)),
                 NextState("IDLE")
             )
