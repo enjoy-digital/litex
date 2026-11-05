@@ -14,7 +14,7 @@ from litex.gen import *
 from litex.soc.interconnect import axi
 
 from litex.soc.cores.hyperram import HyperRAMPHYInterface, HyperRAMCore, HyperRAMController
-from litex.soc.cores.hyperram import hyperram_best_phase
+from litex.soc.cores.hyperram import hyperram_best_phase, hyperram_fold_passes
 
 # HyperRAM Model -------------------------------------------------------------------------------
 
@@ -348,11 +348,24 @@ class TestHyperRAMController(unittest.TestCase):
         self.assertEqual(hyperram_best_phase(0b10000011, 8), 0)
         self.assertEqual(hyperram_best_phase(0b11000111, 8), 0)
 
-    def test_calibration(self):
+    def test_best_phase_period(self):
+        # DDR capture: phases 4 steps apart sample the same points, both must pass.
+        self.assertEqual(hyperram_fold_passes(0b11101111, 8, 4), 0b11101110)
+        self.assertEqual(hyperram_fold_passes(0b11101111, 8),    0b11101111)
+        # Phase 4 fails, its twin 0 passed a short test: 0 is not selected (2 is).
+        self.assertEqual(hyperram_best_phase(0b11101111, 8),    0)
+        self.assertEqual(hyperram_best_phase(0b11101111, 8, 4), 2)
+        self.assertEqual(hyperram_best_phase(0b11101110, 8, 4), 2)
+        self.assertEqual(hyperram_best_phase(0b00011100, 8, 4), None)
+        self.assertEqual(hyperram_best_phase(0b11111111, 8, 4), 0)
+
+    def calibration_dut(self, phase_period=None):
         class PHY(LiteXModule):
             def __init__(self):
                 self.phy_if      = HyperRAMPHYInterface(dq_width=16, cd_cap="sys")
                 self.phase_steps = 8
+                if phase_period is not None:
+                    self.phase_period = phase_period
                 self.phase       = Signal(3)
                 self.phase_load  = Signal()
                 self.cur_phase   = Signal(3)
@@ -361,7 +374,44 @@ class TestHyperRAMController(unittest.TestCase):
             def __init__(self):
                 self.phy = PHY()
                 self.hr  = HyperRAMController(self.phy, clk_freq=100e6, with_reset=False)
-        dut   = CalDUT()
+        return CalDUT()
+
+    def test_calibration_period(self):
+        # All phases but 4 pass: with the PHY's half CK periodicity, 0 (4's twin) is avoided.
+        dut   = self.calibration_dut(phase_period=4)
+        model = HyperRAMModel(dut.phy.phy_if, phase=dut.phy.cur_phase, good_phases=[0, 1, 2, 3, 5, 6, 7])
+        res   = {}
+        def gen():
+            while not (yield dut.hr.cal.done):
+                yield
+            res["passes"] = (yield dut.hr.cal.passes)
+            res["phase"]  = (yield dut.phy.cur_phase)
+            res["error"]  = (yield dut.hr.cal.error)
+        self.run_dut(dut, model, gen)
+        self.assertEqual(res["passes"], 0b11101111)
+        self.assertEqual(res["phase"], 2)
+        self.assertEqual(res["error"], 0)
+
+    def test_phase_override(self):
+        dut   = self.calibration_dut()
+        model = HyperRAMModel(dut.phy.phy_if, phase=dut.phy.cur_phase, good_phases=[5, 6, 7, 0])
+        res   = {}
+        def gen():
+            while not (yield dut.hr.calibration.fields.done):
+                yield
+            res["cal"] = (yield dut.phy.cur_phase)
+            yield dut.hr.phase.storage.eq(3)
+            yield dut.hr.phase_load.re.eq(1)
+            yield
+            yield dut.hr.phase_load.re.eq(0)
+            yield
+            res["override"] = (yield dut.phy.cur_phase)
+        self.run_dut(dut, model, gen)
+        self.assertEqual(res["cal"], 6)
+        self.assertEqual(res["override"], 3)
+
+    def test_calibration(self):
+        dut   = self.calibration_dut()
         model = HyperRAMModel(dut.phy.phy_if, phase=dut.phy.cur_phase, good_phases=[5, 6, 7, 0])
         res   = {}
         def gen():

@@ -14,8 +14,23 @@ from litex.soc.interconnect import axi
 
 # Read Calibration ---------------------------------------------------------------------------------
 
-def hyperram_best_phase(passes, nphases):
-    """Center of the largest (circular) window of passing phases, None if none passes."""
+def hyperram_fold_passes(passes, nphases, period=None):
+    """Passing phases with their `period` periodicity enforced: a phase only passes when the phases
+    `period` steps away also pass (DDR capture: the capture points repeat every half CK period, a
+    phase sitting on a data transition is marginal at both of its positions; a short test can miss
+    one of them)."""
+    if period is None or period >= nphases:
+        return passes
+    folded = passes
+    for k in range(period, nphases, period):
+        rotated = ((passes >> k) | (passes << (nphases - k))) & (2**nphases - 1)
+        folded &= rotated
+    return folded
+
+def hyperram_best_phase(passes, nphases, period=None):
+    """Center of the largest (circular) window of passing phases, None if none passes (`period`:
+    see hyperram_fold_passes)."""
+    passes = hyperram_fold_passes(passes, nphases, period)
     if passes == 0:
         return None
     if passes == (2**nphases - 1):
@@ -38,12 +53,16 @@ class HyperRAMCalibration(LiteXModule):
     Writes a pattern at `address` and, for each capture phase, reads it back `rounds` times as one
     long burst (`words`) and as single-word reads (`single_words`); a phase passes when all reads
     match. Marginal phases (capture near RWDS/DQ transitions, twice per CK period) can pass short
-    reads but fail long ones, so long bursts are used. Selects the center of the largest window of
-    passing phases. Memory at `address` is overwritten.
+    reads but fail long ones, so long bursts are used (a read timeout fails the phase too: the core
+    completes the read with SLVERR beats). Selects the center of the largest window of passing
+    phases, with the PHY's `phase_period` periodicity when it provides one (DDR capture: phases half
+    a CK period apart sample the same points, see hyperram_fold_passes). Memory at `address` is
+    overwritten.
     """
     def __init__(self, bus, phy, address=0x0, words=128, single_words=16, rounds=4,
         settle_cycles=256):
         nphases     = phy.phase_steps
+        period      = getattr(phy, "phase_period", None)
         dw          = len(bus.w.data)
         self.start  = Signal()
         self.done   = Signal()
@@ -77,7 +96,10 @@ class HyperRAMCalibration(LiteXModule):
 
         best = Signal(max=nphases)
         self.comb += Case(self.passes, {
-            m: best.eq(hyperram_best_phase(m, nphases) or 0) for m in range(2**nphases)})
+            m: best.eq(hyperram_best_phase(m, nphases, period) or 0) for m in range(2**nphases)})
+        best_none = Signal()
+        self.comb += Case(self.passes, {
+            m: best_none.eq(hyperram_best_phase(m, nphases, period) is None) for m in range(2**nphases)})
 
         self.comb += [
             bus.aw.addr.eq(address),
@@ -183,7 +205,7 @@ class HyperRAMCalibration(LiteXModule):
         )
         fsm.act("SELECT",
             NextValue(self.phase, best),
-            NextValue(self.error, self.passes == 0),
+            NextValue(self.error, best_none),
             phy.phase.eq(best),
             phy.phase_load.eq(1),
             NextValue(count, 0),
