@@ -4,7 +4,7 @@
 # This file is Copyright (c) 2015-2016 Sebastien Bourdeauducq <sb@m-labs.hk>
 # This file is Copyright (c) 2015-2018 Robert Jordens <jordens@gmail.com>
 # This file is Copyright (c) 2016-2018 whitequark <whitequark@whitequark.org>
-# This file is Copyright (c) 2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2018-2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # This file is Copyright (c) 2018 N. Engelhardt <nakengelhardt@gmail.com>
 # This file is Copyright (c) 2018 Robin Ole Heinemann <robin.ole.heinemann@t-online.de>
 # SPDX-License-Identifier: BSD-2-Clause
@@ -14,7 +14,6 @@ import operator
 import collections
 import collections.abc
 import inspect
-import inspect
 from functools import wraps
 
 from migen.fhdl.structure import *
@@ -22,7 +21,7 @@ from migen.fhdl.structure import (_Value, _Statement,
                                   _Operator, _Slice, _Part, _ArrayProxy,
                                   _Assign, _Fragment)
 from migen.fhdl.bitcontainer import value_bits_sign
-from migen.fhdl.tools import (list_targets, list_signals,
+from migen.fhdl.tools import (list_targets, list_signals, group_by_targets, flat_iteration,
                               insert_resets, lower_specials)
 from migen.fhdl.simplify import MemoryToArray
 from migen.fhdl.specials import _MemoryLocation
@@ -131,35 +130,58 @@ def _truncate(value, nbits, signed):
     return value
 
 
+# Evaluator ----------------------------------------------------------------------------------------
+
 class Evaluator:
+    """Signal values and statements interpreter.
+
+    The values are stored by Signal slot (an index allocated at the first access of the Signal), in
+    the lists/dicts the compiled statements (Compiler) access directly: values (committed) and
+    modifications (the assignments of the current delta cycle, applied by commit). eval/assign/
+    execute interpret expressions/statements (generator requests, statements not compiled).
+    """
     def __init__(self, clock_domains, replaced_memories):
-        self.clock_domains = clock_domains
+        self.clock_domains     = clock_domains
         self.replaced_memories = replaced_memories
-        self.signal_values = dict()
-        self.modifications = dict()
+        self.slots             = dict() # Signal -> slot.
+        self.signals           = []     # Slot   -> Signal.
+        self.values            = []     # Slot   -> value.
+        self.modifications     = dict() # Slot   -> value.
+
+    def slot(self, signal):
+        try:
+            return self.slots[signal]
+        except KeyError:
+            slot = self.slots[signal] = len(self.values)
+            self.signals.append(signal)
+            self.values.append(signal.reset.value)
+            return slot
+
+    def value(self, signal):
+        return self.values[self.slot(signal)]
 
     def commit(self):
-        r = set()
-        for k, v in self.modifications.items():
-            if k not in self.signal_values or self.signal_values[k] != v:
-                self.signal_values[k] = v
-                r.add(k)
+        """Apply the modifications, return the slots of the Signals whose value changed."""
+        values  = self.values
+        changed = []
+        for slot, value in self.modifications.items():
+            if values[slot] != value:
+                values[slot] = value
+                changed.append(slot)
         self.modifications.clear()
-        return r
+        return changed
 
     def eval(self, node, postcommit=False):
         if isinstance(node, Constant):
             return node.value
         elif isinstance(node, Signal):
+            slot = self.slot(node)
             if postcommit:
                 try:
-                    return self.modifications[node]
+                    return self.modifications[slot]
                 except KeyError:
                     pass
-            try:
-                return self.signal_values[node]
-            except KeyError:
-                return node.reset.value
+            return self.values[slot]
         elif isinstance(node, _Operator):
             operands = [self.eval(o, postcommit) for o in node.operands]
             if node.op == "-":
@@ -222,8 +244,7 @@ class Evaluator:
     def assign(self, node, value):
         if isinstance(node, Signal):
             assert not node.variable
-            self.modifications[node] = _truncate(value,
-                                                 node.nbits, node.signed)
+            self.modifications[self.slot(node)] = _truncate(value, node.nbits, node.signed)
         elif isinstance(node, Cat):
             for element in node.l:
                 nbits = len(element)
@@ -281,13 +302,233 @@ class Evaluator:
                 args = []
                 for arg in s.args:
                     assert isinstance(arg, _Value)
-                    try:
-                        args.append(self.signal_values[arg])
-                    except: # not yet evaluated
-                        args.append(arg.reset.value)
+                    args.append(self.value(arg))
                 print(s.s %(*args,))
             else:
                 raise NotImplementedError
+
+
+# Compiler -----------------------------------------------------------------------------------------
+
+class Compiler:
+    """Statements compiled to Python functions f(v, m) on the Evaluator slots.
+
+    v is the committed values list and m the modifications dict of the Evaluator. The generated code
+    has the Evaluator semantics: expressions on Python integers, truncated to the target width on
+    assignment, ~ of an unsigned value masked to its width, reads of the committed values except for
+    the partial assignments of a Signal (slices/parts: the previous assignments of the same
+    statements are seen). A statement that can't be compiled is executed by the Evaluator.
+    """
+    _binary_ops = {"+", "-", "*", "&", "^", "|", "<", "<=", "==", "!=", ">", ">="}
+    _shift_ops  = {">>>": ">>", "<<<": "<<"}
+
+    class Unsupported(Exception):
+        pass
+
+    def __init__(self, evaluator):
+        self.evaluator = evaluator
+        self.namespace = {"_evaluator": evaluator}
+        self.constants = 0
+        self.temps     = 0
+        self.reads     = set()
+
+    # Expressions ----------------------------------------------------------------------------------
+
+    def read(self, signal, postcommit=False):
+        slot = self.evaluator.slot(signal)
+        self.reads.add(slot)
+        if postcommit:
+            return f"m.get({slot}, v[{slot}])"
+        return f"v[{slot}]"
+
+    def constant(self, name, value):
+        self.constants += 1
+        name = f"_{name}{self.constants}"
+        self.namespace[name] = value
+        return name
+
+    def expr(self, node, postcommit=False):
+        if isinstance(node, Constant):
+            return f"({node.value})"
+        elif isinstance(node, Signal):
+            return self.read(node, postcommit)
+        elif isinstance(node, _Operator):
+            operands = [self.expr(o, postcommit) for o in node.operands]
+            if node.op == "m":
+                return f"({operands[1]} if {operands[0]} else {operands[2]})"
+            elif node.op == "~":
+                nbits, signed = value_bits_sign(node.operands[0])
+                if signed:
+                    return f"(~{operands[0]})"
+                return f"((~{operands[0]}) & {2**nbits - 1})"
+            elif node.op == "-" and len(operands) == 1:
+                return f"(-{operands[0]})"
+            elif node.op in self._shift_ops:
+                return f"({operands[0]} {self._shift_ops[node.op]} {operands[1]})"
+            elif node.op in self._binary_ops and len(operands) == 2:
+                return f"({operands[0]} {node.op} {operands[1]})"
+            raise self.Unsupported(node.op)
+        elif isinstance(node, _Slice):
+            value = self.expr(node.value, postcommit)
+            mask  = 2**(node.stop - node.start) - 1
+            if node.start:
+                return f"(({value} >> {node.start}) & {mask})"
+            return f"({value} & {mask})"
+        elif isinstance(node, _Part):
+            value  = self.expr(node.value, postcommit)
+            offset = self.expr(node.offset, postcommit)
+            return f"(({value} >> {offset}) & {2**node.width - 1})"
+        elif isinstance(node, Cat):
+            elements = []
+            shift    = 0
+            for element in node.l:
+                nbits = len(element)
+                value = f"({self.expr(element, postcommit)} & {2**nbits - 1})"
+                elements.append(f"({value} << {shift})" if shift else value)
+                shift += nbits
+            if not elements:
+                return "(0)"
+            return "(" + " | ".join(elements) + ")"
+        elif isinstance(node, Replicate):
+            nbits  = len(node.v)
+            factor = sum(2**(i*nbits) for i in range(node.n))
+            return f"(({self.expr(node.v, postcommit)} & {2**nbits - 1}) * {factor})"
+        elif isinstance(node, _ArrayProxy):
+            key  = f"min({len(node.choices) - 1}, {self.expr(node.key, postcommit)})"
+            if all(isinstance(choice, Signal) for choice in node.choices):
+                slots = tuple(self.evaluator.slot(choice) for choice in node.choices)
+                self.reads.update(slots)
+                slots = self.constant("a", slots)
+                if postcommit:
+                    return f"m.get({slots}[{key}], v[{slots}[{key}]])"
+                return f"v[{slots}[{key}]]"
+            choices = ", ".join(self.expr(choice, postcommit) for choice in node.choices)
+            return f"({choices},)[{key}]"
+        elif isinstance(node, ClockSignal):
+            return self.read(self.evaluator.clock_domains[node.cd].clk, postcommit)
+        elif isinstance(node, ResetSignal):
+            rst = self.evaluator.clock_domains[node.cd].rst
+            if rst is None:
+                if node.allow_reset_less:
+                    return "(0)"
+                raise self.Unsupported(node)
+            return self.read(rst, postcommit)
+        raise self.Unsupported(node)
+
+    # Assignments ----------------------------------------------------------------------------------
+
+    def temp(self):
+        self.temps += 1
+        return f"_t{self.temps}"
+
+    def truncate(self, value, nbits, signed):
+        mask = 2**nbits - 1
+        if signed and nbits:
+            half = 2**(nbits - 1)
+            return f"((({value}) + {half}) & {mask}) - {half}"
+        return f"({value}) & {mask}"
+
+    def assign(self, node, value, indent, lines):
+        pad = "    "*indent
+        if isinstance(node, Signal):
+            if node.variable:
+                raise self.Unsupported(node)
+            lines.append(f"{pad}m[{self.evaluator.slot(node)}] = {self.truncate(value, node.nbits, node.signed)}")
+        elif isinstance(node, Cat):
+            temp = self.temp()
+            lines.append(f"{pad}{temp} = {value}")
+            for element in node.l:
+                nbits = len(element)
+                self.assign(element, f"{temp} & {2**nbits - 1}", indent, lines)
+                lines.append(f"{pad}{temp} >>= {nbits}")
+        elif isinstance(node, (_Slice, _Part)):
+            if isinstance(node, _Slice):
+                start = str(node.start)
+                width = node.stop - node.start
+            else:
+                start = self.temp()
+                width = node.width
+                lines.append(f"{pad}{start} = {self.expr(node.offset, postcommit=True)}")
+            full = self.temp()
+            mask = 2**width - 1
+            lines.append(f"{pad}{full} = ({self.expr(node.value, postcommit=True)} & ~({mask} << {start})) "
+                         f"| ((({value}) & {mask}) << {start})")
+            self.assign(node.value, full, indent, lines)
+        elif isinstance(node, _ArrayProxy):
+            choices = node.choices
+            widths  = {(choice.nbits, choice.signed) for choice in choices if isinstance(choice, Signal)}
+            if (len(widths) != 1) or any(not isinstance(choice, Signal) or choice.variable for choice in choices):
+                raise self.Unsupported(node)
+            slots = self.constant("a", tuple(self.evaluator.slot(choice) for choice in choices))
+            key   = f"min({len(choices) - 1}, {self.expr(node.key)})"
+            nbits, signed = widths.pop()
+            lines.append(f"{pad}m[{slots}[{key}]] = {self.truncate(value, nbits, signed)}")
+        else:
+            raise self.Unsupported(node)
+
+    # Statements -----------------------------------------------------------------------------------
+
+    def statements(self, statements, indent, lines):
+        pad   = "    "*indent
+        empty = len(lines)
+        for s in statements:
+            if isinstance(s, _Assign):
+                self.assign(s.l, self.expr(s.r), indent, lines)
+            elif isinstance(s, If):
+                lines.append(f"{pad}if {self.expr(s.cond)} & {2**len(s.cond) - 1}:")
+                self.statements(s.t, indent + 1, lines)
+                if s.f:
+                    lines.append(f"{pad}else:")
+                    self.statements(s.f, indent + 1, lines)
+            elif isinstance(s, Case):
+                nbits, signed = value_bits_sign(s.test)
+                test = self.temp()
+                lines.append(f"{pad}{test} = {self.truncate(self.expr(s.test), nbits, signed)}")
+                keyword = "if"
+                for k, v in s.cases.items():
+                    if isinstance(k, Constant):
+                        lines.append(f"{pad}{keyword} {test} == ({k.value}):")
+                        self.statements(v, indent + 1, lines)
+                        keyword = "elif"
+                if "default" in s.cases:
+                    if keyword == "if":
+                        self.statements(s.cases["default"], indent, lines)
+                    else:
+                        lines.append(f"{pad}else:")
+                        self.statements(s.cases["default"], indent + 1, lines)
+            elif isinstance(s, collections.abc.Iterable):
+                self.statements(s, indent, lines)
+            else:
+                raise self.Unsupported(s)
+        if len(lines) == empty:
+            lines.append(f"{pad}pass")
+
+    # Functions ------------------------------------------------------------------------------------
+
+    def function(self, statements):
+        """Function f(v, m) executing the statements and the slots it reads (None when a statement
+        is executed by the Evaluator: reads unknown)."""
+        self.reads  = set()
+        lines       = []
+        reads_known = True
+        for statement in flat_iteration(statements):
+            try:
+                statement_lines = []
+                self.statements([statement], 1, statement_lines)
+                lines += statement_lines
+            except (self.Unsupported, RecursionError):
+                lines.append(f"    _evaluator.execute([{self.constant('s', statement)}])")
+                reads_known = False
+        if not lines:
+            lines.append("    pass")
+        source = "def _f(v, m):\n" + "\n".join(lines)
+        try:
+            exec(compile(source, "<litex.gen.sim>", "exec"), self.namespace)
+        except (SyntaxError, RecursionError, MemoryError):
+            # Ex: too many levels of indentation.
+            evaluator = self.evaluator
+            return (lambda v, m: evaluator.execute(statements)), None
+        return self.namespace.pop("_f"), (set(self.reads) if reads_known else None)
 
 
 class DummyAsyncResetSynchronizerImpl(Module):
@@ -304,8 +545,18 @@ class DummyAsyncResetSynchronizer:
         return DummyAsyncResetSynchronizerImpl(dr.cd, dr.async_reset)
 
 
+# Simulator ----------------------------------------------------------------------------------------
+
 # TODO: instances via Iverilog/VPI
 class Simulator:
+    """Event-driven simulation of a fragment with its statements compiled to Python (Compiler).
+
+    On each clock edge, the sync statements of the clock domain then its generators are executed,
+    the modifications are committed and the comb statements are propagated: a comb group (statements
+    sharing targets) is executed again on the next delta cycle only when a Signal it reads (or one of
+    its targets, assigned from elsewhere) changed, until the values are stable. The generators see
+    the committed values (their assignments are visible on the next cycle).
+    """
     def __init__(self, fragment_or_module, generators, clocks={"sys": 10}, vcd_name=None,
                  gtkw_name=None, special_overrides={}):
         self.fragment_or_module = fragment_or_module
@@ -353,6 +604,30 @@ class Simulator:
         self.evaluator = Evaluator(self.fragment.clock_domains,
                                    mta.replacements)
 
+        # Statements compiled to Python functions.
+        compiler = Compiler(self.evaluator)
+        # Sync statements: executed on the rising edge of their clock domain.
+        self._sync = {cd: compiler.function(statements)[0]
+            for cd, statements in self.fragment.sync.items()}
+        # Comb statements: groups of statements sharing targets (the targets of the groups are
+        # disjoint: their order in a delta cycle is free), executed again in the next delta cycle
+        # when a Signal they read (or one of their targets) changed. The groups with statements
+        # executed by the Evaluator (reads unknown) are executed on every delta cycle.
+        self._comb_groups = []
+        self._comb_always = []
+        self._comb_deps   = dict() # Slot -> groups.
+        for targets, statements in group_by_targets(self.fragment.comb):
+            function, reads = compiler.function(statements)
+            group = len(self._comb_groups)
+            self._comb_groups.append(function)
+            if reads is None:
+                self._comb_always.append(group)
+                continue
+            for slot in reads | {self.evaluator.slot(target) for target in targets}:
+                self._comb_deps.setdefault(slot, []).append(group)
+        self._clk_slots = {cd.name: self.evaluator.slot(cd.clk) for cd in self.fragment.clock_domains}
+
+        self._vcd_enabled = vcd_name is not None
         if vcd_name is None:
             self.vcd = DummyVCDWriter()
         else:
@@ -396,16 +671,28 @@ class Simulator:
         self.gtkw_generated = True
 
     def _commit_and_comb_propagate(self):
-        # TODO: optimize
-        all_modified = set()
-        modified = self.evaluator.commit()
-        all_modified |= modified
+        evaluator = self.evaluator
+        v, m      = evaluator.values, evaluator.modifications
+        groups    = self._comb_groups
+        deps      = self._comb_deps
+        always    = self._comb_always
+        vcd       = self._vcd_enabled
+        modified     = evaluator.commit()
+        all_modified = set(modified)
         while modified:
-            self.evaluator.execute(self.fragment.comb)
-            modified = self.evaluator.commit()
-            all_modified |= modified
-        for signal in all_modified:
-            self.vcd.set(signal, self.evaluator.signal_values[signal])
+            dirty = set(always)
+            for slot in modified:
+                slot_groups = deps.get(slot)
+                if slot_groups is not None:
+                    dirty.update(slot_groups)
+            for group in sorted(dirty):
+                groups[group](v, m)
+            modified = evaluator.commit()
+            if vcd:
+                all_modified.update(modified)
+        if vcd:
+            for slot in all_modified:
+                self.vcd.set(evaluator.signals[slot], v[slot])
 
     def _evalexec_nested_lists(self, x):
         if isinstance(x, list):
@@ -458,20 +745,24 @@ class Simulator:
         return False
 
     def run(self):
-        self.evaluator.execute(self.fragment.comb)
+        evaluator = self.evaluator
+        v, m      = evaluator.values, evaluator.modifications
+        for group in self._comb_groups:
+            group(v, m)
         self._commit_and_comb_propagate()
 
         while True:
             dt, rising, falling = self.time.tick()
             self.vcd.delay(dt)
             for cd in rising:
-                self.evaluator.assign(self.fragment.clock_domains[cd].clk, 1)
-                if cd in self.fragment.sync:
-                    self.evaluator.execute(self.fragment.sync[cd])
+                m[self._clk_slots[cd]] = 1
+                sync = self._sync.get(cd)
+                if sync is not None:
+                    sync(v, m)
                 if cd in self.generators:
                     self._process_generators(cd)
             for cd in falling:
-                self.evaluator.assign(self.fragment.clock_domains[cd].clk, 0)
+                m[self._clk_slots[cd]] = 0
             self._commit_and_comb_propagate()
 
             if not self._continue_simulation():
