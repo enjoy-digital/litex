@@ -35,6 +35,7 @@ CSR and memory attributes and return their list.
 """
 
 from enum import IntEnum
+import inspect
 
 from migen import *
 from migen.util.misc import xdir
@@ -637,6 +638,39 @@ def _sort_gathered_items(items):
     # Return.
     return sorted_items
 
+def _get_dropped_csrs(module, seen=None):
+    # CSRs held by a Migen Module without AutoCSR (and by the plain Modules it holds): nothing ever
+    # collects them, so they would be silently missing from the CSR map.
+    seen = set() if seen is None else seen
+    seen.add(id(module))
+    r = []
+    for k, v in xdir(module, True):
+        if isinstance(v, _CSRBase):
+            r.append(v)
+        elif isinstance(v, Module) and not hasattr(v, "get_csrs") and id(v) not in seen:
+            r += _get_dropped_csrs(v, seen)
+    return r
+
+
+def check_dropped_csrs(parent, name, obj):
+    """Raise when obj (attribute name of parent) is a Migen Module without AutoCSR that holds CSRs.
+
+    Such CSRs are never collected and would be silently missing from the CSR map: the Module has to
+    inherit LiteXModule/AutoCSR (or be excluded explicitly through parent.autocsr_exclude).
+    """
+    if isinstance(obj, _CSRBase) or not isinstance(obj, Module) or hasattr(obj, "get_csrs"):
+        return
+    dropped = _get_dropped_csrs(obj)
+    if dropped:
+        parent_name = parent.__class__.__name__
+        obj_name    = obj.__class__.__name__
+        csr_names   = [csr.name for csr in sorted(dropped, key=lambda x: x.duid)]
+        raise TypeError(
+            f"{parent_name}.{name} ({obj_name}) holds CSRs {csr_names} but {obj_name} is a Migen Module "
+            f"without AutoCSR: these CSRs would be silently dropped. Switch {obj_name} to LiteXModule "
+            f"(or add '{name}' to {parent_name}.autocsr_exclude to ignore them).")
+
+
 def _make_gatherer(method, cls, prefix_cb, sort_cb=None):
     def gatherer(self, sort=False):
         try:
@@ -649,13 +683,20 @@ def _make_gatherer(method, cls, prefix_cb, sort_cb=None):
             prefixed = self.__prefixed = set()
         r = []
         for k, v in xdir(self, True):
-            if k not in exclude:
-                if isinstance(v, cls):
-                    r.append(v)
-                elif hasattr(v, method) and callable(getattr(v, method)):
-                    items = getattr(v, method)()
-                    prefix_cb(k + "_", items, prefixed)
-                    r += items
+            if k in exclude:
+                continue
+            if isinstance(v, cls):
+                r.append(v)
+            elif inspect.isclass(v):
+                # Class reference (ex: self.cls = _DownConverter), not an instance: nothing to gather.
+                continue
+            elif hasattr(v, method) and callable(getattr(v, method)):
+                items = getattr(v, method)()
+                prefix_cb(k + "_", items, prefixed)
+                r += items
+            elif cls is _CSRBase:
+                # Migen Module without AutoCSR: reject the CSRs it would silently drop.
+                check_dropped_csrs(self, k, v)
         r = sorted(r, key=lambda x: x.duid)
         if sort and sort_cb is not None:
             r = sort_cb(r)
