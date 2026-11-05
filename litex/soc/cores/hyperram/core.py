@@ -235,7 +235,7 @@ class HyperRAMCore(LiteXModule):
 
         # B responses.
         # ------------
-        self.b_fifo = b_fifo = stream.SyncFIFO([("id", axi_id_width)], 8)
+        self.b_fifo = b_fifo = stream.SyncFIFO([("id", axi_id_width)], 8, buffered=True)
         self.comb += [
             bus.b.valid.eq(b_fifo.source.valid),
             bus.b.id.eq(b_fifo.source.id),
@@ -261,13 +261,14 @@ class HyperRAMCore(LiteXModule):
 
         r_layout = [("data", word_width), ("resp", 2)]
         self.r_fifo = r_fifo = stream.SyncFIFO(r_layout, fifo_depth, buffered=True)
-        rd_cmd = stream.SyncFIFO([("len", 9), ("id", axi_id_width)], 4)
+        rd_cmd = stream.SyncFIFO([("len", 9), ("id", axi_id_width)], 4, buffered=True)
         self.rd_cmd = rd_cmd
 
         # Words routed to the register interface or R FIFO; timeouts inject error beats.
         rd_reg        = Signal()          # Current read is a register read.
         rd_expected   = Signal(11)        # Words still expected for the current read.
         rd_add        = Signal(9)         # Words added to the current read (continuation).
+        self.rd_expected = rd_expected    # (Exposed for status/debug.)
         rd_inject     = Signal()
         self.comb += [
             r_fifo.sink.valid.eq(~rd_reg & (((cap_source.valid & (rd_expected != 0)) | rd_inject))),
@@ -297,6 +298,7 @@ class HyperRAMCore(LiteXModule):
         # R FIFO space reservation (words reserved for issued reads, released when sent on R).
         r_reserved = Signal(max=fifo_depth + 257)
         r_reserve  = Signal(9)
+        self.r_reserved = r_reserved      # (Exposed for status/debug.)
         self.sync += r_reserved.eq(r_reserved + r_reserve - (bus.r.valid & bus.r.ready))
 
         # Write data level (words available in W FIFO).
@@ -683,6 +685,14 @@ class HyperRAMController(LiteXModule):
                 CSRField("passes", offset=16, size=8, description="Passing phases (1 bit/phase)."),
             ])
             self.calibrate = CSR()
+            # Capture phase override (bring-up, eye measurements): loaded on `phase_load` writes
+            # when calibration is idle; a later calibration selects its own phase again.
+            self.phase      = CSRStorage(8, description="Capture phase to load on `phase_load`.")
+            self.phase_load = CSR()
+            self.comb += If(self.phase_load.re & ~busy & cal.fsm.ongoing("IDLE"),
+                phy.phase.eq(self.phase.storage),
+                phy.phase_load.eq(1),
+            )
             self.comb += [
                 self.calibration.fields.done.eq(~busy & cal.done),
                 self.calibration.fields.error.eq(cal.error),

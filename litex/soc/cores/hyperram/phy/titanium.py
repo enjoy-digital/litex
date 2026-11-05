@@ -155,9 +155,10 @@ class TitaniumHyperRAMPHY(LiteXModule):
         `phase` is applied on `phase_load` (SHIFT value held, SHIFT_ENA pulsed). Each step delays
         the capture clock by half a period of the PLL post-divider clock.
         """
-        self.phase_steps = 2**len(shift_pads["shift"])
-        self.phase       = Signal(len(shift_pads["shift"]))
-        self.phase_load  = Signal()
+        self.phase_steps  = 2**len(shift_pads["shift"])
+        self.phase_period = self.phase_steps//2 # DDR capture: same sampling points every half CK.
+        self.phase        = Signal(len(shift_pads["shift"]))
+        self.phase_load   = Signal()
 
         # # #
 
