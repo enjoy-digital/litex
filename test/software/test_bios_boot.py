@@ -774,6 +774,51 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
     subprocess.check_call([str(binary)])
 
 
+def test_bios_sdcard_dma_reservation(tmp_path):
+    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    include_dir = tmp_path / "include"
+    source = tmp_path / "sdcard_reservation.c"
+    binary = tmp_path / "sdcard_reservation"
+    _write_bios_stubs(include_dir)
+    _write(source, """
+        #include <assert.h>
+        #include <stdint.h>
+        #define CSR_SDCARD_BLOCK2MEM_DMA_BASE_ADDR 1
+        #define CONFIG_CPU_TYPE_VEXIIRISCV 1
+        #define CONFIG_CPU_HAS_DMA_BUS 1
+        #define MAIN_RAM_BASE 0x1000
+        #define MAIN_RAM_BASE_VA 0x11000
+        #define MAIN_RAM_SIZE 0x1000
+        #define SRAM_BASE 0x3000
+        #define SRAM_SIZE 0x100
+        #include <bios/boot.c>
+        int main(void)
+        {
+            size_t size;
+            assert(SDCARD_DMA_BOUNCE);
+            assert(boot_load_max_size(MAIN_RAM_BASE, &size));
+            assert(size == MAIN_RAM_SIZE - 512);
+            assert(boot_load_max_size(MAIN_RAM_BASE_VA, &size));
+            assert(size == MAIN_RAM_SIZE - 512);
+            assert(boot_load_max_size(SDCARD_DMA_BUFFER_BASE - 1, &size));
+            assert(size == 1);
+            assert(boot_load_max_size(SDCARD_DMA_BUFFER_BASE_VA - 1, &size));
+            assert(size == 1);
+            assert(!boot_load_max_size(SDCARD_DMA_BUFFER_BASE, &size));
+            assert(!boot_load_max_size(SDCARD_DMA_BUFFER_BASE_VA, &size));
+            assert(!boot_load_max_size(MAIN_RAM_BASE + MAIN_RAM_SIZE - 1, &size));
+            assert(!boot_load_max_size(MAIN_RAM_BASE_VA + MAIN_RAM_SIZE - 1, &size));
+            return 0;
+        }
+    """)
+    subprocess.check_call([
+        "gcc", "-std=gnu99", "-ffunction-sections", "-fdata-sections",
+        f"-I{include_dir}", f"-I{repo}/litex/soc/software",
+        str(source), "-Wl,--gc-sections", "-o", str(binary),
+    ])
+    subprocess.check_call([str(binary)], timeout=10)
+
+
 def test_bios_flashboot_host_coverage(tmp_path):
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     include_dir = tmp_path / "include"
