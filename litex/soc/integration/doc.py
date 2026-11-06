@@ -131,13 +131,17 @@ def _make_gatherer(method, cls, prefix_cb):
             prefixed = self.__prefixed = set()
         r = []
         for k, v in xdir(self, True):
-            if k not in exclude:
-                if isinstance(v, cls):
-                    r.append(v)
-                elif hasattr(v, method) and callable(getattr(v, method)):
-                    items = getattr(v, method)()
-                    prefix_cb(k + "_", items, prefixed)
-                    r += items
+            if k in exclude:
+                continue
+            if isinstance(v, cls):
+                r.append(v)
+            elif inspect.isclass(v):
+                # Class reference (ex: self.cls = _DownConverter), not an instance: nothing to gather.
+                continue
+            elif hasattr(v, method) and callable(getattr(v, method)):
+                items = getattr(v, method)()
+                prefix_cb(k + "_", items, prefixed)
+                r += items
         return sorted(r, key=lambda x: x.duid)
     return gatherer
 

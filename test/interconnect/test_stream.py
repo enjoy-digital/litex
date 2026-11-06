@@ -859,6 +859,22 @@ class TestStream(unittest.TestCase):
     def test_converter_down_reverse_holds_slice_when_stalled(self):
         self.converter_down_stall_test(reverse=True)
 
+    def test_converter_in_autocsr_parent(self):
+        # Converter stores its converter class in self.cls: CSR/Doc collection of a parent holding a
+        # Converter must ignore it and succeed.
+        from litex.gen import LiteXModule
+        from litex.soc.interconnect.csr import CSRStorage
+
+        class Parent(LiteXModule):
+            def __init__(self, nbits_from, nbits_to):
+                self.ctrl      = CSRStorage(8)
+                self.converter = Converter(nbits_from, nbits_to)
+
+        for nbits_from, nbits_to in [(32, 8), (8, 32), (32, 32)]:
+            parent = Parent(nbits_from, nbits_to)
+            self.assertEqual([csr.name for csr in parent.get_csrs()], ["ctrl"])
+            self.assertEqual(parent.get_module_documentation(), [])
+
     def test_cast_reverse_from(self):
         dut = Cast([("a", 4), ("b", 4)], [("c", 4), ("d", 4)], reverse_from=True)
         observations = {}

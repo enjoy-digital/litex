@@ -331,3 +331,94 @@ class TestCSR(unittest.TestCase):
             self.assertEqual((yield dut.mod._r.storage), 0xCAFE_BABE)
 
         run_simulation(dut, gen())
+
+    def test_autocsr_skips_class_references(self):
+        # An attribute holding a class (not an instance) must not be gathered: calling the class'
+        # get_csrs/get_memories/get_constants without an instance would raise a TypeError.
+        from litex.gen import LiteXModule
+
+        class DUT(LiteXModule):
+            def __init__(self):
+                self.cls  = CSRModule
+                self.ctrl = csr.CSRStorage(8)
+
+        dut = DUT()
+        self.assertEqual([c.name for c in dut.get_csrs()], ["ctrl"])
+        self.assertEqual(dut.get_memories(),             [])
+        self.assertEqual(dut.get_constants(),            [])
+        self.assertEqual(dut.get_module_documentation(), [])
+
+    def test_autocsr_rejects_csrs_in_plain_module(self):
+        # CSRs held by a Migen Module without AutoCSR are never collected: detect them explicitly
+        # instead of silently dropping them.
+        class Plain(Module):
+            def __init__(self):
+                self.ctrl   = csr.CSRStorage(8)
+                self.status = csr.CSRStatus(8)
+
+        class DUT(Module, csr.AutoCSR):
+            def __init__(self):
+                self.plain = Plain()
+                self.foo   = csr.CSRStorage(8)
+
+        with self.assertRaises(TypeError) as cm:
+            DUT().get_csrs()
+        self.assertIn("DUT.plain (Plain) holds CSRs ['ctrl', 'status']", str(cm.exception))
+        self.assertIn("LiteXModule", str(cm.exception))
+
+        # Nested plain Modules are checked too.
+        class Wrapper(Module):
+            def __init__(self):
+                self.plain = Plain()
+
+        class NestedDUT(Module, csr.AutoCSR):
+            def __init__(self):
+                self.wrapper = Wrapper()
+
+        with self.assertRaises(TypeError):
+            NestedDUT().get_csrs()
+
+        # autocsr_exclude remains the explicit escape hatch.
+        class ExcludedDUT(DUT):
+            autocsr_exclude = {"plain"}
+
+        self.assertEqual([c.name for c in ExcludedDUT().get_csrs()], ["foo"])
+
+        # Plain Modules without CSRs (or with their own get_csrs) are fine.
+        class Empty(Module):
+            def __init__(self):
+                self.sig = Signal()
+
+        class Manual(Module):
+            def __init__(self):
+                self.ctrl = csr.CSRStorage(8)
+
+            def get_csrs(self):
+                return [self.ctrl]
+
+        class OkDUT(Module, csr.AutoCSR):
+            def __init__(self):
+                self.empty  = Empty()
+                self.manual = Manual()
+
+        self.assertEqual([c.name for c in OkDUT().get_csrs()], ["manual_ctrl"])
+
+    def test_csr_bank_array_rejects_csrs_in_plain_module(self):
+        # The SoC level scan applies the same rules as AutoCSR.
+        class Plain(Module):
+            def __init__(self):
+                self.ctrl = csr.CSRStorage(8)
+
+        class SoCLike(Module):
+            def __init__(self, plain):
+                self.cls = CSRModule
+                self.mod = CSRModule()
+                if plain:
+                    self.plain = Plain()
+
+        bankarray = csr_bus.CSRBankArray(source=SoCLike(plain=False), address_map=lambda name, memory: 0)
+        self.assertEqual([name for name, _, _, _ in bankarray.banks], ["mod"])
+
+        with self.assertRaises(TypeError) as cm:
+            csr_bus.CSRBankArray(source=SoCLike(plain=True), address_map=lambda name, memory: 0)
+        self.assertIn("SoCLike.plain (Plain) holds CSRs ['ctrl']", str(cm.exception))

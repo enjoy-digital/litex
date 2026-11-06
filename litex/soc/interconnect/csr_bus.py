@@ -34,6 +34,8 @@ of registers in SoCs.
 More information available at: https://github.com/enjoy-digital/litex/wiki/CSR-Bus
 """
 
+import inspect
+
 from migen import *
 from migen.genlib.record import *
 from migen.util.misc import xdir
@@ -247,6 +249,13 @@ class CSRBankArray(Module):
         self.constants = []
 
         for name, obj in xdir(self.source, True):
+
+            # Skip class references (ex: self.cls = _DownConverter): nothing to collect from a class.
+            if inspect.isclass(obj):
+                continue
+
+            # Reject CSRs held by a Migen Module without AutoCSR (they would be silently dropped).
+            csr.check_dropped_csrs(self.source, name, obj)
 
             # Collect CSR Registers.
             # ---------------------
