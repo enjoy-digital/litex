@@ -170,6 +170,39 @@ class _InlineDropTop(Module):
         self.comb += self.child.trigger.eq(1)
 
 
+class _SharedInlinedPHY(Module):
+    def __init__(self):
+        self.trigger = Signal(name="trigger")
+        self.out     = Signal(name="out")
+        self.cnt     = Signal(4, name="cnt")
+        self.comb += [
+            self.trigger.eq(0), # Default, also driven by the top: the PHY is inlined.
+            self.out.eq(1),
+        ]
+        self.sync += self.cnt.eq(self.cnt + 1)
+
+
+class _SharedInlinedUser(Module):
+    def __init__(self, phy):
+        self.o = Signal(name="user_o")
+        # Also a submodule here (as LitePCIeEndpoint with its PHY): a shared alias of the PHY.
+        self.submodules.phy = phy
+        self.sync += self.o.eq(phy.out)
+
+
+class _SharedInlinedTop(Module):
+    def __init__(self):
+        self.io  = Signal(name="io")
+        self.cnt = Signal(4, name="top_cnt")
+        self.submodules.phy  = phy = _SharedInlinedPHY()
+        self.submodules.user = _SharedInlinedUser(phy)
+        self.comb += [
+            self.io.eq(self.user.o),
+            self.cnt.eq(phy.cnt),
+            phy.trigger.eq(1),
+        ]
+
+
 class TestHierarchicalVerilog(unittest.TestCase):
     @staticmethod
     def _module_body(verilog, name):
@@ -333,6 +366,21 @@ class TestHierarchicalVerilog(unittest.TestCase):
         self.assertIn("assign out = 1'd1", top_module)
         self.assertNotIn("module top__child (", verilog)
         self.assertNotIn("module top__child__leaf (", verilog)
+
+    def test_hierarchical_inlined_child_shared_with_a_hierarchical_sibling(self):
+        # The PHY is inlined in the top and is a shared alias under the user module: its logic must still be
+        # emitted (once), the alias isn't.
+        top = _SharedInlinedTop()
+
+        old_top = LiteXContext.top
+        try:
+            LiteXContext.top = top
+            verilog = convert(top, ios={top.io, top.cnt}, name="top", hierarchical=True).main_source
+        finally:
+            LiteXContext.top = old_top
+
+        self.assertEqual(verilog.count("assign out = 1'd1"), 1)
+        self.assertEqual(len(re.findall(r"cnt <= \(cnt \+ 1'd1\);", verilog)), 1)
 
     def test_hierarchical_shared_memory_is_emitted_once(self):
         top = _SharedMemoryTop()

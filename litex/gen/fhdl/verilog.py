@@ -1225,6 +1225,28 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
 
     _collect_raw_statements(ctx.root)
 
+    # Statements emitted by a subtree: its raw_desc_* ids, without the ids a shared alias takes from an owner
+    # outside the subtree (an alias isn't emitted, its owner emits them). The raw_desc_* ids still keep an
+    # ancestor from emitting again the statements Migen merged into the alias' parent.
+    def _collect_emit_ids(node):
+        node.subtree_node_ids = {id(node)}
+        aliases = [node] if getattr(node, "shared_alias", False) else []
+        for child in node.children:
+            aliases += _collect_emit_ids(child)
+            node.subtree_node_ids |= child.subtree_node_ids
+        external = [a for a in aliases if id(a.shared_owner) not in node.subtree_node_ids]
+        ext_comb = set()
+        ext_sync = set()
+        for alias in external:
+            ext_comb |= alias.raw_desc_comb_ids
+            for ids in alias.raw_desc_sync_ids.values():
+                ext_sync |= ids
+        node.emit_desc_comb_ids = node.raw_desc_comb_ids - ext_comb
+        node.emit_desc_sync_ids = {cd_name: ids - ext_sync for cd_name, ids in node.raw_desc_sync_ids.items()}
+        return aliases
+
+    _collect_emit_ids(ctx.root)
+
     # Initialize inline flags before applying policies so recursive visits do
     # not undo an ancestor's decision to inline a complete subtree.
     def _reset_inline(node):
@@ -1328,8 +1350,8 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
         child_desc_comb_ids = set()
         child_desc_sync_ids_all = set()
         for child in node.filter_children:
-            child_desc_comb_ids |= child.raw_desc_comb_ids
-            for ids in child.raw_desc_sync_ids.values():
+            child_desc_comb_ids |= child.emit_desc_comb_ids
+            for ids in child.emit_desc_sync_ids.values():
                 child_desc_sync_ids_all |= ids
         filtered_comb = [stmt for stmt in node.inline_raw_comb if id(stmt) not in child_desc_comb_ids]
         filtered_sync = collections.defaultdict(list)
