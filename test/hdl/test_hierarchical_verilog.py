@@ -272,6 +272,27 @@ class _RenamedTop(Module):
         ]
 
 
+class _UndrivenLeaf(Module):
+    def __init__(self, ce):
+        self.o = Signal(name="undriven_o")
+        self.sync += If(ce, self.o.eq(~self.o))
+
+
+class _UndrivenMid(Module):
+    def __init__(self):
+        self.ce = Signal(reset=1, name="ce") # Never assigned: a constant 1.
+        self.o  = Signal(name="mid_o")
+        self.submodules.leaf = _UndrivenLeaf(self.ce)
+        self.comb += self.o.eq(self.leaf.o)
+
+
+class _UndrivenTop(Module):
+    def __init__(self):
+        self.o = Signal(name="o")
+        self.submodules.mid = _UndrivenMid()
+        self.comb += self.o.eq(self.mid.o)
+
+
 class TestHierarchicalVerilog(unittest.TestCase):
     @staticmethod
     def _module_body(verilog, name):
@@ -495,6 +516,20 @@ class TestHierarchicalVerilog(unittest.TestCase):
             LiteXContext.top = old_top
 
         self.assertEqual(set(re.findall(r"always @\(posedge (\w+)\)", verilog)), {"link_clk"})
+
+    def test_hierarchical_undriven_signal_keeps_reset_value(self):
+        # A signal nobody drives between two modules keeps its reset value (reg), not an undriven wire.
+        top = _UndrivenTop()
+
+        old_top = LiteXContext.top
+        try:
+            LiteXContext.top = top
+            verilog = convert(top, ios={top.o}, name="top", hierarchical=True).main_source
+        finally:
+            LiteXContext.top = old_top
+
+        self.assertRegex(verilog, r"reg\s+ce = 1'd1;")
+        self.assertNotRegex(verilog, r"wire\s+ce;")
 
     def test_hierarchical_shared_memory_is_emitted_once(self):
         top = _SharedMemoryTop()

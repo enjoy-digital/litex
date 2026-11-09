@@ -1527,11 +1527,16 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             interconnect_signals |= child.external_signals
         declared_signals = node.local_signals | interconnect_signals
         child_output_signals = set()
+        child_driven_signals = set()
         for child in node.hier_children:
             for sig, direction in child.port_directions.items():
                 if direction == "output":
                     child_output_signals.add(sig)
-        force_wires = {s for s in interconnect_signals if s not in node.local_targets}
+                if direction in ["output", "inout"]:
+                    child_driven_signals.add(sig)
+        # Wires: the signals between children driven by one of them. A signal nobody drives stays a reg with
+        # its reset value, as in the flat netlist (a Signal(reset=1) never assigned is a constant 1).
+        force_wires = {s for s in interconnect_signals if (s not in node.local_targets) and (s in child_driven_signals)}
         force_wires |= child_output_signals
         parts = []
         parts.append(_generate_separator(f"Module: {node.module_name}"))
