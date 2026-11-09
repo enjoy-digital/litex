@@ -158,6 +158,7 @@ class _InlineDropLeaf(Module):
 class _InlineDropChild(Module):
     def __init__(self):
         self.trigger = Signal(name="trigger")
+        self.comb += self.trigger.eq(0) # Default, also driven by the top: the child is inlined.
         self.submodules.leaf = _InlineDropLeaf()
 
 
@@ -166,7 +167,7 @@ class _InlineDropTop(Module):
         self.io = Signal(name="io")
         self.submodules.child = _InlineDropChild()
         self.comb += self.io.eq(self.child.leaf.out)
-        # Force the child and its subtree to be inlined.
+        # Force the child and its subtree to be inlined (both drive trigger).
         self.comb += self.child.trigger.eq(1)
 
 
@@ -200,6 +201,24 @@ class _SharedInlinedTop(Module):
             self.io.eq(self.user.o),
             self.cnt.eq(phy.cnt),
             phy.trigger.eq(1),
+        ]
+
+
+class _ParentDrivenChild(Module):
+    def __init__(self):
+        self.valid = Signal(name="child_valid")
+        self.o     = Signal(name="child_o")
+        self.sync += self.o.eq(self.valid)
+
+
+class _ParentDrivenTop(Module):
+    def __init__(self):
+        self.i = Signal(name="i")
+        self.o = Signal(name="o")
+        self.submodules.child = _ParentDrivenChild()
+        self.comb += [
+            self.child.valid.eq(self.i),
+            self.o.eq(self.child.o),
         ]
 
 
@@ -381,6 +400,21 @@ class TestHierarchicalVerilog(unittest.TestCase):
 
         self.assertEqual(verilog.count("assign out = 1'd1"), 1)
         self.assertEqual(len(re.findall(r"cnt <= \(cnt \+ 1'd1\);", verilog)), 1)
+
+    def test_hierarchical_parent_driven_child_signal_is_input_port(self):
+        # A signal of the child only driven by the parent: input port, the child stays a module.
+        top = _ParentDrivenTop()
+
+        old_top = LiteXContext.top
+        try:
+            LiteXContext.top = top
+            verilog = convert(top, ios={top.i, top.o}, name="top", hierarchical=True).main_source
+        finally:
+            LiteXContext.top = old_top
+
+        child_module = self._module_body(verilog, "top__child")
+        self.assertRegex(child_module, r"input\s+wire\s+child_valid")
+        self.assertIn("child_o <= child_valid;", child_module)
 
     def test_hierarchical_shared_memory_is_emitted_once(self):
         top = _SharedMemoryTop()

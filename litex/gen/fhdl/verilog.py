@@ -1265,7 +1265,9 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             if parent_drivers & set(child.raw_targets):
                 child.inline = True
 
-        # Policy 2: parent drives a signal owned under a child path -> inline child.
+        # Policy 2: parent drives a signal owned under a child path that the child also drives -> inline child.
+        # A signal only driven by the parent is an input port of the child (as LiteX's add_pcie driving
+        # the PHY's MSI stream): the child stays a module.
         for sig in parent_drivers:
             owner_path = _normalize_hier_path(_signal_owner_path(sig, default_path=parent_path))
             if owner_path == parent_path:
@@ -1273,7 +1275,8 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             for child in node.children:
                 child_path = _normalize_hier_path(child.path)
                 if owner_path[:len(child_path)] == child_path:
-                    child.inline = True
+                    if sig in child.raw_targets:
+                        child.inline = True
                     break
 
         # Policy 3: siblings drive same signal object -> inline all conflicting siblings.
