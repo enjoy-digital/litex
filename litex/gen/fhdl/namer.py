@@ -420,16 +420,20 @@ class SignalNamespace:
 
         # Handle Clock and Reset Signals.
         # -------------------------------
-        if isinstance(sig, (ClockSignal, ResetSignal)):
-            # Retrieve the clock domain from the dictionary.
-            domain = self.clock_domains.get(sig.cd)
+        while isinstance(sig, (ClockSignal, ResetSignal)):
+            # Retrieve the clock domain (dict or clock domain list, by name).
+            try:
+                domain = self.clock_domains[sig.cd]
+            except KeyError:
+                domain = None
             if domain is None:
                 raise ValueError(f"Clock Domain '{sig.cd}' not found.")
-            # Assign the appropriate signal from the clock domain.
+            # Assign the appropriate signal from the clock domain (a clk can be another domain's ClockSignal).
+            cd_name = sig.cd
             sig = domain.clk if isinstance(sig, ClockSignal) else domain.rst
             # If the signal is None, the clock domain is missing a clock or reset.
             if sig is None:
-                raise ValueError(f"Clock Domain '{sig.cd}' is reset-less, can't obtain name.")
+                raise ValueError(f"Clock Domain '{cd_name}' is reset-less, can't obtain name.")
 
         # Get name of a Regular Signal.
         # -----------------------------

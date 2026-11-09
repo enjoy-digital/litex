@@ -222,6 +222,21 @@ class _ParentDrivenTop(Module):
         ]
 
 
+class _AliasedClockChild(Module):
+    def __init__(self):
+        self.o = Signal(name="aliased_o")
+        self.clock_domains.cd_tx = ClockDomain()
+        self.cd_tx.clk = ClockSignal("sys") # Shared clock, as LiteICLink's tx_clk.
+        self.sync.tx += self.o.eq(~self.o)
+
+
+class _AliasedClockTop(Module):
+    def __init__(self):
+        self.o = Signal(name="o")
+        self.submodules.child = _AliasedClockChild()
+        self.comb += self.o.eq(self.child.o)
+
+
 class TestHierarchicalVerilog(unittest.TestCase):
     @staticmethod
     def _module_body(verilog, name):
@@ -415,6 +430,22 @@ class TestHierarchicalVerilog(unittest.TestCase):
         child_module = self._module_body(verilog, "top__child")
         self.assertRegex(child_module, r"input\s+wire\s+child_valid")
         self.assertIn("child_o <= child_valid;", child_module)
+
+    def test_hierarchical_clock_domain_with_clock_signal_clk(self):
+        # A ClockDomain whose clk is another domain's ClockSignal: the real clock is a port of the child.
+        top = _AliasedClockTop()
+        top.clock_domains.cd_sys = ClockDomain()
+
+        old_top = LiteXContext.top
+        try:
+            LiteXContext.top = top
+            verilog = convert(top, ios={top.o, top.cd_sys.clk, top.cd_sys.rst}, name="top", hierarchical=True).main_source
+        finally:
+            LiteXContext.top = old_top
+
+        child_module = self._module_body(verilog, "top__child")
+        self.assertRegex(child_module, r"input\s+wire\s+sys_clk")
+        self.assertIn("always @(posedge sys_clk) begin", child_module)
 
     def test_hierarchical_shared_memory_is_emitted_once(self):
         top = _SharedMemoryTop()

@@ -968,6 +968,18 @@ def _collect_memory_port_signals(specials, clock_domains=None):
     return signals, targets, wires
 
 
+def _resolve_clock_signal(clk, clock_domains):
+    """Clock of a domain: a ClockDomain's clk can be another domain's ClockSignal (as a shared transmit clock in
+    LiteICLink, cd.clk = ClockSignal("x")), resolved here as the namer does when printing."""
+    seen = set()
+    while isinstance(clk, ClockSignal):
+        if clk.cd in seen:
+            raise ValueError(f"Clock domain {clk.cd} is its own clock.")
+        seen.add(clk.cd)
+        clk = clock_domains[clk.cd].clk
+    return clk
+
+
 def _list_special_ios_from_specials(specials, ins, outs, inouts):
     ios = set()
     for special in specials:
@@ -1400,7 +1412,7 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
         node.local_wires   |= mem_wires
         for cd_name in node.fragment.sync.keys():
             cd = node.fragment.clock_domains[cd_name]
-            node.local_signals.add(cd.clk)
+            node.local_signals.add(_resolve_clock_signal(cd.clk, node.fragment.clock_domains))
             if cd.rst is not None:
                 node.local_signals.add(cd.rst)
         ctx.all_signals.update(node.local_signals)
