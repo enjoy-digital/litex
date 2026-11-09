@@ -2,7 +2,7 @@ import unittest
 import re
 
 from migen import *
-from migen.fhdl.decorators import ClockDomainsRenamer
+from migen.fhdl.decorators import ClockDomainsRenamer, ResetInserter
 from migen.fhdl.simplify import FullMemoryWE
 from migen.fhdl.specials import Tristate
 
@@ -237,6 +237,41 @@ class _AliasedClockTop(Module):
         self.comb += self.o.eq(self.child.o)
 
 
+class _RenamedLeaf(Module):
+    def __init__(self):
+        self.i = Signal(8, name="leaf_i")
+        self.o = Signal(8, name="leaf_o")
+        self.sync += self.o.eq(self.i + 1)
+
+
+class _RenamedMid(Module):
+    def __init__(self):
+        self.i   = Signal(8, name="mid_i")
+        self.o   = Signal(8, name="mid_o")
+        self.clr = Signal(name="clr")
+        self.submodules.leaf = leaf = ResetInserter()(_RenamedLeaf())
+        self.comb += [
+            leaf.reset.eq(self.clr),
+            leaf.i.eq(self.i),
+            self.o.eq(leaf.o),
+        ]
+
+
+class _RenamedTop(Module):
+    def __init__(self):
+        self.i   = Signal(8, name="i")
+        self.o   = Signal(8, name="o")
+        self.clr = Signal(name="top_clr")
+        self.clock_domains.cd_sys  = ClockDomain()
+        self.clock_domains.cd_link = ClockDomain()
+        self.submodules.mid = mid = ClockDomainsRenamer("link")(_RenamedMid())
+        self.comb += [
+            mid.i.eq(self.i),
+            mid.clr.eq(self.clr),
+            self.o.eq(mid.o),
+        ]
+
+
 class TestHierarchicalVerilog(unittest.TestCase):
     @staticmethod
     def _module_body(verilog, name):
@@ -446,6 +481,20 @@ class TestHierarchicalVerilog(unittest.TestCase):
         child_module = self._module_body(verilog, "top__child")
         self.assertRegex(child_module, r"input\s+wire\s+sys_clk")
         self.assertIn("always @(posedge sys_clk) begin", child_module)
+
+    def test_hierarchical_ancestor_rename_reaches_descendants(self):
+        # ClockDomainsRenamer on a module kept hierarchical: its descendants' sync logic is in the renamed domain.
+        top = _RenamedTop()
+        ios = {top.i, top.o, top.clr, top.cd_sys.clk, top.cd_sys.rst, top.cd_link.clk, top.cd_link.rst}
+
+        old_top = LiteXContext.top
+        try:
+            LiteXContext.top = top
+            verilog = convert(top, ios=ios, name="top", hierarchical=True).main_source
+        finally:
+            LiteXContext.top = old_top
+
+        self.assertEqual(set(re.findall(r"always @\(posedge (\w+)\)", verilog)), {"link_clk"})
 
     def test_hierarchical_shared_memory_is_emitted_once(self):
         top = _SharedMemoryTop()

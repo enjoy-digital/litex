@@ -1179,6 +1179,13 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             return list(ctx.signal_owner_override[sig])
         return list(default_path or [])
 
+    # Final clock domain of each sync statement: a transformer on an ancestor (ClockDomainsRenamer) renames the
+    # domains of the ancestor's merged fragment only, a module's own fragment keeps the names it was built with.
+    final_sync_domain = {}
+    for cd_name, stmts in f.sync.items():
+        for stmt in stmts:
+            final_sync_domain[id(stmt)] = cd_name
+
     def _collect_raw_statements(node):
         if getattr(node, "shared_alias", False):
             owner = node.shared_owner
@@ -1195,7 +1202,8 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
         node.raw_comb = list(node.source_fragment.comb)
         node.raw_sync = {}
         for cd_name, stmts in node.source_fragment.sync.items():
-            node.raw_sync[cd_name] = list(stmts)
+            for stmt in stmts:
+                node.raw_sync.setdefault(final_sync_domain.get(id(stmt), cd_name), []).append(stmt)
         node.raw_targets = set()
         for stmt in node.raw_comb:
             node.raw_targets |= set(list_targets(stmt))
