@@ -968,6 +968,18 @@ def _collect_memory_port_signals(specials, clock_domains=None):
     return signals, targets, wires
 
 
+def _resolve_clock_signal(clk, clock_domains):
+    """Clock of a domain: a ClockDomain's clk can be another domain's ClockSignal (as a shared transmit clock in
+    LiteICLink, cd.clk = ClockSignal("x")), resolved here as the namer does when printing."""
+    seen = set()
+    while isinstance(clk, ClockSignal):
+        if clk.cd in seen:
+            raise ValueError(f"Clock domain {clk.cd} is its own clock.")
+        seen.add(clk.cd)
+        clk = clock_domains[clk.cd].clk
+    return clk
+
+
 def _list_special_ios_from_specials(specials, ins, outs, inouts):
     ios = set()
     for special in specials:
@@ -1167,6 +1179,13 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             return list(ctx.signal_owner_override[sig])
         return list(default_path or [])
 
+    # Final clock domain of each sync statement: a transformer on an ancestor (ClockDomainsRenamer) renames the
+    # domains of the ancestor's merged fragment only, a module's own fragment keeps the names it was built with.
+    final_sync_domain = {}
+    for cd_name, stmts in f.sync.items():
+        for stmt in stmts:
+            final_sync_domain[id(stmt)] = cd_name
+
     def _collect_raw_statements(node):
         if getattr(node, "shared_alias", False):
             owner = node.shared_owner
@@ -1183,7 +1202,8 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
         node.raw_comb = list(node.source_fragment.comb)
         node.raw_sync = {}
         for cd_name, stmts in node.source_fragment.sync.items():
-            node.raw_sync[cd_name] = list(stmts)
+            for stmt in stmts:
+                node.raw_sync.setdefault(final_sync_domain.get(id(stmt), cd_name), []).append(stmt)
         node.raw_targets = set()
         for stmt in node.raw_comb:
             node.raw_targets |= set(list_targets(stmt))
@@ -1225,6 +1245,28 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
 
     _collect_raw_statements(ctx.root)
 
+    # Statements emitted by a subtree: its raw_desc_* ids, without the ids a shared alias takes from an owner
+    # outside the subtree (an alias isn't emitted, its owner emits them). The raw_desc_* ids still keep an
+    # ancestor from emitting again the statements Migen merged into the alias' parent.
+    def _collect_emit_ids(node):
+        node.subtree_node_ids = {id(node)}
+        aliases = [node] if getattr(node, "shared_alias", False) else []
+        for child in node.children:
+            aliases += _collect_emit_ids(child)
+            node.subtree_node_ids |= child.subtree_node_ids
+        external = [a for a in aliases if id(a.shared_owner) not in node.subtree_node_ids]
+        ext_comb = set()
+        ext_sync = set()
+        for alias in external:
+            ext_comb |= alias.raw_desc_comb_ids
+            for ids in alias.raw_desc_sync_ids.values():
+                ext_sync |= ids
+        node.emit_desc_comb_ids = node.raw_desc_comb_ids - ext_comb
+        node.emit_desc_sync_ids = {cd_name: ids - ext_sync for cd_name, ids in node.raw_desc_sync_ids.items()}
+        return aliases
+
+    _collect_emit_ids(ctx.root)
+
     # Initialize inline flags before applying policies so recursive visits do
     # not undo an ancestor's decision to inline a complete subtree.
     def _reset_inline(node):
@@ -1243,7 +1285,9 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             if parent_drivers & set(child.raw_targets):
                 child.inline = True
 
-        # Policy 2: parent drives a signal owned under a child path -> inline child.
+        # Policy 2: parent drives a signal owned under a child path that the child also drives -> inline child.
+        # A signal only driven by the parent is an input port of the child (as LiteX's add_pcie driving
+        # the PHY's MSI stream): the child stays a module.
         for sig in parent_drivers:
             owner_path = _normalize_hier_path(_signal_owner_path(sig, default_path=parent_path))
             if owner_path == parent_path:
@@ -1251,7 +1295,8 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             for child in node.children:
                 child_path = _normalize_hier_path(child.path)
                 if owner_path[:len(child_path)] == child_path:
-                    child.inline = True
+                    if sig in child.raw_targets:
+                        child.inline = True
                     break
 
         # Policy 3: siblings drive same signal object -> inline all conflicting siblings.
@@ -1328,8 +1373,8 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
         child_desc_comb_ids = set()
         child_desc_sync_ids_all = set()
         for child in node.filter_children:
-            child_desc_comb_ids |= child.raw_desc_comb_ids
-            for ids in child.raw_desc_sync_ids.values():
+            child_desc_comb_ids |= child.emit_desc_comb_ids
+            for ids in child.emit_desc_sync_ids.values():
                 child_desc_sync_ids_all |= ids
         filtered_comb = [stmt for stmt in node.inline_raw_comb if id(stmt) not in child_desc_comb_ids]
         filtered_sync = collections.defaultdict(list)
@@ -1375,7 +1420,7 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
         node.local_wires   |= mem_wires
         for cd_name in node.fragment.sync.keys():
             cd = node.fragment.clock_domains[cd_name]
-            node.local_signals.add(cd.clk)
+            node.local_signals.add(_resolve_clock_signal(cd.clk, node.fragment.clock_domains))
             if cd.rst is not None:
                 node.local_signals.add(cd.rst)
         ctx.all_signals.update(node.local_signals)
@@ -1482,11 +1527,16 @@ def _convert_hierarchical(f, ios, name, platform, special_overrides, attr_transl
             interconnect_signals |= child.external_signals
         declared_signals = node.local_signals | interconnect_signals
         child_output_signals = set()
+        child_driven_signals = set()
         for child in node.hier_children:
             for sig, direction in child.port_directions.items():
                 if direction == "output":
                     child_output_signals.add(sig)
-        force_wires = {s for s in interconnect_signals if s not in node.local_targets}
+                if direction in ["output", "inout"]:
+                    child_driven_signals.add(sig)
+        # Wires: the signals between children driven by one of them. A signal nobody drives stays a reg with
+        # its reset value, as in the flat netlist (a Signal(reset=1) never assigned is a constant 1).
+        force_wires = {s for s in interconnect_signals if (s not in node.local_targets) and (s in child_driven_signals)}
         force_wires |= child_output_signals
         parts = []
         parts.append(_generate_separator(f"Module: {node.module_name}"))
