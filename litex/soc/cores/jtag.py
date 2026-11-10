@@ -368,7 +368,7 @@ class XilinxJTAG(LiteXModule):
         prim_dict = {
             # Primitive Name   Ðevice (startswith)
             "BSCAN_SPARTAN6" : ["xc6"],
-            "BSCANE2"        : ["xc7a", "xc7k", "xc7s", "xc7v", "xc7z"] +  ["xcau", "xcku", "xcvu", "xczu"],
+            "BSCANE2"        : ["xc7a", "xc7k", "xc7s", "xc7v", "xc7z"] +  ["xcau", "xcku", "xcvu", "xczu", "xck2"],
         }
         for prim, prim_devs in prim_dict.items():
             for prim_dev in prim_devs:
@@ -378,8 +378,8 @@ class XilinxJTAG(LiteXModule):
 
     @staticmethod
     def get_tdi_delay(device):
-        # Input delay if 1 TCK on TDI on Zynq/ZynqMPSoC devices.
-        delay_dict = {"xc7z" : 1, "xczu" : 1}
+        # Input delay if 1 TCK on TDI on Zynq/ZynqMPSoC devices (xck2: Kria K24/K26 SOMs, ZynqMP).
+        delay_dict = {"xc7z" : 1, "xczu" : 1, "xck2" : 1}
         for dev, delay in delay_dict.items():
             if device.lower().startswith(dev):
                 return 1

@@ -497,8 +497,8 @@ class XilinxVivadoToolchain(GenericToolchain):
         script_contents += "vivado -mode batch -source " + self._build_name + ".tcl" + fail_stmt + "\n"
         script_file     = "build_" + self._build_name + "." + script_ext
 
-        # Zynq7000/ZynqMP specific (signed bitstream).
-        if self.platform.device[0:4] in ["xc7z", "xczu"]:
+        # Zynq7000/ZynqMP specific (signed bitstream; xck2: Kria K24/K26 SOMs, ZynqMP).
+        if self.platform.device[0:4] in ["xc7z", "xczu", "xck2"]:
             script_contents += signed_bitstream_script(self.platform, self._build_name)
 
         tools.write_to_file(script_file, script_contents)
