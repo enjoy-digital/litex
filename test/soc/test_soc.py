@@ -302,6 +302,41 @@ class TestSoCVideoFrameBuffer(unittest.TestCase):
                 self.assertEqual(soc.constants["VIDEO_FRAMEBUFFER_BASE"], 0x20600000)
                 self.assertEqual(soc.bus.regions["video_framebuffer"].origin, 0x20600000)
 
+    def test_pixels_conversion_clock_domain(self):
+        # DMA words wider than a pixel converted in the video clock domain (clock domain crossing
+        # of the DMA words) unless sys is at least 25% faster than the pixel clock; overridable.
+        cases = [
+            # (sys_clk_freq, timings, clock_faster_than_sys, converted in the video domain).
+            (75e6,  "1280x720@60Hz", None,  True),  # 74.25MHz pixel clock, 75MHz sys.
+            (90e6,  "1280x720@60Hz", None,  True),  # Less than 25% faster.
+            (100e6, "1280x720@60Hz", None,  False), # More than 25% faster.
+            (150e6, "1280x720@60Hz", None,  False),
+            (75e6,  "640x480@60Hz",  None,  False), # 25.175MHz pixel clock.
+            (75e6,  "1280x720@60Hz", False, False),
+            (150e6, "1280x720@60Hz", True,  True),
+        ]
+        for sys_clk_freq, timings, clock_faster_than_sys, video_domain in cases:
+            with self.subTest(sys_clk_freq=sys_clk_freq, timings=timings,
+                clock_faster_than_sys=clock_faster_than_sys):
+                soc = LiteXSoC(_FakePlatform(), sys_clk_freq=sys_clk_freq)
+                soc.bus.add_region("framebuffer_ram", SoCRegion(
+                    origin = 0x20000000,
+                    size   = 0x00800000,
+                ))
+                soc.add_video_framebuffer(
+                    phy                   = stream.Endpoint(video_data_layout),
+                    timings               = timings,
+                    clock_domain          = "video",
+                    format                = "rgb565",
+                    fifo_depth            = 64,
+                    region_name           = "framebuffer_ram",
+                    clock_faster_than_sys = clock_faster_than_sys,
+                )
+                # Clock domain crossing of 32-bit DMA words (video domain conversion) or of
+                # 16-bit pixels.
+                cdc_width = len(soc.video_framebuffer.cdc.sink.data)
+                self.assertEqual(cdc_width, 32 if video_domain else 16)
+
     def test_missing_region_does_not_add_dma_master(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
 

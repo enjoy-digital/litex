@@ -3699,13 +3699,22 @@ class LiteXSoC(SoC):
 
     def add_video_framebuffer(self, name="video_framebuffer", phy=None,
         timings="800x600@60Hz", clock_domain="sys", format="rgb888",
-        fifo_depth=64*KILOBYTE, region_name="main_ram", base=None, dma_port=None):
+        fifo_depth=64*KILOBYTE, region_name="main_ram", base=None, dma_port=None,
+        clock_faster_than_sys=None):
         """Add a memory-backed video framebuffer.
 
         ``region_name`` selects the readable memory region containing the
         framebuffer. Main RAM uses a native LiteDRAM read port when available;
         other regions use a read-only Wishbone master on the SoC DMA/system bus.
         ``dma_port`` can override the automatically selected port.
+
+        ``clock_faster_than_sys`` selects where DMA words wider than a pixel are
+        converted to pixels (VideoFrameBuffer): in the video clock domain after
+        the clock domain crossing (True) or in sys before it (False, one pixel
+        per sys cycle at most). None (default): in the video clock domain unless
+        sys is at least 25% faster than the pixel clock (margin for the DMA and
+        converter bubbles: ex, 720p60 at 74.25MHz with a 75MHz sys underflows
+        when converting in sys).
         """
         if phy is None:
             self.logger.error("Video framebuffer requires {}.".format(colorer("phy", color="red")))
@@ -3757,6 +3766,8 @@ class LiteXSoC(SoC):
         vtg = ClockDomainsRenamer(clock_domain)(vtg)
 
         # Video FrameBuffer.
+        if clock_faster_than_sys is None:
+            clock_faster_than_sys = 1.25*vtg.video_timings["pix_clk"] > self.sys_clk_freq
         vfb = VideoFrameBuffer(dma_port,
             hres                  = hres,
             vres                  = vres,
@@ -3764,7 +3775,7 @@ class LiteXSoC(SoC):
             fifo_depth            = fifo_depth,
             format                = format,
             clock_domain          = clock_domain,
-            clock_faster_than_sys = vtg.video_timings["pix_clk"] >= self.sys_clk_freq,
+            clock_faster_than_sys = clock_faster_than_sys,
         )
         bytes_per_word = dma_port.data_width//8
         if framebuffer_region.origin % bytes_per_word:
