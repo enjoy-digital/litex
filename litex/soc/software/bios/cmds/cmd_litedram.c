@@ -450,15 +450,22 @@ static void sdram_spd_handler(int nb_params, char **params)
 
 	dump_bytes((unsigned int *) buf, len, 0);
 
-#ifdef SPD_BASE
+#ifdef SDRAM_SPD_BASE
 	{
+		int i;
+		int cmp_len;
 		int cmp_result;
-		cmp_result = memcmp(buf, (void *) SPD_BASE, SPD_SIZE);
+		unsigned char *spd_rom = (unsigned char *) SDRAM_SPD_BASE;
+		/* Byte compare (memcmp is not part of the minimal libc). */
+		cmp_len    = (SDRAM_SPD_SIZE < len) ? SDRAM_SPD_SIZE : len;
+		cmp_result = 0;
+		for (i = 0; i < cmp_len; i++)
+			cmp_result |= (buf[i] != spd_rom[i]);
 		if (cmp_result == 0) {
 			printf("Memory contents match the data used for gateware generation\n");
 		} else {
 			printf("\nWARNING: memory differs from the data used during gateware generation:\n");
-			dump_bytes((void *) SPD_BASE, SPD_SIZE, 0);
+			dump_bytes((void *) SDRAM_SPD_BASE, cmp_len, 0);
 		}
 	}
 #endif
