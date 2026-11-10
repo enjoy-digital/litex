@@ -425,7 +425,7 @@ static void sdram_spd_handler(int nb_params, char **params)
 {
 	char *c;
 	unsigned char spdaddr;
-	unsigned char buf[SDRAM_SPD_SIZE];
+	unsigned char buf[SDRAM_SPD_EEPROM_SIZE];
 	int len = sizeof(buf);
 
 	if (nb_params < 1) {

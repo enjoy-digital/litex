@@ -35,7 +35,7 @@ bool sdram_read_spd(uint8_t spd, uint16_t addr, uint8_t *buf, uint16_t len) {
 
 	bool ok = true;
 
-	while (addr < SDRAM_SPD_SIZE && len > 0) {
+	while (addr < SDRAM_SPD_EEPROM_SIZE && len > 0) {
 		page = addr / SDRAM_SPD_PAGE_SIZE;
 		ok &= sdram_select_spd_page(page);
 
