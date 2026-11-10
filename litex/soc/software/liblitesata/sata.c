@@ -25,7 +25,7 @@ int sata_init(int show) {
 	int i;
 	uint32_t data;
 	uint16_t buf[128];
-	uint8_t  model[38];
+	uint8_t  model[41];
 	uint64_t sectors;
 	unsigned capacity;
 #endif
@@ -69,10 +69,10 @@ int sata_init(int show) {
 			i += 2;
 		}
 
-		/* Get Disk Model from buf */
+		/* Get Disk Model from buf (ATA words 27-46, 40 characters) */
 		i = 0;
-		memset(model, 0, 38);
-		for (i=0; i<18; i++) {
+		memset(model, 0, 41);
+		for (i=0; i<20; i++) {
 			model[2*i + 0] = (buf[27+i] >> 8) & 0xff;
 			model[2*i + 1] = (buf[27+i] >> 0) & 0xff;
 		}
