@@ -3482,7 +3482,10 @@ class LiteXSoC(SoC):
 
         # MMAP.
         self.check_if_exists(f"{name}_mmap")
-        mmap = LitePCIeWishboneMaster(endpoint, base_address=csr_origin)
+        mmap = LitePCIeWishboneMaster(endpoint,
+            base_address  = csr_origin,
+            qword_aligned = getattr(phy, "qword_aligned", False),
+        )
         self.add_module(name=f"{name}_mmap", module=mmap)
         self.bus.add_master(name=f"{name}_mmap", master=mmap.wishbone)
 
@@ -3499,6 +3502,34 @@ class LiteXSoC(SoC):
                 msi = LitePCIeMSIMultiVector(width=msi_width)
             if msi_type == "msi-x":
                 msi = LitePCIeMSIX(endpoint=endpoint, width=msi_width)
+                # The PCIe Hard IPs advertise the MSI-X Table at BAR0 0x2000 and the PBA at BAR0
+                # 0x1808 (S7PCIEPHY MSIx_Table_Offset/MSIx_PBA_Offset, LFCPNXPCIEPHY LMMI fixups),
+                # matching the LitePCIe standalone CSR map. BAR0 maps the CSR space: place the MSI-X
+                # CSRs (PBA at +0x8) and Table at these offsets.
+                msix_csrs = {
+                    msi_name            : 0x1808 - 0x8,
+                    f"{msi_name}_table" : 0x2000,
+                }
+                for csr_name, csr_offset in msix_csrs.items():
+                    if csr_offset % self.csr.paging:
+                        self.logger.error("PCIe MSI-X {} at 0x{:x} {} CSR paging 0x{:x}.".format(
+                            colorer(csr_name),
+                            csr_offset,
+                            colorer("not aligned on", color="red"),
+                            self.csr.paging))
+                        raise SoCError()
+                    csr_loc = csr_offset//self.csr.paging
+                    for k, v in self.csr.locs.items():
+                        if (v == csr_loc) and (k != csr_name):
+                            self.logger.error("PCIe MSI-X {} requires CSR Location {} (0x{:x}), {} by {}.".format(
+                                colorer(csr_name),
+                                colorer(csr_loc),
+                                csr_offset,
+                                colorer("already used", color="red"),
+                                colorer(k)))
+                            raise SoCError()
+                    if self.csr.locs.get(csr_name, None) != csr_loc:
+                        self.csr.add(csr_name, csr_loc)
             self.add_module(name=msi_name, module=msi)
             if msi_type in ["msi", "msi-multi-vector"]:
                 self.comb += msi.source.connect(phy.msi)
