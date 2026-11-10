@@ -3482,7 +3482,10 @@ class LiteXSoC(SoC):
 
         # MMAP.
         self.check_if_exists(f"{name}_mmap")
-        mmap = LitePCIeWishboneMaster(endpoint, base_address=csr_origin)
+        mmap = LitePCIeWishboneMaster(endpoint,
+            base_address  = csr_origin,
+            qword_aligned = getattr(phy, "qword_aligned", False),
+        )
         self.add_module(name=f"{name}_mmap", module=mmap)
         self.bus.add_master(name=f"{name}_mmap", master=mmap.wishbone)
 
