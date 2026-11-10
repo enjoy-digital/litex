@@ -21,12 +21,14 @@
 
 int sata_init(int show) {
 	uint16_t timeout;
+#ifdef CSR_SATA_IDENTIFY_BASE
 	int i;
 	uint32_t data;
 	uint16_t buf[128];
 	uint8_t  model[38];
 	uint64_t sectors;
 	unsigned capacity;
+#endif
 
 	for (timeout=16; timeout>0; timeout--) {
 		/* Reset SATA PHY */
@@ -42,6 +44,7 @@ int sata_init(int show) {
 			/* Re-initialize if failing */
 			continue;
 
+#ifdef CSR_SATA_IDENTIFY_BASE
 		/* Initiate a SATA Identify */
 		sata_identify_start_write(1);
 
@@ -85,6 +88,7 @@ int sata_init(int show) {
 		capacity = sectors/(1000*1000*500/256);
 		if (show)
 			printf("Capacity: %dGB\n", capacity);
+#endif
 
 		/* Init succeeded */
 		return 1;
