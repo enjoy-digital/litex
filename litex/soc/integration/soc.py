@@ -3330,7 +3330,9 @@ class LiteXSoC(SoC):
         # sata_clk_freqs entries are the 16-bit PHY clocks (line_rate/20, 8b10b). The LiteSATA core
         # path is always 32-bit (independent of the SoC bus width) and runs in sys: sys_clk must be
         # >= the 32-bit SATA clock (37.5/75/150MHz for Gen1/2/3).
-        sata_clk_freq    = sata_clk_freqs[phy.gen]
+        # The sata_tx/sata_rx clocks run at the PHY data width (halved with a 32-bit PHY).
+        phy_data_width   = getattr(getattr(phy, "phy", None), "data_width", 16)
+        sata_clk_freq    = sata_clk_freqs[phy.gen]*16/phy_data_width
         required_sys_clk = sata_clk_freqs[phy.gen]/2
         if self.clk_freq < required_sys_clk:
             self.logger.error("SATA {} requires sys_clk_freq ({:.1f}MHz) >= {:.1f}MHz.".format(
