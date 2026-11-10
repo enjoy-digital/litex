@@ -35,7 +35,7 @@ class XilinxPlatform(GenericPlatform):
     _jtag_support = [
         "xc6",
         "xc7a", "xc7k", "xc7s", "xc7v", "xc7z",
-        "xcau", "xcku", "xcvu", "xczu"
+        "xcau", "xcku", "xcvu", "xczu", "xck2"
     ]
 
     def __init__(self, *args, toolchain="ise", device_image_arch=None, **kwargs):
