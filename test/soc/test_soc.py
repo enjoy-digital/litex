@@ -1852,6 +1852,20 @@ class TestSoC(unittest.TestCase):
         self.assertEqual(soc.constants["SPIFLASH_MODULE_ERASE_SIZE"], 4 * 1024)
         self.assertEqual(soc.constants["SPIFLASH_MODULE_ERASE_ADDR_BITS"], 32)
 
+    def test_spi_flash_exports_program_addr_bits(self):
+        from litespi.modules import S25FL128L, W25Q256, W25Q256JV
+        from litespi.opcodes import SpiNorFlashOpCodes as Codes
+        from litespi.phy.model import LiteSPIPHYModel
+
+        # 4-byte Page Program only above 16 MiB and when the module lists PP_1_1_1_4B.
+        for module_cls, addr_bits in [(S25FL128L, 24), (W25Q256JV, 24), (W25Q256, 32)]:
+            module = module_cls(Codes.READ_1_1_1)
+            phy    = LiteSPIPHYModel(module, init=[0])
+            soc    = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
+            soc.cpu = SimpleNamespace(endianness="little")
+            soc.add_spi_flash(mode="1x", module=module, phy=phy, with_master=True)
+            self.assertEqual(soc.constants["SPIFLASH_MODULE_PROGRAM_ADDR_BITS"], addr_bits)
+
     def test_spi_ram_requires_module(self):
         soc = LiteXSoC(_FakePlatform(), sys_clk_freq=1e6)
 

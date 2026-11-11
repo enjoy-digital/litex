@@ -138,8 +138,8 @@ static void spiflash_master_write(uint32_t val, size_t len, size_t width, uint32
 	spiflash_master_cs_write(0);
 }
 
-static volatile uint8_t w_buf[SPI_FLASH_BLOCK_SIZE + 4];
-static volatile uint8_t r_buf[SPI_FLASH_BLOCK_SIZE + 4];
+static volatile uint8_t w_buf[SPI_FLASH_BLOCK_SIZE + 5];
+static volatile uint8_t r_buf[SPI_FLASH_BLOCK_SIZE + 5];
 
 static uint32_t transfer_byte(uint8_t b)
 {
@@ -285,14 +285,38 @@ static bool spiflash_enable_quad_mode(void)
 }
 #endif
 
+/* Page Program: 4-byte address (PP_1_1_1_4B, 0x12) when the module exports it, else 3-byte
+   address (PP_1_1_1, 0x02). */
+#ifndef SPIFLASH_MODULE_PROGRAM_ADDR_BITS
+#define SPIFLASH_MODULE_PROGRAM_ADDR_BITS 24
+#endif
+
+#if SPIFLASH_MODULE_PROGRAM_ADDR_BITS == 32
+#define SPIFLASH_PROGRAM_OPCODE 0x12
+#else
+#define SPIFLASH_PROGRAM_OPCODE 0x02
+#endif
+
+/* A 3-byte address only reaches the first 16 MiB: above it, the flash would wrap the address and
+   program/erase the low 16 MiB (usually the bitstream) instead. */
+#define SPIFLASH_24BIT_ADDR_LIMIT (1UL << 24)
+
+static bool spiflash_addr_range_valid(uint32_t addr, uint32_t len, uint8_t addr_bits)
+{
+	if ((addr_bits != 24) || (len == 0))
+		return true;
+	return (addr < SPIFLASH_24BIT_ADDR_LIMIT) && (len <= SPIFLASH_24BIT_ADDR_LIMIT - addr);
+}
+
 static void page_program(uint32_t addr, uint8_t *data, int len)
 {
-	w_buf[0] = 0x02;
-	w_buf[1] = addr>>16;
-	w_buf[2] = addr>>8;
-	w_buf[3] = addr>>0;
-	memcpy((void *)w_buf+4, (void *)data, len);
-	transfer_cmd(w_buf, r_buf, len+4);
+	uint8_t addr_bytes = SPIFLASH_MODULE_PROGRAM_ADDR_BITS/8;
+
+	w_buf[0] = SPIFLASH_PROGRAM_OPCODE;
+	for (uint8_t i = 0; i < addr_bytes; i++)
+		w_buf[1+i] = addr >> (8*(addr_bytes - i - 1));
+	memcpy((void *)w_buf+1+addr_bytes, (void *)data, len);
+	transfer_cmd(w_buf, r_buf, len+1+addr_bytes);
 }
 
 static void spiflash_erase_command(uint32_t addr, uint8_t opcode, uint8_t addr_bits)
@@ -323,6 +347,10 @@ void spiflash_erase_range(uint32_t addr, uint32_t len)
 		return;
 	if (addr > UINT32_MAX - (len - 1)) {
 		printf("Error: SPI Flash erase range wraps the address space.\n");
+		return;
+	}
+	if (!spiflash_addr_range_valid(addr, len, SPIFLASH_MODULE_ERASE_ADDR_BITS)) {
+		printf("Error: SPI Flash erase above 16 MiB requires a 4-byte address erase command (module erase_cmd).\n");
 		return;
 	}
 
@@ -366,6 +394,10 @@ void spiflash_erase_range(uint32_t addr, uint32_t len)
 
 void spiflash_erase_4k_sector(uint32_t addr)
 {
+	if (!spiflash_addr_range_valid(addr, 1, 24)) {
+		printf("Error: SPI Flash 4KB sector erase above 16 MiB not supported.\n");
+		return;
+	}
 	spiflash_write_enable();
 	spiflash_erase_command(addr, 0x20, 24);
 	while (spiflash_read_status_register() & 1);
@@ -383,6 +415,11 @@ int spiflash_write_stream(uint32_t addr, uint8_t *stream, uint32_t len)
 #ifdef SPIFLASH_DEBUG
 	printf("Write SPI Flash @0x%08lx", ((uint32_t)addr));
 #endif
+
+	if (!spiflash_addr_range_valid(addr, len, SPIFLASH_MODULE_PROGRAM_ADDR_BITS)) {
+		printf("Error: SPI Flash program above 16 MiB requires a 4-byte address Page Program (PP_1_1_1_4B).\n");
+		return -1;
+	}
 
 	while(w_len) {
 		spiflash_write_enable();
