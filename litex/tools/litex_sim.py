@@ -180,6 +180,7 @@ class SimSoC(SoCCore):
         sdram_verbosity        = 0,
         with_i2c               = False,
         with_sdcard            = False,
+        sdcard_image           = None,
         with_spi_flash         = False,
         spi_flash_init         = [],
         with_gpio              = False,
@@ -353,7 +354,7 @@ class SimSoC(SoCCore):
 
         # SDCard -----------------------------------------------------------------------------------
         if with_sdcard:
-            self.add_sdcard("sdcard", use_emulator=True)
+            self.add_sdcard("sdcard", use_emulator=True, emulator_image=sdcard_image)
 
         # SPI Flash --------------------------------------------------------------------------------
         if with_spi_flash:
@@ -495,6 +496,7 @@ def sim_args(parser):
 
     # SDCard.
     parser.add_argument("--with-sdcard",          action="store_true",     help="Enable SDCard support.")
+    parser.add_argument("--sdcard-image",         default=None,            help="SDCard (emulator) raw disk image file (block-addressed store, e.g. a FAT image for sdcardboot).")
 
     # SPIFlash.
     parser.add_argument("--with-spi-flash",       action="store_true",     help="Enable SPI Flash (MMAPed).")
@@ -686,7 +688,8 @@ def main():
         with_i2c               = args.with_i2c,
         with_jtag              = args.with_jtagremote,
         with_swd               = args.with_swdremote,
-        with_sdcard            = args.with_sdcard,
+        with_sdcard            = args.with_sdcard or (args.sdcard_image is not None),
+        sdcard_image           = args.sdcard_image,
         with_spi_flash         = args.with_spi_flash,
         with_gpio              = args.with_gpio,
         with_video_framebuffer = args.with_video_framebuffer,

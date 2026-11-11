@@ -3230,10 +3230,13 @@ class LiteXSoC(SoC):
         from litesdcard.frontend.dma import SDBlock2MemDMA, SDMem2BlockDMA
 
         class LiteSDCard(LiteXModule):
-            def __init__(self, soc, name="sdcard", mode="read+write", use_emulator=False):
+            def __init__(self, soc, name="sdcard", mode="read+write", use_emulator=False, emulator_size=None, emulator_image=None):
                 # Emulator / Pads.
                 if use_emulator:
-                    self.sdemulator = SDEmulator(soc.platform)
+                    emulator_kwargs = {}
+                    if (emulator_size is not None) or (emulator_image is not None):
+                        emulator_kwargs = dict(size=emulator_size, image=emulator_image) # Block-addressed store.
+                    self.sdemulator = SDEmulator(soc.platform, **emulator_kwargs)
                     pads = self.sdemulator.pads
                 else:
                     pads = soc.platform.request(name)
