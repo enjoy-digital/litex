@@ -123,7 +123,7 @@ int sdcard_wait_data_done(void) {
 void sdcard_set_clk_freq(unsigned long clk_freq, int show) {
 	uint32_t divider;
 	divider = clk_freq ? DIV_ROUND_UP(CONFIG_CLOCK_FREQUENCY, clk_freq) : 256;
-	divider = min(max(divider, 2), 256);
+	divider = min(max(divider, 2), 511); /* 9-bit phy_clocker_divider register. */
 #ifdef SDCARD_DEBUG
 	show = 1;
 #endif
