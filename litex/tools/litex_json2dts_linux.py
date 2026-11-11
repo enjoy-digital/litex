@@ -293,6 +293,23 @@ def generate_dts_sdcard(d, polling=False):
     def get_csr_addr(name):
         return get_dts_int(csr_registers[name]["addr"])
 
+    # The Linux litex_mmc driver maps both DMAs ("reader" and "writer"): only usable with
+    # add_sdcard(mode="read+write").
+    for dma in ["block2mem", "mem2block"]:
+        if f"sdcard_{dma}_dma_base" not in csr_registers:
+            print("Warning: SDCard without {} DMA (add_sdcard mode=\"read+write\" required by litex_mmc), no mmc node generated.".format(dma),
+                file=sys.stderr)
+            return ""
+
+    # Interrupt: polling when forced or when the SoC has no SDCard interrupt.
+    if not polling and "sdcard_interrupt" not in d["constants"]:
+        print("Warning: SDCard without interrupt, mmc node in polling mode.", file=sys.stderr)
+        polling = True
+    sdcard_interrupt = "" if polling else generate_dts_interrupt(d, d["constants"]["sdcard_interrupt"], polling)
+
+    # Bus width: 8-bit when the PHY supports it, else 4-bit.
+    bus_width = 8 if "sdcard_phy_support_8x" in d["constants"] else 4
+
     phy_base       = get_csr_addr("sdcard_phy_card_detect")
     core_base      = get_csr_addr("sdcard_core_cmd_argument")
     block2mem      = get_csr_addr("sdcard_block2mem_dma_base")
@@ -314,7 +331,7 @@ def generate_dts_sdcard(d, polling=False):
                 reg-names = "phy", "core", "reader", "writer", "irq";
                 clocks = <&sys_clk>;
                 vmmc-supply = <&vreg_mmc>;
-                bus-width = <0x04>;
+                bus-width = <0x{sdcard_bus_width:02x}>;
                 {sdcard_irq_interrupt}
                 {sdcard_csr_endian}
                 status = "okay";
@@ -330,7 +347,8 @@ def generate_dts_sdcard(d, polling=False):
         sdcard_mem2block      = mem2block,
         sdcard_mem2block_size = mem2block_size,
         sdcard_irq            = irq_base,
-        sdcard_irq_interrupt  = generate_dts_interrupt(d, d["constants"]["sdcard_interrupt"], polling),
+        sdcard_bus_width      = bus_width,
+        sdcard_irq_interrupt  = sdcard_interrupt,
         sdcard_csr_endian     = get_dts_csr_endian(d),
     )
 
