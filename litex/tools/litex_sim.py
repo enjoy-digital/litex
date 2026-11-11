@@ -422,6 +422,7 @@ class SimSoC(SoCCore):
             self.analyzer = LiteScopeAnalyzer(analyzer_signals,
                 depth        = 512,
                 clock_domain = "sys",
+                samplerate   = sys_clk_freq,
                 csr_csv      = "analyzer.csv")
 
 # Build --------------------------------------------------------------------------------------------
@@ -553,6 +554,7 @@ def main():
     sim_speed_interfaces = []
     sim_speed_console    = False
     sim_config.add_clocker("sys_clk", freq_hz=sys_clk_freq)
+    uart_pty_cmd         = None
 
     # Configuration --------------------------------------------------------------------------------
 
@@ -575,18 +577,11 @@ def main():
         if args.uart_tcp or args.uart_pty:
             port = args.uart_tcp_port
             sim_config.add_module("serial2tcp", "serial", args={"port": port})
-            # PTY.
+            # PTY (socat started when the simulation runs, stopped on exit).
             if args.uart_pty:
                 port     = args.uart_tcp_port
                 pty_path = args.uart_pty_path
-                cmd = ["socat", f"pty,link={pty_path},raw,echo=0", f"tcp:127.0.0.1:{port},forever,interval=0.1"]
-                try:
-                    socat_proc = subprocess.Popen(cmd)
-                    print(f"[litex_sim] UART PTY created at: {pty_path}")
-                except FileNotFoundError:
-                    print("[litex_sim] ERROR: 'socat' not found. Install socat or disable --uart-pty.")
-                except Exception as e:
-                    print(f"[litex_sim] ERROR: Failed to start socat for UART PTY: {e}")
+                uart_pty_cmd = ["socat", f"pty,link={pty_path},raw,echo=0", f"tcp:127.0.0.1:{port},forever,interval=0.1"]
         # Console (stdin/stdout) UART bridge (serial2console).
         else:
             sim_config.add_module("serial2console", "serial")
@@ -718,11 +713,20 @@ def main():
 
     # Build/Run ------------------------------------------------------------------------------------
     qemu_proc = None
+    socat_proc = None
 
     def pre_run_callback(vns):
-        nonlocal qemu_proc
+        nonlocal qemu_proc, socat_proc
         if args.trace:
             generate_gtkw_savefile(builder, vns, args.trace_fst)
+        if uart_pty_cmd is not None:
+            try:
+                socat_proc = subprocess.Popen(uart_pty_cmd)
+                print(f"[litex_sim] UART PTY created at: {args.uart_pty_path}")
+            except FileNotFoundError:
+                print("[litex_sim] ERROR: 'socat' not found. Install socat or disable --uart-pty.")
+            except Exception as e:
+                print(f"[litex_sim] ERROR: Failed to start socat for UART PTY: {e}")
         if qemu_enabled and not args.qemu_no_run:
             qemu_cmd = qemu_command(builder, soc, args)
             print("[litex_sim] QEMU command: {}".format(" ".join(qemu_cmd)))
@@ -743,8 +747,9 @@ def main():
             **parser.toolchain_argdict,
         )
     finally:
-        if qemu_proc is not None and qemu_proc.poll() is None:
-            qemu_proc.terminate()
+        for proc in [qemu_proc, socat_proc]:
+            if proc is not None and proc.poll() is None:
+                proc.terminate()
 
 if __name__ == "__main__":
     main()
