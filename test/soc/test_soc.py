@@ -1826,8 +1826,13 @@ class TestSoC(unittest.TestCase):
         from litespi.opcodes import SpiNorFlashOpCodes as Codes
         from litespi.phy.model import LiteSPIPHYModel
 
-        # 1:1: clk_freq rounded to an even sys_clk_freq divisor; 1:2: no divisor, SCK at sys.
-        for rate, freq in [("1:1", int(100e6/6)), ("1:2", int(100e6))]:
+        import inspect
+        from litespi.phy.generic_ddr import LiteSPIDDRPHYCore
+
+        # 1:1: clk_freq rounded to an even sys_clk_freq divisor. 1:2: sys_clk_freq/divisor when the
+        # 1:2 PHY has a divider (litex-hub/litespi#136), else no divisor, SCK at sys.
+        ddr_divider = "default_divisor" in inspect.signature(LiteSPIDDRPHYCore.__init__).parameters
+        for rate, freq in [("1:1", int(100e6/6)), ("1:2", int(100e6/5) if ddr_divider else int(100e6))]:
             module = S25FL128L(Codes.READ_1_1_1)
             phy    = LiteSPIPHYModel(module, init=[0])
             soc    = LiteXSoC(_FakePlatform(), sys_clk_freq=100e6)

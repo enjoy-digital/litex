@@ -3010,9 +3010,15 @@ class LiteXSoC(SoC):
 
     # SPI Flash/RAM clock frequency ----------------------------------------------------------------
     def _get_spi_rate_clk_freq(self, name, rate, clk_freq, kwargs):
-        # The LiteSPI 1:2 PHY has no clock divider: SCK runs at the PHY clock (sys when the PHY
-        # is in the sys clock domain), whatever the requested clk_freq.
-        if rate == "1:2" and kwargs.get("clock_domain", "sys") == "sys":
+        # LiteSPI 1:2 PHYs without a clock divider (no default_divisor parameter, LiteSPI before
+        # litex-hub/litespi#136): SCK runs at the PHY clock (sys when the PHY is in the sys clock
+        # domain), whatever the requested clk_freq. With the divider, SCK is sys/default_divisor.
+        if rate != "1:2":
+            return clk_freq
+        from litespi.phy.generic_ddr import LiteSPIDDRPHYCore
+        if "default_divisor" in inspect.signature(LiteSPIDDRPHYCore.__init__).parameters:
+            return clk_freq
+        if kwargs.get("clock_domain", "sys") == "sys":
             if clk_freq < self.sys_clk_freq:
                 self.logger.warning("{} at rate 1:2 has no clock divider: SCK runs at {} ({:.2f} MHz), not at {} ({:.2f} MHz).".format(
                     colorer(name),
