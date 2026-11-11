@@ -45,6 +45,10 @@ class Microwatt(CPU):
     @property
     def mem_map(self):
         return {
+            # PPC/Microwatt mandates main RAM at 0x0000_0000 (see litex#2306); move ROM/SRAM high.
+            "main_ram": 0x0000_0000,  # DRAM at 0.
+            "rom":      0xFFFE_0000,  # ROM at high address; CPU boots from here via alt_reset.
+            "sram":     0xFFFC_0000,  # SRAM right before ROM (PPC64 TOC addressing).
             # Keep the lower 128MBs for SoC IOs auto-allocation.
             "csr":      0xc800_0000,
             "xicsicp":  0xcbff_0000,
@@ -71,6 +75,10 @@ class Microwatt(CPU):
         self.platform     = platform
         self.variant      = variant
         self.reset        = Signal()
+        # Microwatt samples alt_reset only during reset, so it must be high from power-on for the
+        # CPU to boot from ALT_RESET_ADDRESS (the high ROM). Firmware can clear it via CSR after init.
+        self.alt_reset         = Signal(reset=1)
+        self.alt_reset_address = self.mem_map.get("rom", 0xFFFE_0000)
         self.ibus         = ibus = wishbone.Interface(data_width=64, adr_width=29, addressing="word")
         self.dbus         = dbus = wishbone.Interface(data_width=64, adr_width=29, addressing="word")
         self.periph_buses = [ibus, dbus] # Peripheral buses (Connected to main SoC's bus).
@@ -82,10 +90,16 @@ class Microwatt(CPU):
         # # #
 
         # CPU Instance.
+        # Note: ALT_RESET_ADDRESS (the alt_reset boot address) is baked into the VHDL default
+        # (microwatt_wrapper.vhdl) because ghdl --synth constant-folds vector generics rather than
+        # exposing them as Verilog parameters; it is therefore not passed here.
         self.cpu_params = dict(
             # Clk / Rst.
             i_clk = ClockSignal("sys"),
             i_rst = ResetSignal("sys") | self.reset,
+
+            # Alt Reset (boot from ALT_RESET_ADDRESS / ROM).
+            i_alt_reset = self.alt_reset,
 
             # IBus.
             i_wishbone_insn_dat_r = ibus.dat_r,
@@ -140,11 +154,22 @@ class Microwatt(CPU):
         # Add VHDL sources.
         self.add_sources(platform, use_ghdl_yosys_plugin="ghdl" in self.variant)
 
-    def set_reset_address(self, reset_address):
-        self.reset_address = reset_address
-        assert reset_address == 0x0000_0000
+    def set_reset_address(self, reset_address=None):
+        # Default to the ROM origin (alt_reset boot); the CPU boots from ALT_RESET_ADDRESS.
+        if reset_address is None:
+            reset_address = self.mem_map.get("rom", 0xFFFE_0000)
+        self.reset_address     = reset_address
+        self.alt_reset_address = reset_address
+        # ALT_RESET_ADDRESS is baked into the VHDL default (see __init__); if reset_address differs
+        # from mem_map["rom"] (0xFFFE_0000), update the VHDL default to match.
+        assert reset_address == self.mem_map.get("rom", 0xFFFE_0000), \
+            "Microwatt alt_reset address must match the baked VHDL ALT_RESET_ADDRESS (0xFFFE_0000)"
 
     def add_soc_components(self, soc):
+        # alt_reset starts high (boot from ROM); firmware can clear it via CSR after DRAM init.
+        self._alt_reset_csr = CSRStorage(reset=1,
+            description="Alt reset control (1 = boot from ALT_RESET_ADDRESS / ROM).")
+        soc.comb += self.alt_reset.eq(self._alt_reset_csr.storage)
         if "irq" in self.variant:
             self.xics = XICSSlave(
                 platform     = self.platform,
