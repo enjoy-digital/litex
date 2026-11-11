@@ -670,10 +670,6 @@ int sdcard_init(void) {
 	if (timeout == 0)
 		return 0;
 
-	/* Set SD clk freq to Operational frequency */
-	sdcard_set_clk_freq(SDCARD_CLK_FREQ, 0);
-	busy_wait(1);
-
 	/* Set SDCard in Operational state */
 	for (timeout=1000; timeout>0; timeout--) {
 		sdcard_app_cmd(0);
@@ -703,6 +699,10 @@ int sdcard_init(void) {
 	if (sdcard_set_relative_address() != SD_OK)
 		return 0;
 	rca = sdcard_decode_rca();
+
+	/* Set SD clk freq to Operational frequency (identification done, card in Stand-by state) */
+	sdcard_set_clk_freq(SDCARD_CLK_FREQ, 0);
+	busy_wait(1);
 
 	/* Set CID */
 	if (sdcard_send_cid(rca) != SD_OK)
