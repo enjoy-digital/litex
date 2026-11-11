@@ -314,6 +314,14 @@ static void spiflash_erase_command(uint32_t addr, uint8_t opcode, uint8_t addr_b
 
 #define min(x, y) (((x) < (y)) ? (x) : (y))
 
+/* Page Program chunk: a program must not cross a flash page boundary (the flash would wrap
+   inside the page), chunks are aligned on the page size (capped to the command buffer). */
+#if defined(SPIFLASH_MODULE_PAGE_SIZE) && (SPIFLASH_MODULE_PAGE_SIZE < SPI_FLASH_BLOCK_SIZE)
+#define SPIFLASH_PROGRAM_SIZE SPIFLASH_MODULE_PAGE_SIZE
+#else
+#define SPIFLASH_PROGRAM_SIZE SPI_FLASH_BLOCK_SIZE
+#endif
+
 void spiflash_erase_range(uint32_t addr, uint32_t len)
 {
 	uint32_t erase_addr;
@@ -377,7 +385,7 @@ int spiflash_write_stream(uint32_t addr, uint8_t *stream, uint32_t len)
 {
 	int res = 0;
 	uint32_t errors = 0;
-	uint32_t w_len = min(len, SPI_FLASH_BLOCK_SIZE);
+	uint32_t w_len = min(len, SPIFLASH_PROGRAM_SIZE - (addr % SPIFLASH_PROGRAM_SIZE));
 	uint32_t offset = 0;
 
 #ifdef SPIFLASH_DEBUG
@@ -407,7 +415,7 @@ int spiflash_write_stream(uint32_t addr, uint8_t *stream, uint32_t len)
 #endif
 
 		offset += w_len;
-		w_len = min(len-offset, SPI_FLASH_BLOCK_SIZE);
+		w_len = min(len-offset, SPIFLASH_PROGRAM_SIZE);
 		res = offset;
 	}
 #ifdef SPIFLASH_DEBUG
