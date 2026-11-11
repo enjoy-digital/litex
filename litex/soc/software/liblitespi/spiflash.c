@@ -438,6 +438,9 @@ void spiflash_init(void)
 	printf("\nInitializing %s SPI Flash...\n", SPIFLASH_MODULE_NAME);
 #endif
 
+/* Optional MMAP dummy bits override: add_spi_flash does not export SPIFLASH_MODULE_DUMMY_BITS
+   (the MMAP already uses the dummy cycles of its read opcode), a target with a configurable
+   MMAP dummy_bits CSR can define it (soc.add_constant) to force another value at boot. */
 #ifdef SPIFLASH_MODULE_DUMMY_BITS
 	spiflash_dummy_bits_setup(SPIFLASH_MODULE_DUMMY_BITS);
 #endif
