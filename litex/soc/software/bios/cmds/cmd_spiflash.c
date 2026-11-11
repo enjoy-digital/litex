@@ -12,6 +12,8 @@
 
 #include <libbase/progress.h>
 #include <liblitespi/spiflash.h>
+#include <liblitesdcard/spisdcard.h>
+#include <liblitesdcard/sdcard.h>
 #include <libfatfs/ff.h>
 
 /**
@@ -54,6 +56,7 @@ static void flash_write_handler(int nb_params, char **params)
 define_command_args(flash_write, flash_write_handler, "Write to flash",
 	"flash_write <offset> <mem_addr> [count]", 2, 3, SPIFLASH_CMDS);
 
+#if defined(CSR_SPISDCARD_BASE) || defined(CSR_SDCARD_BASE)
 static void flash_from_sdcard_handler(int nb_params, char **params)
 {
 	FRESULT fr;
@@ -66,6 +69,15 @@ static void flash_from_sdcard_handler(int nb_params, char **params)
 
 
 	char* filename = params[0];
+
+	/* Select the SDCard FatFs disk operations (as sdcardboot): FfDiskOps is NULL at reset and
+	   may point to another medium (sataboot). */
+#ifdef CSR_SPISDCARD_BASE
+	fatfs_set_ops_spisdcard();
+#endif
+#ifdef CSR_SDCARD_BASE
+	fatfs_set_ops_sdcard();
+#endif
 
 	fr = f_mount(&fs, "", 1);
 	if (fr != FR_OK) {
@@ -113,6 +125,7 @@ static void flash_from_sdcard_handler(int nb_params, char **params)
 }
 define_command_args(flash_from_sdcard, flash_from_sdcard_handler, "Write file from SD card to flash",
 	"flash_from_sdcard <filename>", 1, 1, SPIFLASH_CMDS);
+#endif
 
 static void flash_erase_range_handler(int nb_params, char **params)
 {
