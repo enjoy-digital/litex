@@ -113,6 +113,8 @@ int sdcard_wait_data_done(void) {
 		return SD_TIMEOUT;
 	else if (event & 0x8)
 		return SD_CRCERROR;
+	else if (event & 0x2)
+		return SD_WRITEERROR;
 	return SD_OK;
 }
 
