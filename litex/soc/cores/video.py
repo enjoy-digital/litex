@@ -1491,7 +1491,8 @@ class VideoS7GTPHDMIPHY(LiteXModule):
     def __init__(self, pads, sys_clk_freq, clock_domain="sys", clk_freq=148.5e6, refclk=None,
         refclk_freq=None, tx_polarity=1):
         assert sys_clk_freq >= clk_freq
-        self.sink = sink = stream.Endpoint(video_data_layout)
+        self.sink  = sink = stream.Endpoint(video_data_layout)
+        self.ready = Signal()
 
         # # #
 
@@ -1521,11 +1522,12 @@ class VideoS7GTPHDMIPHY(LiteXModule):
             refclk = refclk_se
         self.pll = pll = GTPQuadPLL(refclk, refclk_freq or clk_freq, 10*clk_freq)
 
-        # Encode/Serialize Datas.
+        # Three serializers, with one PLL reset owner and a shared TX word clock.
+        gtps = []
         for color, channel in _dvi_c2d.items():
             # TMDS Encoding / Gearbox / Clock Domain Crossing.
-            lane = VideoGTHDMILane(clock_domain, f"gtp{color}_tx")
-            self.submodules += lane
+            lane = VideoGTHDMILane(clock_domain, "gtpb_tx")
+            setattr(self, f"lane{color}", lane)
             self.comb += [
                 lane.d.eq(getattr(sink, color)),
                 lane.c.eq(Cat(sink.hsync, sink.vsync) if channel == 0 else 0),
@@ -1543,14 +1545,29 @@ class VideoS7GTPHDMIPHY(LiteXModule):
             rx_pads = GTPPads(p=getattr(pads, f"rx{channel}_p"),    n=getattr(pads, f"rx{channel}_n"))
             gtp = GTP(pll, tx_pads, rx_pads=rx_pads, sys_clk_freq=sys_clk_freq,
                 qpll_reset       = (channel == 0),
+                tx_clk           = gtps[0].cd_tx.clk if gtps else None,
+                rx_clk           = ClockSignal("sys"),
                 tx_polarity      = tx_polarity,
                 tx_buffer_enable = True,
                 rx_buffer_enable = True,
                 clock_aligner    = False
             )
             setattr(self.submodules, f"gtp{color}", gtp)
-            self.comb += gtp.tx_produce_pattern.eq(1)
-            self.comb += gtp.tx_pattern.eq(lane.source.data)
+            gtps.append(gtp)
+            self.comb += gtp.rx_enable.eq(0)
+
+            # Feed the TX datapath directly, as in the UltraScale+ GTH PHY. The lane FIFO
+            # already crosses into the shared TX domain; tx_pattern is a control input.
+            # With 8b/10b disabled, bits 8/9 of each symbol use the disparity ports.
+            data = lane.source.data
+            gtp.gtp_params.update(
+                i_RXPD           = 0b11,
+                i_TXDATA         = Cat(data[0:8], data[10:18], Constant(0, 16)),
+                i_TXCHARDISPVAL  = Cat(data[8], data[18], Constant(0, 2)),
+                i_TXCHARDISPMODE = Cat(data[9], data[19], Constant(0, 2)),
+            )
+
+        self.comb += self.ready.eq(Cat(*[gtp.tx_ready for gtp in gtps]) == 0b111)
 
 
 class VideoUSPGTHHDMIPHY(LiteXModule):
