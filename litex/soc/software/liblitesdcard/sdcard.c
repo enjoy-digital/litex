@@ -200,7 +200,7 @@ int sdcard_app_cmd(uint16_t rca) {
 int sdcard_app_send_op_cond(int hcs) {
 	uint32_t arg = 0x10ff8000;
 	if (hcs)
-		arg |= 0x60000000;
+		arg |= 0x40000000; /* HCS (bit 30), bit 29 is reserved. */
 #ifdef SDCARD_DEBUG
 	printf("ACMD41: APP_SEND_OP_COND, arg: %08" PRIx32 "\n", arg);
 #endif
