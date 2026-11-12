@@ -3069,6 +3069,12 @@ class LiteXSoC(SoC):
             self.add_constant(f"{name}_MODULE_NAME",       module.name)
             self.add_constant(f"{name}_MODULE_TOTAL_SIZE", module.total_size)
             self.add_constant(f"{name}_MODULE_PAGE_SIZE",  module.page_size)
+            # 4-byte address Page Program (PP_1_1_1_4B) on modules above 16 MiB that list it, else
+            # 3-byte address Page Program (only reaches the first 16 MiB).
+            program_addr_bits = 24
+            if module.total_size > 2**24 and SpiNorFlashOpCodes.PP_1_1_1_4B in module.supported_opcodes:
+                program_addr_bits = 32
+            self.add_constant(f"{name}_MODULE_PROGRAM_ADDR_BITS", program_addr_bits)
             erase_opcode    = getattr(module, "erase_opcode", None)
             erase_size      = getattr(module, "erase_size", None)
             erase_addr_bits = getattr(module, "erase_addr_bits", None)
