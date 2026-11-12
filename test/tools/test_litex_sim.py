@@ -38,3 +38,48 @@ def test_l2_refill_width_reaches_cache(width):
 def test_invalid_l2_refill_width(width):
     with pytest.raises(ValueError, match="min_l2_data_width"):
         SimSoC(min_l2_data_width=width)
+
+
+def test_analyzer_samplerate_is_sys_clk_freq():
+    pytest.importorskip("litescope")
+    soc = SimSoC(uart_name="sim", with_analyzer=True)
+    assert soc.analyzer.samplerate == int(1e6)
+
+
+@pytest.mark.parametrize("no_compile", [False, True])
+def test_uart_pty_socat_lifecycle(tmp_path, monkeypatch, no_compile):
+    from litex.tools import litex_sim
+
+    class FakeProc:
+        terminated = False
+        def poll(self):
+            return None
+        def terminate(self):
+            self.terminated = True
+
+    procs = []
+    def fake_popen(cmd, *args, **kwargs):
+        assert cmd[0] == "socat"
+        procs.append(FakeProc())
+        return procs[-1]
+
+    class FakeBuilder:
+        def __init__(self, soc, compile_gateware=True, **kwargs):
+            self.compile_gateware = compile_gateware
+        def build(self, pre_run_callback=None, **kwargs):
+            # The simulation (and pre_run_callback) only runs when the gateware is compiled.
+            if self.compile_gateware:
+                pre_run_callback(None)
+
+    monkeypatch.setattr(litex_sim.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(litex_sim, "Builder", FakeBuilder)
+    monkeypatch.setattr("sys.argv", ["litex_sim",
+        "--uart-name=crossover+uartbone", "--uart-pty",
+        "--uart-pty-path", str(tmp_path / "pty"),
+        "--output-dir", str(tmp_path / "build"),
+    ] + (["--no-compile"] if no_compile else []))
+    litex_sim.main()
+
+    # socat only started when the simulation runs, and stopped when litex_sim exits.
+    assert len(procs) == (0 if no_compile else 1)
+    assert all(proc.terminated for proc in procs)
