@@ -3008,6 +3008,27 @@ class LiteXSoC(SoC):
         self.add_constant(f"{name}_DATA_WIDTH",     data_width)
         self.add_constant(f"{name}_MAX_CS",    len(pads.cs_n))
 
+    # SPI Flash/RAM clock frequency ----------------------------------------------------------------
+    def _get_spi_rate_clk_freq(self, name, rate, clk_freq, kwargs):
+        # LiteSPI 1:2 PHYs without a clock divider (no default_divisor parameter, LiteSPI before
+        # litex-hub/litespi#136): SCK runs at the PHY clock (sys when the PHY is in the sys clock
+        # domain), whatever the requested clk_freq. With the divider, SCK is sys/default_divisor.
+        if rate != "1:2":
+            return clk_freq
+        from litespi.phy.generic_ddr import LiteSPIDDRPHYCore
+        if "default_divisor" in inspect.signature(LiteSPIDDRPHYCore.__init__).parameters:
+            return clk_freq
+        if kwargs.get("clock_domain", "sys") == "sys":
+            if clk_freq < self.sys_clk_freq:
+                self.logger.warning("{} at rate 1:2 has no clock divider: SCK runs at {} ({:.2f} MHz), not at {} ({:.2f} MHz).".format(
+                    colorer(name),
+                    colorer("sys_clk_freq"),
+                    self.sys_clk_freq/1e6,
+                    colorer("clk_freq"),
+                    clk_freq/1e6))
+            clk_freq = int(self.sys_clk_freq)
+        return clk_freq
+
     # Add SPI Flash --------------------------------------------------------------------------------
     def add_spi_flash(self, name="spiflash", mode="4x", clk_freq=20e6, module=None, phy=None, rate="1:1", software_debug=False, number=None, **kwargs):
         # Checks/Parameters.
@@ -3034,6 +3055,7 @@ class LiteXSoC(SoC):
         if rate == "1:1":
             default_divisor += default_divisor % 2 # Round up to nearest even number.
         clk_freq        = int(self.sys_clk_freq/default_divisor)
+        clk_freq        = self._get_spi_rate_clk_freq(name, rate, clk_freq, kwargs)
 
         if "master_with_irq" not in kwargs and self.irq.enabled and name in self.irq.locs.keys():
             # If IRQ is enabled, use master_with_irq.
@@ -3124,6 +3146,7 @@ class LiteXSoC(SoC):
         if rate == "1:1":
             default_divisor += default_divisor % 2 # Round up to nearest even number.
         clk_freq        = int(self.sys_clk_freq/default_divisor)
+        clk_freq        = self._get_spi_rate_clk_freq(name, rate, clk_freq, kwargs)
 
         if "master_with_irq" not in kwargs and self.irq.enabled and name in self.irq.locs.keys():
             # If IRQ is enabled, use master_with_irq.

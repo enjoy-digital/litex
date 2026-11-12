@@ -1821,6 +1821,25 @@ class TestSoC(unittest.TestCase):
         with _assert_raises_soc_error(self):
             soc.add_spi_flash()
 
+    def test_spi_flash_rate_1_2_exports_phy_clock(self):
+        from litespi.modules import S25FL128L
+        from litespi.opcodes import SpiNorFlashOpCodes as Codes
+        from litespi.phy.model import LiteSPIPHYModel
+
+        import inspect
+        from litespi.phy.generic_ddr import LiteSPIDDRPHYCore
+
+        # 1:1: clk_freq rounded to an even sys_clk_freq divisor. 1:2: sys_clk_freq/divisor when the
+        # 1:2 PHY has a divider (litex-hub/litespi#136), else no divisor, SCK at sys.
+        ddr_divider = "default_divisor" in inspect.signature(LiteSPIDDRPHYCore.__init__).parameters
+        for rate, freq in [("1:1", int(100e6/6)), ("1:2", int(100e6/5) if ddr_divider else int(100e6))]:
+            module = S25FL128L(Codes.READ_1_1_1)
+            phy    = LiteSPIPHYModel(module, init=[0])
+            soc    = LiteXSoC(_FakePlatform(), sys_clk_freq=100e6)
+            soc.cpu = SimpleNamespace(endianness="little")
+            soc.add_spi_flash(mode="1x", module=module, phy=phy, rate=rate, clk_freq=20e6, with_master=True)
+            self.assertEqual(soc.constants["SPIFLASH_PHY_FREQUENCY"], freq)
+
     def test_spi_flash_exports_erase_geometry(self):
         from litespi.ids import SpiNorFlashManufacturerIDs
         from litespi.opcodes import SpiNorFlashOpCodes as Codes
