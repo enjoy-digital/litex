@@ -2963,9 +2963,20 @@ class LiteXSoC(SoC):
             add_mac_address_constants(self, "MACADDR",  ethmac_address)
 
     # Add I2C Master -------------------------------------------------------------------------------
-    def add_i2c_master(self, name="i2cmaster", pads=None, **kwargs):
+    def add_i2c_master(self, name="i2cmaster", pads=None, clk_freq=None, **kwargs):
         # Imports.
         from litei2c import LiteI2C
+
+        # Clock frequency: the SCL dividers use the frequency of the clock_domain of the core.
+        clock_domain = kwargs.get("clock_domain", "sys")
+        if clk_freq is None:
+            if clock_domain != "sys":
+                self.logger.error("I2C Master {}: {} required with clock_domain {}.".format(
+                    colorer(name),
+                    colorer("clk_freq", color="red"),
+                    colorer(clock_domain)))
+                raise SoCError()
+            clk_freq = self.sys_clk_freq
 
         if "with_irq" not in kwargs and self.irq.enabled and name in self.irq.locs.keys():
             # If IRQ is enabled, use with_irq.
@@ -2975,7 +2986,7 @@ class LiteXSoC(SoC):
         self.check_if_exists(name)
         if pads is None:
             pads = self.platform.request(name)
-        i2c = LiteI2C(self.sys_clk_freq, pads=pads, **kwargs)
+        i2c = LiteI2C(clk_freq, pads=pads, **kwargs)
         self.add_module(name=name, module=i2c)
 
         if hasattr(i2c, "ev") and self.irq.enabled:
