@@ -100,3 +100,10 @@ ENV/
 
 # VS Code settings
 .vscode
+
+# CPU sources downloaded at build/test time (litex/soc/cores/cpu/*/core.py).
+litex/soc/cores/cpu/neorv32/*.vhd
+litex/soc/cores/cpu/neorv32/sources/
+/femtorv32_*.v
+/firev.v
+/mdu_top.v
