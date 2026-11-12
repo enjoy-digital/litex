@@ -104,6 +104,28 @@ class TestLiteXJson2DTSLinux(unittest.TestCase):
                 "config_csr_ordering_little": None,
             }))
 
+    def test_sdcard_skips_node_with_one_dma(self):
+        for dma in ["block2mem", "mem2block"]:
+            d = csr_with_sdcard()
+            del d["csr_registers"][f"sdcard_{dma}_dma_base"]
+            self.assertEqual(generate_dts_sdcard(d), "")
+
+    def test_sdcard_without_interrupt_uses_polling(self):
+        d = csr_with_sdcard()
+        del d["constants"]["sdcard_interrupt"]
+        for polling in [False, True]:
+            dts = generate_dts_sdcard(d, polling=polling)
+            self.assertIn('compatible = "litex,mmc";', dts)
+            self.assertNotIn("interrupts", dts)
+        self.assertIn("interrupts = <2>;", generate_dts_sdcard(csr_with_sdcard()))
+        self.assertNotIn("interrupts", generate_dts_sdcard(csr_with_sdcard(), polling=True))
+
+    def test_sdcard_bus_width_from_phy(self):
+        self.assertIn("bus-width = <0x04>;", generate_dts_sdcard(csr_with_sdcard()))
+        self.assertIn("bus-width = <0x08>;", generate_dts_sdcard(csr_with_sdcard({
+            "sdcard_phy_support_8x": 1,
+        })))
+
 
 if __name__ == "__main__":
     unittest.main()
