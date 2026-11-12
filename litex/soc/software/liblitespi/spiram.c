@@ -19,6 +19,14 @@
 
 #if defined(CSR_SPIRAM_BASE)
 
+static void spiram_clk_print(unsigned long freq)
+{
+	if (freq >= 1000000)
+		printf("%lu MHz", freq/1000000);
+	else
+		printf("%lu kHz", freq/1000);
+}
+
 int spiram_freq_init(void)
 {
 
@@ -42,13 +50,18 @@ int spiram_freq_init(void)
 #endif
 	}
 	lowest_div++;
-	printf("SPI RAM clk configured to %d MHz\n", CONFIG_CLOCK_FREQUENCY/(2*(1+lowest_div)*1000000));
+	/* LiteSPI clock generator: SCK = sys/div, div rounded up to an even value (2 minimum). */
+	printf("SPI RAM clk configured to ");
+	spiram_clk_print(CONFIG_CLOCK_FREQUENCY/(2*max(1, (lowest_div + 1)/2)));
+	printf(" (div: %d)\n", lowest_div);
 
 	spiram_phy_clk_divisor_write(lowest_div);
 
 #else
 
-	printf("SPI RAM clk configured to %ld MHz\n", SPIRAM_PHY_FREQUENCY/1000000);
+	printf("SPI RAM clk configured to ");
+	spiram_clk_print(SPIRAM_PHY_FREQUENCY);
+	printf("\n");
 
 #endif
 

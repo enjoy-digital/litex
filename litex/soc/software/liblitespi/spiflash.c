@@ -18,6 +18,14 @@
 
 #if defined(CSR_SPIFLASH_BASE)
 
+static void spiflash_clk_print(unsigned long freq)
+{
+	if (freq >= 1000000)
+		printf("%lu MHz", freq/1000000);
+	else
+		printf("%lu kHz", freq/1000);
+}
+
 int spiflash_freq_init(void)
 {
 
@@ -64,7 +72,9 @@ int spiflash_freq_init(void)
 	lowest_div += 2;
 #endif
 #endif
-	printf("SPI Flash clk configured to %d MHz (div: %d)\n", CONFIG_CLOCK_FREQUENCY/(lowest_div*1000000), lowest_div);
+	printf("SPI Flash clk configured to ");
+	spiflash_clk_print(CONFIG_CLOCK_FREQUENCY/lowest_div);
+	printf(" (div: %d)\n", lowest_div);
 
 	spiflash_phy_clk_divisor_write(lowest_div);
 #ifdef CSR_SPIFLASH_MMAP_CLK_DIVISOR_ADDR
@@ -73,7 +83,9 @@ int spiflash_freq_init(void)
 
 #else
 
-	printf("SPI Flash clk configured to %d MHz\n", (int)(SPIFLASH_PHY_FREQUENCY/1000000));
+	printf("SPI Flash clk configured to ");
+	spiflash_clk_print(SPIFLASH_PHY_FREQUENCY);
+	printf("\n");
 
 #endif
 
@@ -389,7 +401,7 @@ void spiflash_erase_range(uint32_t addr, uint32_t len)
 		for (uint32_t j = 0; j < SPIFLASH_MODULE_ERASE_SIZE; j++) {
 			uint8_t* peek = (((uint8_t*)SPIFLASH_BASE)+erase_addr+j);
 			if (*peek != 0xff) {
-				printf("Error: location 0x%08lx not erased (%0x2x)\n", erase_addr+j, *peek);
+				printf("Error: location 0x%08lx not erased (0x%02x)\n", erase_addr+j, *peek);
 			}
 		}
 #endif
