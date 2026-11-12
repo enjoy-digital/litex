@@ -70,17 +70,37 @@ static inline uint32_t sdcard_block_to_addr(uint32_t block) {
 /* SDCard command helpers                                                */
 /*-----------------------------------------------------------------------*/
 
+/* Software bounds (in us) on the command/data done bits, above the core timeouts (1 s in
+   add_sdcard): a missing, misconfigured or wedged core must not hang the BIOS. The data bound
+   is per block of the transfer (block_count). */
+#ifndef SDCARD_CMD_TIMEOUT_US
+#define SDCARD_CMD_TIMEOUT_US 2000000
+#endif
+
+#ifndef SDCARD_DATA_TIMEOUT_US
+#define SDCARD_DATA_TIMEOUT_US 2000000
+#endif
+
+#define SDCARD_EVENT_POLL_US 10
+
 int sdcard_wait_cmd_done(void) {
 	unsigned int event;
+	unsigned int timeout = SDCARD_CMD_TIMEOUT_US/SDCARD_EVENT_POLL_US;
 #ifdef SDCARD_DEBUG
 	uint32_t r[SD_CMD_RESPONSE_SIZE/4];
 	printf("cmdevt: wait for event & 0x1\n");
 #endif
 	for (;;) {
 		event = sdcard_core_cmd_event_read();
-		busy_wait_us(10);
+		busy_wait_us(SDCARD_EVENT_POLL_US);
 		if (event & 0x1)
 			break;
+		if (timeout-- == 0) {
+#ifdef SDCARD_DEBUG
+			printf("cmdevt: software timeout\n");
+#endif
+			return SD_TIMEOUT;
+		}
 	}
 #ifdef SDCARD_DEBUG
 	printf("cmdevt: %08x\n", event);
@@ -97,6 +117,8 @@ int sdcard_wait_cmd_done(void) {
 
 int sdcard_wait_data_done(void) {
 	unsigned int event;
+	uint64_t timeout = (uint64_t)max(sdcard_core_block_count_read(), 1) *
+		(SDCARD_DATA_TIMEOUT_US/SDCARD_EVENT_POLL_US);
 #ifdef SDCARD_DEBUG
 	printf("dataevt: wait for event & 0x1\n");
 #endif
@@ -104,7 +126,13 @@ int sdcard_wait_data_done(void) {
 		event = sdcard_core_data_event_read();
 		if (event & 0x1)
 			break;
-		busy_wait_us(10);
+		if (timeout-- == 0) {
+#ifdef SDCARD_DEBUG
+			printf("dataevt: software timeout\n");
+#endif
+			return SD_TIMEOUT;
+		}
+		busy_wait_us(SDCARD_EVENT_POLL_US);
 	}
 #ifdef SDCARD_DEBUG
 	printf("dataevt: %08x\n", event);
