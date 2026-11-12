@@ -486,41 +486,57 @@ void sdcard_decode_cid(void) {
 
 		r[0], r[1], r[2], r[3],
 
-		(uint16_t)((r[3] >> 16) & 0xffff),
+		/* MID: CID[127:120]. */
+		(uint16_t)((r[3] >> 24) & 0xff),
 
-		(uint16_t)(r[3] & 0xffff),
+		/* OID: CID[119:104]. */
+		(uint16_t)((r[3] >>  8) & 0xffff),
 
+		/* PNM: CID[103:64]. */
+		(char)((r[3] >>  0) & 0xff),
 		(char)((r[2] >> 24) & 0xff), (char)((r[2] >> 16) & 0xff),
-		(char)((r[2] >>  8) & 0xff), (char)((r[2] >>  0) & 0xff), (char)((r[1] >> 24) & 0xff),
+		(char)((r[2] >>  8) & 0xff), (char)((r[2] >>  0) & 0xff),
 
-		(uint8_t)(r[0] & 0xff),
+		/* CRC: CID[7:1]. */
+		(uint8_t)((r[0] >> 1) & 0x7f),
 
+		/* MDT: CID[19:8] (month, years since 2000). */
 		(uint8_t)((r[0] >>  8) & 0x0f), (uint8_t)((r[0] >> 12) & 0xff),
 
+		/* PSN: CID[55:24]. */
 		(r[0] >> 24) | (r[1] <<  8),
 
-		(char)((r[3] >> 16)) & 0xff, (char)((r[3] >>  8) & 0xff)
+		/* OID as ASCII. */
+		(char)((r[3] >> 16) & 0xff), (char)((r[3] >>  8) & 0xff)
 	);
 }
 
 void sdcard_decode_csd(void) {
+	/* TRAN_SPEED time value (x10) and rate unit (in kbit/s). */
+	static const uint8_t  tran_speed_value[16] = {0, 10, 12, 13, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80};
+	static const uint32_t tran_speed_unit[8]   = {100, 1000, 10000, 100000, 0, 0, 0, 0};
 	uint32_t r[SD_CMD_RESPONSE_SIZE/4];
+	uint8_t tran_speed;
 	csr_rd_buf_uint32(CSR_SDCARD_CORE_CMD_RESPONSE_ADDR,
 			  r, SD_CMD_RESPONSE_SIZE/4);
+	/* TRAN_SPEED: CSD[103:96]. */
+	tran_speed = r[3] & 0xff;
 	/* FIXME: only support CSR structure version 2.0 */
 	printf(
 		"CSD Register: 0x%08" PRIx32 "%08" PRIx32 "%08" PRIx32 "%08" PRIx32 "\n"
-		"Max data transfer rate: %" PRIu8 " MB/s\n"
+		"Max data transfer rate: %" PRIu32 " Mbit/s\n"
 		"Max read block length: %" PRIu32 " bytes\n"
 		"Device size: %" PRIu32 " GB\n",
 
 		r[0], r[1], r[2], r[3],
 
-		(uint8_t)((r[3] >> 24) & 0xff),
+		(uint32_t)(tran_speed_value[(tran_speed >> 3) & 0xf] * tran_speed_unit[tran_speed & 0x7] / 10000),
 
+		/* READ_BL_LEN: CSD[83:80]. */
 		(uint32_t)(1 << ((r[2] >> 16) & 0xf)),
 
-		(uint32_t)(((r[1] >> 16) + ((r[2] & 0xff) << 16) + 1) * 512 / (1024 * 1024))
+		/* C_SIZE: CSD[69:48], in 512 KiB units. */
+		(uint32_t)(((r[1] >> 16) + ((r[2] & 0x3f) << 16) + 1) * 512 / (1024 * 1024))
 	);
 }
 #endif
