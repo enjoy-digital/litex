@@ -6,6 +6,12 @@ _start:
 	j reset_vector
 
 reset_vector:
+#ifdef __AE350_USE_DLM__
+	// Enable the hard CPU's DLM before using the stack or initializing writable sections.
+	li t0, 0xa0200001
+	csrw 0x7c1, t0
+	fence rw, rw
+#endif
 	la sp, _fstack
 	la t0, trap_vector
 	csrw mtvec, t0
