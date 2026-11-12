@@ -205,6 +205,11 @@ def dump_identifier(host, csr_csv, port, timeout=2.0, raise_on_timeout=False, ve
         print(fpga_identifier)
     return fpga_identifier.rstrip("\0")
 
+# Registers whose read has a side effect, skipped by dump_registers unless named exactly by filter.
+READ_SIDE_EFFECT_REGISTERS = [
+    "_master_rxtx", # LiteSPI Master (SPI Flash/RAM): a read pops the RX FIFO.
+]
+
 def dump_registers(host, csr_csv, port, filter=None, binary=False, timeout=2.0, raise_on_timeout=False,
     verbose=True):
     registers = []
@@ -217,6 +222,11 @@ def dump_registers(host, csr_csv, port, filter=None, binary=False, timeout=2.0, 
     ) as bus:
         for name, register in bus.regs.__dict__.items():
             if (filter is None) or filter in name:
+                if (name != filter) and name.endswith(tuple(READ_SIDE_EFFECT_REGISTERS)):
+                    if verbose:
+                        print("0x{:08x} : (not read: read side effect, use --filter={}) {}".format(
+                            register.addr, name, name))
+                    continue
                 value = register.read()
                 registers.append({"name": name, "address": register.addr, "value": value})
                 if verbose:
@@ -834,7 +844,7 @@ def main():
     parser.add_argument("--ident",      action="store_true",     help="Dump SoC identifier.")
 
     # Registers.
-    parser.add_argument("--regs",       action="store_true",     help="Dump SoC registers.")
+    parser.add_argument("--regs",       action="store_true",     help="Dump SoC registers (registers with a read side effect, e.g. *_master_rxtx, only when named exactly by --filter).")
     parser.add_argument("--filter",     default=None,            help="Registers filter (to be used with --regs).")
 
     # Memory.
