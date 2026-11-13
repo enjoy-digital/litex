@@ -19,6 +19,9 @@
 
 #if defined(CSR_SPIRAM_BASE)
 
+/* Range tested by spiram_freq_init (and invalidated in the CPU data cache before each test). */
+#define SPIRAM_FREQ_TEST_SIZE min(SPIRAM_SIZE, MEMTEST_DATA_SIZE)
+
 static void spiram_clk_print(unsigned long freq)
 {
 	if (freq >= 1000000)
@@ -37,14 +40,14 @@ int spiram_freq_init(void)
 
 	lowest_div = spiram_phy_clk_divisor_read();
 
-	invd_cpu_dcache_range((void *)SPIRAM_BASE, SPIRAM_BLOCK_SIZE);
+	invd_cpu_dcache_range((void *)SPIRAM_BASE, SPIRAM_FREQ_TEST_SIZE);
 	flush_l2_cache();
 
 	while((data_errors == 0) && (lowest_div-- > 0)) {
 		spiram_phy_clk_divisor_write((uint32_t)lowest_div);
-		invd_cpu_dcache_range((void *)SPIRAM_BASE, SPIRAM_BLOCK_SIZE);
+		invd_cpu_dcache_range((void *)SPIRAM_BASE, SPIRAM_FREQ_TEST_SIZE);
 		flush_l2_cache();
-		data_errors = memtest_data((unsigned int *) SPIRAM_BASE, min(SPIRAM_SIZE, MEMTEST_DATA_SIZE), 1, NULL);
+		data_errors = memtest_data((unsigned int *) SPIRAM_BASE, SPIRAM_FREQ_TEST_SIZE, 1, NULL);
 #ifdef SPIRAM_DEBUG
 		printf("[DIV: %d]\n\r", lowest_div);
 #endif
