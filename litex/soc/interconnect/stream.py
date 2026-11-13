@@ -329,8 +329,20 @@ class ClockDomainCrossing(LiteXModule, DUID):
             self.submodules += cdc
 
             # Sink -> AsyncFIFO -> Source.
-            self.comb += self.sink.connect(cdc.sink)
-            self.comb += cdc.source.connect(self.source)
+            if with_common_rst:
+                # A stopped clock can keep the FIFO reset after its upstream
+                # producer has started. Only acknowledge real transfers.
+                self.comb += [
+                    self.sink.connect(cdc.sink, omit={"ready", "valid"}),
+                    cdc.source.connect(self.source, omit={"ready", "valid"}),
+                    cdc.sink.valid.eq(self.sink.valid & ~ResetSignal(cd_from)),
+                    self.sink.ready.eq(cdc.sink.ready & ~ResetSignal(cd_from)),
+                    self.source.valid.eq(cdc.source.valid & ~ResetSignal(cd_to)),
+                    cdc.source.ready.eq(self.source.ready & ~ResetSignal(cd_to)),
+                ]
+            else:
+                self.comb += self.sink.connect(cdc.sink)
+                self.comb += cdc.source.connect(self.source)
 
 # Mux/Demux ----------------------------------------------------------------------------------------
 

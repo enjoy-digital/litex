@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import termios
 import time
 
 import pytest
@@ -71,6 +72,7 @@ def test_repeated_open_close_reaps_openocd_and_closes_both_pty_ends(backend):
     for _ in range(3):
         try:
             uart.open()
+            assert not termios.tcgetattr(uart.name)[3] & (termios.ECHO | termios.ICANON)
             with serial.Serial(os.ttyname(uart.name), timeout=2) as port:
                 payload = bytes(range(256))
                 port.write(payload)

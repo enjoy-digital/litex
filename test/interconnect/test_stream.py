@@ -1232,6 +1232,13 @@ class TestStream(unittest.TestCase):
         dut.errors = 0
 
         def generator():
+            # Hold the destination in reset while the producer starts.
+            yield dut.cd_read.rst.eq(1)
+            yield dut.sink.valid.eq(1)
+            for _ in range(5):
+                yield
+            self.assertEqual((yield dut.sink.ready), 0)
+            yield dut.cd_read.rst.eq(0)
             for packet in packets:
                 for index, data in enumerate(packet["datas"]):
                     yield dut.sink.valid.eq(1)

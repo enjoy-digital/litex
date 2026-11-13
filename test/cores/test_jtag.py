@@ -67,11 +67,12 @@ class JTAGPHYTestDUT(Module):
     ClockSignal, so get_fragment() filters them out (the simulator drives
     clock domains directly via its TimeManager).
     """
-    def __init__(self, data_width=8, with_sel=False):
+    def __init__(self, data_width=8, with_sel=False, tdi_late=False):
         # Provide jtag clock domain with reset (for AsyncResetSynchronizer).
         self.clock_domains.cd_jtag = ClockDomain("jtag")
 
         self.submodules.jtag_tap = jtag_tap = MockJTAG(with_sel=with_sel)
+        jtag_tap.tdi_late = tdi_late
         self.submodules.phy = phy = JTAGPHY(
             jtag         = jtag_tap,
             data_width   = data_width,
@@ -120,24 +121,30 @@ class TestJTAGPHY(unittest.TestCase):
 
         # Bit 0: XFER-READY.
         yield dut.jtag_tap.shift.eq(1)
-        yield dut.jtag_tap.tdi.eq(host_ready)
+        late = dut.jtag_tap.tdi_late
+        yield dut.jtag_tap.tdi.eq(0 if late else host_ready)
         yield
         target_ready = (yield dut.jtag_tap.tdo)
 
         # Bits 1..data_width: XFER-DATA (LSB first).
         target_data = 0
         for bit in range(dw):
-            yield dut.jtag_tap.tdi.eq((host_data >> bit) & 1)
+            incoming = (host_data >> bit) & 1
+            if late:
+                incoming = host_ready if bit == 0 else (host_data >> (bit - 1)) & 1
+            yield dut.jtag_tap.tdi.eq(incoming)
             yield
             tdo_bit = (yield dut.jtag_tap.tdo)
             target_data |= (tdo_bit << bit)
 
         # Bit data_width+1: XFER-VALID.
-        yield dut.jtag_tap.tdi.eq(host_valid)
+        yield dut.jtag_tap.tdi.eq((host_data >> (dw - 1)) & 1 if late else host_valid)
         yield
         target_valid = (yield dut.jtag_tap.tdo)
 
         # Bit data_width+2: XFER-PADDING.
+        if late:
+            yield dut.jtag_tap.tdi.eq(host_valid)
         yield
 
         # End scan — shift falls (Exit1-DR).
@@ -153,6 +160,19 @@ class TestJTAGPHY(unittest.TestCase):
         run_simulation(dut, {"jtag": [generator()]}, clocks={"jtag": 10})
 
     # -- tests --------------------------------------------------------- #
+
+    def test_cyclone_v_delayed_tdi(self):
+        dut = JTAGPHYTestDUT(tdi_late=True)
+
+        def gen():
+            yield dut.sink.valid.eq(1)
+            yield dut.sink.data.eq(0x4a)
+            outgoing, valid, _ = yield from self._scan(dut, host_data=0xa5, host_valid=1)
+            self.assertEqual((outgoing, valid), (0x4a, 1))
+            self.assertEqual((yield dut.source.valid), 1)
+            self.assertEqual((yield dut.source.data), 0xa5)
+
+        self._run(dut, gen)
 
     def test_tx_single_byte(self):
         """Target->Host: load 0xA5 on sink, verify TDO carries it."""
