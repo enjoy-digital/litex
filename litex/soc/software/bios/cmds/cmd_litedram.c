@@ -201,14 +201,27 @@ define_command(sdram_init, sdram_init, "Initialize SDRAM (Init + Calibration)", 
 /**
  * Command "sdram_test"
  *
- * Test SDRAM
+ * Test SDRAM ([size]: bytes tested from the start of main_ram, MAIN_RAM_SIZE/32 when omitted,
+ * limited to MAIN_RAM_SIZE)
  *
  */
 static void sdram_test_handler(int nb_params, char **params)
 {
-	memtest((unsigned int *)MAIN_RAM_BASE_VA, MAIN_RAM_SIZE/32);
+	char *c;
+	unsigned long size = MAIN_RAM_SIZE/32;
+	if (nb_params > 0) {
+		size = strtoul(params[0], &c, 0);
+		if ((*c != 0) || (size == 0)) {
+			printf("Incorrect size\n");
+			return;
+		}
+		if (size > MAIN_RAM_SIZE)
+			size = MAIN_RAM_SIZE;
+	}
+	memtest((unsigned int *)MAIN_RAM_BASE_VA, size);
 }
-define_command(sdram_test, sdram_test_handler, "Test SDRAM", LITEDRAM_CMDS);
+define_command_args(sdram_test, sdram_test_handler, "Test SDRAM (1/32 of main_ram, or [size] bytes)",
+	"sdram_test [size (bytes, limited to the main_ram size)]", 0, 1, LITEDRAM_CMDS);
 
 /**
  * Command "sdram_cal"
