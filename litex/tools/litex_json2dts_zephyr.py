@@ -575,6 +575,20 @@ def _generate_soc_bus_start():
     return dts
 
 
+def _generate_code_partition(csr):
+    """Update the existing code partition when the BIOS jumps into the ROM window."""
+    boot_address = csr.get('constants', {}).get('rom_boot_address')
+    rom = csr.get('memories', {}).get('rom')
+    if boot_address is None or rom is None:
+        return ''
+    offset = boot_address - rom['base']
+    if not 0 <= offset < rom['size']:
+        # ROM_BOOT_ADDRESS can also select a program loaded into RAM.
+        return ''
+    return '&code_partition {{\n    reg = <0x{:x} 0x{:x}>;\n}};\n'.format(
+        offset, rom['size'] - offset)
+
+
 def generate_soc_nodes_dts_config(csr, overlay_handlers):
     dts = ''
     labels = {}
@@ -614,6 +628,7 @@ def generate_soc_nodes_dts_config(csr, overlay_handlers):
 
     dts += '};\n'
     dts += _generate_system_clock(csr)
+    dts += _generate_code_partition(csr)
     return dts, _generate_config(csr)
 
 
@@ -650,6 +665,7 @@ def generate_dts_config(csr, overlay_handlers, generate_soc_nodes=False):
 
     dts += _generate_system_clock(csr)
     cnf += _generate_config(csr)
+    dts += _generate_code_partition(csr)
     return dts, cnf
 
 

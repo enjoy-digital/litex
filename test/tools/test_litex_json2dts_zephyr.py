@@ -2,7 +2,8 @@ import io
 import unittest
 from contextlib import redirect_stdout
 
-from litex.tools.litex_json2dts_zephyr import _overlay_handlers, cpu_handler, generate_dts_config
+from litex.tools.litex_json2dts_zephyr import (
+    _overlay_handlers, cpu_handler, generate_dts_config, _generate_code_partition)
 
 SYS_CLK_FREQ = 100_000_000
 CPU_CLK_FREQ = 800_000_000
@@ -49,6 +50,49 @@ def cpu_props(cpu_freq):
 
 
 class TestLiteXJson2DTSZephyr(unittest.TestCase):
+    def test_xip_partition_tracks_rom_boot_address(self):
+        csr = {"constants": {"rom_boot_address": 0x80010000},
+            "memories": {"rom": {"base": 0x80000000, "size": 0xa00000}}}
+        self.assertIn("reg = <0x10000 0x9f0000>;", _generate_code_partition(csr))
+        csr["constants"]["rom_boot_address"] = 0x80030000
+        self.assertIn("reg = <0x30000 0x9d0000>;", _generate_code_partition(csr))
+
+    def test_non_xip_boot_does_not_generate_a_partition(self):
+        for address in (0x40000000, 0x7fffffff, 0x80a00000, None):
+            csr = {"constants": {"rom_boot_address": address},
+                "memories": {"rom": {"base": 0x80000000, "size": 0xa00000}}}
+            with self.subTest(address=address):
+                self.assertEqual(_generate_code_partition(csr), '')
+        self.assertEqual(_generate_code_partition({}), '')
+        self.assertEqual(_generate_code_partition({
+            'constants': {'rom_boot_address': 0x40000000}}), '')
+
+    def test_boot_address_only_changes_xip_partition_in_both_modes(self):
+        csr = csr_with_i2c_instances()
+        csr['memories'].update({
+            'rom': {'base': 0x80000000, 'size': 0xa00000},
+            'main_ram': {'base': 0, 'size': 0x40000000},
+        })
+        for soc_nodes in (False, True):
+            with self.subTest(soc_nodes=soc_nodes), redirect_stdout(io.StringIO()):
+                csr['constants'].pop('rom_boot_address', None)
+                baseline, config = generate_dts_config(csr, _overlay_handlers, soc_nodes)
+                for address in (None, 0x40000000, 0x80a00000):
+                    csr['constants']['rom_boot_address'] = address
+                    self.assertEqual(generate_dts_config(csr, _overlay_handlers, soc_nodes),
+                        (baseline, config))
+                for address, partition in (
+                    (0x80000000, '&code_partition {\n    reg = <0x0 0xa00000>;\n};\n'),
+                    (0x80010000, '&code_partition {\n    reg = <0x10000 0x9f0000>;\n};\n'),
+                    (0x809fffff, '&code_partition {\n    reg = <0x9fffff 0x1>;\n};\n'),
+                ):
+                    csr['constants']['rom_boot_address'] = address
+                    self.assertEqual(generate_dts_config(csr, _overlay_handlers, soc_nodes),
+                        (baseline + partition, config))
+                if not soc_nodes:
+                    self.assertIn('&ram0 {\n    reg = <0x0 0x40000000>;\n};', baseline)
+                    self.assertNotIn('/delete-node/', baseline)
+
     def test_cpu_node_uses_sys_clk_freq_without_system_clock_node_ref(self):
         csr = csr_with_i2c_instances()
         csr["constants"]["config_cpu_clk_freq"] = CPU_CLK_FREQ
