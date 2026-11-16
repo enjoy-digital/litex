@@ -20,7 +20,7 @@ import shutil
 import inspect
 import logging
 import argparse
-import datetime
+import datetime as _datetime # Not exported by `from builder import *` (would shadow a target's own `datetime`).
 import subprocess
 
 from packaging.version import Version
@@ -610,8 +610,8 @@ class Builder:
             "build" : {
                 "run"        : bool(run),
                 "status"     : status,
-                "started"    : datetime.datetime.fromtimestamp(start).isoformat(timespec="seconds"),
-                "finished"   : None if end is None else datetime.datetime.fromtimestamp(end).isoformat(timespec="seconds"),
+                "started"    : _datetime.datetime.fromtimestamp(start).isoformat(timespec="seconds"),
+                "finished"   : None if end is None else _datetime.datetime.fromtimestamp(end).isoformat(timespec="seconds"),
                 "duration_s" : None if end is None else round(end - start, 1),
             },
         }

@@ -1063,5 +1063,15 @@ class TestBuilderBuildInfo(unittest.TestCase):
             self.assertEqual(info["build"]["status"], "succeeded")
 
 
+class TestBuilderStarImport(unittest.TestCase):
+    def test_star_import_does_not_export_datetime(self):
+        # Targets commonly do `from datetime import datetime` then `from ...builder import *`:
+        # the star import must not replace their `datetime` class with the module.
+        namespace = {}
+        exec("from datetime import datetime\nfrom litex.soc.integration.builder import *", namespace)
+        import datetime
+        self.assertIs(namespace["datetime"], datetime.datetime)
+
+
 if __name__ == "__main__":
     unittest.main()
