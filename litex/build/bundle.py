@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import json
+import stat
 import hashlib
 import tarfile
 import datetime
@@ -114,6 +115,34 @@ def _git_info(path):
     return info
 
 
+def _git_files(path):
+    """List the files of a directory as git sees them (tracked + untracked, .gitignore honored).
+
+    Returns paths relative to `path`, or None when `path` is not in a git checkout (callers then
+    walk the directory). Ignored files (build outputs, waveforms...) and nested repositories are
+    left out: they are not build inputs and can make a bundle hundreds of MB larger.
+    """
+    try:
+        output = subprocess.check_output(
+            ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+            cwd=path,
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    files = []
+    for name in output.decode("utf-8", errors="surrogateescape").split("\0"):
+        # Nested repositories are listed as a directory (trailing /), deleted files no longer exist.
+        if not name or name.endswith("/"):
+            continue
+        full_path = os.path.join(path, name)
+        if os.path.isdir(full_path) and not os.path.islink(full_path):
+            continue
+        if os.path.lexists(full_path):
+            files.append(name)
+    return sorted(set(files))
+
+
 def _module_pythonpath_root(module_name):
     spec = importlib.util.find_spec(module_name)
     if spec is None:
@@ -130,11 +159,43 @@ def _module_pythonpath_root(module_name):
     return None
 
 
-def get_pythonpath_roots(module_names=("litex", "litex_boards")):
-    roots = []
+# Python modules a LiteX target usually imports: bundled by default (when found locally) so that the
+# replay host only needs Python. The pythondata-* packages are not: they are large and only needed
+# by SoCs with a CPU (install them on the replay host or add them with --pythonpath-root).
+_PYTHONPATH_MODULES = (
+    "migen",
+    "litex",
+    "litex_boards",
+    "liteeth",
+    "litedram",
+    "litepcie",
+    "litesata",
+    "litesdcard",
+    "liteiclink",
+    "litescope",
+    "litejesd204b",
+    "litespi",
+    "litei2c",
+)
+
+
+def get_pythonpath_modules(module_names=_PYTHONPATH_MODULES):
+    """Return the (root, module_name) pairs of the modules found on this host."""
+    modules = []
     for module_name in module_names:
-        root = _module_pythonpath_root(module_name)
-        if root is not None and root not in roots:
+        try:
+            root = _module_pythonpath_root(module_name)
+        except (ImportError, ValueError):
+            root = None
+        if root is not None:
+            modules.append((root, module_name))
+    return modules
+
+
+def get_pythonpath_roots(module_names=_PYTHONPATH_MODULES):
+    roots = []
+    for root, _ in get_pythonpath_modules(module_names):
+        if root not in roots:
             roots.append(root)
     return roots
 
@@ -224,7 +285,9 @@ class BuildBundle:
                 return True
         return False
 
-    def add_root(self, path, role="root"):
+    def add_root(self, path, role="root", only=None):
+        # `only`: restrict the archived content to these top-level entries of the root (a Python
+        # import root only needs its packages, not the rest of the checkout).
         path = _abspath(path)
         if path is None:
             return
@@ -240,6 +303,7 @@ class BuildBundle:
             root = self._root_paths[path]
             root["roles"].append(role)
             root["roles"] = sorted(set(root["roles"]))
+            self._add_dir(path, role=role, archive_prefix=root["archive_path"], base_dir=path, honor_exclude=True, only=only)
             return root
 
         root_hash = hashlib.sha256(path.encode("utf-8")).hexdigest()[:8]
@@ -253,11 +317,17 @@ class BuildBundle:
         }
         self._roots.append(root)
         self._root_paths[path] = root
-        self._add_dir(path, role=role, archive_prefix=arc_root, base_dir=path, honor_exclude=True)
+        self._add_dir(path, role=role, archive_prefix=arc_root, base_dir=path, honor_exclude=True, only=only)
         return root
 
-    def add_pythonpath(self, path, role="pythonpath"):
-        root = self.add_root(path, role=role)
+    def add_pythonpath(self, path, role="pythonpath", modules=None):
+        # `modules`: names of the modules to archive from this import root (default: everything).
+        only = None
+        if modules is not None:
+            only = []
+            for module in _as_list(modules):
+                only += [module, module + ".py"]
+        root = self.add_root(path, role=role, only=only)
         if root is None:
             return
         if root not in self._pythonpath:
@@ -302,9 +372,28 @@ class BuildBundle:
         for path in _as_list(paths):
             self.add_path(path, role=role)
 
-    def _add_dir(self, path, role, archive_prefix, base_dir, honor_exclude):
+    def _add_dir(self, path, role, archive_prefix, base_dir, honor_exclude, only=None):
         if honor_exclude and self._is_excluded(path):
             return
+
+        def selected(rel_path):
+            return only is None or rel_path.split("/", 1)[0] in only
+
+        # Roots in a git checkout: archive what git tracks or would track (.gitignore honored).
+        git_files = _git_files(path) if honor_exclude else None
+        if git_files is not None:
+            for name in git_files:
+                full_path = os.path.join(path, name)
+                rel_path  = os.path.relpath(full_path, base_dir).replace(os.sep, "/")
+                if not selected(rel_path):
+                    continue
+                if any(part in _EXCLUDED_DIR_NAMES for part in rel_path.split("/")[:-1]):
+                    continue
+                if self._is_excluded(full_path):
+                    continue
+                self._add_file(full_path, role=role, archive_path=f"{archive_prefix}/{rel_path}", honor_exclude=honor_exclude)
+            return
+
         for root, dirs, files in os.walk(path):
             dirs[:] = sorted(
                 d for d in dirs
@@ -315,6 +404,8 @@ class BuildBundle:
                 if honor_exclude and self._is_excluded(full_path):
                     continue
                 rel_path = os.path.relpath(full_path, base_dir).replace(os.sep, "/")
+                if not selected(rel_path):
+                    continue
                 self._add_file(full_path, role=role, archive_path=f"{archive_prefix}/{rel_path}", honor_exclude=honor_exclude)
 
     def _add_file(self, path, role, archive_path=None, honor_exclude=False):
@@ -331,6 +422,9 @@ class BuildBundle:
             archive_path = f"files/{path_hash}/{os.path.basename(key)}"
 
         st = os.lstat(key)
+        # Sockets, FIFOs and devices are not build inputs (and cannot be read or archived).
+        if not (stat.S_ISREG(st.st_mode) or stat.S_ISLNK(st.st_mode)):
+            return
         record = {
             "path"        : key,
             "archive_path": archive_path,

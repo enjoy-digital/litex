@@ -28,7 +28,7 @@ from packaging.version import Version
 from litex import get_data_mod
 from litex.gen import colorer
 
-from litex.build.bundle import BuildBundle, get_pythonpath_roots, remap_path
+from litex.build.bundle import BuildBundle, get_pythonpath_modules, remap_path
 from litex.build.tools import write_to_file, get_litex_git_revision
 from litex.build.log import build_log_context
 
@@ -520,8 +520,8 @@ class Builder:
         for path in self.bundle_pythonpath_root:
             bundle.add_pythonpath(path, role="pythonpath")
         if self.bundle_auto_pythonpath:
-            for path in get_pythonpath_roots():
-                bundle.add_pythonpath(path, role="pythonpath_auto")
+            for path, module in get_pythonpath_modules():
+                bundle.add_pythonpath(path, role="pythonpath_auto", modules=module)
 
         # The target script is often the smallest useful handle for replay/debug.
         if sys.argv and sys.argv[0] and os.path.exists(sys.argv[0]):

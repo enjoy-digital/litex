@@ -139,6 +139,12 @@ manifest, and `litex_build_bundle --run-local <archive>` replays it. `litex_remo
 user@server -- python3 target.py --build` does the round trip over SSH: bundle, upload, replay
 there, copy `build/` back ([Tools](Tools.md)).
 
+The command is replayed on the host, so the host needs Python and the toolchain (for Vivado,
+`--env LITEX_ENV_VIVADO=<path>` passes its location). Migen, LiteX, LiteX-Boards and the Lite*
+cores found locally are bundled automatically; other modules (the `pythondata-*` packages of a
+SoC with a CPU) have to be installed on the host or added with `--pythonpath-root`. In a git
+checkout, only the files git tracks or would track are bundled (`.gitignore` is honored).
+
 ## Loading and flashing
 
 `--load` calls `platform.create_programmer().load_bitstream(...)` and `--flash`

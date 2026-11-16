@@ -148,7 +148,7 @@ def _safe_extractall(archive, path):
 
 
 def create_bundle(args):
-    from litex.build.bundle import BuildBundle, get_pythonpath_roots
+    from litex.build.bundle import BuildBundle, get_pythonpath_modules
 
     env = _parse_env(args.env)
     bundle = BuildBundle(
@@ -167,8 +167,8 @@ def create_bundle(args):
     for root in getattr(args, "pythonpath_root", []) or []:
         bundle.add_pythonpath(root, role="pythonpath")
     if not getattr(args, "no_auto_pythonpath", False):
-        for root in get_pythonpath_roots():
-            bundle.add_pythonpath(root, role="pythonpath_auto")
+        for root, module in get_pythonpath_modules():
+            bundle.add_pythonpath(root, role="pythonpath_auto", modules=module)
 
     return bundle.create()
 

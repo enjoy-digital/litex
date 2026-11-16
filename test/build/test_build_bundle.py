@@ -7,7 +7,9 @@
 import os
 import sys
 import json
+import shutil
 import tarfile
+import subprocess
 import tempfile
 import unittest
 from types import SimpleNamespace
@@ -97,6 +99,75 @@ class TestBuildBundle(unittest.TestCase):
             self.assertEqual(len(manifest["input_dirs"]), 1)
             self.assertEqual(manifest["input_dirs"][0]["path"], source_dir)
             self.assertEqual(manifest["input_dirs"][0]["roles"], ["bundle_include", "gateware_source"])
+
+    def test_bundle_skips_special_files(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = os.path.join(tmp_dir, "project")
+            os.makedirs(root)
+            src  = os.path.join(root, "top.v")
+            fifo = os.path.join(root, "pipe")
+            with open(src, "w", encoding="utf-8") as f:
+                f.write("module top(); endmodule\n")
+            os.mkfifo(fifo)
+
+            bundle = BuildBundle(output_dir=os.path.join(root, "build"), command=["target.py"])
+            bundle.add_root(root, role="project")
+            result = bundle.create()
+
+            with open(result["manifest"], encoding="utf-8") as f:
+                paths = {entry["path"] for entry in json.load(f)["files"]}
+            self.assertIn(src, paths)
+            self.assertNotIn(fifo, paths)
+
+    def test_bundle_honors_gitignore_in_git_roots(self):
+        if shutil.which("git") is None:
+            self.skipTest("git not available")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = os.path.join(tmp_dir, "project")
+            os.makedirs(os.path.join(root, "sim"))
+            files = {
+                "top.v"        : "module top(); endmodule\n",   # Tracked.
+                "new.v"        : "module new(); endmodule\n",   # Untracked, not ignored.
+                "sim/dump.vcd" : "waves",                       # Ignored.
+                ".gitignore"   : "*.vcd\n",
+            }
+            for name, content in files.items():
+                with open(os.path.join(root, name), "w", encoding="utf-8") as f:
+                    f.write(content)
+            subprocess.check_call(["git", "init", "-q"], cwd=root)
+            subprocess.check_call(["git", "add", "top.v", ".gitignore"], cwd=root)
+
+            bundle = BuildBundle(output_dir=os.path.join(root, "build"), command=["target.py"])
+            bundle.add_root(root, role="project")
+            result = bundle.create()
+
+            with open(result["manifest"], encoding="utf-8") as f:
+                paths = {entry["path"] for entry in json.load(f)["files"]}
+            self.assertIn(os.path.join(root, "top.v"), paths)
+            self.assertIn(os.path.join(root, "new.v"), paths)
+            self.assertNotIn(os.path.join(root, "sim", "dump.vcd"), paths)
+
+    def test_bundle_pythonpath_modules_restrict_root_content(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = os.path.join(tmp_dir, "checkout")
+            os.makedirs(os.path.join(root, "helper"))
+            os.makedirs(os.path.join(root, "doc"))
+            module = os.path.join(root, "helper", "__init__.py")
+            other  = os.path.join(root, "doc", "big.bin")
+            for path in [module, other]:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write("x = 1\n")
+
+            bundle = BuildBundle(output_dir=os.path.join(tmp_dir, "build"), command=["target.py"])
+            bundle.add_pythonpath(root, modules="helper")
+            result = bundle.create()
+
+            with open(result["manifest"], encoding="utf-8") as f:
+                manifest = json.load(f)
+            paths = {entry["path"] for entry in manifest["files"]}
+            self.assertIn(module, paths)
+            self.assertNotIn(other, paths)
+            self.assertEqual([r["path"] for r in manifest["pythonpath"]], [root])
 
     def test_bundle_strict_mode_rejects_missing_inputs(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -269,9 +340,10 @@ class TestBuildBundle(unittest.TestCase):
                 f.write("src = os.path.expanduser(path(src))\n")
                 f.write("dst = os.path.expanduser(path(dst))\n")
                 f.write("if os.path.isdir(src):\n")
-                f.write("    if os.path.exists(dst):\n")
-                f.write("        shutil.rmtree(dst)\n")
-                f.write("    shutil.copytree(src, dst)\n")
+                f.write("    # As scp -r: a copy to an existing directory lands inside it.\n")
+                f.write("    if os.path.isdir(dst):\n")
+                f.write("        dst = os.path.join(dst, os.path.basename(src.rstrip('/')))\n")
+                f.write("    shutil.copytree(src, dst, dirs_exist_ok=True)\n")
                 f.write("else:\n")
                 f.write("    os.makedirs(os.path.dirname(dst), exist_ok=True)\n")
                 f.write("    shutil.copy2(src, dst)\n")
