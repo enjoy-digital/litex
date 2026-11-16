@@ -52,10 +52,14 @@ def _upload(scp_cmd, host, local_path, remote_path):
 
 
 def _download(scp_cmd, host, remote_path, local_path):
+    # Copy into the parent directory: `scp -r` to an existing directory would nest the copy in it
+    # (build/build/...), and the local build directory always exists (it holds the bundle).
+    local_parent = os.path.dirname(os.path.abspath(local_path))
+    os.makedirs(local_parent, exist_ok=True)
     subprocess.check_call(_command_words(scp_cmd) + [
         "-r",
         f"{host}:{remote_path}",
-        local_path,
+        local_parent,
     ])
 
 
@@ -168,6 +172,8 @@ def main():
     remote_runner  = _remote_join(remote_work, "litex_build_bundle.py")
     remote_replay  = _remote_join(remote_work, "replay")
 
+    print("Bundle : {} ({:.1f} MB).".format(archive_path, os.path.getsize(archive_path)/1e6))
+    print("Remote : {}:{}".format(args.host, remote_work))
     mkdir_cmd = "mkdir -p {}".format(_remote_shell_path(remote_work))
     _run_ssh(args.ssh_cmd, args.host, mkdir_cmd, pty="no")
     _upload(args.scp_cmd, args.host, archive_path, remote_archive)
@@ -187,6 +193,7 @@ def main():
         local_path  = os.path.abspath(path)
         try:
             _download(args.scp_cmd, args.host, remote_path, local_path)
+            print(f"Synced : {local_path}")
         except subprocess.CalledProcessError:
             print(f"Warning: unable to sync back {remote_path}.")
 
