@@ -61,7 +61,7 @@ class SSM2603(LiteXModule):
     sample_width : int
         Serial bits per sample, 16 (default), 20, 24 or 32.
     """
-    def __init__(self, soc, i2c_name, address=0x1a, output_gain=0x75, vmid_delay_us=75_000, *,
+    def __init__(self, soc, i2c_name, address=0x1a, output_gain=0x75, vmid_delay_us=75_000,
         sample_rate  = 48_000,
         sample_width = 16):
         # Parameters.
@@ -111,7 +111,7 @@ class SSM2603PCM(PCM):
     capture_bus : wishbone.Interface or None
         Optional DMA write port, separate from the playback port and of the same required width.
     """
-    def __init__(self, pads, master_clk, *, sample_rate=48_000, sample_width=16,
+    def __init__(self, pads, master_clk, sample_rate=48_000, sample_width=16,
         playback_bus = None,
         capture_bus  = None):
         # Parameters.

@@ -51,7 +51,7 @@ class PCM(LiteXModule):
     capture_bus : wishbone.Interface or None
         Write-capable Wishbone master port for capture DMA, if enabled.
     """
-    def __init__(self, *, sample_width=16, clock_domain="audio", fifo_depth=256,
+    def __init__(self, sample_width=16, clock_domain="audio", fifo_depth=256,
         playback_bus = None,
         capture_bus  = None):
         # Parameters.
