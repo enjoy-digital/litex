@@ -225,6 +225,10 @@ class AlteraJTAG(LiteXModule):
         self.tckutap = tckutap = Signal()
         self.tdiutap = tdiutap = Signal()
 
+        # Parameters.
+        cyclone_v     = (primitive == "cyclonev_jtag")
+        self.tdi_late = cyclone_v # TDI mirror one TCK behind the host's bit stream (see JTAGPHY).
+
         # # #
 
         # Create falling-edge JTAG clock domain for TAP FSM.
@@ -232,15 +236,15 @@ class AlteraJTAG(LiteXModule):
         self.comb += ClockSignal("jtag_inv").eq(~ClockSignal("jtag"))
         self.comb += ResetSignal("jtag_inv").eq(ResetSignal("jtag"))
 
-        # Decode the Cyclone V TAP from the TAP pin mirrors: its hard SHIFTUSER signal is offset
-        # from the host's Shift-DR bit stream.
-        cyclone_v     = (primitive == "cyclonev_jtag")
-        self.tdi_late = cyclone_v
-
         # Connect the TAP state signals that LiteX expects but the HW IP doesn't provide.
         self.tap_fsm = ClockDomainsRenamer("jtag")(JTAGTAPFSM(tms))
         self.sync.jtag_inv += reset.eq(self.tap_fsm.TEST_LOGIC_RESET)
         self.sync.jtag_inv += capture.eq(self.tap_fsm.CAPTURE_DR)
+
+        # Decode Shift-DR from the TAP pin mirrors on Cyclone V: its hard SHIFTUSER signal is offset
+        # from the host's Shift-DR bit stream.
+        if cyclone_v:
+            self.comb += shift.eq(self.tap_fsm.SHIFT_DR)
 
         self.specials += Instance(primitive,
             # HW TAP FSM states.
@@ -275,8 +279,6 @@ class AlteraJTAG(LiteXModule):
             tms.eq(tmsutap),
             tdi.eq(tdiutap),
         ]
-        if cyclone_v:
-            self.comb += shift.eq(self.tap_fsm.SHIFT_DR)
         self.sync.jtag_inv += tdouser.eq(tdo)
 
     @staticmethod
@@ -642,12 +644,11 @@ class JTAGPHY(LiteXModule):
             self.sync.jtag += If(jtag_shift, jtag_tdi_sr.eq(Cat(jtag.tdi, jtag_tdi_sr)))
             jtag_tdi = jtag_tdi_sr[-1]
 
-        # JTAG Xfer FSM ----------------------------------------------------------------------------
         # Cyclone V's TDI mirror is one TCK behind the outgoing bit: its final incoming bit arrives
-        # during the existing padding cycle.
-        tdi_late = getattr(jtag, "tdi_late", False)
-        received = Signal(data_width) if tdi_late else None
+        # during the existing padding cycle (handled in the Xfer FSM).
+        jtag_tdi_late = getattr(jtag, "tdi_late", False)
 
+        # JTAG Xfer FSM ----------------------------------------------------------------------------
         valid = Signal()
         data  = Signal(data_width)
         count = Signal(max=data_width)
@@ -660,6 +661,7 @@ class JTAGPHY(LiteXModule):
         rx_data     = Signal(data_width)
         update_rx   = Signal()  # Trigger to capture RX data
         rx_valid_in = Signal()  # The valid bit to store
+        rx_data_in  = Signal(data_width)  # The data bits to store (late TDI only)
 
         # Ready signal - updated outside FSM to survive FSM resets.
         # This is critical: the JTAG TAP goes through Test-Logic-Reset between drscans,
@@ -689,7 +691,7 @@ class JTAGPHY(LiteXModule):
         fsm.act("XFER-READY",
             jtag_tdo.eq(ready),
             If(jtag_shift,
-                sink.ready.eq(jtag_tdi) if not tdi_late else [],
+                *([] if jtag_tdi_late else [sink.ready.eq(jtag_tdi)]),
                 NextValue(valid, sink.valid),
                 NextValue(data,  sink.data),
                 NextValue(count, 0),
@@ -699,11 +701,12 @@ class JTAGPHY(LiteXModule):
         fsm.act("XFER-DATA",
             jtag_tdo.eq(data[0]),
             If(jtag_shift,
-                If(count == 0,
+                # Late TDI: Host's ready on the first cycle, then the RX data bits.
+                *([If(count == 0,
                     sink.ready.eq(jtag_tdi)
                 ).Else(
-                    NextValue(received, Cat(received[1:], jtag_tdi))
-                ) if tdi_late else [],
+                    NextValue(rx_data_in, Cat(rx_data_in[1:], jtag_tdi))
+                )] if jtag_tdi_late else []),
                 NextValue(count, count + 1),
                 NextValue(data, Cat(data[1:], jtag_tdi)),
                 If(count == (data_width - 1),
@@ -714,8 +717,9 @@ class JTAGPHY(LiteXModule):
         fsm.act("XFER-VALID",
             jtag_tdo.eq(valid),
             If(jtag_shift,
-                NextValue(received, Cat(received[1:], jtag_tdi)) if tdi_late else
-                NextValue(rx_valid_in, jtag_tdi),
+                # Late TDI: last RX data bit, the valid bit arrives in the padding cycle.
+                *([NextValue(rx_data_in, Cat(rx_data_in[1:], jtag_tdi))] if jtag_tdi_late else
+                  [NextValue(rx_valid_in, jtag_tdi)]),
                 NextState("XFER-PADDING")
             )
         )
@@ -749,8 +753,8 @@ class JTAGPHY(LiteXModule):
         # Clear rx_valid after FIFO accepts the data to prevent duplicates.
         self.sync.jtag += [
             If(update_rx,
-                rx_valid.eq(jtag_tdi if tdi_late else rx_valid_in),
-                rx_data.eq(received if tdi_late else data),
+                rx_valid.eq(jtag_tdi   if jtag_tdi_late else rx_valid_in),
+                rx_data.eq( rx_data_in if jtag_tdi_late else data),
             ).Elif(source.valid & source.ready,
                 rx_valid.eq(0),
             )
