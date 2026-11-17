@@ -162,6 +162,7 @@ class TestJTAGPHY(unittest.TestCase):
     # -- tests --------------------------------------------------------- #
 
     def test_cyclone_v_delayed_tdi(self):
+        """Cyclone V: TDI one TCK late, 0x4A to the Host and 0xA5 to the Target in one scan."""
         dut = JTAGPHYTestDUT(tdi_late=True)
 
         def gen():

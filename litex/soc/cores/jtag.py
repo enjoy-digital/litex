@@ -232,10 +232,11 @@ class AlteraJTAG(LiteXModule):
         self.comb += ClockSignal("jtag_inv").eq(~ClockSignal("jtag"))
         self.comb += ResetSignal("jtag_inv").eq(ResetSignal("jtag"))
 
-        # Decode the Cyclone V TAP from the TAP pin mirrors. Its hard
-        # SHIFTUSER signal is offset from the host's Shift-DR bit stream.
-        cyclone_v = primitive == "cyclonev_jtag"
+        # Decode the Cyclone V TAP from the TAP pin mirrors: its hard SHIFTUSER signal is offset
+        # from the host's Shift-DR bit stream.
+        cyclone_v     = (primitive == "cyclonev_jtag")
         self.tdi_late = cyclone_v
+
         # Connect the TAP state signals that LiteX expects but the HW IP doesn't provide.
         self.tap_fsm = ClockDomainsRenamer("jtag")(JTAGTAPFSM(tms))
         self.sync.jtag_inv += reset.eq(self.tap_fsm.TEST_LOGIC_RESET)
@@ -642,10 +643,11 @@ class JTAGPHY(LiteXModule):
             jtag_tdi = jtag_tdi_sr[-1]
 
         # JTAG Xfer FSM ----------------------------------------------------------------------------
-        # Cyclone V's TDI mirror is one TCK behind the outgoing bit.
-        # Its final incoming bit arrives during the existing padding cycle.
+        # Cyclone V's TDI mirror is one TCK behind the outgoing bit: its final incoming bit arrives
+        # during the existing padding cycle.
         tdi_late = getattr(jtag, "tdi_late", False)
         received = Signal(data_width) if tdi_late else None
+
         valid = Signal()
         data  = Signal(data_width)
         count = Signal(max=data_width)
