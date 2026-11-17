@@ -1982,18 +1982,11 @@ class SoC(LiteXModule):
         return None
 
     def _get_crg_reset_hold_signal(self):
-        try:
-            from litex.build.efinix.efinity import EfinityToolchain
-        except ImportError:
-            return None
-
-        if not isinstance(getattr(self.platform, "toolchain", None), EfinityToolchain):
-            return None
-
-        crg_pll = getattr(self.crg, "pll", None)
-        pll_locked = getattr(crg_pll, "locked", None)
-        if isinstance(pll_locked, Signal):
-            return pll_locked
+        # PLLs able to hold their Clock Domains in reset while running expose a hold signal.
+        crg_pll  = getattr(self.crg, "pll", None)
+        pll_hold = getattr(crg_pll, "hold", None)
+        if isinstance(pll_hold, Signal):
+            return pll_hold
 
         return None
 
@@ -2018,11 +2011,11 @@ class SoC(LiteXModule):
         if (crg_rst is not None) and (soc_rst is not None):
             self.comb += If(soc_rst, crg_rst.eq(1))
 
-        # Efinity SoCs keep the PLL running and hold clock-domain resets by forcing the PLL lock
-        # signal low. This avoids reset/clock interlocks when the request comes from debug logic
-        # clocked by sys_clk.
+        # Efinity SoCs keep the PLL running and hold clock-domain resets through the hold signal
+        # of the PLL (forces its lock signal low). This avoids reset/clock interlocks when the
+        # request comes from debug logic clocked by sys_clk.
         if (crg_rst_hold is not None) and (hold_rst is not None):
-            self.comb += If(hold_rst, crg_rst_hold.eq(0))
+            self.comb += If(hold_rst, crg_rst_hold.eq(1))
 
     def _finalize_bus(self):
         csr_origin = self.mem_map.get("csr", None)

@@ -34,6 +34,7 @@ class EFINIXPLL(LiteXModule):
         self.platform   = platform
         self.reset      = Signal()
         self.locked     = Signal()
+        self.hold       = Signal() # Holds the Clock Domains in reset (PLL kept running).
         self.name       = f"pll{self.n}"
         EFINIXPLL.n += 1 # FIXME: Improve.
 
@@ -57,7 +58,9 @@ class EFINIXPLL(LiteXModule):
 
         # Connect PLL's rstn/locked.
         self.comb += self.platform.add_iface_io(self.name + "_rstn").eq(~self.reset)
-        self.comb += self.locked.eq(self.platform.add_iface_io(self.name + "_locked"))
+        # The resets of the Clock Domains are generated from locked: forcing it low with hold
+        # allows holding them in reset without resetting the PLL (and stopping the clocks).
+        self.comb += self.locked.eq(self.platform.add_iface_io(self.name + "_locked") & ~self.hold)
 
     def register_clkin(self, clkin, freq, name="", refclk_name="", lvds_input=False):
         check_freq_positive(freq, "Input clock frequency")

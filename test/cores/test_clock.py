@@ -463,6 +463,23 @@ class TestClock(unittest.TestCase):
         self.assertIs(block["shift"],     pads["shift"])
         self.assertIs(block["shift_sel"], pads["shift_sel"])
 
+    def test_efinix_pll_hold_forces_locked_low(self):
+        platform = _FakeEfinixPlatform()
+        ios      = {}
+        add_iface_io = platform.add_iface_io
+        platform.add_iface_io = lambda name: ios.setdefault(name, add_iface_io(name))
+        pll        = TITANIUMPLL(platform)
+        locked_pin = ios[pll.name + "_locked"]
+
+        def generator():
+            for pin, hold, locked in [(0, 0, 0), (1, 0, 1), (1, 1, 0), (0, 1, 0), (1, 0, 1)]:
+                yield locked_pin.eq(pin)
+                yield pll.hold.eq(hold)
+                yield
+                self.assertEqual((yield pll.locked), locked)
+
+        run_simulation(pll, generator())
+
     def test_efinix_pll_rejects_incomplete_dyn_phase_pads(self):
         with self.assertRaisesRegex(ValueError, "dyn_phase_shift_pads"):
             TITANIUMPLL(_FakeEfinixPlatform(), dyn_phase_shift_pads={"shift_ena": Signal()})
