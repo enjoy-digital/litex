@@ -14,8 +14,6 @@ OBJECTS = boot-helper.o	\
 	  cmd_boot.o		\
 	  cmd_i2c.o			\
 	  cmd_audio.o		\
-	  audio_pcm.o		\
-	  audio_ssm2603.o	\
 	  cmd_spiflash.o	\
 	  cmd_litedram.o	\
 	  cmd_liteeth.o		\

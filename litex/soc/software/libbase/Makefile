@@ -16,7 +16,8 @@ OBJECTS =  \
 	spiflash.o \
 	i2c.o \
 	isr.o \
-	hyperram.o
+	hyperram.o \
+	ssm2603.o
 
 all: libbase.a
 
