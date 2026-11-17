@@ -1,15 +1,17 @@
 #
 # This file is part of LiteX.
 #
+# Copyright (c) 2026 Matt Thompson <matt@boondocker.io>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
 
-from migen import Memory, Signal
-from migen.sim import passive, run_simulation
+from migen import *
+from migen.sim import passive
+
+from litex.soc.interconnect import wishbone
 
 from litex.soc.cores.audio.pcm import PCM
-from litex.soc.interconnect import wishbone
 
 
 class TestPCM(unittest.TestCase):
@@ -26,15 +28,21 @@ class TestPCM(unittest.TestCase):
                 self.check_dma(width)
 
     def check_dma(self, width):
-        bus_width = 32 if width <= 16 else 64
+        bus_width  = 32 if width <= 16 else 64
         word_bytes = bus_width // 8
-        read_bus = wishbone.Interface(data_width=bus_width, mode="r")
-        write_bus = wishbone.Interface(data_width=bus_width, mode="w")
-        pcm = PCM(sample_width=width, clock_domain="sys", fifo_depth=4, playback_bus=read_bus, capture_bus=write_bus)
+        read_bus   = wishbone.Interface(data_width=bus_width, mode="r")
+        write_bus  = wishbone.Interface(data_width=bus_width, mode="w")
+        pcm = PCM(
+            sample_width = width,
+            clock_domain = "sys",
+            fifo_depth   = 4,
+            playback_bus = read_bus,
+            capture_bus  = write_bus,
+        )
         frame_mask = (1 << (2 * width)) - 1
-        samples = [word & frame_mask for word in (0x1234abcd1234abcd, 0xfedc5678fedc5678)]
-        padding = ((1 << bus_width) - 1) ^ frame_mask
-        writes = []
+        samples    = [word & frame_mask for word in (0x1234abcd1234abcd, 0xfedc5678fedc5678)]
+        padding    = ((1 << bus_width) - 1) ^ frame_mask
+        writes     = []
 
         @passive
         def memory():
@@ -121,8 +129,8 @@ class TestPCM(unittest.TestCase):
             self.fail("CSR sample did not reach playback")
 
         fragment = pcm.get_fragment()
-        # Migen's simulator expects even write-only memory ports to have a
-        # read signal when lowering memories to arrays.
+        # Migen's simulator expects even write-only memory ports to have a read signal when lowering
+        # memories to arrays.
         for special in fragment.specials:
             if isinstance(special, Memory):
                 for port in special.ports:

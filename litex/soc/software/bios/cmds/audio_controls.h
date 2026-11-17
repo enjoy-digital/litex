@@ -6,10 +6,12 @@
 #include <generated/csr.h>
 #include <generated/soc.h>
 
+/* PCM playback from the BIOS needs the PCM core named "audio" and its sample rate. */
 #if defined(CONFIG_AUDIO_PCM_RATE) && defined(CSR_AUDIO_SAMPLE_ADDR) && defined(CSR_AUDIO_READY_ADDR)
 #define AUDIO_HAS_PCM
 #endif
 
+/* A control of the "audio" command, each provider ends its table with an empty entry. */
 struct audio_control {
 	const char *name;
 	const char *arguments;
@@ -21,4 +23,4 @@ struct audio_control {
 extern const struct audio_control audio_pcm_controls[];
 extern const struct audio_control audio_ssm2603_controls[];
 
-#endif
+#endif /* __BIOS_AUDIO_CONTROLS_H */

@@ -4,22 +4,27 @@
 #include <stdlib.h>
 #include <string.h>
 #include <system.h>
+
 #include <libbase/i2c.h>
 
 #include "../init.h"
 #include "audio_controls.h"
 
 #ifdef CONFIG_SSM2603_I2C_BUS
+
+/* Index of the I2C bus of the codec, -1 when not found. */
 static int ssm2603_bus(void)
 {
 	const struct i2c_dev *devices = get_i2c_devs();
+	int i;
 
-	for (int i = 0; i < get_i2c_devs_count(); i++)
+	for (i = 0; i < get_i2c_devs_count(); i++)
 		if (!strcmp(devices[i].name, CONFIG_SSM2603_I2C_BUS))
 			return i;
 	return -1;
 }
 
+/* Write a 9-bit register: 7-bit address then data, the I2C bus of the codec is active. */
 static bool ssm2603_write_register(unsigned int reg, unsigned int value)
 {
 	uint8_t data = value & 0xff;
@@ -29,6 +34,7 @@ static bool ssm2603_write_register(unsigned int reg, unsigned int value)
 
 static bool ssm2603_initialized;
 
+/* Power-up sequence of the codec. */
 static bool ssm2603_start(void)
 {
 	static const struct {
@@ -49,14 +55,16 @@ static bool ssm2603_start(void)
 		{ 5, 0x000, 0 },
 	};
 	int bus = ssm2603_bus();
+	int previous;
+	unsigned int i;
+	bool ok = true;
+
 	if (bus < 0)
 		return false;
 
-	int previous = get_i2c_active_dev();
-	bool ok = true;
-
+	previous = get_i2c_active_dev();
 	set_i2c_active_dev(bus);
-	for (unsigned int i = 0; i < sizeof(sequence) / sizeof(sequence[0]); i++) {
+	for (i = 0; i < sizeof(sequence) / sizeof(sequence[0]); i++) {
 		if (!ssm2603_write_register(sequence[i].reg, sequence[i].value)) {
 			ok = false;
 			break;
@@ -77,31 +85,43 @@ static void ssm2603_init(void)
 define_init_func(ssm2603_init);
 
 #ifndef BIOS_CONSOLE_DISABLE
+
+/* Write a register, selecting the I2C bus of the codec for the access. */
 static bool ssm2603_write(unsigned int reg, unsigned int value)
 {
 	int bus = ssm2603_bus();
+	int previous;
+	bool ok;
+
 	if (bus < 0)
 		return false;
 
-	int previous = get_i2c_active_dev();
+	previous = get_i2c_active_dev();
 	set_i2c_active_dev(bus);
-	bool ok = ssm2603_write_register(reg, value);
+	ok = ssm2603_write_register(reg, value);
 	set_i2c_active_dev(previous);
 	return ok;
 }
 
+/**
+ * Control "volume"
+ *
+ * Set the output gain of both channels, in dB.
+ *
+ */
 static void ssm2603_volume(char **args)
 {
 	char *end;
 	bool negative = args[0][0] == '-';
 	const char *digits = args[0] + (negative || args[0][0] == '+');
 	unsigned long magnitude = strtoul(digits, &end, 10);
+	int db;
 
 	if (*digits < '0' || *digits > '9' || *end || magnitude > (negative ? 73 : 6)) {
 		puts("Volume must be an integer from -73 to +6 dB.");
 		return;
 	}
-	int db = negative ? -(int)magnitude : (int)magnitude;
+	db = negative ? -(int)magnitude : (int)magnitude;
 	/* Bit 8 applies the left output gain to both channels. */
 	if (ssm2603_write(2, 0x100 | (0x79 + db)))
 		printf("Output gain set to %d dB.\n", db);
@@ -109,6 +129,12 @@ static void ssm2603_volume(char **args)
 		puts("Codec volume write failed.");
 }
 
+/**
+ * Controls "mute" and "unmute"
+ *
+ * Soft-mute or unmute the DAC.
+ *
+ */
 static void ssm2603_set_mute(bool mute)
 {
 	if (ssm2603_write(5, mute ? 0x08 : 0))
@@ -127,20 +153,30 @@ static void ssm2603_unmute(char **args)
 	ssm2603_set_mute(false);
 }
 
+/**
+ * Control "restart"
+ *
+ * Restart playback at the default gain.
+ *
+ */
 static bool ssm2603_restart_playback(void)
 {
+	int bus;
+	int previous;
+	bool ok;
+
 	/* A warm restart leaves the analog bias and serial interface running.
 	 * Cycling them is needed at power-up and can create a transient. */
 	if (!ssm2603_initialized)
 		return ssm2603_start();
 
-	int bus = ssm2603_bus();
+	bus = ssm2603_bus();
 	if (bus < 0)
 		return false;
 
-	int previous = get_i2c_active_dev();
+	previous = get_i2c_active_dev();
 	set_i2c_active_dev(bus);
-	bool ok = ssm2603_write_register(5, 0x008);
+	ok = ssm2603_write_register(5, 0x008);
 	if (ok) {
 		busy_wait_us(2000);
 		ok = ssm2603_write_register(2, 0x100 | CONFIG_SSM2603_OUTPUT_GAIN);
@@ -166,5 +202,7 @@ const struct audio_control audio_ssm2603_controls[] = {
 	{ "restart", "", "Restart playback at the default gain.", 0, ssm2603_restart },
 	{ 0 },
 };
-#endif
-#endif
+
+#endif /* BIOS_CONSOLE_DISABLE */
+
+#endif /* CONFIG_SSM2603_I2C_BUS */

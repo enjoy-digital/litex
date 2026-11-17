@@ -1,19 +1,21 @@
 #
 # This file is part of LiteX.
 #
+# Copyright (c) 2026 Matt Thompson <matt@boondocker.io>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from migen import ClockDomain, Module, Signal
-from migen.sim import run_simulation
+from migen import *
 
-from litex.soc.cores.audio.ssm2603 import SSM2603, SSM2603PCM
-from litex.soc.cores.bitbang import I2CMaster
 from litex.soc.interconnect.stream import Endpoint
 
+from litex.soc.cores.bitbang import I2CMaster
+from litex.soc.cores.audio.ssm2603 import SSM2603, SSM2603PCM
+
+# Helpers ------------------------------------------------------------------------------------------
 
 class _DirectStream(Module):
     """Bypass asynchronous FIFOs to check the serial framing in isolation."""
@@ -23,6 +25,7 @@ class _DirectStream(Module):
         self.source = Endpoint(layout)
         self.comb += self.sink.connect(self.source)
 
+# Tests --------------------------------------------------------------------------------------------
 
 class TestSSM2603(unittest.TestCase):
     def test_stereo_playback(self):
@@ -33,14 +36,14 @@ class TestSSM2603(unittest.TestCase):
 
     def check_stereo_playback(self, rate, setting, width):
         slot_width = 16 if width == 16 else 32
-        left = 0x12e9 << (width - 16) | 1
-        right = 0xa63c << (width - 16) | 1
-        configs = {}
+        left       = 0x12e9 << (width - 16) | 1
+        right      = 0xa63c << (width - 16) | 1
+        configs    = {}
         soc = SimpleNamespace(codec_bus=I2CMaster(), add_config=configs.__setitem__)
         SSM2603(soc, "codec_bus", sample_rate=rate, sample_width=width)
-        self.assertEqual(configs["SSM2603_I2C_BUS"], "codec_bus")
+        self.assertEqual(configs["SSM2603_I2C_BUS"],   "codec_bus")
         self.assertEqual(configs["SSM2603_INTERFACE"], 1 + 4 * (16, 20, 24, 32).index(width))
-        self.assertEqual(configs["SSM2603_SAMPLING"], setting)
+        self.assertEqual(configs["SSM2603_SAMPLING"],  setting)
         self.assertEqual(soc.codec_bus.init, [])
 
         dut = Module()
@@ -48,7 +51,10 @@ class TestSSM2603(unittest.TestCase):
         pads = SimpleNamespace(**{name: Signal() for name in (
             "bclk", "dacdat", "daclrck", "adclrck", "adcdat", "xck")})
         with patch("litex.soc.cores.audio.pcm.stream.ClockDomainCrossing", _DirectStream):
-            dut.submodules.pcm = pcm = SSM2603PCM(pads, dut.cd_audio.clk, sample_rate=rate, sample_width=width)
+            dut.submodules.pcm = pcm = SSM2603PCM(pads, dut.cd_audio.clk,
+                sample_rate  = rate,
+                sample_width = width,
+            )
         dut.comb += pads.adcdat.eq(pads.dacdat)
         self.assertEqual(pcm.master_clk_freq, 256 * rate)
 
@@ -61,11 +67,11 @@ class TestSSM2603(unittest.TestCase):
             yield pcm.sample.re.eq(0)
 
         def monitor():
-            words = []
-            bits = []
-            previous_clock = previous_channel = 0
+            words     = []
+            bits      = []
             last_left = None
-            captured = []
+            captured  = []
+            previous_clock = previous_channel = 0
             for cycle in range(1024):
                 if (yield pcm.record.valid):
                     captured.append((yield pcm.record.sample))
@@ -85,7 +91,10 @@ class TestSSM2603(unittest.TestCase):
                     previous_channel = channel
                 previous_clock = clock
                 yield
-            self.assertEqual(words[1:3], [(1, left << (slot_width - width)), (0, right << (slot_width - width))])
+            self.assertEqual(words[1:3], [
+                (1, left  << (slot_width - width)),
+                (0, right << (slot_width - width)),
+            ])
             self.assertEqual(words[3:5], [(1, 0), (0, 0)])
             self.assertIn((right << width) | left, captured)
 
