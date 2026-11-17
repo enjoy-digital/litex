@@ -1212,7 +1212,7 @@ class TestStream(unittest.TestCase):
         run_simulation(dut, generators, clocks)
         self.assertEqual(dut.errors, 0)
 
-    def test_clock_domain_crossing_async_common_reset(self):
+    def clock_domain_crossing_async_common_reset_test(self, with_rst_gating):
         class DUT(Module):
             def __init__(self):
                 self.clock_domains.cd_write = ClockDomain("write")
@@ -1220,7 +1220,8 @@ class TestStream(unittest.TestCase):
                 self.submodules.cdc = ClockDomainCrossing(EndpointDescription(
                     payload_layout=[("data", 8)],
                     param_layout=[("tag", 4)],
-                ), cd_from="write", cd_to="read", depth=8, buffered=True, with_common_rst=True)
+                ), cd_from="write", cd_to="read", depth=8, buffered=True, with_common_rst=True,
+                    with_rst_gating=with_rst_gating)
                 self.sink = self.cdc.sink
                 self.source = self.cdc.source
 
@@ -1232,13 +1233,17 @@ class TestStream(unittest.TestCase):
         dut.errors = 0
 
         def generator():
-            # Hold the destination in reset while the producer starts.
+            # Hold the destination in reset while the producer starts: the producer is only stalled
+            # with the Rst gating (without, its data is accepted and dropped).
             yield dut.cd_read.rst.eq(1)
             yield dut.sink.valid.eq(1)
+            yield dut.sink.data.eq(0xff)
             for _ in range(5):
                 yield
-            self.assertEqual((yield dut.sink.ready), 0)
+                self.assertEqual((yield dut.sink.ready), 0 if with_rst_gating else 1)
+            yield dut.sink.valid.eq(0)
             yield dut.cd_read.rst.eq(0)
+            yield
             for packet in packets:
                 for index, data in enumerate(packet["datas"]):
                     yield dut.sink.valid.eq(1)
@@ -1283,6 +1288,12 @@ class TestStream(unittest.TestCase):
         }
         run_simulation(dut, generators, clocks)
         self.assertEqual(dut.errors, 0)
+
+    def test_clock_domain_crossing_async_common_reset(self):
+        self.clock_domain_crossing_async_common_reset_test(with_rst_gating=False)
+
+    def test_clock_domain_crossing_async_common_reset_gating(self):
+        self.clock_domain_crossing_async_common_reset_test(with_rst_gating=True)
 
     def async_fifo_test(self, buffered):
         class DUT(Module):

@@ -620,15 +620,21 @@ class JTAGPHY(LiteXModule):
 
         # JTAG clock domain crossing ---------------------------------------------------------------
         if clock_domain != "jtag":
+            # Cyclone V: stall the producers while the CDCs are in Rst (jtag Rst only released by
+            # TCK edges), as validated on hardware. Others: data is dropped while in Rst, a SoC
+            # without JTAG host is then not stalled by its JTAG UART.
+            with_rst_gating = isinstance(jtag, AlteraJTAG) and jtag.tdi_late
             self.tx_cdc = tx_cdc = stream.ClockDomainCrossing([("data", data_width)],
                 cd_from         = clock_domain,
                 cd_to           = "jtag",
-                with_common_rst = True
+                with_common_rst = True,
+                with_rst_gating = with_rst_gating,
             )
             self.rx_cdc = rx_cdc = stream.ClockDomainCrossing([("data", data_width)],
                 cd_from         = "jtag",
                 cd_to           = clock_domain,
-                with_common_rst = True
+                with_common_rst = True,
+                with_rst_gating = with_rst_gating,
             )
             self.comb += [
                 sink.connect(tx_cdc.sink),
