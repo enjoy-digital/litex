@@ -40,7 +40,7 @@ class MockJTAG(Module):
     vendor-specific hardware.  Pass an instance to JTAGPHY(jtag=...) to
     bypass device detection.
     """
-    def __init__(self, with_sel=False):
+    def __init__(self, with_sel=False, tdi_late=False):
         self.tck     = Signal()
         self.tdi     = Signal()
         self.tdo     = Signal()
@@ -50,6 +50,7 @@ class MockJTAG(Module):
         self.capture = Signal()
         self.reset   = Signal()
         self.update  = Signal()
+        self.tdi_late = tdi_late # TDI one TCK late (Cyclone V).
 
 # ---------------------------------------------------------------------- #
 # Test DUT                                                                #
@@ -67,11 +68,11 @@ class JTAGPHYTestDUT(Module):
     ClockSignal, so get_fragment() filters them out (the simulator drives
     clock domains directly via its TimeManager).
     """
-    def __init__(self, data_width=8, with_sel=False):
+    def __init__(self, data_width=8, with_sel=False, tdi_late=False):
         # Provide jtag clock domain with reset (for AsyncResetSynchronizer).
         self.clock_domains.cd_jtag = ClockDomain("jtag")
 
-        self.submodules.jtag_tap = jtag_tap = MockJTAG(with_sel=with_sel)
+        self.submodules.jtag_tap = jtag_tap = MockJTAG(with_sel=with_sel, tdi_late=tdi_late)
         self.submodules.phy = phy = JTAGPHY(
             jtag         = jtag_tap,
             data_width   = data_width,
@@ -108,9 +109,13 @@ class TestJTAGPHY(unittest.TestCase):
           Bit data_width+1     : XFER-VALID  (TDO=target_valid, TDI=host_valid)
           Bit data_width+2     : XFER-PADDING
 
+        With a late TDI (Cyclone V), the TDI bits are presented one cycle later: host_ready on
+        the first XFER-DATA cycle, the last data bit in XFER-VALID and host_valid in XFER-PADDING.
+
         Returns (target_data, target_valid, target_ready).
         """
-        dw = self.DATA_WIDTH
+        dw   = self.DATA_WIDTH
+        late = dut.jtag_tap.tdi_late
 
         # Capture pulse — resets FSM to XFER-READY.
         yield dut.jtag_tap.capture.eq(1)
@@ -120,24 +125,29 @@ class TestJTAGPHY(unittest.TestCase):
 
         # Bit 0: XFER-READY.
         yield dut.jtag_tap.shift.eq(1)
-        yield dut.jtag_tap.tdi.eq(host_ready)
+        yield dut.jtag_tap.tdi.eq(0 if late else host_ready)
         yield
         target_ready = (yield dut.jtag_tap.tdo)
 
         # Bits 1..data_width: XFER-DATA (LSB first).
         target_data = 0
         for bit in range(dw):
-            yield dut.jtag_tap.tdi.eq((host_data >> bit) & 1)
+            incoming = (host_data >> bit) & 1
+            if late:
+                incoming = host_ready if bit == 0 else (host_data >> (bit - 1)) & 1
+            yield dut.jtag_tap.tdi.eq(incoming)
             yield
             tdo_bit = (yield dut.jtag_tap.tdo)
             target_data |= (tdo_bit << bit)
 
         # Bit data_width+1: XFER-VALID.
-        yield dut.jtag_tap.tdi.eq(host_valid)
+        yield dut.jtag_tap.tdi.eq((host_data >> (dw - 1)) & 1 if late else host_valid)
         yield
         target_valid = (yield dut.jtag_tap.tdo)
 
         # Bit data_width+2: XFER-PADDING.
+        if late:
+            yield dut.jtag_tap.tdi.eq(host_valid)
         yield
 
         # End scan — shift falls (Exit1-DR).
@@ -276,6 +286,26 @@ class TestJTAGPHY(unittest.TestCase):
         self._run(dut, gen)
         self.assertEqual(result["valid"], 1)
         self.assertEqual(result["data"],  0xDE)
+
+    def test_cyclone_v_delayed_tdi(self):
+        """Cyclone V: TDI one TCK late, 0x4A to the Host and 0xA5 to the Target in one scan."""
+        dut = JTAGPHYTestDUT(data_width=self.DATA_WIDTH, tdi_late=True)
+        result = {}
+
+        def gen():
+            yield dut.sink.valid.eq(1)
+            yield dut.sink.data.eq(0x4A)
+            data, valid, _ = yield from self._scan(dut, host_data=0xA5, host_valid=1)
+            result["tx_data"]  = data
+            result["tx_valid"] = valid
+            result["rx_valid"] = (yield dut.source.valid)
+            result["rx_data"]  = (yield dut.source.data)
+
+        self._run(dut, gen)
+        self.assertEqual(result["tx_data"],  0x4A)
+        self.assertEqual(result["tx_valid"], 1)
+        self.assertEqual(result["rx_valid"], 1)
+        self.assertEqual(result["rx_data"],  0xA5)
 
     def test_rx_not_stored_when_invalid(self):
         """RX data with host_valid=0 must not appear on source."""

@@ -85,6 +85,10 @@ class OpenOCD(GenericProgrammer):
         elif "10ax" in cfg_str:
             warn_ignored("Intel Arria10", 0xc)
             return 0xc
+        # Intel Cyclone V (5CGT device codes).
+        elif any(s in cfg_str for s in ["cyclonev", "5cgt"]):
+            warn_ignored("Intel Cyclone V", 0xe)
+            return 0xe
         # Intel CycloneIV.
         elif "ep4ce" in cfg_str:
             warn_ignored("Intel CycloneIV", 0xe)
@@ -222,6 +226,10 @@ proc jtagstream_drain {tap tx chunk_rx max_rx} {
 }
 
 proc jtagstream_rxtx {tap client is_poll} {
+    # A scheduled poll can fire after the readable callback closed the socket.
+    if {![llength [info commands $client]]} {
+        return
+    }
     if {![$client eof]} {
         set tx [$client read 16]
         set rx [jtagstream_drain $tap $tx 128 4096]

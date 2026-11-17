@@ -61,6 +61,7 @@ if sys.platform == "win32":
 else:
     import termios
     import pty
+    import tty
     class Console:
         def __init__(self):
             self.fd = sys.stdin.fileno()
@@ -164,6 +165,9 @@ class JTAGUART:
         self.tcp2pty_thread  = threading.Thread(target=self.tcp2pty, daemon=True)
         self.threads = [self.jtag2tcp_thread, self.pty2tcp_thread, self.tcp2pty_thread]
         try:
+            # OpenOCD can deliver boot output before pyserial opens the slave.
+            # Disable echo and line editing before the transport starts.
+            tty.setraw(self.name)
             self.jtag2tcp_thread.start()
             deadline = time.monotonic() + timeout
             while self.tcp is None:
