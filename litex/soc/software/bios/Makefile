@@ -13,6 +13,7 @@ OBJECTS = boot-helper.o	\
 	  cmd_mem.o			\
 	  cmd_boot.o		\
 	  cmd_i2c.o			\
+	  cmd_audio.o		\
 	  cmd_spiflash.o	\
 	  cmd_litedram.o	\
 	  cmd_liteeth.o		\
