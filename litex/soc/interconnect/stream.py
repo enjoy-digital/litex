@@ -282,7 +282,9 @@ class AsyncFIFO(_FIFOWrapper):
 # ClockDomainCrossing ------------------------------------------------------------------------------
 
 class ClockDomainCrossing(LiteXModule, DUID):
-    def __init__(self, layout, cd_from="sys", cd_to="sys", depth=None, buffered=False, with_common_rst=False):
+    def __init__(self, layout, cd_from="sys", cd_to="sys", depth=None, buffered=False,
+        with_common_rst = False,
+        with_rst_gating = False):
         DUID.__init__(self)
         self.sink   = Endpoint(layout)
         self.source = Endpoint(layout)
@@ -329,9 +331,10 @@ class ClockDomainCrossing(LiteXModule, DUID):
             self.submodules += cdc
 
             # Sink -> AsyncFIFO -> Source.
-            if with_common_rst:
+            if with_rst_gating:
                 # A stopped Clk can keep the FIFO in Rst after its upstream producer has started:
-                # only acknowledge real transfers (valid/ready gated with the common Rst).
+                # only acknowledge real transfers (valid/ready gated with the Rst of each side). The
+                # producer is then stalled (instead of having its data dropped) while in Rst.
                 self.comb += [
                     self.sink.connect(cdc.sink,     omit={"ready", "valid"}),
                     cdc.source.connect(self.source, omit={"ready", "valid"}),
