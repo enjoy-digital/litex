@@ -1,6 +1,7 @@
 # Xilinx
 
 # Intel
+from litex.soc.cores.ram.intel_cyclone5_lpddr2 import CycloneVLPDDR2
 
 # Generic
 from litex.soc.cores.ram.async_sram import AsyncSRAM
