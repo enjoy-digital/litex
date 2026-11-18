@@ -107,7 +107,7 @@ class _CRGWithSysReset:
 class _CRGWithEfinityPLL:
     def __init__(self):
         self.rst = Signal(name="crg_rst")
-        self.pll = SimpleNamespace(locked=Signal(name="pll_locked"))
+        self.pll = SimpleNamespace(locked=Signal(name="pll_locked"), hold=Signal(name="pll_hold"))
 
 
 def _make_bus_interface(interface_cls, data_width=32, address_width=32):
@@ -531,15 +531,17 @@ class TestSoCResetRequests(unittest.TestCase):
 
         self.assertIsNone(soc._get_crg_reset_signal(with_sys_reset_fallback=False))
 
-    def test_crg_reset_hold_signal_uses_efinity_pll_lock(self):
-        from litex.build.efinix.efinity import EfinityToolchain
+    def test_crg_reset_hold_signal_uses_pll_hold(self):
+        soc     = SoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.crg = _CRGWithEfinityPLL()
 
-        platform           = _FakePlatform()
-        platform.toolchain = EfinityToolchain("/tmp/efinity")
-        soc                = SoC(platform, sys_clk_freq=1e6)
-        soc.crg            = _CRGWithEfinityPLL()
+        self.assertIs(soc._get_crg_reset_hold_signal(), soc.crg.pll.hold)
 
-        self.assertIs(soc._get_crg_reset_hold_signal(), soc.crg.pll.locked)
+    def test_crg_reset_hold_signal_requires_pll_hold(self):
+        soc     = SoC(_FakePlatform(), sys_clk_freq=1e6)
+        soc.crg = _CRGWithReset()
+
+        self.assertIsNone(soc._get_crg_reset_hold_signal())
 
 
 class TestSoCRegion(unittest.TestCase):
