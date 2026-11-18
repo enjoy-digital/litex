@@ -94,7 +94,6 @@ static void sdram_bist_loop(uint32_t loop, uint32_t burst_length, uint32_t rando
 	uint32_t length;
 	length = burst_length * SDRAM_TEST_DATA_BYTES;
 
-	rd_errors = 0;
 	for (i = 0; i < 128; i++) {
 		if (random)
 			base = SDRAM_TEST_BASE + pseudo_random_bases[(i+loop)%128]*SDRAM_TEST_DATA_BYTES;
@@ -131,6 +130,11 @@ void sdram_bist(uint32_t burst_length, uint32_t random)
 
 	total_length = 0;
 	total_errors = 0;
+	wr_length    = 0;
+	wr_ticks     = 0;
+	rd_length    = 0;
+	rd_ticks     = 0;
+	rd_errors    = 0;
 	for (i = 0; !readchar_nonblock(); i++) { /* Exit on key pressed */
 		/* Bist loop */
 		sdram_bist_loop(i, burst_length, random);
@@ -140,14 +144,14 @@ void sdram_bist(uint32_t burst_length, uint32_t random)
 			printf("WR-SPEED(MiB/s) RD-SPEED(MiB/s)  TESTED(MiB)       ERRORS\n");
 		}
 		if (i%100 == 100-1) {
+			total_length += wr_length;
+			total_errors += rd_errors;
+
 			printf("%15" PRIu32 " %15" PRIu32 "%12" PRIu64 "%12" PRIu32 "\n",
 				compute_speed_mibs(wr_length, wr_ticks),
 				compute_speed_mibs(rd_length, rd_ticks),
 				total_length/(1024*1024),
 				total_errors);
-
-			total_length += wr_length;
-			total_errors += rd_errors;
 
 			/* Clear length/ticks/errors */
 			wr_length = 0;
