@@ -3462,6 +3462,7 @@ class LiteXSoC(SoC):
     # Add PCIe -------------------------------------------------------------------------------------
     def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, address_width=32, data_width=None,
         cmp_bufs_buffered             = True,
+        cmp_bufs_shared               = False,
         with_dma_buffering            = True, dma_buffering_depth=1024,
         dma_writer_buffering_depth    = None,
         dma_reader_buffering_depth    = None,
@@ -3473,6 +3474,7 @@ class LiteXSoC(SoC):
         with_dma_monitor              = False,
         with_dma_status               = False, status_width=32,
         with_dma_table                = True,
+        dma_table_buffered            = False,
         with_msi                      = True, msi_type="msi", msi_width=32, msis=None,
         dma_name_prefix               = None,
         msi_name                      = None,
@@ -3508,12 +3510,17 @@ class LiteXSoC(SoC):
 
         # Endpoint.
         self.check_if_exists(f"{name}_endpoint")
+        # Options passed only when used, to keep working with a LitePCIe that does not have them.
+        endpoint_kwargs = {}
+        if cmp_bufs_shared:
+            endpoint_kwargs["cmp_bufs_shared"] = True # Completion buffers of all the tags in one memory.
         endpoint = LitePCIeEndpoint(phy,
             max_pending_requests = max_pending_requests,
             endianness           = phy.endianness,
             address_width        = address_width,
             cmp_bufs_buffered    = cmp_bufs_buffered,
             with_ptm             = with_ptm,
+            **endpoint_kwargs,
         )
         self.add_module(name=f"{name}_endpoint", module=endpoint)
 
@@ -3599,6 +3606,9 @@ class LiteXSoC(SoC):
                 raise SoCError()
             dma_name = f"{dma_name_prefix}{i}"
             self.check_if_exists(dma_name)
+            dma_kwargs = {}
+            if dma_table_buffered:
+                dma_kwargs["table_buffered"] = True # Descriptor tables in Block RAM.
             dma = LitePCIeDMA(phy, endpoint,
                 with_buffering         = with_dma_buffering,
                 buffering_depth        = _pcie_dma_depth("dma_buffering_depths",        dma_buffering_depths,        i, dma_buffering_depth),
@@ -3611,6 +3621,7 @@ class LiteXSoC(SoC):
                 with_table             = with_dma_table,
                 address_width          = address_width,
                 data_width             = data_width,
+                **dma_kwargs,
             )
             self.add_module(name=dma_name, module=dma)
             if with_dma_table and map_dma_irqs:
