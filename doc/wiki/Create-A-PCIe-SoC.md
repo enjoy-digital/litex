@@ -88,6 +88,10 @@ Design notes:
   with the driver, or `litex_term crossover` through `litex_server --pcie`.
 - Without CPU (`--cpu-type=None`): the host controls everything; `SoCMini` + `add_pcie` is a
   complete PCIe device in a few lines.
+- Resources: `cmp_bufs_shared=True` keeps the completions of all the tags in one block RAM
+  instead of one FIFO per tag (fewer block RAMs on 7-Series, fewer LUTs and registers on wide
+  datapaths), and `dma_table_buffered=True` moves the DMA descriptor tables from distributed
+  RAM to block RAM. Both are off by default and need a LitePCIe that has the options.
 
 ## Build, driver, tools
 
