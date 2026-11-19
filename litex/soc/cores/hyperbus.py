@@ -714,15 +714,19 @@ class HyperRAMCore(LiteXModule):
     - bus_standard   : Memory bus standard: "wishbone", "axi-lite" or "axi".
     - axi_id_width   : AXI ID width when bus_standard is "axi".
     - cs_high_cycles : Number of sys_clk cycles between commands.
+    - burst_boundary : Byte boundary bursts can't cross (power of 2), None: unlimited.
     """
     def __init__(self, phy, latency=7, latency_mode="fixed", clk_ratio="4:1",
-        with_bursting=True, bus_standard="wishbone", axi_id_width=1, cs_high_cycles=9):
+        with_bursting=True, bus_standard="wishbone", axi_id_width=1, cs_high_cycles=9,
+        burst_boundary=None):
         if bus_standard not in HYPERRAM_BUS_STANDARDS:
             raise ValueError("Unsupported HyperRAM bus standard: {}.".format(bus_standard))
         if axi_id_width <= 0:
             raise ValueError("HyperRAM AXI ID width must be positive.")
         if cs_high_cycles < 1:
             raise ValueError("HyperRAM CS high cycles must be positive.")
+        if (burst_boundary is not None) and ((burst_boundary < 8) or (burst_boundary & (burst_boundary - 1))):
+            raise ValueError("HyperRAM burst boundary must be a power of 2 >= 8.")
         wishbone_bus = bus_standard == "wishbone"
 
         self.port   = port   = HyperRAMNativePort()
@@ -781,6 +785,7 @@ class HyperRAMCore(LiteXModule):
         self.burst_w       = burst_w       = Signal()
         self.burst_r       = burst_r       = Signal()
         self.burst_r_first = burst_r_first = Signal()
+        self.burst_allowed = burst_allowed = Signal()
 
         # PHY.
         # ----
@@ -948,7 +953,13 @@ class HyperRAMCore(LiteXModule):
         write_burst = bus_cti == wishbone.CTI_BURST_INCREMENTING
         if wishbone_bus:
             write_burst = write_burst | bus_we
+        # Burst Boundary: Don't continue into a new block.
+        self.comb += burst_allowed.eq(1)
+        if burst_boundary is not None:
+            self.comb += If(port.req_addr[:log2_int(burst_boundary//4)] == 0, burst_allowed.eq(0))
+
         self.comb += burst_w.eq(
+            burst_allowed &
             write_burst &
             port.req_valid &
             (port.req_write == bus_we) &
@@ -987,6 +998,7 @@ class HyperRAMCore(LiteXModule):
             # explicit-only to avoid merging classic write cycles.
             read_burst = read_burst | ~bus_we
         self.comb += burst_r.eq(
+            burst_allowed &
             read_burst &
             port.req_valid &
             ~port.req_write &
@@ -1069,12 +1081,13 @@ class HyperRAM(LiteXModule):
     - bus_standard   : Memory bus standard: "wishbone", "axi-lite" or "axi".
     - axi_id_width   : AXI ID width when bus_standard is "axi".
     - cs_high_cycles : Number of sys_clk cycles between commands.
+    - burst_boundary : Byte boundary bursts can't cross (power of 2), None: unlimited.
     - with_csr       : Include CSR support.
     - dq_i_cd        : Clock domain for data input.
     """
     def __init__(self, pads, latency=7, latency_mode="fixed", sys_clk_freq=100e6,
         clk_ratio="4:1", with_bursting=True, bus_standard="wishbone", axi_id_width=1,
-        cs_high_cycles=9, with_csr=True, dq_i_cd=None):
+        cs_high_cycles=9, burst_boundary=None, with_csr=True, dq_i_cd=None):
         # Parameters.
         # -----------
         check_hyperram_latency(latency)
@@ -1127,6 +1140,7 @@ class HyperRAM(LiteXModule):
             bus_standard  = bus_standard,
             axi_id_width  = axi_id_width,
             cs_high_cycles = cs_high_cycles,
+            burst_boundary = burst_boundary,
         )
         self.bus = core.bus
 

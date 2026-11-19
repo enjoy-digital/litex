@@ -60,7 +60,7 @@ class GowinHyperRAM(LiteXModule):
             ),
         ]
 
-        self.hyperram = HyperRAM(split_pads, sys_clk_freq=sys_clk_freq, **kwargs)
+        self.hyperram = HyperRAM(split_pads, sys_clk_freq=sys_clk_freq, burst_boundary=32, **kwargs)
         self.bus = self.hyperram.bus
 
     def get_csrs(self, sort=False):
