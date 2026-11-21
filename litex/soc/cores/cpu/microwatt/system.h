@@ -1,5 +1,8 @@
 #ifndef __SYSTEM_H
 #define __SYSTEM_H
+/* IRQ-driven UART stalls in the BIOS: PPC needs IRQ vectors set up first (done by Linux),
+   so use polling UART until then (see litex#2306 / PowerCommons). */
+#define UART_POLLING
 
 #ifdef __cplusplus
 extern "C" {
