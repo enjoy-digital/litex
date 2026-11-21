@@ -1945,7 +1945,7 @@ class SoC(LiteXModule):
             self.irq.add(name, use_loc_if_exists=True)
 
     # Add Watchdog ---------------------------------------------------------------------------------
-    def add_watchdog(self, name="watchdog0", width=32, crg_rst=None, reset_delay=None):
+    def add_watchdog(self, name="watchdog0", width=32, crg_rst=None, reset_delay=None, initial_cycles=0):
         from litex.soc.cores.watchdog import Watchdog
 
         # The target can create its CRG after SoCCore.__init__. Generate the watchdog's
@@ -1959,7 +1959,8 @@ class SoC(LiteXModule):
 
         halted = getattr(self.cpu, "o_halted", None) if hasattr(self, "cpu") else None
 
-        watchdog = Watchdog(width=width, crg_rst=crg_rst, reset_delay=int(reset_delay), halted=halted)
+        watchdog = Watchdog(width=width, crg_rst=crg_rst, reset_delay=int(reset_delay), halted=halted,
+            initial_cycles=initial_cycles)
         self.add_module(name=name, module=watchdog)
 
         if self.irq.enabled:
@@ -3982,6 +3983,7 @@ class SoCCore(LiteXSoC):
         with_watchdog              = False,
         watchdog_width             = 32,
         watchdog_reset_delay       = None,
+        watchdog_initial_cycles    = 0,
 
         # Others.
         **kwargs):
@@ -4160,7 +4162,8 @@ class SoCCore(LiteXSoC):
         # Add Watchdog.
         if with_watchdog:
             self.add_watchdog(name="watchdog0",
-                width=watchdog_width, reset_delay=watchdog_reset_delay)
+                width=watchdog_width, reset_delay=watchdog_reset_delay,
+                initial_cycles=watchdog_initial_cycles)
 
     # Methods --------------------------------------------------------------------------------------
 
@@ -4267,6 +4270,7 @@ def soc_core_args(parser, cpu_type="vexriscv", cpu_variant=None):
     soc_group.add_argument("--with-watchdog",            action="store_true",                help="Enable Watchdog.")
     soc_group.add_argument("--watchdog-width",           default=32,   type=auto_int,        help="Watchdog width.")
     soc_group.add_argument("--watchdog-reset-delay",     default=None, type=auto_int,        help="Watchdog reset delay.")
+    soc_group.add_argument("--watchdog-initial-cycles",  default=0,    type=auto_int,        help="Watchdog timeout after reset, in cycles (0: watchdog disabled at reset).")
 
     # L2 Cache.
     soc_group.add_argument("--l2-size",                  default=8192, type=auto_int,        help="L2 cache size.")

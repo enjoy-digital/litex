@@ -18,9 +18,14 @@ class Watchdog(LiteXModule):
     """Watchdog
 
     Provides a generic Watchdog core.
+
+    If ``initial_cycles`` is non-zero, the watchdog comes out of reset enabled, in reset mode,
+    with a timeout of ``initial_cycles`` cycles. The software must then feed or disable it in time.
     """
-    
-    def __init__(self, width=32, crg_rst=None, reset_delay=0, halted=None):
+
+    def __init__(self, width=32, crg_rst=None, reset_delay=0, halted=None, initial_cycles=0):
+        assert 0 <= initial_cycles < 2**width, f"initial_cycles must fit in {width} bits."
+
         self.enable = Signal()
         self.reset_mode = Signal()
         self.feed = Signal()
@@ -28,11 +33,17 @@ class Watchdog(LiteXModule):
 
         self.execute = Signal()
 
+        enabled_on_startup = bool(initial_cycles)
+
         self._control = CSRStorage(description="Watchdog Control.", fields=[
-            CSRField("feed",   size=1, offset=0, pulse=True, description="Watchdog feed (Write ``1`` to feed)."),
-            CSRField("enable", size=1, offset=8,              description="Watchdog enable."),
-            CSRField("reset",  size=1, offset=16,              description="Reset SoC when watchdog times out."),
-            CSRField("pause_halted", size=1, offset=24,       description="Pause watchdog when CPU is halted.")
+            CSRField("feed",   size=1, offset=0, pulse=True,
+                     description="Watchdog feed (Write ``1`` to feed)."),
+            CSRField("enable", size=1, offset=8,
+                     reset=enabled_on_startup, description="Watchdog enable."),
+            CSRField("reset",  size=1, offset=16, reset=enabled_on_startup,
+                     description="Reset SoC when watchdog times out."),
+            CSRField("pause_halted", size=1, offset=24, reset=enabled_on_startup,
+                     description="Pause watchdog when CPU is halted.")
         ])
 
         self.comb += [
@@ -44,8 +55,10 @@ class Watchdog(LiteXModule):
         if isinstance(halted, Signal):
             self.comb += self.halted.eq(halted & self._control.fields.pause_halted)
 
-        self._cycles = cycles = CSRStorage(description="Watchdog cycles until timeout.", size=width)
-        self._remaining = remaining = CSRStatus(description="Watchdog cycles remaining until timeout.", size=width)
+        self._cycles = cycles = CSRStorage(
+            description="Watchdog cycles until timeout.", size=width, reset=initial_cycles)
+        self._remaining = remaining = CSRStatus(
+            description="Watchdog cycles remaining until timeout.", size=width, reset=initial_cycles)
 
         self.ev      = EventManager()
         self.ev.wdt  = EventSourceProcess(edge="rising")
