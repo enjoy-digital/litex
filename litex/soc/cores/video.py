@@ -1192,13 +1192,24 @@ class VideoGenericPHY(LiteXModule):
             self.specials += SDROutput(i=sink.vsync,  o=pads.vsync,   clk=ClockSignal(clock_domain))
 
         # Drive Datas.
-        cbits  = len(pads.r)
-        cshift = (8 - cbits)
-        for i in range(cbits):
+        cbits_r  = len(pads.r)
+        cshift_r = (8 - cbits_r)
+        for i in range(cbits_r):
             # VGA monitors interpret minimum value as black so ensure data is set to 0 during blanking.
-            self.specials += SDROutput(i=sink.r[cshift + i] & sink.de, o=pads.r[i], clk=ClockSignal(clock_domain))
-            self.specials += SDROutput(i=sink.g[cshift + i] & sink.de, o=pads.g[i], clk=ClockSignal(clock_domain))
-            self.specials += SDROutput(i=sink.b[cshift + i] & sink.de, o=pads.b[i], clk=ClockSignal(clock_domain))
+            self.specials += SDROutput(i=sink.r[cshift_r + i] & sink.de, o=pads.r[i], clk=ClockSignal(clock_domain))
+
+        cbits_g  = len(pads.g)
+        cshift_g = (8 - cbits_g)
+        for i in range(cbits_g):
+            # VGA monitors interpret minimum value as black so ensure data is set to 0 during blanking.
+            self.specials += SDROutput(i=sink.g[cshift_g + i] & sink.de, o=pads.g[i], clk=ClockSignal(clock_domain))
+
+        cbits_b  = len(pads.b)
+        cshift_b = (8 - cbits_b)
+        for i in range(cbits_b):
+            # VGA monitors interpret minimum value as black so ensure data is set to 0 during blanking.
+            self.specials += SDROutput(i=sink.b[cshift_b + i] & sink.de, o=pads.b[i], clk=ClockSignal(clock_domain))        
+
 
 # VGA (Generic).
 
