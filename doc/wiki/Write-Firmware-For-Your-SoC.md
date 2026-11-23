@@ -100,7 +100,7 @@ binaries, or for boards that run on their own:
 | SD card, SATA | `boot.bin` or `boot.json` on a FAT partition | Boards running on their own. |
 | SPI flash | `demo.fbi` at `FLASH_BOOT_ADDRESS`, `python3 target.py --flash` | Production, copied to RAM or run in place. |
 | ROM | `--integrated-rom-init=demo.bin` (replaces the BIOS, link with `--mem rom`) | Small SoCs without main RAM. |
-| Main RAM at reset | `--integrated-main-ram-init=demo.bin`, `litex_sim --ram-init=demo.bin` | Simulation, self-contained test SoCs. |
+| Main RAM at reset | `SoCCore(integrated_main_ram_init=...)`, `litex_sim --ram-init=demo.bin` | Simulation, self-contained test SoCs. |
 
 The BIOS tries them in this order: serial, flash, ROM, SD card, SATA, network; the
 `<X>_BOOT_PRIORITY` and `<X>_BOOT_DISABLE` constants change or disable them, and the console
