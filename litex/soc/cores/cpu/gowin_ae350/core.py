@@ -91,16 +91,22 @@ class GowinAE350(CPU):
     }
 
     native_memory = False
+    use_dlm = False
 
     @staticmethod
     def args_fill(parser):
         cpu_group = parser.add_argument_group(title="AE350 CPU options")
         cpu_group.add_argument("--with-native-memory", action="store_true",
             help="Connect DDR directly to LiteDRAM (requires --l2-size=0).")
+        cpu_group.add_argument("--use-dlm", action="store_true",
+            help="Use internal DLM as SRAM for BIOS data and stack.")
 
     @staticmethod
     def args_read(args):
         GowinAE350.native_memory = args.with_native_memory
+        GowinAE350.use_dlm = args.use_dlm
+        if args.use_dlm:
+            args.integrated_sram_size = 0
 
     # Memory Mapping.
     @property
@@ -120,10 +126,13 @@ class GowinAE350(CPU):
     def gcc_flags(self):
         flags  = " -mabi=ilp32 -march=rv32imafdc"
         flags += " -D__AE350__"
+        if self.use_dlm:
+            flags += " -D__AE350_USE_DLM__"
         return flags
 
     def __init__(self, platform, variant="standard", *args, **kwargs):
         self.native_memory = bool(self.native_memory)
+        self.use_dlm = bool(self.use_dlm)
 
         self.platform     = platform
         self.apb_ce       = APB_CE_APB
@@ -357,6 +366,14 @@ class GowinAE350(CPU):
         # SDRAM is added after CPU setup; retain the dictionaries to use its final region and L2 size.
         self.soc_regions   = soc.bus.regions
         self.soc_constants = soc.constants
+
+        if self.use_dlm:
+            # Use the internal DLM as the BIOS's SRAM, without a fabric bus slave.
+            soc.bus.add_region("sram", SoCRegion(origin=0xa020_0000, size=0x10000, linker=True))
+            soc.mem_map["sram"] = 0xa020_0000
+            # The BIOS polls the hardware; application interrupt wiring stays enabled.
+            soc.constants.pop("CONFIG_CPU_HAS_INTERRUPT", None)
+            soc.add_constant("UART_POLLING")
 
         soc.add_config("CPU_COUNT", 1)
         soc.add_config("CPU_ISA",   "rv32imafdc")
