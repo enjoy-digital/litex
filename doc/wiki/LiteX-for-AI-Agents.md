@@ -156,7 +156,7 @@ fastest way to check what a target or an option really produces.
 
 ```sh
 python3 -m venv ~/litex-venv && source ~/litex-venv/bin/activate
-wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py && chmod +x litex_setup.py
+wget https://raw.githubusercontent.com/enjoy-digital/litex/HEAD/litex_setup.py && chmod +x litex_setup.py
 ./litex_setup.py --init --install --config=standard && ./litex_setup.py --gcc=riscv && pip3 install meson ninja
 ```
 
