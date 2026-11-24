@@ -4,8 +4,11 @@
 
 # Get SHA1: git rev-parse --short=7 HEAD
 
+# branch: None follows the remote's default branch (master or main, so a repository can rename its
+# default branch without a change here); set it only to use another branch than the default one.
+
 class GitRepo:
-    def __init__(self, url, clone="regular", develop=True, editable=True, sha1=None, branch="master",
+    def __init__(self, url, clone="regular", develop=True, editable=True, sha1=None, branch=None,
         tag=None):
         assert clone in ["regular", "recursive"]
         self.url      = url
@@ -39,14 +42,14 @@ git_repos = {
     "liteeth":      GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litedram":     GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litepcie":     GitRepo(url="https://github.com/enjoy-digital/", tag=True),
-    "litenvme":     GitRepo(url="https://github.com/enjoy-digital/", branch="main"),
+    "litenvme":     GitRepo(url="https://github.com/enjoy-digital/"),
     "litesata":     GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litesdcard":   GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litescope":    GitRepo(url="https://github.com/enjoy-digital/", tag=True),
     "litejesd204":  GitRepo(url="https://github.com/enjoy-digital/", tag=True),
-    "litedsp":      GitRepo(url="https://github.com/enjoy-digital/", branch="main"),
+    "litedsp":      GitRepo(url="https://github.com/enjoy-digital/"),
     "litespi":      GitRepo(url="https://github.com/litex-hub/",     tag=True),
-    "litei2c":      GitRepo(url="https://github.com/litex-hub/",     tag=True, branch="main"),
+    "litei2c":      GitRepo(url="https://github.com/litex-hub/",     tag=True),
 
     # LiteX Boards.
     # -------------
@@ -69,8 +72,8 @@ git_repos = {
     "pythondata-cpu-microwatt":    GitRepo(url="https://github.com/litex-hub/", sha1=0xc69953aff92),
 
     # MIPS CPU(s).
-    "pythondata-cpu-cdim":         GitRepo(url="https://github.com/litex-hub/", branch="main"),
-    "pythondata-cpu-gs232":        GitRepo(url="https://github.com/litex-hub/", branch="main"),
+    "pythondata-cpu-cdim":         GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-gs232":        GitRepo(url="https://github.com/litex-hub/"),
 
     # RISC-V CPU(s).
     "pythondata-cpu-blackparrot":  GitRepo(url="https://github.com/litex-hub/"),
@@ -81,14 +84,14 @@ git_repos = {
     "pythondata-cpu-cva6":         GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
     "pythondata-cpu-ibex":         GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
     "pythondata-cpu-minerva":      GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-naxriscv":     GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-naxriscv":     GitRepo(url="https://github.com/litex-hub/", branch="master"), # Default branch is main.
     "pythondata-cpu-openc906":     GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-picorv32":     GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-rocket":       GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-sentinel":     GitRepo(url="https://github.com/litex-hub/", branch="main"),
+    "pythondata-cpu-sentinel":     GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-serv":         GitRepo(url="https://github.com/litex-hub/"),
-    "pythondata-cpu-veer_eh1":     GitRepo(url="https://github.com/litex-hub/", branch="main"),
-    "pythondata-cpu-vexiiriscv":   GitRepo(url="https://github.com/litex-hub/", branch="main"),
+    "pythondata-cpu-veer_eh1":     GitRepo(url="https://github.com/litex-hub/"),
+    "pythondata-cpu-vexiiriscv":   GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-vexriscv":     GitRepo(url="https://github.com/litex-hub/"),
     "pythondata-cpu-vexriscv-smp": GitRepo(url="https://github.com/litex-hub/", clone="recursive"),
 }

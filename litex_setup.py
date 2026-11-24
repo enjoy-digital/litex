@@ -22,8 +22,8 @@ current_path = os.path.abspath(os.curdir)
 python3      = sys.executable
 git_repos    = None
 install_configs = None
-litex_setup_url = "https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py"
-litex_repos_url = "https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_repos.py"
+litex_setup_url = "https://raw.githubusercontent.com/enjoy-digital/litex/HEAD/litex_setup.py"
+litex_repos_url = "https://raw.githubusercontent.com/enjoy-digital/litex/HEAD/litex_repos.py"
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -260,6 +260,58 @@ def git_pull(repo_path):
     if output:
         print_indented(output)
 
+def git_ref_exists(repo_path, ref):
+    try:
+        subprocess_check_output(["git", "rev-parse", "--quiet", "--verify", ref], cwd=repo_path)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+def git_remote_default_branch(repo_path, remote="origin"):
+    # Asked to the remote (and not read from origin/HEAD): it follows a rename of the default branch.
+    output = subprocess_check_output(["git", "ls-remote", "--symref", remote, "HEAD"], cwd=repo_path)
+    for line in output.splitlines():
+        if line.startswith("ref: refs/heads/"):
+            return line[len("ref: refs/heads/"):].split()[0]
+    raise subprocess.CalledProcessError(1, ["git", "ls-remote", "--symref", remote, "HEAD"])
+
+def git_switch_branch(name, repo_path, branch=None):
+    """Check out the branch to update: the given one, or else the remote's default branch.
+
+    When the remote renamed its default branch (master -> main), the local branch that tracked the
+    old name is renamed and moved to the new upstream, so the update can still fast-forward.
+    """
+    follow_default = branch is None
+    if follow_default:
+        branch = git_remote_default_branch(repo_path)
+    upstream = f"origin/{branch}"
+    # Single-branch clones (--clone-depth) only fetch the branch they were cloned on: fetch this one.
+    try:
+        refspecs = subprocess_check_output(["git", "config", "--get-all", "remote.origin.fetch"],
+            cwd=repo_path).split()
+    except subprocess.CalledProcessError:
+        refspecs = []
+    if not any(refspec.endswith("refs/heads/*:refs/remotes/origin/*") for refspec in refspecs):
+        subprocess_check_output(["git", "remote", "set-branches", "origin", branch], cwd=repo_path)
+    subprocess_check_output(["git", "fetch", "--quiet", "--prune", "origin"], cwd=repo_path)
+    if follow_default:
+        subprocess_check_output(["git", "remote", "set-head", "origin", branch], cwd=repo_path)
+    if not git_ref_exists(repo_path, f"refs/heads/{branch}"):
+        for old in ["master", "main"]:
+            if old == branch:
+                continue
+            if git_ref_exists(repo_path, f"refs/heads/{old}") and \
+               not git_ref_exists(repo_path, f"refs/remotes/origin/{old}"):
+                print_status(f"{name}: default branch renamed upstream, renaming local {old} to {branch}.")
+                subprocess_check_output(["git", "branch", "-m", old, branch], cwd=repo_path)
+                break
+        else:
+            subprocess_check_output(["git", "branch", "--track", branch, upstream], cwd=repo_path)
+    subprocess_check_output(["git", "checkout", "--quiet", branch], cwd=repo_path)
+    if not git_ref_exists(repo_path, f"{branch}@{{upstream}}"):
+        subprocess_check_output(["git", "branch", f"--set-upstream-to={upstream}", branch], cwd=repo_path)
+    return branch
+
 def git_is_repository(repo_path):
     if not os.path.isdir(repo_path):
         return False
@@ -377,12 +429,13 @@ def litex_setup_init_repos(config="standard", tag=None, dev_mode=False, clone_de
             except subprocess.CalledProcessError:
                 git_init_error(name, repo_path, "clone")
                 raise SetupError
-            # Use specific Branch.
-            try:
-                subprocess_check_output(["git", "checkout", "--quiet", repo.branch], cwd=repo_path)
-            except subprocess.CalledProcessError:
-                git_init_error(name, repo_path, f"checkout branch {repo.branch} in")
-                raise SetupError
+            # Use specific Branch (else the clone is on the remote's default branch).
+            if repo.branch is not None:
+                try:
+                    subprocess_check_output(["git", "checkout", "--quiet", repo.branch], cwd=repo_path)
+                except subprocess.CalledProcessError:
+                    git_init_error(name, repo_path, f"checkout branch {repo.branch} in")
+                    raise SetupError
             # Use specific Tag (Optional).
             checked_out = False
             if repo.tag is not None:
@@ -437,9 +490,9 @@ def litex_setup_update_repos(config="standard", tag=None, assume_yes=False):
         repo_path = os.path.join(current_path, name)
         git_confirm_update_with_local_changes(name, repo_path, assume_yes=assume_yes)
         try:
-            subprocess_check_output(["git", "checkout", "--quiet", repo.branch], cwd=repo_path)
+            git_switch_branch(name, repo_path, branch=repo.branch)
         except subprocess.CalledProcessError:
-            git_update_error(name, repo_path, f"checkout {repo.branch} in")
+            git_update_error(name, repo_path, f"checkout {repo.branch or 'the default branch'} in")
             raise SetupError
         try:
             git_pull(repo_path)
@@ -819,7 +872,7 @@ def litex_setup_format_frozen_repo(name, repo, git_url, git_sha1):
     if repo.editable is not True:
         args.append(f"editable={repo.editable}")
     args.append(f'sha1="{git_sha1}"')
-    if repo.branch != "master":
+    if repo.branch is not None:
         args.append(f'branch="{repo.branch}"')
     if repo.tag is not None:
         args.append(f"tag={repr(repo.tag)}")
@@ -835,7 +888,7 @@ def litex_setup_format_frozen_repos(config="standard"):
         "# Get SHA1: git rev-parse HEAD",
         "",
         "class GitRepo:",
-        '    def __init__(self, url, clone="regular", develop=True, editable=True, sha1=None, branch="master",',
+        '    def __init__(self, url, clone="regular", develop=True, editable=True, sha1=None, branch=None,',
         '        tag=None):',
         '        assert clone in ["regular", "recursive"]',
         "        self.url      = url",

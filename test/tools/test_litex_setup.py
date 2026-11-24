@@ -277,6 +277,90 @@ class TestLiteXSetup(unittest.TestCase):
         self.assertIn("git pull --ff-only", output)
         self.assertNotIn("Traceback", output)
 
+    def rename_remote_default_branch(self, upstream_path, keep_master=False):
+        # What a GitHub default branch rename does: main replaces master, and becomes the HEAD.
+        remote_path = os.path.join(self.workspace, "remotes", "litex.git")
+        self.git(upstream_path, "branch", "-m", "master", "main")
+        self.append_file(os.path.join(upstream_path, "README.md"), "after rename\n")
+        self.git(upstream_path, "commit", "-am", "After rename")
+        self.git(upstream_path, "push", "-u", "origin", "main")
+        self.git(remote_path, "symbolic-ref", "HEAD", "refs/heads/main")
+        if not keep_master:
+            self.git(upstream_path, "push", "origin", "--delete", "master")
+        return self.git_output(upstream_path, "rev-parse", "HEAD")
+
+    def test_update_follows_remote_default_branch_rename(self):
+        upstream_path, repo_path = self.create_repo()
+        litex_setup.git_repos["litex"].branch = None
+        head = self.rename_remote_default_branch(upstream_path)
+
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            litex_setup.litex_setup_update_repos(config="minimal")
+
+        self.assertIn("renaming local master to main", output.getvalue())
+        self.assertEqual(self.git_output(repo_path, "rev-parse", "--abbrev-ref", "HEAD"), "main")
+        self.assertEqual(self.git_output(repo_path, "rev-parse", "--abbrev-ref", "main@{upstream}"), "origin/main")
+        self.assertEqual(self.git_output(repo_path, "rev-parse", "HEAD"), head)
+        self.assertEqual(self.git_output(repo_path, "branch", "--list", "master"), "")
+
+    def test_update_switches_to_new_default_branch_when_master_is_mirrored(self):
+        upstream_path, repo_path = self.create_repo()
+        litex_setup.git_repos["litex"].branch = None
+        head = self.rename_remote_default_branch(upstream_path, keep_master=True)
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            litex_setup.litex_setup_update_repos(config="minimal")
+
+        self.assertEqual(self.git_output(repo_path, "rev-parse", "--abbrev-ref", "HEAD"), "main")
+        self.assertEqual(self.git_output(repo_path, "rev-parse", "--abbrev-ref", "main@{upstream}"), "origin/main")
+        self.assertEqual(self.git_output(repo_path, "rev-parse", "HEAD"), head)
+
+    def test_update_keeps_explicit_branch(self):
+        upstream_path, repo_path = self.create_repo()
+        self.rename_remote_default_branch(upstream_path, keep_master=True)
+        master = self.git_output(upstream_path, "rev-parse", "HEAD~1")
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            litex_setup.litex_setup_update_repos(config="minimal")
+
+        self.assertEqual(self.git_output(repo_path, "rev-parse", "--abbrev-ref", "HEAD"), "master")
+        self.assertEqual(self.git_output(repo_path, "rev-parse", "HEAD"), master)
+
+    def test_init_without_branch_uses_remote_default_branch(self):
+        upstream_path, _remote_path, _commits = self.create_remote_only_repo()
+        litex_setup.git_repos["litex"].branch = None
+        head = self.rename_remote_default_branch(upstream_path)
+
+        litex_setup.litex_setup_init_repos(config="minimal")
+
+        repo_path = os.path.join(self.workspace, "litex")
+        self.assertEqual(self.git_output(repo_path, "rev-parse", "--abbrev-ref", "HEAD"), "main")
+        self.assertEqual(self.git_output(repo_path, "rev-parse", "HEAD"), head)
+
+    def test_update_follows_remote_default_branch_rename_in_shallow_clone(self):
+        upstream_path, _remote_path, _commits = self.create_remote_only_repo()
+        litex_setup.git_repos["litex"].branch = None
+        litex_setup.litex_setup_init_repos(config="minimal", clone_depth=1)
+        head = self.rename_remote_default_branch(upstream_path)
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            litex_setup.litex_setup_update_repos(config="minimal")
+
+        repo_path = os.path.join(self.workspace, "litex")
+        self.assertEqual(self.git_output(repo_path, "rev-parse", "--abbrev-ref", "HEAD"), "main")
+        self.assertEqual(self.git_output(repo_path, "rev-parse", "HEAD"), head)
+
+    def test_format_frozen_repo_omits_default_branch(self):
+        repo = SimpleNamespace(clone="regular", develop=True, editable=True, branch=None, tag=None)
+        formatted = litex_setup.litex_setup_format_frozen_repo(
+            "litex", repo, "https://github.com/enjoy-digital/", "0ddfb44723438d39636cfbf63e9e27609ec9bd43")
+        self.assertNotIn("branch=", formatted)
+        repo.branch = "master"
+        formatted = litex_setup.litex_setup_format_frozen_repo(
+            "litex", repo, "https://github.com/enjoy-digital/", "0ddfb44723438d39636cfbf63e9e27609ec9bd43")
+        self.assertIn('branch="master"', formatted)
+
     def test_init_clone_depth_creates_shallow_clone(self):
         self.create_remote_only_repo()
 
