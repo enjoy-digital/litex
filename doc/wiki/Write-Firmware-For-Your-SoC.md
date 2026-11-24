@@ -100,12 +100,19 @@ binaries, or for boards that run on their own:
 | SD card, SATA | `boot.bin` or `boot.json` on a FAT partition | Boards running on their own. |
 | SPI flash | `demo.fbi` at `FLASH_BOOT_ADDRESS`, `python3 target.py --flash` | Production, copied to RAM or run in place. |
 | ROM | `--integrated-rom-init=demo.bin` (replaces the BIOS, link with `--mem rom`) | Small SoCs without main RAM. |
-| Main RAM at reset | `SoCCore(integrated_main_ram_init=...)`, `litex_sim --ram-init=demo.bin` | Simulation, self-contained test SoCs. |
+| Main RAM at reset | `SoCCore(integrated_main_ram_init=...)`, `litex_sim --ram-init=demo.bin` | Simulation, self-contained test SoCs (integrated main RAM). |
 
 The BIOS tries them in this order: serial, flash, ROM, SD card, SATA, network; the
 `<X>_BOOT_PRIORITY` and `<X>_BOOT_DISABLE` constants change or disable them, and the console
 commands `serialboot`, `netboot [file]`, `flashboot`, `romboot`, `sdcardboot [file]` and
 `sataboot [file]` run one again ([BIOS](BIOS.md#boot-methods)).
+
+Main RAM at reset only works with an integrated main RAM (`integrated_main_ram_size`, block
+RAM; an external DRAM cannot be preloaded): pass the words with
+`integrated_main_ram_init=get_mem_data("demo.bin", data_width=..., endianness=..., offset=...)`
+add `soc.add_config("MAIN_RAM_INIT")`, or the BIOS memtest overwrites the image, and
+`soc.add_constant("ROM_BOOT_ADDRESS", soc.mem_map["main_ram"])` so that `romboot` jumps to it
+(`litex_sim --ram-init` sets the boot address).
 
 ### Serial
 
