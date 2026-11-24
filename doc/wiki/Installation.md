@@ -28,7 +28,7 @@ minutes later the directory holds Migen, LiteX, the cores, the boards and the us
 ```
 litex/
     litex_setup.py  migen/  litex/  litex-boards/
-    litedram/  liteeth/  litepcie/  litesata/  litesdcard/  litescope/  liteiclink/  litejesd204/  litespi/  litei2c/  litedsp/
+    litedram/  liteeth/  litepcie/  litenvme/  litesata/  litesdcard/  litescope/  liteiclink/  litejesd204/  litespi/  litei2c/  litedsp/
     pythondata-software-picolibc/  pythondata-software-compiler_rt/
     pythondata-cpu-vexriscv/  pythondata-cpu-vexriscv-smp/  pythondata-cpu-naxriscv/  pythondata-cpu-vexiiriscv/  pythondata-cpu-serv/  ...
 ```
