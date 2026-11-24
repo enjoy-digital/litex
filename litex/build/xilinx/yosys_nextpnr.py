@@ -30,9 +30,65 @@ def _unwrap(value):
     return value.value if isinstance(value, Constant) else value
 
 
-_openxc7_default_prjxray_db_dir = "/snap/openxc7/current/opt/nextpnr-xilinx/external/prjxray-db/"
-_openxc7_runtime_chipdb_dir     = "${CHIPDB:?Set CHIPDB to your nextpnr-xilinx chipdb directory}"
-_openxc7_runtime_prjxray_db_dir = "${PRJXRAY_DB_DIR:-" + _openxc7_default_prjxray_db_dir + "}"
+_openxc7_default_prefix = "/opt/openxc7"
+
+# prjxray and the openXC7 makefiles spell a part as <die><package>-<speedgrade>.
+_xc7_part_body = r"xc7(?:[azks][0-9]+[a-z]*|vx[0-9]+[a-z]*)"
+_xc7_die_pattern = re.compile(r"^(xc7z007s|xc7z012s|xc7z014s|xc7[azks][0-9]+t?|xc7vx[0-9]+t?)")
+_xc7_die_aliases = {
+    "xc7a35t" : "xc7a50t",
+    "xc7z007s": "xc7z010",
+}
+
+
+def _openxc7_prefix():
+    return os.environ.get("NEXTPNR_XILINX_DIR") or _openxc7_default_prefix
+
+
+def _openxc7_prjxray_db_dir():
+    prjxray_db_dir = os.environ.get("PRJXRAY_DB_DIR")
+    if prjxray_db_dir:
+        return prjxray_db_dir
+    prefix = _openxc7_prefix()
+    candidates = [
+        os.path.join(prefix, "share", "nextpnr", "prjxray-db"),            # toolchain-installer
+        os.path.join(prefix, "share", "nextpnr", "external", "prjxray-db"), # toolchain-nix
+    ]
+    for candidate in candidates:
+        if os.path.isdir(candidate):
+            return candidate
+    return candidates[0]
+
+
+def _normalize_xc7_part(device):
+    part = device.lower()
+    package_last = re.fullmatch(rf"({_xc7_part_body})-([a-z]+[0-9]+)-([0-9][a-z]*)", part)
+    if package_last:
+        return (
+            f"{package_last.group(1)}{package_last.group(2)}-"
+            f"{package_last.group(3).upper()}")
+    speed_first = re.fullmatch(rf"({_xc7_part_body})-([0-9])([a-z]+[0-9]+)", part)
+    if speed_first:
+        return f"{speed_first.group(1)}{speed_first.group(3)}-{speed_first.group(2)}"
+
+    # prjxray spells the speed grade's letters uppercase (-2L, -1IL).
+    base, separator, speedgrade = part.rpartition("-")
+    speedgrade_is_present = re.fullmatch(r"[0-9][a-z]*", speedgrade) is not None
+    speedgrade_suffix_is_present = bool(separator) and speedgrade_is_present
+    if speedgrade_suffix_is_present:
+        return f"{base}-{speedgrade.upper()}"
+    return part
+
+
+def _xc7_part_without_speedgrade(part):
+    return re.sub(r"-[0-9][a-z]*$", "", part, flags=re.IGNORECASE)
+
+
+def _xc7_die(part):
+    die = _xc7_die_pattern.match(part)
+    if die is None:
+        return part
+    return _xc7_die_aliases.get(die.group(1), die.group(1))
 
 
 # YosysNextpnrToolchain ----------------------------------------------------------------------------
@@ -63,6 +119,7 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
         "a": "artix7",
         "k": "kintex7",
         "s": "spartan7",
+        "v": "virtex7",
         "z": "zynq7"
     }
 
@@ -73,17 +130,36 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
             "xc7a200t-sbg484-1": "xc7a200tsbg484-1",
         }.get(self.platform.device, self.platform.device)
 
+    @property
+    def openxc7_part(self):
+        return _normalize_xc7_part(self.device)
+
+    @property
+    def openxc7_dbpart(self):
+        return _xc7_part_without_speedgrade(self.openxc7_part)
+
+    @property
+    def openxc7_die(self):
+        return _xc7_die(self.openxc7_dbpart)
+
     def _check_properties(self):
-        pattern = re.compile("xc7([aksz])([0-9]+)(.*)-([0-9])")
-        g = pattern.search(self.platform.device)
-        if g is None:
+        device = self.platform.device.lower()
+        family_match = re.match(r"xc7([akszv])", device)
+        if family_match is None:
             raise OSError(f"Unsupported device {self.platform.device}")
-        if not self.dbpart:
-            self.dbpart = f"xc7{g.group(1)}{g.group(2)}{g.group(3)}"
 
         if not self._xc7family:
-            fam = g.group(1)
-            self._xc7family = self.xc7_family_map[fam]
+            family_prefix = family_match.group(1)
+            self._xc7family = self.xc7_family_map[family_prefix]
+
+        if not self.dbpart:
+            pattern = re.compile(r"xc7([akszv])([0-9]+)(.*)-([0-9])")
+            dbpart_match = pattern.search(self.platform.device)
+            if dbpart_match is not None:
+                self.dbpart = (
+                    f"xc7{dbpart_match.group(1)}{dbpart_match.group(2)}{dbpart_match.group(3)}")
+            else:
+                self.dbpart = self.platform.device
 
     def build_timing_constraints(self, vns):
         max_freq = 0
@@ -118,6 +194,120 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
     def _fix_instance(self, instance):
         pass
 
+    def _openxc7_chipdb_dir(self):
+        family_env = self._xc7family.upper() + "_CHIPDB"
+        for env_name in ("CHIPDB", family_env):
+            chipdb_dir = os.environ.get(env_name)
+            if chipdb_dir:
+                return chipdb_dir
+        return os.path.join(os.getcwd(), "chipdb")
+
+    def _openxc7_bbasm(self):
+        bbasm = os.path.join(_openxc7_prefix(), "bin", "bbasm")
+        if os.path.exists(bbasm):
+            return bbasm
+        bbasm = which("bbasm")
+        if bbasm is None:
+            return "bbasm"
+        return bbasm
+
+    def _openxc7_fpga_as(self):
+        fpga_as = os.path.join(_openxc7_prefix(), "bin", "fpga-as")
+        if os.path.exists(fpga_as):
+            return fpga_as
+        return which("fpga-as")
+
+    def _ensure_openxc7_chipdb(self, chipdb):
+        chipdb_exists = os.path.exists(chipdb)
+        if chipdb_exists:
+            return
+
+        print(f"Chip database file '{chipdb}' not found, generating...")
+        prefix         = _openxc7_prefix()
+        prjxray_db_dir = _openxc7_prjxray_db_dir()
+        xilinx_gen     = os.path.join(
+            prefix, "share", "nextpnr", "himbaechel", "uarch", "xilinx", "gen", "xilinx_gen.py")
+        generator_missing = not os.path.exists(xilinx_gen)
+        if generator_missing:
+            raise OSError(
+                f"{xilinx_gen} does not exist; the openXC7 toolchain at '{prefix}' "
+                f"has no openXC7/nextpnr chip database generator. Rebuild it from "
+                f"https://github.com/openXC7/toolchain-installer, or set CHIPDB to a "
+                f"directory containing {self.openxc7_dbpart}.bin."
+            )
+
+        xray_family_dir = os.path.join(prjxray_db_dir, self._xc7family)
+        database_missing = not os.path.isdir(xray_family_dir)
+        if database_missing:
+            raise OSError(
+                f"{xray_family_dir} does not exist. Set PRJXRAY_DB_DIR to the "
+                f"project X-Ray database, or NEXTPNR_XILINX_DIR to the toolchain prefix."
+            )
+
+        os.makedirs(os.path.dirname(chipdb), exist_ok=True)
+        bba = os.path.splitext(chipdb)[0] + ".bba"
+        python3 = os.path.join(prefix, "venv", "bin", "python3")
+        if not os.path.exists(python3):
+            python3 = which("python3")
+            if python3 is None:
+                python3 = "python3"
+
+        command = [
+            python3, xilinx_gen,
+            "--xray",   xray_family_dir,
+            "--device", self.openxc7_die,
+            "--bba",    bba,
+        ]
+        print(str(command))
+        try:
+            result = subprocess.run(command)
+            if result.returncode != 0:
+                raise OSError(f"Error occured during xilinx_gen.py's execution for '{chipdb}'.")
+            result = subprocess.run([self._openxc7_bbasm(), "-l", bba, chipdb])
+            if result.returncode != 0:
+                raise OSError(f"Error occured during bbasm's execution for '{chipdb}'.")
+        finally:
+            bba_exists = os.path.exists(bba)
+            if bba_exists:
+                os.remove(bba)
+
+    def _build_openxc7_bitstream_options(self, prjxray_db_arg_dir):
+        db_root = os.path.join(prjxray_db_arg_dir, self._xc7family)
+        part    = self.openxc7_part
+        fpga_as = self._openxc7_fpga_as()
+        fpga_as_available = fpga_as is not None
+        if fpga_as_available:
+            self._pre_packer_cmd = []
+            self.packer_cmd      = fpga_as
+            self._packer_opts    = (
+                "--prjxray_db_path={db_root} --part {part} {top}.fasm > {top}.bit"
+            ).format(
+                db_root = db_root,
+                part    = part,
+                top     = self._build_name
+            )
+        else:
+            self._pre_packer_cmd = ["fasm2frames"]
+            self._pre_packer_opts["fasm2frames"] = (
+                "--part {part} --db-root {db_root} "
+                "{top}.fasm > {top}.frames"
+            ).format(
+                part    = part,
+                db_root = db_root,
+                top     = self._build_name
+            )
+            self.packer_cmd   = "xc7frames2bit"
+            self._packer_opts = (
+                "--part_file {db_root}/{part}/part.yaml "
+                "--part_name {part} "
+                "--frm_file {top}.frames "
+                "--output_file {top}.bit"
+            ).format(
+                db_root = db_root,
+                part    = part,
+                top     = self._build_name
+            )
+
     def finalize(self):
         # toolchain-specific fixes
         for instance in self.fragment.specials:
@@ -127,46 +317,26 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
         run = getattr(self, "_run", True)
 
         if self.is_openxc7:
-            chipdb_dir = os.environ.get('CHIPDB')
-            if run and (chipdb_dir is None or chipdb_dir == ""):
-                raise OSError(
-                    "Error: please specify the directory, where you store your "
-                    "nextpnr-xilinx chipdb files in the environment variable "
-                    "CHIPDB (directory may be empty)"
-                )
-            chipdb_arg_dir = chipdb_dir or _openxc7_runtime_chipdb_dir
+            chipdb_dir         = self._openxc7_chipdb_dir()
+            chipdb_arg_dir     = "${CHIPDB:-" + chipdb_dir + "}"
+            dbpart             = self.openxc7_dbpart
+            chipdb             = os.path.join(chipdb_dir, dbpart) + ".bin"
+            chipdb_arg         = os.path.join(chipdb_arg_dir, dbpart) + ".bin"
+            prjxray_db_dir     = _openxc7_prjxray_db_dir()
+            prjxray_db_arg_dir = "${PRJXRAY_DB_DIR:-" + prjxray_db_dir + "}"
+            if run:
+                self._ensure_openxc7_chipdb(chipdb)
         else:
-            chipdb_dir = "/usr/share/nextpnr/xilinx-chipdb"
-            chipdb_arg_dir = chipdb_dir
-
-        chipdb     = os.path.join(chipdb_dir,     self.dbpart) + ".bin" if chipdb_dir else None
-        chipdb_arg = os.path.join(chipdb_arg_dir, self.dbpart) + ".bin"
-        if run and not os.path.exists(chipdb):
-            if self.is_openxc7:
-                print(f"Chip database file '{chipdb}' not found, generating...")
-                pypy3 = os.environ.get('PYPY3')
-                if pypy3 is None or pypy3 == "":
-                    pypy3 = which("pypy3")
-                    if pypy3 is None:
-                        pypy3 = "python3"
-
-                nextpnr_xilinx_python_dir = os.environ.get('NEXTPNR_XILINX_PYTHON_DIR')
-                if nextpnr_xilinx_python_dir is None or nextpnr_xilinx_python_dir == "":
-                    nextpnr_xilinx_python_dir = "/snap/openxc7/current/opt/nextpnr-xilinx/python"
-                bba = self.dbpart + ".bba"
-                bbaexport = [
-                    pypy3,
-                    os.path.join(nextpnr_xilinx_python_dir, "bbaexport.py"),
-                    "--device", self.device,
-                    "--bba",    bba,
-                ]
-                print(str(bbaexport))
-                if subprocess.run(bbaexport).returncode != 0:
-                    raise OSError(f"Error occured during bbaexport's execution for '{chipdb}'.")
-                if subprocess.run(["bbasm", "-l", bba, chipdb]).returncode != 0:
-                    raise OSError(f"Error occured during bbasm's execution for '{chipdb}'.")
-                os.remove(bba)
-            else:
+            chipdb_dir         = "/usr/share/nextpnr/xilinx-chipdb"
+            dbpart             = self.dbpart
+            chipdb             = os.path.join(chipdb_dir, dbpart) + ".bin"
+            chipdb_arg         = chipdb
+            prjxray_db_dir     = "/usr/share/nextpnr/prjxray-db/"
+            prjxray_db_arg_dir = prjxray_db_dir
+            chipdb_exists = os.path.exists(chipdb)
+            chipdb_missing = not chipdb_exists
+            chipdb_required = run and chipdb_missing
+            if chipdb_required:
                 raise OSError(f"Chip database file '{chipdb}' not found. Please check your toolchain installation!")
 
         # pnr options
@@ -175,43 +345,37 @@ class XilinxYosysNextpnrToolchain(YosysNextPNRToolchain):
             chipdb = chipdb_arg
         )
 
-        if self.is_openxc7:
-            prjxray_db_dir = os.environ.get('PRJXRAY_DB_DIR')
-            if prjxray_db_dir is None or prjxray_db_dir == "":
-                prjxray_db_dir = _openxc7_default_prjxray_db_dir
-            prjxray_db_arg_dir = (
-                os.environ.get('PRJXRAY_DB_DIR') or
-                _openxc7_runtime_prjxray_db_dir
-            )
-        else:
-            prjxray_db_dir = "/usr/share/nextpnr/prjxray-db/"
-            prjxray_db_arg_dir = prjxray_db_dir
-
-        if run and not os.path.isdir(prjxray_db_dir):
+        prjxray_db_exists = os.path.isdir(prjxray_db_dir)
+        prjxray_db_missing = not prjxray_db_exists
+        prjxray_db_required = run and prjxray_db_missing
+        if prjxray_db_required:
             raise OSError(f"{prjxray_db_dir} does not exist on your system. \n" + \
                     "Do you have the openXC7 toolchain installed? \n" + \
                     "You can get it here: https://github.com/openXC7/toolchain-installer")
 
-        # pre packer options
-        self._pre_packer_opts[self._pre_packer_cmd[0]] = (
-            "--part {part} --db-root {db_root} "
-            "{top}.fasm > {top}.frames"
-        ).format(
-            part    = self.device,
-            db_root = os.path.join(prjxray_db_arg_dir, self._xc7family),
-            top     = self._build_name
-        )
-        # packer options
-        self._packer_opts += (
-            "--part_file {db_dir}/{part}/part.yaml "
-            "--part_name {part} "
-            "--frm_file {top}.frames "
-            "--output_file {top}.bit"
-        ).format(
-            db_dir = os.path.join(prjxray_db_arg_dir, self._xc7family),
-            part   = self.device,
-            top    = self._build_name
-        )
+        if self.is_openxc7:
+            self._build_openxc7_bitstream_options(prjxray_db_arg_dir)
+        else:
+            # pre packer options
+            self._pre_packer_opts[self._pre_packer_cmd[0]] = (
+                "--part {part} --db-root {db_root} "
+                "{top}.fasm > {top}.frames"
+            ).format(
+                part    = self.device,
+                db_root = os.path.join(prjxray_db_arg_dir, self._xc7family),
+                top     = self._build_name
+            )
+            # packer options
+            self._packer_opts += (
+                "--part_file {db_dir}/{part}/part.yaml "
+                "--part_name {part} "
+                "--frm_file {top}.frames "
+                "--output_file {top}.bit"
+            ).format(
+                db_dir = os.path.join(prjxray_db_arg_dir, self._xc7family),
+                part   = self.device,
+                top    = self._build_name
+            )
 
         return YosysNextPNRToolchain.finalize(self)
 
