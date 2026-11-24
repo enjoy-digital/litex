@@ -109,7 +109,7 @@ commands `serialboot`, `netboot [file]`, `flashboot`, `romboot`, `sdcardboot [fi
 
 Main RAM at reset only works with an integrated main RAM (`integrated_main_ram_size`, block
 RAM; an external DRAM cannot be preloaded): pass the words with
-`integrated_main_ram_init=get_mem_data("demo.bin", data_width=..., endianness=..., offset=...)`
+`integrated_main_ram_init=get_mem_data("demo.bin", data_width=..., endianness=..., offset=...)`,
 add `soc.add_config("MAIN_RAM_INIT")`, or the BIOS memtest overwrites the image, and
 `soc.add_constant("ROM_BOOT_ADDRESS", soc.mem_map["main_ram"])` so that `romboot` jumps to it
 (`litex_sim --ram-init` sets the boot address).
