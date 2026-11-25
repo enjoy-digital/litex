@@ -89,7 +89,7 @@ boot method, and a target tunes the BIOS with `soc.add_constant()`/`soc.add_conf
 | `ETH_DYNAMIC_IP`, `ETH_WITH_DHCP`, `ETH_NETBOOT_SKIP_JSON` | Change the addresses from the console, use DHCP, skip `boot.json`. |
 | `CONFIG_BIOS_NO_PROMPT`, `CONFIG_BIOS_NO_DELAYS`, `CONFIG_BIOS_NO_BOOT` | Trim the BIOS: no banner, no delays (simulation), no boot sequence. |
 | `CONFIG_BIOS_NO_BUILD_TIME`, `CONFIG_BIOS_NO_CRC` | Reproducible builds, no CRC check. |
-| `CONFIG_MAIN_RAM_INIT` (set by `--integrated-main-ram-init`) | Skip the memtest of a preloaded main RAM. |
+| `CONFIG_MAIN_RAM_INIT` (`soc.add_config("MAIN_RAM_INIT")`) | Skip the memtest of a preloaded main RAM. |
 | `UART_POLLING` | Set automatically when the CPU has no interrupts. |
 
 The Builder options shape the binary: `--bios-console {full,no-history,no-autocomplete,lite,disable}`
