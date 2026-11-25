@@ -16,7 +16,7 @@ something is editing the file.
 python3 -m venv ~/litex-venv && source ~/litex-venv/bin/activate   # recent distributions protect the system Python
 pip3 install meson ninja
 mkdir litex && cd litex
-wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
+wget https://raw.githubusercontent.com/enjoy-digital/litex/HEAD/litex_setup.py
 chmod +x litex_setup.py
 ./litex_setup.py --init --install --config=standard
 ```

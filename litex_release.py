@@ -233,6 +233,18 @@ def complete_release_phase(release_state, state_file, phase):
 
 # Release Checks -----------------------------------------------------------------------------------
 
+def get_remote_default_branch(repo_path):
+    # No branch set in litex_repos.py: the remote's default branch, from origin/HEAD when the clone
+    # has it, else asked to the remote.
+    ref = git_output(repo_path, "symbolic-ref", "--short", "refs/remotes/origin/HEAD", check=False)
+    if ref:
+        return ref[len("origin/"):]
+    output = git_output(repo_path, "ls-remote", "--symref", "origin", "HEAD", check=False) or ""
+    for line in output.splitlines():
+        if line.startswith("ref: refs/heads/"):
+            return line[len("ref: refs/heads/"):].split()[0]
+    return "unknown"
+
 def release_repo_state(name, tag):
     repo_path = os.path.join(setup.current_path, name)
     state = {
@@ -258,6 +270,8 @@ def release_repo_state(name, tag):
     state["last_tag"]      = get_current_tag(repo_path)
     state["setup_version"] = get_setup_version(os.path.join(repo_path, "setup.py"))
     state["branch"]        = git_output(repo_path, "rev-parse", "--abbrev-ref", "HEAD", check=False) or "unknown"
+    if state["expected"] is None:
+        state["expected"] = get_remote_default_branch(repo_path)
     state["upstream"]      = git_output(
         repo_path,
         "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}",

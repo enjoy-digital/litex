@@ -107,6 +107,18 @@ class TestLiteXRelease(unittest.TestCase):
         self.assertEqual(self.git_output(repo_path, "tag", "-l", "2099.04"), "")
         self.assertEqual(litex_release.get_setup_version(os.path.join(repo_path, "setup.py")), "2025.12")
 
+    def test_remote_default_branch(self):
+        repo_path   = self.create_repo()
+        remote_path = os.path.join(self.workspace, "remotes", "liteeth.git")
+        # No origin/HEAD in the clone: asked to the remote.
+        self.assertEqual(litex_release.get_remote_default_branch(repo_path), "master")
+        self.git(repo_path, "push", "origin", "master:main")
+        self.git(remote_path, "symbolic-ref", "HEAD", "refs/heads/main")
+        self.assertEqual(litex_release.get_remote_default_branch(repo_path), "main")
+        # origin/HEAD in the clone: used as is.
+        self.git(repo_path, "remote", "set-head", "origin", "master")
+        self.assertEqual(litex_release.get_remote_default_branch(repo_path), "master")
+
     def test_dirty_tree_is_rejected(self):
         repo_path = self.create_repo()
         with open(os.path.join(repo_path, "setup.py"), "a", encoding="utf-8") as f:

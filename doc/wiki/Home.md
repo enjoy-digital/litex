@@ -86,7 +86,7 @@ To discover more products/projects built with LiteX, visit the [projects page](P
 
 ```sh
 python3 -m venv ~/litex-venv && source ~/litex-venv/bin/activate
-wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
+wget https://raw.githubusercontent.com/enjoy-digital/litex/HEAD/litex_setup.py
 chmod +x litex_setup.py
 ./litex_setup.py --init --install --config=standard   # Migen, LiteX, the cores, the boards, the CPUs
 ./litex_setup.py --gcc=riscv                           # the RISC-V compiler for the BIOS and software

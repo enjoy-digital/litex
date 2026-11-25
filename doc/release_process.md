@@ -9,6 +9,8 @@ litescope, litejesd204, litespi, litei2c, litex-boards
 ```
 
 `migen` and `pythondata-*` repositories are not released by default.
+The plan to move the default branches from `master` to `main` is in
+[default_branch.md](default_branch.md).
 Release commands live in `litex_release.py`; `litex_setup.py` is kept for
 checkout, update, install and toolchain setup tasks.
 
