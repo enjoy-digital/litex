@@ -18,12 +18,14 @@ class CommPCIe(CSRBuilder):
         # Initialize CSRBuilder and set up BAR path.
         CSRBuilder.__init__(self, comm=self, csr_csv=csr_csv)
         if "/sys/bus/pci/devices" not in bar:
-            bar = f"/sys/bus/pci/devices/0000:{bar}/resource0"
+            # Add the default PCI domain when the address has none (bus:device.function).
+            if bar.count(":") == 1:
+                bar = f"0000:{bar}"
+            bar = f"/sys/bus/pci/devices/{bar}/resource0"
         self.bar         = bar
         self.enable_path = self.bar.replace("resource0", "enable")
         self.debug       = debug
-        # Ensure accessibility for enable and resource files.
-        self._make_accessible(self.enable_path)
+        # Ensure accessibility for the resource file.
         self._make_accessible(self.bar)
 
         self.enable()
@@ -37,10 +39,14 @@ class CommPCIe(CSRBuilder):
 
     def enable(self):
         # Enable PCIe device if not already enabled.
-        with open(self.enable_path, "r+") as enable:
-            if enable.read(1) == "0":
-                enable.seek(0)
-                enable.write("1")
+        with open(self.enable_path, "r") as enable:
+            if enable.read(1) != "0":
+                return
+        # Writing enable requires CAP_SYS_ADMIN whatever the file permissions (use sudo if needed).
+        cmd = ["tee", self.enable_path]
+        if os.geteuid() != 0:
+            cmd = ["sudo"] + cmd
+        subprocess.run(cmd, input=b"1", stdout=subprocess.DEVNULL, check=True)
 
     def open(self):
         # Open the BAR file and create mmap.

@@ -13,6 +13,7 @@ import unittest
 from unittest import mock
 
 from litex.tools.litex_server import RemoteServer, _read_merger
+from litex.tools.remote.comm_pcie import CommPCIe
 from litex.tools.remote.comm_uart import CommUART, UARTBONE_PORT_POLL
 from litex.tools.remote.comm_uart import CMD_READ_BURST_INCR
 from litex.tools.remote.comm_uart import CMD_WRITE_BURST_INCR, CMD_WRITE_BURST_FIXED
@@ -240,6 +241,35 @@ class TestRemoteServer(unittest.TestCase):
         self.assertEqual(server.addr_size, 4)
         self.assertEqual(server.read_max_length, 1)
         self.assertEqual(server.read_bursts, ["incr"])
+
+
+class TestCommPCIe(unittest.TestCase):
+    def build(self, bar, enable="1"):
+        with mock.patch.object(CommPCIe, "_make_accessible"), \
+             mock.patch("builtins.open", mock.mock_open(read_data=enable)), \
+             mock.patch("os.geteuid", return_value=1000), \
+             mock.patch("subprocess.run") as run:
+            comm = CommPCIe(bar)
+        return comm, run
+
+    def test_address_without_domain(self):
+        comm, _ = self.build("04:00.0")
+        self.assertEqual(comm.bar, "/sys/bus/pci/devices/0000:04:00.0/resource0")
+
+    def test_address_with_domain(self):
+        comm, _ = self.build("0001:01:00.0")
+        self.assertEqual(comm.bar,         "/sys/bus/pci/devices/0001:01:00.0/resource0")
+        self.assertEqual(comm.enable_path, "/sys/bus/pci/devices/0001:01:00.0/enable")
+
+    def test_enabled_device_is_not_written(self):
+        _, run = self.build("04:00.0", enable="1")
+        run.assert_not_called()
+
+    def test_disabled_device_is_enabled_with_sudo(self):
+        _, run = self.build("04:00.0", enable="0")
+        run.assert_called_once()
+        self.assertEqual(run.call_args.args[0], ["sudo", "tee", "/sys/bus/pci/devices/0000:04:00.0/enable"])
+        self.assertEqual(run.call_args.kwargs["input"], b"1")
 
 
 class TestCommUART(unittest.TestCase):
