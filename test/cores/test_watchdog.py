@@ -12,8 +12,10 @@ from litex.soc.cores.watchdog import Watchdog
 
 
 # Control register bit offsets (mirror Watchdog._control fields).
-FEED   = 1 << 0
-ENABLE = 1 << 8
+FEED         = 1 << 0
+ENABLE       = 1 << 8
+RESET        = 1 << 16
+PAUSE_HALTED = 1 << 24
 
 
 class TestWatchdog(unittest.TestCase):
@@ -92,6 +94,56 @@ class TestWatchdog(unittest.TestCase):
                 self.assertLess(ticks, cycles_val + 32, "did not re-expire")
                 yield
         run_simulation(dut, gen())
+
+    def test_initial_cycles_starts_at_reset(self):
+        cycles_val = 20
+        dut = Watchdog(width=16, initial_cycles=cycles_val)
+
+        def gen():
+            # Enabled, in reset mode and paused when halted at reset, without any CSR write.
+            self.assertEqual((yield dut._control.storage), ENABLE | RESET | PAUSE_HALTED)
+            self.assertEqual((yield dut._cycles.storage), cycles_val)
+            ticks = 0
+            while (yield dut.execute) == 0:
+                ticks += 1
+                self.assertLess(ticks, cycles_val + 32, "execute never asserted")
+                yield
+            self.assertGreaterEqual(ticks, cycles_val)
+        run_simulation(dut, gen())
+
+    def test_initial_cycles_feed_and_disable(self):
+        cycles_val = 20
+        dut = Watchdog(width=16, initial_cycles=cycles_val)
+
+        def gen():
+            # Feeding reloads initial_cycles and keeps it quiet.
+            control = (yield dut._control.storage)
+            for _ in range(4):
+                for _ in range(cycles_val // 2):
+                    yield
+                    self.assertEqual((yield dut.execute), 0)
+                yield from dut._control.write(control | FEED)
+            # Disabling stops it.
+            yield from dut._control.write(0)
+            for _ in range(4*cycles_val):
+                yield
+                self.assertEqual((yield dut.execute), 0)
+        run_simulation(dut, gen())
+
+    def test_initial_cycles_default_is_disabled(self):
+        dut = Watchdog(width=16)
+
+        def gen():
+            self.assertEqual((yield dut._control.storage), 0)
+            for _ in range(64):
+                yield
+                self.assertEqual((yield dut.execute), 0)
+        run_simulation(dut, gen())
+
+    def test_initial_cycles_must_fit_width(self):
+        Watchdog(width=8, initial_cycles=2**8 - 1)
+        with self.assertRaises(AssertionError):
+            Watchdog(width=8, initial_cycles=2**8)
 
 
 if __name__ == "__main__":
