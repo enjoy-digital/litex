@@ -4259,7 +4259,7 @@ def soc_core_args(parser, cpu_type="vexriscv", cpu_variant=None):
     soc_group.add_argument("--with-watchdog",            action="store_true",                help="Enable Watchdog.")
     soc_group.add_argument("--watchdog-width",           default=32,   type=auto_int,        help="Watchdog width.")
     soc_group.add_argument("--watchdog-reset-delay",     default=None, type=auto_int,        help="Watchdog reset delay.")
-    soc_group.add_argument("--watchdog-initial-cycles",  default=0,    type=auto_int,        help="Watchdog timeout after reset, in cycles (0: watchdog disabled at reset).")
+    soc_group.add_argument("--watchdog-initial-cycles",  default=0,    type=auto_int,        help="Watchdog timeout after reset, in cycles, to cover the BIOS boot (0: watchdog disabled at reset).")
 
     # L2 Cache.
     soc_group.add_argument("--l2-size",                  default=8192, type=auto_int,        help="L2 cache size.")

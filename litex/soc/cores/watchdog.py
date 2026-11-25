@@ -19,8 +19,11 @@ class Watchdog(LiteXModule):
 
     Provides a generic Watchdog core.
 
-    If ``initial_cycles`` is non-zero, the watchdog comes out of reset enabled, in reset mode,
-    with a timeout of ``initial_cycles`` cycles. The software must then feed or disable it in time.
+    If ``initial_cycles`` is non-zero, the watchdog comes out of reset enabled, in reset mode and
+    paused while the CPU is halted (debugger), with a timeout of ``initial_cycles`` cycles. The
+    software must then feed or disable it in time. The BIOS does neither: the timeout has to cover
+    the BIOS boot (memtest, serial/network boot, time at the console) and the firmware startup,
+    or the SoC resets in a loop.
     """
 
     def __init__(self, width=32, crg_rst=None, reset_delay=0, halted=None, initial_cycles=0):

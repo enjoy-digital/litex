@@ -51,7 +51,7 @@ SoCCore(platform, clk_freq,
     with_cpu_jtag_debug=False, cpu_jtag_debug_chain=4, cpu_jtag_debug_clk_freq=10e6, cpu_jtag_debug_transport="user",
     # The timer, the controller, the watchdog.
     with_timer=True, timer_uptime=False, with_ctrl=True,
-    with_watchdog=False, watchdog_width=32, watchdog_reset_delay=None,
+    with_watchdog=False, watchdog_width=32, watchdog_reset_delay=None, watchdog_initial_cycles=0,
     **kwargs)
 ```
 
@@ -97,7 +97,7 @@ add_spi_flash(name, mode="4x", clk_freq=20e6, module=None, ...)
 add_spi_ram(name, mode="4x", clk_freq=20e6, module=None, ...)
 add_cpu(name="vexriscv", variant="standard", reset_address=None, cfu=None)
 add_controller(name="ctrl"); add_identifier(name="identifier", identifier="LiteX SoC", with_build_time=True)
-add_timer(name="timer0"); add_watchdog(name="watchdog0", width=32, crg_rst=None, reset_delay=None)
+add_timer(name="timer0"); add_watchdog(name="watchdog0", width=32, crg_rst=None, reset_delay=None, initial_cycles=0)
 add_uart(name="uart", uart_name="serial", baudrate=115200, fifo_depth=16)
 add_uartbone(name="uartbone", uart_name="serial", baudrate=115200)
 add_jtagbone(name="jtagbone", chain=1)
