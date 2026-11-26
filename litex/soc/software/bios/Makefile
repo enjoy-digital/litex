@@ -102,7 +102,6 @@ vpath %.a $(PACKAGES:%=../%)
 	$(CC) $(LDFLAGS) -T $(BIOS_DIRECTORY)/$(LSCRIPT) -N -o $@ \
 		$(OBJECTS) \
 		$(PACKAGES:%=-L../%) \
-		-Wl,--whole-archive \
 		-Wl,--start-group \
 		$(REGULAR_LIBS:lib%=-l%) \
 		$(ALWAYS_LINK_LIBFLAGS) \
