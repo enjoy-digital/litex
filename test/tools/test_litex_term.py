@@ -419,5 +419,57 @@ class TestLiteXTermScript(unittest.TestCase):
         self.assertIsNone(term._console)
 
 
+class TestLiteXTermJSONImages(unittest.TestCase):
+    def make_term(self, images):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "boot.json")
+            with open(path, "w") as f:
+                f.write(images)
+            output = io.StringIO()
+            with redirect_stdout(output):
+                term = LiteXTerm(True, None, None, path, False)
+            return term, d, output.getvalue()
+
+    def test_boots_last_image_without_bootargs(self):
+        term, d, _ = self.make_term('{"Image": "0x40000000", "rootfs.cpio": "0x41000000"}')
+        self.assertEqual(term.mem_regions, {
+            os.path.join(d, "Image"):       "0x40000000",
+            os.path.join(d, "rootfs.cpio"): "0x41000000",
+        })
+        self.assertEqual(term.boot_address, "0x41000000")
+
+    def test_bootargs_is_not_uploaded_and_sets_boot_address(self):
+        term, d, output = self.make_term(
+            '{"Image": "0x40000000", "opensbi.bin": "0x40f00000",'
+            ' "bootargs": {"r1": "0x00000000", "r2": "0x00000000", "r3": "0x00000000", "addr": "0x40f00000"}}'
+        )
+        self.assertEqual(list(term.mem_regions), [os.path.join(d, "Image"), os.path.join(d, "opensbi.bin")])
+        self.assertEqual(term.boot_address, "0x40f00000")
+        self.assertNotIn("Warning", output)
+
+    def test_bootargs_before_images_does_not_change_boot_address(self):
+        term, _, _ = self.make_term('{"bootargs": {"addr": "0x40000000"}, "Image": "0x40000000", "dtb": "0x41000000"}')
+        self.assertEqual(term.boot_address, "0x40000000")
+        self.assertEqual(len(term.mem_regions), 2)
+
+    def test_bootargs_registers_warn(self):
+        _, _, output = self.make_term('{"Image": "0x40000000", "bootargs": {"r1": "0x41000000", "addr": "0x40000000"}}')
+        self.assertIn("bootargs r1 is not supported by serial boot", output)
+
+    def test_legacy_scalar_bootargs_is_ignored(self):
+        term, d, _ = self.make_term('{"Image": "0x40000000", "bootargs": "console=liteuart"}')
+        self.assertEqual(list(term.mem_regions), [os.path.join(d, "Image")])
+        self.assertEqual(term.boot_address, "0x40000000")
+
+    def test_answer_magic_uploads_images_only(self):
+        term, d, _ = self.make_term('{"Image": "0x40000000", "bootargs": {"addr": "0x40000000"}}')
+        term.port = FakePort()
+        with mock.patch.object(term, "upload") as upload, mock.patch.object(term, "boot") as boot, \
+             redirect_stdout(io.StringIO()):
+            term.answer_magic()
+        upload.assert_called_once_with(os.path.join(d, "Image"), 0x40000000)
+        boot.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()

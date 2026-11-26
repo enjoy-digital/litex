@@ -384,12 +384,23 @@ class LiteXTerm:
             self.mem_regions = {kernel_image: kernel_address}
             self.boot_address = kernel_address
         if json_images is not None:
-            f = open(json_images, "r")
+            with open(json_images, "r") as f:
+                images = json.load(f)
             json_dir = os.path.dirname(json_images)
-            for k, v in json.load(f).items():
+            # "bootargs" is boot metadata (as in the BIOS boot.json), not an image to upload.
+            bootargs = images.pop("bootargs", None)
+            for k, v in images.items():
                 self.mem_regions[os.path.join(json_dir, k)] = v
+            if not self.mem_regions:
+                raise ValueError(f"{json_images}: no image to load.")
             self.boot_address = self.mem_regions[list(self.mem_regions.keys())[-1]]
-            f.close()
+            if isinstance(bootargs, dict):
+                if "addr" in bootargs:
+                    self.boot_address = bootargs["addr"]
+                # The SFL jump command only carries the address: r1/r2/r3 cannot be passed.
+                for r in ["r1", "r2", "r3"]:
+                    if int(bootargs.get(r, "0"), 16) != 0:
+                        print(f"[LITEX-TERM] Warning: bootargs {r} is not supported by serial boot, ignored.")
 
         self.reader_alive = False
         self.writer_alive = False
