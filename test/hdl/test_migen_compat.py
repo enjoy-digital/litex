@@ -28,6 +28,20 @@ class TestMigenCompat(unittest.TestCase):
         self.assertEqual(dut.cd_tx.name, "tx")
         self.assertEqual(dut.cd_sys.name, "sys")
 
+    def test_name_of_an_attribute_past_index_255(self):
+        # A function with more than 256 names stores the next attribute with EXTENDED_ARG +
+        # STORE_ATTR: the signal it creates is still named after the attribute.
+        names  = "".join(f"    self.n{i} = 0\n" for i in range(300))
+        source = "def build(self):\n" + names + "    self.late_signal = Signal()\n    return self.late_signal\n"
+        scope  = {"Signal": Signal}
+        exec(source, scope)
+
+        class Holder:
+            pass
+
+        signal = scope["build"](Holder())
+        self.assertEqual(signal.backtrace[-1][0], "late_signal")
+
 
 if __name__ == "__main__":
     unittest.main()
