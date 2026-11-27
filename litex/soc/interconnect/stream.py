@@ -269,9 +269,41 @@ class SyncFIFO(_FIFOWrapper):
             self.comb += self.level.eq(0)
 
 
+ASYNC_FIFO_SYNC_STAGES = 2 # Migen AsyncFIFO uses MultiReg's default (not configurable).
+
+def async_fifo_full_rate_depth(sync_stages=ASYNC_FIFO_SYNC_STAGES, buffered=False):
+    """Smallest AsyncFIFO depth that streams at full rate at any clock ratio.
+
+    A slot can only be reused once the write pointer has crossed to the read side and the read
+    pointer has crossed back: about 2*sync_stages + 1 cycles of the slower clock (5 cycles at a 1:1
+    ratio with 2 stages). The FIFO must hold that many words in flight, rounded up to a power of two
+    (Migen requirement). `buffered` does not lengthen that loop (its output register prefetches).
+    """
+    loop = 2*sync_stages + 1
+    return 1 << (loop - 1).bit_length()
+
+def async_fifo_depth_ok(depth, ratio, utilization=1.0):
+    """Whether an AsyncFIFO of `depth` keeps up with its traffic.
+
+    ratio       : f_slow/f_fast between the two clocks.
+    utilization : words crossing per cycle of the slower clock (1.0 = one every cycle).
+
+    Depth 4 is full rate up to a 2/3 ratio and loses 14-20% above it at utilization 1.0. It also
+    holds when at most 2/3 of the slower clock's cycles carry a word.
+    """
+    if depth >= async_fifo_full_rate_depth():
+        return True
+    return depth >= 4 and (ratio <= 2/3 or utilization <= 2/3)
+
 class AsyncFIFO(_FIFOWrapper):
+    """Asynchronous FIFO between the "write" and "read" clock domains.
+
+    depth=None selects the full-rate depth (8 with 2 synchronizer stages): one word per cycle of the
+    slower clock at any clock ratio. Smaller depths (min 4) limit throughput above a ~2/3 clock ratio
+    (bubbles), which is fine for low-rate traffic (interrupts, control) but not for streaming.
+    """
     def __init__(self, layout, depth=None, buffered=False):
-        depth = 4 if depth is None else depth
+        depth = async_fifo_full_rate_depth(buffered=buffered) if depth is None else depth
         assert depth >= 4
         _FIFOWrapper.__init__(self,
             fifo_class = fifo.AsyncFIFOBuffered if buffered else fifo.AsyncFIFO,
