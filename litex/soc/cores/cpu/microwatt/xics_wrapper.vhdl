@@ -46,7 +46,7 @@ begin
     wishbone_ack      <= wishbone_out.ack;
     wishbone_stall    <= wishbone_out.stall;
 
-    wishbone_in.adr   <= wishbone_adr(27 downto 0) & "00";
+    wishbone_in.adr   <= wishbone_adr;
     wishbone_in.dat   <= wishbone_dat_w;
     wishbone_in.cyc   <= wishbone_cyc;
     wishbone_in.stb   <= wishbone_stb;
@@ -116,7 +116,7 @@ begin
     wishbone_ack      <= wishbone_out.ack;
     wishbone_stall    <= wishbone_out.stall;
 
-    wishbone_in.adr   <= wishbone_adr(27 downto 0) & "00";
+    wishbone_in.adr   <= wishbone_adr;
     wishbone_in.dat   <= wishbone_dat_w;
     wishbone_in.cyc   <= wishbone_cyc;
     wishbone_in.stb   <= wishbone_stb;
