@@ -16,6 +16,7 @@ from litex.tools.litex_term import (
     sfl_ack_error,
     sfl_ack_success,
     sfl_cmd_abort,
+    sfl_cmd_jump,
     sfl_cmd_load,
     sfl_magic_ack,
 )
@@ -452,9 +453,56 @@ class TestLiteXTermJSONImages(unittest.TestCase):
         self.assertEqual(term.boot_address, "0x40000000")
         self.assertEqual(len(term.mem_regions), 2)
 
-    def test_bootargs_registers_warn(self):
-        _, _, output = self.make_term('{"Image": "0x40000000", "bootargs": {"r1": "0x41000000", "addr": "0x40000000"}}')
-        self.assertIn("bootargs r1 is not supported by serial boot", output)
+    def boot_payload(self, term):
+        frames = []
+        with mock.patch.object(term, "send_frame", side_effect=lambda f: frames.append(f) or True), \
+             redirect_stdout(io.StringIO()):
+            term.boot()
+        self.assertEqual(len(frames), 1)
+        self.assertEqual(frames[0].cmd, sfl_cmd_jump)
+        return frames[0].payload
+
+    def test_boot_sends_address_only_without_registers(self):
+        term, _, _ = self.make_term('{"Image": "0x40000000", "bootargs": {"r1": "0x0", "addr": "0x40000000"}}')
+        self.assertEqual(self.boot_payload(term), bytes.fromhex("40000000"))
+
+    def test_boot_sends_bootargs_registers(self):
+        term, _, _ = self.make_term(
+            '{"Image": "0x40000000", "opensbi.bin": "0x40f00000",'
+            ' "bootargs": {"r2": "0x40ef0000", "r3": "0xdeadbeef", "addr": "0x40f00000"}}'
+        )
+        self.assertEqual(term.boot_regs, [0, 0x40ef0000, 0xdeadbeef])
+        self.assertEqual(self.boot_payload(term), bytes.fromhex("40f00000" "00000000" "40ef0000" "deadbeef"))
+
+    def test_bootargs_register_must_fit_32_bits(self):
+        with self.assertRaisesRegex(ValueError, "boot value r1 does not fit in 32 bits"):
+            self.make_term('{"Image": "0x40000000", "bootargs": {"r1": "0x100000000"}}')
+
+    def test_top_level_metadata_is_not_uploaded(self):
+        # The BIOS also accepts addr/r1/r2/r3 at the top level of boot.json.
+        term, d, _ = self.make_term('{"Image": "0x40000000", "dtb": "0x40ef0000", "r1": "0x40ef0000", "addr": "0x40000000"}')
+        self.assertEqual(list(term.mem_regions), [os.path.join(d, "Image"), os.path.join(d, "dtb")])
+        self.assertEqual(term.boot_address, "0x40000000")
+        self.assertEqual(term.boot_regs, [0x40ef0000, 0, 0])
+
+    def test_boot_values_are_parsed_like_the_bios(self):
+        # Same rules as the BIOS parse_ulong: 0x hex, leading 0 octal, decimal, or a JSON number.
+        term, _, _ = self.make_term('{"Image": "0x40000000", "bootargs": {"r1": "16", "r2": "010", "r3": 32, "addr": "0X40000000"}}')
+        self.assertEqual(term.boot_regs, [16, 8, 32])
+        self.assertEqual(term.boot_address, "0x40000000")
+        for bad in ['"0x"', '"0x1g"', '"08"', '"-1"', '" 1"', '"1_0"', 'true', '1.5']:
+            with self.assertRaisesRegex(ValueError, "invalid boot value r1"):
+                self.make_term('{"Image": "0x40000000", "bootargs": {"r1": ' + bad + '}}')
+
+    def test_bootargs_rejects_unknown_and_duplicate_keys(self):
+        with self.assertRaisesRegex(ValueError, "unknown bootargs key \"Image\""):
+            self.make_term('{"bootargs": {"Image": "0x40000000"}}')
+        with self.assertRaisesRegex(ValueError, "duplicate boot JSON key \"r1\""):
+            self.make_term('{"Image": "0x40000000", "r1": "0x1", "bootargs": {"r1": "0x2"}}')
+
+    def test_kernel_boot_sends_address_only(self):
+        term = LiteXTerm(True, "Image", "0x40000000", None, False)
+        self.assertEqual(self.boot_payload(term), bytes.fromhex("40000000"))
 
     def test_legacy_scalar_bootargs_is_ignored(self):
         term, d, _ = self.make_term('{"Image": "0x40000000", "bootargs": "console=liteuart"}')
