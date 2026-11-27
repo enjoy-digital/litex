@@ -70,6 +70,11 @@ def _memory_generate_verilog(name, memory, namespace, add_data_file):
 
     # Memory Logic Declaration/Initialization.
     # ----------------------------------------
+    # Platform-dependent attributes of the memory (ex: {("rom_style", "block")}), as on a Signal.
+    memory_attr = getattr(memory, "attr", set())
+    if memory_attr:
+        from litex.gen.fhdl.verilog import _generate_attribute
+        r += _generate_attribute(memory_attr, attr_translate={})
     r += f"reg [{memory.width-1}:0] {_get_name(memory)}[0:{memory.depth-1}];\n"
     if memory.init is not None:
         content = ""
