@@ -235,12 +235,12 @@ class TestVideoFrameBufferData(unittest.TestCase):
             "v_sync_width"  : 1,
         }
 
-    def _capture_pixels(self, backend, format, hres, words):
+    def _capture_pixels(self, backend, format, hres, words, data_width=32):
         if backend == "wishbone":
-            port = wishbone.Interface(data_width=32)
+            port = wishbone.Interface(data_width=data_width)
         else:
             from litedram.common import LiteDRAMNativePort
-            port = LiteDRAMNativePort(mode="read", address_width=24, data_width=32)
+            port = LiteDRAMNativePort(mode="read", address_width=24, data_width=data_width)
 
         class DUT(Module):
             def __init__(self):
@@ -323,6 +323,14 @@ class TestVideoFrameBufferData(unittest.TestCase):
                         self._capture_pixels(backend, format, hres, words),
                         expected,
                     )
+
+    def test_pixel_order_with_dma_narrower_than_pixel(self):
+        # 16-bit DMA words up-converted to 32-bit rgb888 pixels (byte swap after the conversion).
+        self.assertEqual(
+            self._capture_pixels("wishbone", "rgb888", 2, [0x2211, 0x4433, 0x6655, 0x8877],
+                data_width=16),
+            [(0x33, 0x22, 0x11), (0x77, 0x66, 0x55)],
+        )
 
 
 # VideoTimingGenerator -----------------------------------------------------------------------------

@@ -45,6 +45,7 @@ independent of the mask, header-only packets as a beat with `be=0`) is in
 | --- | --- |
 | `SyncFIFO(layout, depth)`, `AsyncFIFO(layout, depth)` | FIFOs, synchronous or between two clock domains. |
 | `ClockDomainCrossing(layout, cd_from, cd_to)` | An `AsyncFIFO` between two domains, a passthrough when they are the same. |
+| `ClockDomainCrossingConverter(...)` (`stream_cdc.py`) | A `ClockDomainCrossing` with a width converter on the right side. |
 | `Buffer(layout)`, `PipeValid`, `PipeReady`, `Delay(layout, n)` | Register stages to break the timing paths: valid and payload, ready, or both. |
 | `Converter(nbits_from, nbits_to)`, `StrideConverter(desc_from, desc_to)` | Width conversion by an integer ratio, on a data width or on a full layout. |
 | `Gearbox(i_dw, o_dw)` | Width conversion for non-integer ratios (SerDes gearboxes). |
@@ -64,6 +65,13 @@ self.pipeline = stream.Pipeline(
     self.dma.sink,                               # sink: the DMA writing to memory
 )
 ```
+
+The `AsyncFIFO` default depth (8, from its synchronizer stages) sustains one word per cycle at
+any clock ratio; depth 4 is enough below a ~2/3 ratio or for low-rate traffic. When the crossing
+also converts the width (DMA words to pixels for example), `ClockDomainCrossingConverter` takes
+`clk_freq_from`/`clk_freq_to` and converts where the clock is fast enough: on the wide side
+(narrow crossing, smaller FIFO) when it can, else on the narrow side. It warns when an explicit
+depth or converter side will bubble.
 
 ## Packets
 

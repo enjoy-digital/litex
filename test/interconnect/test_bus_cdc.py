@@ -10,7 +10,7 @@ from migen import *
 
 from litex.gen import *
 
-from litex.soc.interconnect import axi, wishbone
+from litex.soc.interconnect import axi, wishbone, stream
 
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -406,7 +406,8 @@ class TestBusClockDomainCrossing(unittest.TestCase):
             run_simulation(dut, {"sys": [generator(dut)]}, self.clocks)
             return dut.accepted
 
-        self.assertEqual(ar_capacity(), 4)
+        # Default: the full-rate AsyncFIFO depth.
+        self.assertEqual(ar_capacity(), stream.async_fifo_full_rate_depth())
         self.assertEqual(ar_capacity(depth=16), 16)
         self.assertEqual(ar_capacity(depth=32), 32)
 
