@@ -303,13 +303,15 @@ class TestSoCVideoFrameBuffer(unittest.TestCase):
                 self.assertEqual(soc.bus.regions["video_framebuffer"].origin, 0x20600000)
 
     def test_pixels_conversion_clock_domain(self):
-        # DMA words wider than a pixel converted in the video clock domain (clock domain crossing
-        # of the DMA words) unless sys is at least 25% faster than the pixel clock; overridable.
+        # DMA words wider than a pixel converted in sys (clock domain crossing of the pixels) when
+        # sys is at least as fast as the pixel clock, else in the video clock domain (clock domain
+        # crossing of the DMA words); overridable.
         cases = [
             # (sys_clk_freq, timings, clock_faster_than_sys, converted in the video domain).
-            (75e6,  "1280x720@60Hz", None,  True),  # 74.25MHz pixel clock, 75MHz sys.
-            (90e6,  "1280x720@60Hz", None,  True),  # Less than 25% faster.
-            (100e6, "1280x720@60Hz", None,  False), # More than 25% faster.
+            (50e6,  "1280x720@60Hz", None,  True),  # 74.25MHz pixel clock, slower sys.
+            (74e6,  "1280x720@60Hz", None,  True),
+            (75e6,  "1280x720@60Hz", None,  False), # Sys at least as fast as the pixel clock.
+            (90e6,  "1280x720@60Hz", None,  False),
             (150e6, "1280x720@60Hz", None,  False),
             (75e6,  "640x480@60Hz",  None,  False), # 25.175MHz pixel clock.
             (75e6,  "1280x720@60Hz", False, False),
@@ -334,7 +336,7 @@ class TestSoCVideoFrameBuffer(unittest.TestCase):
                 )
                 # Clock domain crossing of 32-bit DMA words (video domain conversion) or of
                 # 16-bit pixels.
-                cdc_width = len(soc.video_framebuffer.cdc.sink.data)
+                cdc_width = len(soc.video_framebuffer.cdc.cdc.sink.data)
                 self.assertEqual(cdc_width, 32 if video_domain else 16)
 
     def test_missing_region_does_not_add_dma_master(self):

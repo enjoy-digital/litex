@@ -17,6 +17,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import stream
 from litex.soc.interconnect import wishbone
+from litex.soc.interconnect.stream_cdc import ClockDomainCrossingConverter
 from litex.soc.cores.code_tmds import TMDSEncoder
 
 from litex.build.io import SDROutput, DDROutput
@@ -1024,10 +1025,15 @@ class VideoFrameBuffer(LiteXModule):
 
     ``fifo_depth`` is expressed in bytes and rounded up to a whole DMA-port
     word. The port must provide read access to the framebuffer memory.
+
+    ``clock_faster_than_sys`` selects where DMA words wider than a pixel are
+    converted to pixels: in the video clock domain after the clock domain
+    crossing (True), in sys before it (False), or chosen from ``sys_clk_freq``
+    and ``pix_clk_freq`` (None, see stream_cdc.ClockDomainCrossingConverter).
     """
     def __init__(self, port, hres=800, vres=600, base=0x00000000,
         fifo_depth=64*KILOBYTE, clock_domain="sys", clock_faster_than_sys=False,
-        format="rgb888"):
+        format="rgb888", sys_clk_freq=None, pix_clk_freq=None):
         self.vtg_sink  = vtg_sink = stream.Endpoint(video_timing_layout)
         self.source    = source   = stream.Endpoint(video_data_layout)
         self.underflow = Signal()
@@ -1064,29 +1070,32 @@ class VideoFrameBuffer(LiteXModule):
             default_loop   = 1
         )
 
-        # If DRAM Data Width > depth and Video clock is faster than sys_clk:
-        if (port.data_width > depth) and clock_faster_than_sys:
-            # Do Clock Domain Crossing first...
-            self.cdc = stream.ClockDomainCrossing([("data", port.data_width)], cd_from="sys", cd_to=clock_domain)
-            self.comb += self.dma.source.connect(self.cdc.sink)
-            # ... and then Data-Width Conversion.
-            self.conv = ClockDomainsRenamer(clock_domain)(stream.Converter(port.data_width, depth))
-            self.comb += self.cdc.source.connect(self.conv.sink)
-            video_pipe_source = self.conv.source
-        # Elsif DMA Data Width <= depth or Video clock is slower than sys_clk:
+        # Data-Width Conversion + Clock Domain Crossing (DMA words in sys -> pixels in clock_domain).
+        if clock_faster_than_sys is None:
+            convert_in = "auto"
+        elif (port.data_width > depth) and clock_faster_than_sys:
+            convert_in = "to"   # Cross DMA words, convert in the video clock domain.
         else:
-            # Do Data-Width Conversion first...
-            self.conv = stream.Converter(port.data_width, depth)
-            self.comb += self.dma.source.connect(self.conv.sink)
-            # ... and then Clock Domain Crossing.
-            self.cdc = stream.ClockDomainCrossing([("data", depth)], cd_from="sys", cd_to=clock_domain)
-            self.comb += self.conv.source.connect(self.cdc.sink)
-            if (port.data_width < depth) and (depth == 32): # FIXME.
-                self.comb += [
-                    self.cdc.sink.data[ 0: 8].eq(self.conv.source.data[16:24]),
-                    self.cdc.sink.data[16:24].eq(self.conv.source.data[ 0: 8]),
-                ]
-            video_pipe_source = self.cdc.source
+            convert_in = "from" # Convert in sys, cross pixels.
+        self.cdc = ClockDomainCrossingConverter(
+            layout_from   = [("data", port.data_width)],
+            layout_to     = [("data", depth)],
+            cd_from       = "sys",
+            cd_to         = clock_domain,
+            convert_in    = convert_in,
+            clk_freq_from = sys_clk_freq,
+            clk_freq_to   = pix_clk_freq,
+        )
+        self.comb += self.dma.source.connect(self.cdc.sink)
+        video_pipe_source = self.cdc.source
+        if (port.data_width < depth) and (depth == 32): # FIXME.
+            # Byte swap of the up-converted pixels (CDC-transparent, so applied after it).
+            video_pipe_source = stream.Endpoint([("data", depth)])
+            self.comb += [
+                self.cdc.source.connect(video_pipe_source),
+                video_pipe_source.data[ 0: 8].eq(self.cdc.source.data[16:24]),
+                video_pipe_source.data[16:24].eq(self.cdc.source.data[ 0: 8]),
+            ]
 
         # Video Synchronization/Generation.
         first = Signal()
