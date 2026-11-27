@@ -706,6 +706,43 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             return 0;
         }}
 
+        static int test_serialboot_jump_passes_registers(void)
+        {{
+            static const unsigned char ack[] = SFL_MAGIC_ACK;
+            unsigned char jump_payload[16] = {{
+                0x40, 0xf0, 0x00, 0x00, /* addr */
+                0x00, 0x00, 0x00, 0x01, /* r1 */
+                0x40, 0xef, 0x00, 0x00, /* r2 */
+                0xde, 0xad, 0xbe, 0xef, /* r3 */
+            }};
+            unsigned char partial_payload[8] = {{0x12, 0x34, 0x56, 0x78, 0xff, 0xff, 0xff, 0xff}};
+            int jumped;
+
+            reset_serial(ack, SFL_MAGIC_LEN);
+            append_frame(SFL_CMD_JUMP, jump_payload, sizeof(jump_payload));
+            jumped = setjmp(boot_jmp);
+            if (jumped == 0)
+                (void)serialboot();
+            REQUIRE(jumped == 1);
+            REQUIRE(boot_addr == 0x40f00000);
+            REQUIRE(boot_r1 == 0x00000001);
+            REQUIRE(boot_r2 == 0x40ef0000);
+            REQUIRE(boot_r3 == 0xdeadbeef);
+
+            /* Registers are only read from a full 16-byte payload. */
+            reset_serial(ack, SFL_MAGIC_LEN);
+            append_frame(SFL_CMD_JUMP, partial_payload, sizeof(partial_payload));
+            jumped = setjmp(boot_jmp);
+            if (jumped == 0)
+                (void)serialboot();
+            REQUIRE(jumped == 1);
+            REQUIRE(boot_addr == 0x12345678);
+            REQUIRE(boot_r1 == 0);
+            REQUIRE(boot_r2 == 0);
+            REQUIRE(boot_r3 == 0);
+            return 0;
+        }}
+
         int main(void)
         {{
             if (test_boot_load_max_size())
@@ -737,6 +774,8 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             if (test_serialboot_stops_after_consecutive_invalid_loads())
                 return 1;
             if (test_serialboot_jump_boots_requested_address())
+                return 1;
+            if (test_serialboot_jump_passes_registers())
                 return 1;
             return 0;
         }}
