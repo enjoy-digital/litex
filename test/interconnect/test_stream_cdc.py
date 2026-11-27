@@ -177,6 +177,23 @@ class TestClockDomainCrossingConverterWarnings(unittest.TestCase):
             self._cdc(120e6, convert_in="from")
         self.assertIn("can't sustain", logs.output[0])
 
+    def _warnings(self, **kwargs):
+        # Warnings logged while building the helper (assertNoLogs needs Python 3.10+).
+        class Collect(logging.Handler):
+            def __init__(self):
+                logging.Handler.__init__(self, level=logging.WARNING)
+                self.messages = []
+            def emit(self, record):
+                self.messages.append(record.getMessage())
+        handler = Collect()
+        logger  = logging.getLogger(LOGGER)
+        logger.addHandler(handler)
+        try:
+            self._cdc(**kwargs)
+        finally:
+            logger.removeHandler(handler)
+        return handler.messages
+
     def test_no_warning_when_full_rate(self):
         for kwargs in [
             dict(clk_freq_to= 80e6),                   # Default depth.
@@ -185,8 +202,11 @@ class TestClockDomainCrossingConverterWarnings(unittest.TestCase):
             dict(clk_freq_to= 80e6, convert_in="from"),
         ]:
             with self.subTest(**kwargs):
-                with self.assertNoLogs(LOGGER, logging.WARNING):
-                    self._cdc(**kwargs)
+                self.assertEqual(self._warnings(**kwargs), [])
+
+    def test_warning_collector_sees_warnings(self):
+        # The collector used above does catch a warning when there is one.
+        self.assertEqual(len(self._warnings(clk_freq_to=80e6, depth=4)), 1)
 
 # ClockDomainCrossingConverter: datapath -----------------------------------------------------------
 
