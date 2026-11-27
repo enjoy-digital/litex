@@ -81,6 +81,30 @@ class TestMemoryVerilog(unittest.TestCase):
         self.assertIn("capture_memory_adr0 <= p0_adr1;", verilog)
         self.assertIn("assign p0_dat_r1 = capture_memory[capture_memory_adr0];", verilog)
 
+    def test_memory_attributes_on_the_declaration(self):
+        # Platform-dependent attributes set on a Memory (attr, as on a Signal) go on the
+        # declaration of the memory, where the synthesis tools read them (ex: rom_style).
+        class DUT(Module):
+            def __init__(self):
+                self.clock_domains.cd_sys = ClockDomain()
+                self.adr = Signal(4, name="adr")
+                self.dat = Signal(8, name="dat")
+                mem      = Memory(8, 16, init=list(range(16)), name="lookup")
+                mem.attr = {("rom_style", "block")}
+                port     = mem.get_port()
+                self.specials += mem, port
+                self.comb += [port.adr.eq(self.adr), self.dat.eq(port.dat_r)]
+
+            def get_ios(self):
+                return {self.adr, self.dat}
+
+        verilog = self._convert(DUT())
+        self.assertIn("(* rom_style = \"block\" *)\nreg [7:0] lookup[0:15];", verilog)
+
+    def test_memory_without_attributes_is_unchanged(self):
+        verilog = self._convert(_DualPortWriteFirstMemory())
+        self.assertNotIn("(*", verilog.split("reg [31:0] capture_memory[0:511];")[0].splitlines()[-1])
+
 
 if __name__ == "__main__":
     unittest.main()
