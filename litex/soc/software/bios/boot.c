@@ -379,7 +379,9 @@ int serialboot(void)
 			/* On SFL_CMD_JUMP ... */
 			case SFL_CMD_JUMP: {
 				uint32_t jump_addr;
+				uint32_t r1 = 0, r2 = 0, r3 = 0;
 
+				/* Payload: address, optionally followed by r1, r2, r3 (32-bit, big endian). */
 				if(frame.payload_length < 4) {
 					uart_write(SFL_ACK_ERROR);
 					if(serialboot_fail(&failures))
@@ -393,7 +395,12 @@ int serialboot(void)
 				/* Acknowledge and jump */
 				uart_write(SFL_ACK_SUCCESS);
 				jump_addr = get_uint32(&frame.payload[0]);
-				boot(0, 0, 0, jump_addr);
+				if(frame.payload_length >= 16) {
+					r1 = get_uint32(&frame.payload[4]);
+					r2 = get_uint32(&frame.payload[8]);
+					r3 = get_uint32(&frame.payload[12]);
+				}
+				boot(r1, r2, r3, jump_addr);
 				break;
 			}
 			default:

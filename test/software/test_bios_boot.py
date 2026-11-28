@@ -106,7 +106,7 @@ def _write_bios_stubs(include_dir):
     """)
 
 
-def test_bios_boot_helpers_host_coverage(tmp_path):
+def _build_bios_boot_harness(tmp_path):
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     include_dir = tmp_path / "include"
     source = tmp_path / "bios_boot_harness.c"
@@ -706,8 +706,64 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
             return 0;
         }}
 
-        int main(void)
+        static int test_serialboot_jump_passes_registers(void)
         {{
+            static const unsigned char ack[] = SFL_MAGIC_ACK;
+            unsigned char jump_payload[16] = {{
+                0x40, 0xf0, 0x00, 0x00, /* addr */
+                0x00, 0x00, 0x00, 0x01, /* r1 */
+                0x40, 0xef, 0x00, 0x00, /* r2 */
+                0xde, 0xad, 0xbe, 0xef, /* r3 */
+            }};
+            unsigned char partial_payload[8] = {{0x12, 0x34, 0x56, 0x78, 0xff, 0xff, 0xff, 0xff}};
+            int jumped;
+
+            reset_serial(ack, SFL_MAGIC_LEN);
+            append_frame(SFL_CMD_JUMP, jump_payload, sizeof(jump_payload));
+            jumped = setjmp(boot_jmp);
+            if (jumped == 0)
+                (void)serialboot();
+            REQUIRE(jumped == 1);
+            REQUIRE(boot_addr == 0x40f00000);
+            REQUIRE(boot_r1 == 0x00000001);
+            REQUIRE(boot_r2 == 0x40ef0000);
+            REQUIRE(boot_r3 == 0xdeadbeef);
+
+            /* Registers are only read from a full 16-byte payload. */
+            reset_serial(ack, SFL_MAGIC_LEN);
+            append_frame(SFL_CMD_JUMP, partial_payload, sizeof(partial_payload));
+            jumped = setjmp(boot_jmp);
+            if (jumped == 0)
+                (void)serialboot();
+            REQUIRE(jumped == 1);
+            REQUIRE(boot_addr == 0x12345678);
+            REQUIRE(boot_r1 == 0);
+            REQUIRE(boot_r2 == 0);
+            REQUIRE(boot_r3 == 0);
+            return 0;
+        }}
+
+        /* With a boot JSON as argument: print the registers/address the BIOS would boot with
+           (as used by SD card/SATA/netboot), or NOBOOT if the JSON is rejected. */
+        static int print_json_boot(const char *json)
+        {{
+            static struct load_ctx ctx;
+
+            memset(&ctx, 0, sizeof(ctx));
+            ctx.fail_after = -1;
+            if (setjmp(boot_jmp) == 0) {{
+                boot_from_json_buffer(json, strlen(json), record_load, &ctx);
+                printf("\\nNOBOOT\\n");
+                return 0;
+            }}
+            printf("\\nBOOT %lx %lx %lx %lx\\n", boot_r1, boot_r2, boot_r3, boot_addr);
+            return 0;
+        }}
+
+        int main(int argc, char **argv)
+        {{
+            if (argc == 2)
+                return print_json_boot(argv[1]);
             if (test_boot_load_max_size())
                 return 1;
             if (test_manifest_explicit_boot_address())
@@ -738,6 +794,8 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
                 return 1;
             if (test_serialboot_jump_boots_requested_address())
                 return 1;
+            if (test_serialboot_jump_passes_registers())
+                return 1;
             return 0;
         }}
     """)
@@ -763,6 +821,11 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
         str(binary),
     ]
     subprocess.check_call(cmd)
+    return cmd, binary
+
+
+def test_bios_boot_helpers_host_coverage(tmp_path):
+    cmd, binary = _build_bios_boot_harness(tmp_path)
     subprocess.check_call([str(binary)])
 
     # Reserve an explicit SRAM buffer through linker symbols, using its alias.
@@ -772,6 +835,55 @@ def test_bios_boot_helpers_host_coverage(tmp_path):
         "-Wl,--defsym=__bios_boot_sram_end=0x13080",
     ])
     subprocess.check_call([str(binary)])
+
+
+# boot.json cases (image addresses in the harness main RAM: 0x1000-0x1fff).
+BOOT_JSON_CASES = [
+    # Accepted.
+    '{"img.bin": "0x1000", "bootargs": {"r1": "0x00000001", "r2": "0x40ef0000", "r3": "0xdeadbeef", "addr": "0x1000"}}',
+    '{"img.bin": "0x1000", "r1": "16", "r2": "010", "r3": 255, "addr": "0x1000"}',
+    '{"bootargs": {"addr": "0x1000"}, "a.bin": "0x1000", "b.bin": "0x1800"}',
+    '{"a.bin": "0x1000", "b.bin": "0x1800"}',
+    '{"a.bin": "0x1000", "b.bin": "0x1800", "addr": "0x1800", "r1": "0"}',
+    '{"a.bin": "0x1000", "r1": "0XFF", "r2": "0xffffffff"}',
+    '{"a.bin": "0x1000", "bootargs": "console=liteuart"}',
+    '{"a.bin": "0x1000", "bootargs": {}}',
+    # Rejected.
+    '{"a.bin": "0x1000", "r1": "0x"}',
+    '{"a.bin": "0x1000", "r1": "0x1g"}',
+    '{"a.bin": "0x1000", "r1": "08"}',
+    '{"a.bin": "0x1000", "r1": "-1"}',
+    '{"a.bin": "0x1000", "r1": " 1"}',
+    '{"a.bin": "0x1000", "r1": true}',
+    '{"a.bin": "0x1000", "r1": 1.5}',
+    '{"a.bin": "0x1000", "r1": "1", "bootargs": {"r1": "2"}}',
+    '{"a.bin": "0x1000", "r1": "1", "r1": "2"}',
+    '{"a.bin": "0x1000", "bootargs": {"b.bin": "0x1800"}}',
+    '{"bootargs": {"addr": "0x1000"}}',
+]
+
+
+def _litex_term_boot(tmp_path, boot_json):
+    """Registers/address litex_term would send for a boot.json, or None if rejected."""
+    from litex.tools.litex_term import LiteXTerm
+
+    path = tmp_path / "boot.json"
+    path.write_text(boot_json)
+    try:
+        term = LiteXTerm(True, None, None, str(path), False)
+    except ValueError:
+        return None
+    return (*term.boot_regs, int(term.boot_address, 16))
+
+
+def test_bios_json_boot_matches_litex_term(tmp_path):
+    # The same boot.json must give the same r1/r2/r3/addr with the BIOS JSON boot (SD card/SATA/
+    # netboot, C) and with litex_term --images (serial boot, Python).
+    _, binary = _build_bios_boot_harness(tmp_path)
+    for boot_json in BOOT_JSON_CASES:
+        output = subprocess.check_output([str(binary), boot_json], text=True).split()
+        bios   = None if output[-1] == "NOBOOT" else tuple(int(v, 16) for v in output[-4:])
+        assert _litex_term_boot(tmp_path, boot_json) == bios, boot_json
 
 
 def test_bios_flashboot_host_coverage(tmp_path):

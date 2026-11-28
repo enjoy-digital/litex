@@ -375,32 +375,69 @@ def _clean(data):
     return re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", text).replace("\r", "")
 
 class LiteXTerm:
+    boot_metadata_keys = ["addr", "r1", "r2", "r3"]
+
+    @staticmethod
+    def parse_boot_value(json_images, key, value):
+        """Parse addr/r1/r2/r3 like the BIOS (parse_ulong): JSON number, or string in hex (0x),
+        octal (leading 0) or decimal. The SFL jump command carries them as 32-bit values."""
+        if isinstance(value, int) and not isinstance(value, bool):
+            result = value
+        elif isinstance(value, str) and re.fullmatch(r"0[xX][0-9a-fA-F]+", value):
+            result = int(value[2:], 16)
+        elif isinstance(value, str) and re.fullmatch(r"0[0-7]*", value):
+            result = int(value, 8)
+        elif isinstance(value, str) and re.fullmatch(r"[1-9][0-9]*", value):
+            result = int(value, 10)
+        else:
+            raise ValueError(f"{json_images}: invalid boot value {key}: {value!r}.")
+        if not (0 <= result < 2**32):
+            raise ValueError(f"{json_images}: boot value {key} does not fit in 32 bits (serial boot).")
+        return result
+
     def __init__(self, serial_boot, kernel_image, kernel_address, json_images, safe, exit_on=None):
         self.serial_boot = serial_boot
         if kernel_image is not None and json_images is not None:
             raise ValueError("LiteXTerm cannot use both kernel_image and json_images.")
         self.mem_regions = {}
+        self.boot_regs   = [0, 0, 0] # r1, r2, r3 passed to the booted program.
         if kernel_image is not None:
             self.mem_regions = {kernel_image: kernel_address}
             self.boot_address = kernel_address
         if json_images is not None:
+            def no_duplicate_keys(pairs):
+                keys = [k for k, _ in pairs]
+                for k in keys:
+                    if keys.count(k) > 1:
+                        raise ValueError(f"{json_images}: duplicate boot JSON key \"{k}\".")
+                return dict(pairs)
             with open(json_images, "r") as f:
-                images = json.load(f)
+                images = json.load(f, object_pairs_hook=no_duplicate_keys)
             json_dir = os.path.dirname(json_images)
-            # "bootargs" is boot metadata (as in the BIOS boot.json), not an image to upload.
+            # Boot metadata, as in the BIOS boot.json: addr/r1/r2/r3, at the top level or in a
+            # "bootargs" object (a scalar "bootargs" is ignored). Everything else is an image.
+            metadata = {}
             bootargs = images.pop("bootargs", None)
+            if isinstance(bootargs, dict):
+                for k, v in bootargs.items():
+                    if k not in self.boot_metadata_keys:
+                        raise ValueError(f"{json_images}: unknown bootargs key \"{k}\".")
+                    metadata[k] = v
+            for k in self.boot_metadata_keys:
+                if k in images:
+                    if k in metadata:
+                        raise ValueError(f"{json_images}: duplicate boot JSON key \"{k}\".")
+                    metadata[k] = images.pop(k)
             for k, v in images.items():
                 self.mem_regions[os.path.join(json_dir, k)] = v
             if not self.mem_regions:
                 raise ValueError(f"{json_images}: no image to load.")
             self.boot_address = self.mem_regions[list(self.mem_regions.keys())[-1]]
-            if isinstance(bootargs, dict):
-                if "addr" in bootargs:
-                    self.boot_address = bootargs["addr"]
-                # The SFL jump command only carries the address: r1/r2/r3 cannot be passed.
-                for r in ["r1", "r2", "r3"]:
-                    if int(bootargs.get(r, "0"), 16) != 0:
-                        print(f"[LITEX-TERM] Warning: bootargs {r} is not supported by serial boot, ignored.")
+            if "addr" in metadata:
+                self.boot_address = f"0x{self.parse_boot_value(json_images, 'addr', metadata['addr']):08x}"
+            for i, r in enumerate(["r1", "r2", "r3"]):
+                if r in metadata:
+                    self.boot_regs[i] = self.parse_boot_value(json_images, r, metadata[r])
 
         self.reader_alive = False
         self.writer_alive = False
@@ -758,6 +795,10 @@ class LiteXTerm:
         frame = SFLFrame()
         frame.cmd = sfl_cmd_jump
         frame.payload = int(self.boot_address, 16).to_bytes(4, "big")
+        # Optional r1/r2/r3 after the address (BIOSes without support only read the address).
+        if any(self.boot_regs):
+            for value in self.boot_regs:
+                frame.payload += value.to_bytes(4, "big")
         if not self.send_frame(frame):
             raise SFLUploadError("could not send boot command")
 
